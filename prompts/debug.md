@@ -1,5 +1,6 @@
 ---
 description: "Debug — hypothesis-driven investigation for complex bugs"
+model: openrouter/trinity-large-thinking
 thinking: high
 skill: fix
 restore: true

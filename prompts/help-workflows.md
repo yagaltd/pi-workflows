@@ -12,7 +12,7 @@ Show this reference and nothing else:
 /idea <description + repos/URLs>  →  Explore + plan + generate contracts (GPT-5.4)
 /plan <description>               →  Decompose into tasks + contracts (GPT-5.4)
 /explore <question>               →  Quick research, no planning (cheap)
-/status                           →  Show plan.md + contract progress (cheap)
+/status                           →  Show plan progress + cost summary (cheap)
 
 ### Executing
 /next                             →  Execute next task (reads contract first)
@@ -21,10 +21,14 @@ Show this reference and nothing else:
 /refactor <scope>                 →  Restructure code, behavior preserved
 /optimize <target>                →  Autoresearch loop
 
+### Prototyping
+/prototype <theories>             →  Parallel mini-prototypes to test approaches
+/integrate <prototype>            →  Integrate validated prototype into production
+
 ### Verification
 /contract [spec]                  →  Show contract for a task
-/verify                           →  agent-spec guard + project checks
-/review                           →  agent-spec lifecycle + bombadil + checks
+/verify                           →  3-layer pipeline: agent-spec + tdd-guard + project checks
+/review                           →  Mechanical verification + quality review (2-stage)
 
 ### Documentation
 /docs [area]                      →  Generate/update project docs (cheap model)
@@ -33,10 +37,4 @@ Show this reference and nothing else:
 ### Delegated
 /scout <area>                     →  Cheap subagent recon
 
-### Swan (autoresearch)
-/swan-explore <target>            →  Online research + codebase analysis
-/swan-prototype <theories>        →  3 parallel workers in worktrees
-/swan-integrate <prototype>       →  Integrate winner into production
-/swan-optimize <target>           →  Autoresearch loop
-
-### Flow: /idea → approve plan+contracts → /next × N → /verify → /review → /docs → ship
+### Flow: /idea → approve plan → /next × N → /review → ship

@@ -1,167 +1,298 @@
 # pi-workflows
 
 <p align="center">
-  <img src="cover.png" alt="pi-workflows" width="100%">
+  <img src="asset/cover.png" alt="pi-workflows" width="100%">
 </p>
 
-Cost-optimized, contract-driven multi-model workflow system for [pi](https://github.com/mariozechner/pi-coding-agent).
+Contract-driven multi-model workflow for [pi](https://github.com/mariozechner/pi-coding-agent).
 
-Different tasks need different models. Exploring a codebase doesn't require deep reasoning. Planning needs it. Building needs it sometimes. Reviewing should be cheap and deterministic.
-
-This package assigns the right model + thinking level to each task and enforces quality through **contracts** (agent-spec) and **property-based testing** (bombadil) — so you don't burn tokens on the wrong thing, and you don't ship code that doesn't satisfy its contract.
-
-## Requirements
-
-- [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
-- [pi-subagents](https://github.com/nicobailon/pi-subagents/) — parallel and chain execution
-- [pi-prompt-template-model](https://github.com/nicopreme/pi-prompt-template-model) — per-command model/thinking control
-- [agent-spec](https://github.com/ZhangHanDong/agent-spec) — contract verification (BDD specs + boundary enforcement)
-- [bombadil](https://github.com/antithesishq/bombadil) — property-based testing for web UIs (optional, for browser tasks)
-- [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` (optional)
+**Describe what you want. Agents plan, build, and verify through enforceable contracts.**
 
 ## Install
 
 ```bash
-pi install git:github.com/<your-user>/pi-workflows
+pi install git:github.com/yagaltd/pi-workflows
 ```
 
-Then restart pi. All commands appear in `/` autocomplete.
+Restart pi. All commands appear in `/` autocomplete.
 
-## Configure Models
+## Quick Start
 
-Edit the prompt files in `prompts/` to match your available models. The defaults assume:
-
-| Role | Default Model | Thinking | Why |
-|---|---|---|---|
-| Architect | `openrouter/openai/gpt-5.4` | high | Sees gaps, corrects plans, writes contracts |
-| Scout | `openrouter/xiaomi-mimo-v2-pro` | low | Fast cheap recon |
-| Builder | `openrouter/trinity-large-thinking` | high/medium | Executes within contract boundaries |
-| Reviewer | `zai/GLM5.1` | low | Runs agent-spec lifecycle + deterministic checks |
-
-To change a model, edit the `model:` field in the prompt file. Example:
-
-```yaml
-# prompts/idea.md
----
-model: openrouter/your-model-here
-thinking: high
----
 ```
+/idea I want to add caching to the API 
+         → you describe what you want
+         → scouts codebase, writes plan.md with contracts
+         → you review and approve
+     
+/next    → implements TASK 1 against contract, self-verifies
+/next    → implements TASK 2 against contract, self-verifies
+/status  → check progress + cost
+
+/review  → mechanical verification + quality review
+         → all green? ship it.
+```
+
+Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 
 ## Commands
 
-### Starting a new piece of work
-
-| Command | Model | What it does |
-|---|---|---|
-| `/idea <description + repos/URLs>` | GPT-5.4 | Explores, plans, writes `plan.md` + `.spec` contracts |
-| `/plan <description>` | GPT-5.4 | Plan only — you already have context. Generates contracts. |
-| `/explore <question>` | cheap model | Quick codebase/URL research, no planning |
-| `/status` | cheap model | Show `plan.md` progress |
-
-### Executing tasks
-
-| Command | Model | What it does |
-|---|---|---|
-| `/next` | trinity | Execute next pending task (implements against contract) |
-| `/add <feature>` | trinity | Build a feature against a contract |
-| `/fix <bug>` | trinity | Fix a bug within boundaries |
-| `/refactor <scope>` | trinity | Restructure code within boundaries |
-| `/optimize <target>` | current | Autoresearch loop: benchmark, iterate, keep winners |
-
-### Verification
-
-| Command | Model | What it does |
-|---|---|---|
-| `/contract [spec]` | current | Show the contract for a task |
-| `/verify` | current | Run agent-spec guard + full project checks |
-| `/review` | reviewer | Full verification: agent-spec lifecycle + bombadil + project checks |
-| `/scout <area>` | scout (cheap) | Isolated recon, returns compressed context |
-
-### Documentation
-
-| Command | Model | What it does |
-|---|---|---|
-| `/docs [area]` | cheap | Generate/update project docs (magic-docs format) |
-| `/docs all` | cheap | Generate full doc set (architecture, decisions, onboarding) |
-
-### Swan (autoresearch-specific)
+### Starting work
 
 | Command | What it does |
 |---|---|
-| `/swan-explore <target>` | Online research + codebase analysis |
-| `/swan-prototype <theories>` | 3 parallel workers in worktrees test theories |
-| `/swan-integrate <prototype>` | Integrate winning prototype into production |
-| `/swan-optimize <target>` | Autoresearch loop on a target |
+| `/idea <description + repos/URLs>` | Scout codebase → structured interview (if available) → write `plan.md` + `.spec` contracts |
+| `/plan <description>` | Plan only — you already have context. Generates contracts with bottleneck tags + testing strategies. |
+| `/explore <question>` | Quick codebase/URL research. Kill bad ideas fast. |
+| `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
 
-## The Workflow
+### Executing
 
+| Command | What it does |
+|---|---|
+| `/next` | Execute next pending task. Bottleneck-aware: adjusts model/thinking per task. Handles worker blockers. |
+| `/add <feature>` | Build a feature against a contract |
+| `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
+| `/refactor <scope>` | Restructure code within boundaries |
+| `/optimize <target>` | Autoresearch loop: benchmark → iterate → keep winners |
+
+### Verification
+
+| Command | What it does |
+|---|---|
+| `/verify` | 3-layer pipeline: agent-spec → tdd-guard → project checks. Short-circuits on fail. |
+| `/review` | Stage 1: mechanical verification (agent-spec + tdd-guard + project checks). Stage 2: quality review (if Stage 1 passes). |
+| `/contract [spec]` | Show the contract for a task |
+| `/scout <area>` | Isolated recon. Cheapest, no planning. |
+
+### Documentation
+
+| Command | What it does |
+|---|---|
+| `/docs [area]` | Generate/update project docs |
+| `/docs all` | Generate full doc set (architecture, decisions, onboarding) |
+
+### Prototyping
+
+| Command | What it does |
+|---|---|
+| `/prototype <theories>` | Run parallel mini-prototypes to test approaches and collect benchmarks |
+| `/integrate <prototype>` | Integrate validated prototype into production with full verification |
+
+## User Journeys
+
+**Adding a feature?**
 ```
-IDEA ──► EXPLORE ──► PLAN ──► EXECUTE ──► VERIFY ──► DOCS ──► SHIP
-          (cheap)    (GPT-5.4) (trinity)   (agent-spec) (cheap)  (you)
-          repos/     atomic    /next × N   contracts              ✓
-          URLs       tasks     implements  + bombadil
-                     plan.md   against     + project
-                     .spec     contracts   checks
-```
-
-Docs are auto-tracked by pi-magic-docs. After conversations go idle, Haiku nudges updates if needed.
-
-### 1. Start with an idea
-
-```
-/idea I want to add caching to the API, look at github.com/user/project
-```
-
-This uses GPT-5.4 with high thinking to:
-- Scout the repo or fetch URLs
-- Understand what exists
-- Decide: proceed, pivot, or kill
-- Write `plan.md` with atomic tasks
-- **Generate `.spec` contracts** for each worker task
-
-### 2. Review the plan + contracts
-
-The architect presents the plan and contracts. You approve, modify, or kill.
-
-Each contract defines:
-- **Intent**: what to build and why
-- **Decisions**: technical choices already fixed
-- **Boundaries**: which files the worker may change
-- **Completion Criteria**: BDD scenarios with explicit test selectors
-
-### 3. Execute task by task
-
-```
-/next    → reads contract, implements within boundaries, self-verifies
-/next    → and the next
-/next    → and the next
-/status  → check progress anytime
-```
-
-Each `/next` picks the right agent, reads the contract, implements within boundaries, and runs `agent-spec lifecycle` to self-verify.
-
-### 4. Verify
-
-```
-/verify  → agent-spec guard + full project checks
-/review  → reviewer runs agent-spec lifecycle + bombadil + project checks
+/idea Add caching to the API
+  → scouts codebase, writes plan + contracts
+  → you review and approve
+/next × N    → implements each task
+/review      → verifies everything
 ```
 
-### 5. Ship
+**Starting from scratch?**
+```
+/idea Build a REST API for task management
+  → structured interview asks framework, auth, database choices
+  → writes plan + contracts
+  → you approve
+/next × N → /review → ship
+```
 
-When all contracts pass and all checks are green, commit.
+**Bug?**
+```
+/fix The auth tests are failing on CI
+  → reproduces, diagnoses root cause, fixes, adds regression test
+```
 
-## Contract Format (agent-spec)
+**UI bug?**
+```
+/fix (with pi-annotate)
+  → user annotates broken elements with screenshots + selectors
+  → agent maps selectors to source files, fixes, asks for re-annotate
+```
 
-Tasks in `plan.md` reference `.spec` files:
+**Existing codebase needs attention?**
+```
+/explore What's the state of error handling in this codebase?
+  → researches, finds issues, recommends: proceed / pivot / kill
+/idea Fix the error handling issues found
+  → writes plan + contracts → /next × N → /review
+```
+
+**Improve something?**
+```
+/optimize API response latency
+  → autoresearch loop: benchmark, iterate, keep winners
+```
+
+**Try multiple approaches?**
+```
+/prototype approach A vs approach B
+  → parallel workers build minimal proofs-of-concept
+  → each benchmarks and reports results
+/integrate approach A
+  → production integration with full verification
+```
+
+## How It Works
+
+### The flow
+
+```
+IDEA ──► SCOUT ──► PLAN ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
+          (cheap)    (architect) (worker)   (mechanical)  (judgment)      (cheap) (you)
+                      contracts   /next ×N   agent-spec   + security       /docs
+                      bottleneck             + tdd-guard   + simplicity     auto-check
+                      testing                + project      + error handling
+                      interview*             checks         + human callouts
+
+* interview uses pi-interview-tool when installed, falls back to chat
+```
+
+### Gates — worker tasks are verified before moving on
+
+Each worker task goes through three checkpoints that agents **cannot skip**:
+
+```
+Worker implements the task
+  → Contract gate: did we build the right thing? (agent-spec, deterministic)
+  → Test quality gate: are the tests worth trusting? (tdd-guard, deterministic)
+  → Quality gate: is the code good? (quality-reviewer, judgment)
+```
+
+Short-circuits on first failure. Worker gets failure evidence and retries. You never see a broken task silently passing.
+
+### Two hard rails
+
+| Rail | What it enforces | How |
+|---|---|---|
+| **Contract** | Did we build the right thing? | agent-spec: BDD scenarios + boundary checks — mechanical, non-negotiable |
+| **Test quality** | Are the tests worth trusting? | tdd-guard via agent-spec `--layers` flag — mechanical, non-negotiable |
+
+### JIT contracts
+
+Contracts are written just-in-time: only for the next 1-2 tasks, not the whole plan upfront. The architect writes the first batch during planning. `/next` writes the rest as tasks become eligible.
+
+Why:
+- **Fresh context** — contracts incorporate learnings from completed tasks
+- **No waste** — if the plan changes mid-run, unused contracts are never written
+- **Adaptability** — later contracts adjust based on what worked or didn't
+
+After each task completes, `/next` writes ahead: JIT contracts for the next 1-2 eligible tasks, using learnings from the task that just finished.
+
+Everything else (coding guidelines, architecture preferences) is a **soft rail** — instructions that guide but can't force.
+
+### Agents
+
+| Agent | Model | Purpose |
+|---|---|---|
+| `scout` | cheap | Fast codebase recon. No project context inherited. |
+| `worker` | strong | Building within contract boundaries. Reports blockers. |
+| `reviewer` | cheap | Mechanical 3-layer verification only. No judgment. |
+| `quality-reviewer` | medium | Judgment-based review after mechanical pass. Security, simplicity, error handling. |
+
+### Bottleneck tags
+
+Every task gets a tag that changes execution strategy:
+
+| Tag | When | What changes |
+|---|---|---|
+| 🔴 BLOCKING | Others depend on this. Must succeed first. | Strongest model, human review after |
+| 🟡 RISKY | Approach uncertain. Might fail. | Prototype first, then build |
+| 🔵 TIME_CONSUMING | Large but straightforward. | Break into smaller steps |
+| 🟠 VERIFICATION_HEAVY | Needs extensive testing. | Budget extra verification time |
+| ⚪ STANDARD | Normal task. | Default flow |
+
+### Testing strategy matrix
+
+Assigned per task based on code type:
+
+| Code type | Strategy | When |
+|---|---|---|
+| API / CLI command | example-based (agent-spec BDD) | Most tasks |
+| Domain logic (math, parsing) | property-based (fast-check, proptest) | Pure functions |
+| External input handler | fuzz + example-based | Parsing user data |
+| Web UI | example-based + pi-annotate / bombadil | Browser tasks |
+| State machine | stateful property tests | Complex state transitions |
+| Simple CRUD | example-based only | Boilerplate |
+
+### Worker blocker protocol
+
+When a worker cannot proceed, it outputs a structured `WORKER_BLOCKER` instead of failing silently:
+
+```
+WORKER_BLOCKER:
+{
+  "status": "blocked",
+  "reason": "missing_dependency | missing_secret | invalid_contract | ...",
+  "evidence": "<what was found>",
+  "requestedAction": "<what the human should do>"
+}
+```
+
+`/next` handles each blocker: rewrites invalid contracts, asks for clarification, or escalates to you.
+
+### Quality pipeline
+
+```
+ARCHITECT (strong model)
+    │
+    ├── Structured interview to gather requirements
+    ├── Writes plan.md: atomic tasks, bottleneck tags, testing strategies
+    └── Writes JIT contracts for first 1-2 tasks only
+    │
+    ▼
+WORKER (strong model)
+    │
+    ├── Reads contract → implements within boundaries
+    ├── Writes tests matching Completion Criteria
+    ├── Self-verifies: agent-spec → tdd-guard → project checks
+    ├── Reports WORKER_BLOCKER if stuck
+    ├── Logs cost + duration + learnings to plan.md
+    └── Writes ahead: JIT contracts for next 1-2 tasks
+    │
+    ▼
+REVIEWER (cheap model, mechanical)
+    │
+    ├── agent-spec lifecycle (scenarios)
+    ├── agent-spec guard (boundaries)
+    ├── tdd-guard (test quality)
+    └── Project checks (tests, lint, types, build)
+    Stops on first failure. No judgment.
+    │
+    ▼
+QUALITY-REVIEWER (medium model, judgment)
+    │
+    ├── Simplicity (unnecessary abstractions)
+    ├── Security (untrusted input, injection)
+    ├── Error handling (swallowed errors, silent failures)
+    ├── Surgical changes (no scope creep)
+    └── Human callouts (new deps, auth changes, migrations)
+    Empty review = clean code = success.
+```
+
+### Cost strategy
+
+```
+CHEAP   (explore/scout/status/docs):      cheap model + low thinking
+MEDIUM  (fix/quality-reviewer):           medium model + medium thinking
+FULL    (plan/build/refactor):            strongest + high thinking
+CURRENT (optimize):                       whatever you're on
+```
+
+Cost and duration are estimated by the agent after each task and logged to plan.md. Not metered by pi — the agent reports its own estimate based on token usage visible in the session. `/status` aggregates from plan.md entries.
+
+## Contract Format
+
+Tasks in `plan.md` reference `.spec` files. You review the contract; the worker implements against it.
 
 ```markdown
 ### TASK 2: Add Redis client module
 - **Agent**: worker
 - **Depends on**: TASK 1
 - **Contract**: specs/task-redis-client.spec
-- **Verify**: agent-spec lifecycle specs/task-redis-client.spec
+- **Bottleneck**: 🔴 BLOCKING
+- **Testing strategy**: example-based
 - **Status**: ⬜ PENDING
 ```
 
@@ -209,90 +340,6 @@ Scenario: Cache miss returns None
   Then the result is None
 ```
 
-## Skills
-
-| Skill | Phases | Contract |
-|---|---|---|
-| `explore` | DEFINE → SCOUT → SYNTHESIZE → PROTOTYPE | No (read-only) |
-| `plan` | UNDERSTAND → DECOMPOSE → WRITE CONTRACTS → WRITE PLAN → REVIEW → HAND OFF | Generates contracts |
-| `add-feature` | SPEC → RECON → BUILD → VERIFY → PRESENT | Implements against contract |
-| `fix` | REPRODUCE → DIAGNOSE → FIX → VERIFY → PREVENT | Within boundaries |
-| `refactor` | ASSESS → EXECUTE → VERIFY → PRESENT | Behavior preservation contract |
-
-## Agents
-
-| Agent | Model | Tools | Purpose |
-|---|---|---|---|
-| `scout` | cheap model | read-only + write | Fast codebase recon |
-| `worker` | strong model | all | Building within contract boundaries |
-| `reviewer` | cheap model | read-only + bash | agent-spec lifecycle + bombadil + checks |
-
-## Directory Structure
-
-```
-pi-workflows/
-├── package.json
-├── README.md
-├── agents/
-│   ├── scout.md          # cheap, read-only recon
-│   ├── worker.md         # strong, implements within contracts
-│   └── reviewer.md       # cheap, runs agent-spec + bombadil
-├── skills/
-│   ├── explore/SKILL.md  # research + synthesize + prototype
-│   ├── plan/SKILL.md     # decompose into atomic tasks + generate contracts
-│   ├── add-feature/SKILL.md  # spec → build → verify against contract
-│   ├── fix/SKILL.md      # reproduce → diagnose → fix within boundaries
-│   └── refactor/SKILL.md # assess → execute → verify behavior preserved
-└── prompts/
-    ├── idea.md           # /idea — architect explores + plans + writes contracts
-    ├── plan.md           # /plan — decompose from existing context + generate contracts
-    ├── explore.md        # /explore — quick research
-    ├── add.md            # /add — build feature against contract
-    ├── fix.md            # /fix — fix bug within boundaries
-    ├── refactor.md       # /refactor — restructure with behavior preservation
-    ├── optimize.md       # /optimize — autoresearch loop
-    ├── scout.md          # /scout — cheap subagent recon
-    ├── review.md         # /review — agent-spec + bombadil + project checks
-    ├── verify.md         # /verify — agent-spec guard on all contracts
-    ├── contract.md       # /contract — show contract for a task
-    ├── next.md           # /next — execute next task (reads contract first)
-    ├── status.md         # /status — show plan progress
-    ├── swan-explore.md   # /swan-explore
-    ├── swan-prototype.md # /swan-prototype — parallel experiments
-    ├── swan-integrate.md # /swan-integrate — integrate winner
-    └── swan-optimize.md  # /swan-optimize — autoresearch
-```
-
-## Cost Strategy
-
-```
-CHEAP  (explore/scout/status/docs):  cheap model + low thinking
-MEDIUM (fix):                        strong model  + medium thinking
-FULL   (plan/build/refactor):        strongest     + high thinking
-CURRENT (optimize):                  whatever you're on
-```
-
-## Review Rubric (from pi-review)
-
-The reviewer uses a structured rubric with priority levels:
-
-| Priority | Meaning |
-|---|---|
-| **P0** | Drop everything to fix. Blocking release/operations. |
-| **P1** | Urgent. Should be addressed in the next cycle. |
-| **P2** | Normal. Fix eventually. |
-| **P3** | Low. Nice to have. |
-
-Review covers:
-- **Security**: untrusted input, SQL injection, open redirects
-- **Error handling**: fail-fast, no silent degradation
-- **Simplicity**: no overcomplication, no speculative abstractions
-- **Human callouts**: migrations, new dependencies, auth changes, breaking changes
-
-### REVIEW_GUIDELINES.md
-
-Add a `REVIEW_GUIDELINES.md` to your project root for project-specific rules. The reviewer loads it automatically. See `templates/REVIEW_GUIDELINES.md` for a starter template.
-
 ## Coding Guidelines (Karpathy)
 
 Workers follow these behavioral rules:
@@ -303,33 +350,119 @@ Workers follow these behavioral rules:
 4. **Goal-Driven Execution** — define success criteria, loop until verified
 5. **Fail-Fast Error Handling** — propagate errors, don't swallow, crash over silent degradation
 
-## Quality Pipeline
+## Review Rubric
+
+The quality-reviewer uses a structured rubric with priority levels:
+
+| Priority | Meaning |
+|---|---|
+| **P0** | Drop everything to fix. Blocking release/operations. |
+| **P1** | Urgent. Should be addressed in the next cycle. |
+| **P2** | Normal. Fix eventually. |
+| **P3** | Low. Nice to have. |
+
+Review covers: security, error handling, simplicity, human callouts (new deps, auth changes, migrations).
+
+Add a `REVIEW_GUIDELINES.md` to your project root for project-specific rules. The quality-reviewer loads it automatically. See `templates/REVIEW_GUIDELINES.md` for a starter template.
+
+## Skills
+
+| Skill | Phases | Contract |
+|---|---|---|
+| `explore` | DEFINE → SCOUT → SYNTHESIZE → PROTOTYPE | No (read-only) |
+| `plan` | UNDERSTAND → INTERVIEW → DECOMPOSE → WRITE CONTRACTS → WRITE PLAN → REVIEW → HAND OFF | Generates contracts |
+| `add-feature` | SPEC → RECON → BUILD → VERIFY (3-layer) → PRESENT | Implements against contract |
+| `fix` | REPRODUCE → DIAGNOSE → FIX → VERIFY (3-layer) → PREVENT | Within boundaries |
+| `refactor` | ASSESS → EXECUTE → VERIFY → PRESENT | Behavior preservation contract |
+
+## Requirements
+
+- [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
+- [pi-subagents](https://github.com/nicobailon/pi-subagents/) >= 0.17.2 — parallel and chain execution
+- [pi-prompt-template-model](https://github.com/yagaltd/pi-prompt-template-model) >= 0.8.2 — per-command model/thinking control (includes OpenRouter multi-slash fix)
+- [agent-spec](https://github.com/yagaltd/agent-spec) — contract verification (BDD specs + boundary enforcement)
+- [tdd-guard](https://github.com/yagaltd/tdd-guard) >= 0.1.0 — test quality enforcement (integrated as agent-spec `--layers` verification; required)
+
+Install the gate CLIs:
+
+```bash
+cargo install --git https://github.com/yagaltd/agent-spec
+npm install -g github:yagaltd/tdd-guard
+```
+
+Optional:
+
+- [bombadil](https://github.com/antithesishq/bombadil) — property-based web UI testing
+- [pi-interview-tool](https://github.com/nicobailon/pi-interview-tool) — structured interview forms for planning
+- [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation for quick UI fixes
+- [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize`
+
+### OpenRouter model IDs
+
+OpenRouter model IDs contain slashes (`anthropic/claude-3.5-haiku`), producing 3-segment specs like `openrouter/anthropic/claude-3.5-haiku`. The upstream `pi-prompt-template-model` silently rejects these.
+
+**Solution**: install the yagaltd fork which includes the fix:
+
+```bash
+pi install git:github.com/yagaltd/pi-prompt-template-model
+```
+
+See [yagaltd/pi-prompt-template-model#patches](https://github.com/yagaltd/pi-prompt-template-model#patches) for details.
+
+### Configure models
+
+Edit the `model:` field in prompt files (`prompts/`) and agent files (`agents/`) to match your available models. Both use the same format — `provider/model-id` or bare ID.
+
+Current defaults (edit to match your setup):
+
+| Role | File | Default Model | Thinking |
+|---|---|---|---|
+| Architect | `prompts/idea.md`, `prompts/plan.md` | `openrouter/openai/gpt-5.4` | high |
+| Scout | `agents/scout.md`, `prompts/explore.md` | `openrouter/xiaomi/mimo-v2-pro` | low |
+| Builder | `agents/worker.md`, `prompts/add.md`, `prompts/next.md` | `openrouter/trinity-large-thinking` | high/medium |
+| Reviewer | `agents/reviewer.md`, `prompts/review.md`, `prompts/verify.md` | `zai/GLM5.1` | low |
+| Quality Reviewer | `agents/quality-reviewer.md` | `openrouter/trinity-large-thinking` | medium |
+| Docs | `prompts/docs.md` | `openrouter/xiaomi/mimo-v2-pro` | low |
+
+## Directory Structure
 
 ```
-ARCHITECT (GPT-5.4)
-    │
-    ├── Writes plan.md with atomic tasks
-    ├── Generates .spec contracts with:
-    │   ├── Intent (what + why)
-    │   ├── Decisions (fixed choices)
-    │   ├── Boundaries (allowed/forbidden files)
-    │   └── Completion Criteria (BDD scenarios + test selectors)
-    │
-    ▼
-WORKER (trinity)
-    │
-    ├── Reads contract before building
-    ├── Implements within Boundaries
-    ├── Writes tests matching Completion Criteria
-    ├── Self-verifies with agent-spec lifecycle
-    │
-    ▼
-REVIEWER (GLM5.1)
-    │
-    ├── agent-spec lifecycle (contract verification)
-    ├── agent-spec guard (boundary enforcement)
-    ├── bombadil (PBT for web UIs, if applicable)
-    └── Project checks (tests, lint, types, build)
+pi-workflows/
+├── package.json
+├── README.md
+├── templates/
+│   └── REVIEW_GUIDELINES.md    # starter template for project-specific rules
+├── agents/
+│   ├── scout.md                # cheap, read-only recon, no context inheritance
+│   ├── worker.md               # strong, implements within contracts, blocker protocol
+│   ├── reviewer.md             # cheap, mechanical 3-layer verification
+│   └── quality-reviewer.md     # medium, judgment review after mechanical pass
+├── skills/
+│   ├── explore/SKILL.md        # research + synthesize + prototype
+│   ├── plan/SKILL.md           # decompose into atomic tasks + bottleneck tags + contracts
+│   ├── add-feature/SKILL.md    # spec → build → 3-layer verify against contract
+│   ├── fix/SKILL.md            # reproduce → diagnose → fix + UI annotate variant
+│   ├── refactor/SKILL.md       # assess → execute → verify behavior preserved
+│   ├── docs/SKILL.md           # generate/update project docs
+│   └── docs-check/SKILL.md     # validate doc freshness
+└── prompts/
+    ├── idea.md                 # /idea — explore + structured interview + plan + contracts
+    ├── plan.md                 # /plan — decompose from existing context + contracts
+    ├── explore.md              # /explore — quick research
+    ├── add.md                  # /add — build feature against contract
+    ├── fix.md                  # /fix — accepts error text, specs, annotations, screenshots
+    ├── refactor.md             # /refactor — restructure with behavior preservation
+    ├── optimize.md             # /optimize — autoresearch loop
+    ├── scout.md                # /scout — cheap subagent recon
+    ├── review.md               # /review — mechanical + quality (2-stage)
+    ├── verify.md               # /verify — 3-layer pipeline with short-circuits
+    ├── contract.md             # /contract — show contract for a task
+    ├── next.md                 # /next — bottleneck-aware execution + blocker handling
+    ├── status.md               # /status — progress + cost summary
+    ├── debug.md                # /debug — debugging helper
+    ├── help-workflows.md       # /help-workflows — quick reference
+    ├── prototype.md            # /prototype — parallel mini-prototypes
+    └── integrate.md            # /integrate — integrate validated prototype
 ```
 
 ## Help

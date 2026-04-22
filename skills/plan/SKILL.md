@@ -7,7 +7,7 @@ argument-hint: "<what to plan, or path to exploration output>"
 
 # Plan Workflow
 
-Decompose work into atomic tasks with verifiable contracts. Each task gets a `.spec` file that defines Intent, Decisions, Boundaries, and Completion Criteria.
+Decompose work into atomic tasks. Write high-level plan first, contracts just-in-time.
 
 ## Phase 1: UNDERSTAND
 
@@ -20,6 +20,33 @@ Gather enough context to plan well.
    - If there's an existing exploration doc: read it
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
+
+### Structured Interview (if pi-interview-tool is available)
+
+After analyzing the codebase and understanding the goal, generate an interview for the human. Create a questions JSON file and call `interview()`.
+
+Include questions for:
+- Framework / library choices (single-select, with `recommended` from your analysis)
+- Feature scope (multi-select, pre-select essential ones)
+- Testing strategy preference (single-select, map from bottleneck analysis)
+- Model / thinking preferences for critical tasks
+- Constraints (deadline, budget, compatibility)
+- Open questions (text input for anything structured options miss)
+
+Use `weight: "critical"` for decisions that affect architecture.
+Use `weight: "minor"` for style preferences.
+Use `conviction: "strong"` when the codebase analysis gives a clear answer.
+Use `conviction: "slight"` when multiple options are reasonable.
+
+If pi-interview-tool is not installed, fall back to asking questions in chat.
+
+### Interview → Spec Map Mapping
+
+Use interview responses to pre-fill the Spec Map:
+- Framework choice → determines worker toolchain assumptions
+- Feature scope → determines task list and dependencies
+- Testing preference → fills Testing Strategy column
+- Constraint answers → may promote tasks to 🔴 BLOCKING or 🟡 RISKY
 
 🛑 **GATE**: Do you understand the goal well enough to plan? If not, explore more first.
 
@@ -37,7 +64,8 @@ Break the goal into atomic tasks. Each task that involves code changes gets a co
 ### Task types:
 - **scout** — read-only reconnaissance, no code changes, no contract needed
 - **worker** — builds/fixes/refactors code, REQUIRES a contract
-- **reviewer** — runs agent-spec lifecycle + project checks, no contract needed
+- **reviewer** — mechanical verification (agent-spec lifecycle + tdd-guard + project checks), no contract needed
+- **quality-reviewer** — judgment-based code review, runs AFTER mechanical verification passes
 - **human** — decision point, no contract needed
 
 ### Decomposition rules:
@@ -56,9 +84,11 @@ PLAN review (human approves)
   ↓
 BUILD tasks (ordered by dependency, parallel where independent)
   ↓  each has a .spec contract
-VERIFY task (reviewer runs agent-spec guard + full suite)
+VERIFY task (reviewer runs agent-spec guard + tdd-guard + full suite)
   ↓
-DOCS task (optional — generate/update magic-docs)
+QUALITY REVIEW task (quality-reviewer runs judgment review)
+  ↓
+DOCS task (optional — generate/update docs)
   ↓
 SHIP task (human approves)
 ```
@@ -67,16 +97,39 @@ SHIP task (human approves)
 For significant features, include a docs task:
 - **Agent**: worker (cheap model via `/docs` command)
 - **What**: Generate/update `docs/architecture.md` with what changed
-- **Why**: docs auto-update via magic-docs, but explicit generation ensures coverage
-- **Note**: This can be skipped if magic-docs extension will handle it automatically
+- **Why**: ensures architecture docs stay current after significant changes
+- **Note**: This can be skipped if changes are minor
 
-## Phase 3: WRITE CONTRACTS
+### Bottleneck Tags
 
-For each worker task, generate a `.spec` file in `specs/`:
+Tag every task with a bottleneck indicator:
 
-```bash
-mkdir -p specs
-```
+| Tag | When | Implication |
+|---|---|---|
+| 🔴 BLOCKING | Others depend on this. Must succeed first. | Use strongest model, human review after |
+| 🟡 RISKY | Approach uncertain. Might fail. | Consider prototype first, then build |
+| 🔵 TIME_CONSUMING | Large scope but straightforward. | Break into smaller steps |
+| 🟠 VERIFICATION_HEAVY | Needs extensive testing (UI, security, edge cases). | Budget extra verification time |
+| ⚪ STANDARD | Normal task. Default. | Default flow |
+
+### Testing Strategy Assignment
+
+Assign a testing strategy per task based on code type:
+
+| Code type | Strategy | When to use |
+|---|---|---|
+| API endpoint / CLI command | example-based (agent-spec BDD) | Most tasks |
+| Domain logic (math, parsing, transformation) | property-based (fast-check, proptest) | Pure functions |
+| External input handler | fuzz + example-based | Parsing user data |
+| Web UI | example-based + pi-annotate (quick) / bombadil (full) | Browser tasks |
+| State machine | stateful property tests | Complex state transitions |
+| Simple CRUD | example-based only | Boilerplate tasks |
+
+## Phase 3: WRITE PLAN (HIGH-LEVEL)
+
+Write `plan.md` with all tasks, their bottleneck tags, testing strategies, and dependencies. **Do NOT write all contracts yet.** Only write contracts for the first 1-2 eligible worker tasks (see Phase 4).
+
+The plan defines WHAT to do. Contracts define HOW to verify — and those are written just-in-time so they incorporate learnings from completed tasks.
 
 ### Contract template:
 
@@ -185,9 +238,18 @@ Scenario: Delete removes cached key
   Then get("api:user:789") returns None
 ```
 
-## Phase 4: WRITE PLAN
+## Phase 4: WRITE JIT CONTRACTS (FIRST 1-2 TASKS ONLY)
 
-Write the plan to `plan.md` in the project root. Reference contract files.
+Write `.spec` files ONLY for the first 1-2 worker tasks that are ready to execute (no pending dependencies). Leave the rest for `/next` to write when their turn comes.
+
+Why JIT:
+- **Fresh context** — contracts incorporate learnings from completed tasks
+- **No waste** — if the plan changes mid-run, unused contracts are never written
+- **Adaptability** — later contracts adjust based on what worked or didn't
+
+```bash
+mkdir -p specs
+```
 
 ```markdown
 # Plan: <goal>
@@ -203,11 +265,23 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 ## Exploration
 <summary of what was found, or "see exploration output above">
 
+## Spec Map
+
+| Task | Agent | Goal | Bottleneck | Testing Strategy | Depends On |
+|------|-------|------|------------|------------------|------------|
+| TASK_1 | scout | Survey auth module | ⚪ STANDARD | — | — |
+| TASK_2 | worker | Add login API | 🔴 BLOCKING | example-based | TASK_1 |
+| TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | TASK_1 |
+| TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | TASK_2 |
+| TASK_5 | reviewer | Verify auth system | ⚪ STANDARD | — | TASK_2-4 |
+| TASK_6 | quality-reviewer | Quality review | ⚪ STANDARD | — | TASK_5 |
+
 ## Tasks
 
 ### TASK 1: Scout <area>
 - **Agent**: scout
 - **Depends on**: none
+- **Bottleneck**: ⚪ STANDARD
 - **What**: <specific>
 - **Verify**: context.md exists with findings
 - **Status**: ⬜ PENDING / ✅ DONE / ❌ FAILED
@@ -216,34 +290,34 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 - **Agent**: worker
 - **Depends on**: TASK 1
 - **Contract**: specs/task-<name>.spec
+- **Bottleneck**: 🔴 BLOCKING
+- **Testing strategy**: example-based
 - **What**: <specific>
 - **Verify**: agent-spec lifecycle specs/task-<name>.spec
-- **Status**: ⬜ PENDING
-
-### TASK 3: Build <other thing>
-- **Agent**: worker
-- **Depends on**: TASK 1
-- **Contract**: specs/task-<other>.spec
-- **Parallel with**: TASK 2
-- **What**: <specific>
-- **Verify**: agent-spec lifecycle specs/task-<other>.spec
 - **Status**: ⬜ PENDING
 
 ### TASK N: Verify all
 - **Agent**: reviewer
 - **Depends on**: all build tasks
-- **What**: Run agent-spec guard + full test suite
+- **What**: Run 3-layer verification (agent-spec + tdd-guard + project checks)
 - **Verify**: all contracts pass, all tests green
 - **Status**: ⬜ PENDING
 
+### TASK N+1: Quality review
+- **Agent**: quality-reviewer
+- **Depends on**: verify task
+- **What**: Judgment-based code review (simplicity, security, error handling)
+- **Status**: ⬜ PENDING
+
 ## Contracts
-| Task | Contract File | Scenarios |
-|------|--------------|-----------|
-| TASK 2 | specs/task-<name>.spec | 4 scenarios |
-| TASK 3 | specs/task-<other>.spec | 3 scenarios |
+| Task | Contract File | Status |
+|------|--------------|--------|
+| TASK 2 | specs/task-<name>.spec | ✅ written (JIT) |
+| TASK 3 | specs/task-<other>.spec | ⏳ JIT (written when eligible) |
+| TASK 4 | specs/task-<name2>.spec | ⏳ JIT (written when eligible) |
 
 ## Execution Notes
-<filled in as tasks are completed>
+<filled in as tasks are completed — includes cost, duration, and learnings per task>
 ```
 
 🛑 **GATE**: Present the plan to the human. Do NOT proceed without approval.
@@ -256,11 +330,20 @@ Present a compact summary:
 ## Plan: <goal>
 ## <N> tasks, <M> contracts, <P> parallel groups, estimated <X> sequential steps
 
-<task list — one line each>
+<task list — one line each, with bottleneck tags>
 
-### Contracts generated:
+### Bottleneck summary:
+- 🔴 BLOCKING: <count> tasks (critical path)
+- 🟡 RISKY: <count> tasks (may need prototype)
+- 🟠 VERIFICATION_HEAVY: <count> tasks (extra test budget)
+- ⚪ STANDARD: <count> tasks
+
+### Contracts written (JIT — first batch):
 - specs/task-<name>.spec — 4 scenarios (set/get, miss, expiry, delete)
-- specs/task-<other>.spec — 3 scenarios
+
+### Contracts pending (written by /next when eligible):
+- specs/task-<other>.spec
+- specs/task-<third>.spec
 
 ### Parallel opportunities:
 - TASK 2 + TASK 3 can run concurrently (independent modules)
@@ -274,9 +357,12 @@ Present a compact summary:
 
 Ask the human:
 - Tasks right granularity?
-- Contracts capture the right scenarios?
+- Bottleneck tags accurate?
+- Testing strategies appropriate?
 - Any missing?
 - Approve to start execution?
+
+(Note: contracts are JIT — only the first 1-2 are written now. The rest are written by `/next` as tasks become eligible, incorporating learnings from completed work.)
 
 ## Phase 6: HAND OFF
 
@@ -286,20 +372,23 @@ Once approved, tell the human:
 Plan approved. Execute with:
   /next    → run the next pending task
   /task 3  → run a specific task
-  /status  → show plan progress
-  /verify  → run agent-spec guard on all contracts
+  /status  → show plan progress + cost summary
+  /verify  → run 3-layer verification on all contracts
+  /review  → mechanical + quality review
 
 Or run tasks manually:
   /scout   → TASK 1
   /add     → TASK 2, 3, ... (implements against contract)
-  /review  → final verification (agent-spec guard + tests)
+  /fix     → fix a bug within contract boundaries
 ```
 
 ## Rules
 
 - **Plans are living documents** — update `plan.md` as you learn. Mark tasks done. Add notes.
 - **Plans change** — if TASK 3 reveals that TASK 4 needs different scope, update the plan AND its contract. Don't silently deviate.
-- **Every worker task has a contract** — if you can't write a contract, the task isn't atomic enough.
+- **Contracts are JIT** — write contracts for the next 1-2 eligible tasks, not all upfront. `/next` writes contracts as needed.
 - **Scout first, always** — even if the human says "just build it." One scout task saves three rework tasks.
 - **Contracts are reviewed, not code** — the human approves the contract. The machine verifies the implementation.
 - **Keep the human in the loop** — present after planning, not after building.
+- **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
+- **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.

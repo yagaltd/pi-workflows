@@ -74,7 +74,7 @@ Implement the feature within contract boundaries.
 
 ## Phase 4: VERIFY
 
-### Contract verification (agent-spec)
+### Layer 1: Contract verification (agent-spec)
 
 ```bash
 # Verify against the contract
@@ -83,15 +83,17 @@ agent-spec lifecycle <spec> --code . --format json
 # Check boundaries
 agent-spec guard --spec-dir specs --code . --change-scope worktree
 ```
+If any scenario fails or boundaries violated → go back to Phase 3, fix, re-verify.
 
-### Property-based testing (bombadil, if web UI)
+### Layer 2: Test quality (tdd-guard, if installed)
 
 ```bash
-# Only if the feature involves browser/DOM state
-bombadil test http://localhost:<port> specs/<feature>.bombadil.ts --exit-on-violation
+tdd-guard lint --src src --tests tests --format json
+tdd-guard spec-verify --spec <spec> --format json
 ```
+If tdd-guard is not installed, skip and note it. If any rule fails → go back to Phase 3.
 
-### Project verification
+### Layer 3: Project verification
 
 ```bash
 # Full suite
@@ -104,17 +106,23 @@ npm run build             # clean
 git diff --stat
 ```
 
+### Optional: UI Verification
+
+If the feature has a UI component:
+- **Quick check**: Ask user to `/annotate` and verify elements look correct
+- **Full check**: Run bombadil test suite (if installed)
+- **Skip**: If no UI or UI is trivial
+
 **Verification checklist**:
 - [ ] agent-spec lifecycle passes (all scenarios pass)
 - [ ] agent-spec guard passes (boundaries respected)
+- [ ] tdd-guard passes (test quality verified) or skipped (not installed)
 - [ ] bombadil passes (if web UI)
 - [ ] All tests pass (including new ones)
 - [ ] Zero lint warnings
 - [ ] Zero type errors
 - [ ] Build succeeds
 - [ ] Only expected files changed
-
-If ANY check fails → go back to Phase 3, fix, re-verify.
 
 **OUTPUT**: Structured verdict:
 ```

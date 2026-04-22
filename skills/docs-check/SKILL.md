@@ -1,12 +1,12 @@
 ---
 name: docs-check
-description: Check if tracked magic-docs need updating after a task completes. Run automatically by /next.
+description: Check if project docs need updating after a task completes. Run automatically by /next.
 user-invocable: false
 ---
 
 # Auto Docs Check
 
-After a task completes, check if any `# MAGIC DOC:` files need updating.
+After a task completes, check if project docs need updating.
 
 ## When Called
 
@@ -14,12 +14,12 @@ This runs automatically after `/next` completes a task. It can also be called ma
 
 ## Process
 
-1. Find all `# MAGIC DOC:` files in the project:
+1. Find all `docs/*.md` files in the project:
    ```bash
-   grep -rl "^# MAGIC DOC:" --include="*.md" . 2>/dev/null | grep -v node_modules | grep -v .git
+   find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
    ```
 
-2. If no magic docs found, skip silently.
+2. If no docs found, skip silently.
 
 3. Read recent conversation context (last significant changes).
 

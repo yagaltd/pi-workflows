@@ -1,5 +1,6 @@
 ---
-description: "Swan prototype — run parallel mini-prototypes to test theories and define benchmarks"
+description: "Prototype — run parallel mini-prototypes to test theories and define benchmarks"
+model: openrouter/trinity-large-thinking
 inheritContext: true
 skill: add-feature
 ---

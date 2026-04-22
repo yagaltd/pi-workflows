@@ -1,19 +1,23 @@
 {
   "name": "pi-workflows",
-  "version": "0.1.0",
-  "description": "Cost-optimized multi-model workflow system for pi coding agent. Contract-driven quality with agent-spec verification and bombadil PBT.",
+  "version": "0.2.0",
+  "description": "Cost-optimized multi-model workflow system for pi coding agent. Contract-driven quality with agent-spec verification, tdd-guard test quality, and structured interview planning.",
   "keywords": ["pi-package"],
   "license": "MIT",
   "pi": {
     "skills": ["./skills"],
-    "prompts": ["./prompts"]
+    "prompts": ["./prompts"],
+    "agents": ["./agents"]
   },
   "peerDependencies": {
-    "pi-subagents": "*",
-    "pi-prompt-template-model": "*"
+    "pi-subagents": ">=0.17.2",
+    "pi-prompt-template-model": ">=0.8.2",
+    "tdd-guard": ">=0.1.0"
   },
   "optionalPeerDependencies": {
     "agent-spec": ">=0.1.0",
-    "bombadil": ">=0.4.0"
+    "bombadil": ">=0.4.0",
+    "pi-interview-tool": ">=0.1.0",
+    "pi-annotate": ">=0.1.0"
   }
 }

@@ -98,13 +98,24 @@ If checks fail → fix the fix. Don't proceed with broken state.
 
 Full verification that the fix works and nothing else broke.
 
-### Contract verification (if contract exists)
+## Phase 4: VERIFY
+
+Run in order. Stop at first failure.
+
+### Layer 1: Contract verification (if contract exists)
 ```bash
 agent-spec lifecycle specs/fix-<bug>.spec --code . --format json
 agent-spec guard --spec-dir specs --code . --change-scope worktree
 ```
+If fails → fix the fix. Don't proceed.
 
-### Project verification
+### Layer 2: Test quality (if tdd-guard installed)
+```bash
+tdd-guard lint --src src --tests tests --format json
+```
+If tdd-guard is not installed, skip and note it.
+
+### Layer 3: Project verification
 ```bash
 # Full test suite (not just the new test)
 npm test
@@ -148,6 +159,9 @@ git diff --stat
 ### agent-spec (if applicable)
 - Contract: <file or none>
 - Scenarios: ✅ pass
+
+### tdd-guard
+- Lint: ✅ pass / ⏭️ skipped / ❌ fail
 
 ### All checks
 - Tests: ✅ / ❌
@@ -194,5 +208,26 @@ Document the fix to prevent recurrence.
 - **Always add a regression test**: If the bug could happen again, it needs a test.
 - **Boundaries**: Only change files relevant to the fix. Don't touch unrelated code.
 - **No refactoring**: Fix phase is for fixing. Note refactor opportunities separately.
-- **Deterministic verification**: agent-spec + tests + lint + types + build. No "looks right to me."
+- **Deterministic verification**: agent-spec + tdd-guard + tests + lint + types + build. No "looks right to me."
 - **Adapt commands**: Use whatever toolchain the project uses.
+
+## UI Fix Variant
+
+If the issue is visual/UI and pi-annotate is available:
+
+1. Ask the user to run `/annotate <url>` (or `/annotate` for current tab)
+2. User clicks broken elements, adds comments per element
+3. User optionally enables "Etch" toggle to record style tweaks they try in DevTools
+4. Receive structured annotation:
+   - CSS selectors for each element
+   - Box model (padding, border, margin, content size)
+   - Accessibility info (role, name, ARIA states)
+   - Key CSS styles (display, position, colors, typography)
+   - Per-element screenshots with 20px padding
+   - Edit capture diffs if user tweaked styles (before/after screenshots + property-level diffs)
+   - User comments per element ("make this blue", "too much padding")
+5. Map selectors to source files (grep for class names, IDs)
+6. Apply fix directly from annotation data
+7. Ask user to re-annotate to verify — faster than running full bombadil suite
+
+If pi-annotate is not installed, fall back to text description + screenshot.
