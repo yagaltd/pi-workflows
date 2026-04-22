@@ -2,7 +2,6 @@
 name: scout
 description: Fast codebase recon that returns compressed context for handoff to other agents
 tools: read, grep, find, ls, bash, write
-model: openrouter/xiaomi-mimo-v2-pro
 output: context.md
 defaultProgress: true
 ---

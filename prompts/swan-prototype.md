@@ -1,8 +1,5 @@
 ---
 description: "Swan prototype — run parallel mini-prototypes to test theories and define benchmarks"
-subagent: worker
-parallel: 3
-worktree: true
 inheritContext: true
 skill: add-feature
 ---

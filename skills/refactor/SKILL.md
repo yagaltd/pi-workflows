@@ -1,13 +1,13 @@
 ---
 name: refactor
-description: Restructure code without changing behavior. Use when the user says "refactor", "restructure", "rename", "extract module", "consolidate", "clean up architecture", or "reorganize".
+description: Restructure code against a contract without changing behavior. Use when the user says "refactor", "restructure", "rename", "extract module", "consolidate", "clean up architecture", or "reorganize".
 user-invocable: true
 argument-hint: "<scope or area to refactor>"
 ---
 
 # Refactor Workflow
 
-Change code structure WITHOUT changing behavior. Same outputs, better shape.
+Change code structure WITHOUT changing behavior. Same outputs, better shape. Verify with agent-spec that behavior is preserved.
 
 ## Phase 1: ASSESS
 
@@ -37,6 +37,56 @@ Understand what needs to change and why.
    ```
    If baseline is RED, fix first. Refactoring on a broken baseline is dangerous.
 
+5. **Write a refactoring contract**:
+   ```bash
+   mkdir -p specs
+   agent-spec init --level task --lang en --name "refactor-<scope>"
+   ```
+   
+   The contract for refactoring is special — it verifies behavior is PRESERVED:
+
+   ```spec
+   spec: task
+   name: "Refactor: <scope>"
+   tags: [refactor]
+   ---
+
+   ## Intent
+
+   Restructure <area> for <reason>. Behavior must not change.
+
+   ## Decisions
+
+   - Public API signatures remain unchanged
+   - All existing tests must still pass
+   - No new functionality added
+
+   ## Boundaries
+
+   ### Allowed Changes
+   - <files to restructure>
+
+   ### Forbidden
+   - Do not change public API contracts
+   - Do not modify test files (tests verify behavior preservation)
+   - Do not change external interfaces
+
+   ## Completion Criteria
+
+   Scenario: Existing behavior preserved
+     Test: test_existing_<area>_behavior_unchanged
+     Given the full test suite passes before refactoring
+     When the refactoring is complete
+     Then all pre-existing tests still pass
+     And no behavioral changes detected
+
+   Scenario: Structure improved
+     Test: test_refactored_<area>_structure
+     Given the refactored code
+     When checking module boundaries
+     Then <target structural property holds>
+   ```
+
 Present to the human:
 ```
 ## Refactoring: <scope>
@@ -49,6 +99,10 @@ Present to the human:
 - <what will change>
 - <what stays the same>
 
+### Contract: specs/refactor-<scope>.spec
+- Boundaries: <files in scope>
+- Key invariant: behavior must not change
+
 ### Risk: LOW / MEDIUM / HIGH
 - Files affected: <count>
 - Dependencies: <count>
@@ -60,7 +114,7 @@ Present to the human:
 3. <step 3>
 ```
 
-🛑 **GATE**: Human must approve scope and plan before execution begins.
+🛑 **GATE**: Human must approve scope, contract, and plan before execution begins.
 
 ## Phase 2: EXECUTE
 
@@ -92,6 +146,16 @@ This gives you a clean rollback point for every step.
 
 Confirm behavior is UNCHANGED after all refactoring steps.
 
+### Contract verification
+```bash
+# Verify the refactoring contract
+agent-spec lifecycle specs/refactor-<scope>.spec --code . --format json
+
+# Check boundaries — only allowed files changed
+agent-spec guard --spec-dir specs --code . --change-scope worktree
+```
+
+### Project verification
 ```bash
 # Full verification
 npm test              # All tests pass (same as baseline)
@@ -102,25 +166,27 @@ npm run build         # Clean build
 # What changed
 git diff --stat main  # Files changed summary
 git diff main         # Full diff review
-
-# Behavioral diff (if applicable)
-# Run any golden tests, snapshot tests, or integration tests
 ```
 
 **Verification checklist**:
+- [ ] agent-spec lifecycle passes
+- [ ] agent-spec guard passes (only allowed files changed)
 - [ ] All tests pass (same tests as baseline — no new failures)
 - [ ] No new lint warnings (refactoring shouldn't introduce warnings)
 - [ ] No type errors
 - [ ] Build succeeds
 - [ ] No behavioral changes (same outputs for same inputs)
 - [ ] Public APIs unchanged (or deliberately changed with migration)
-- [ ] No performance regression (if measurable)
 
 **Critical rule**: If tests pass but behavior changed, the tests are wrong. Investigate.
 
 **OUTPUT**: Structured verdict:
 ```
 ## Refactor Verification: PASS / FAIL
+
+### Contract
+- agent-spec lifecycle: ✅ pass / ❌ fail
+- Boundaries: ✅ respected
 
 ### Structural changes
 - <file 1>: moved to <location>
@@ -145,6 +211,11 @@ Show the human what changed.
 ```
 ## Refactored: <scope>
 
+### Contract
+- Spec: specs/refactor-<scope>.spec
+- agent-spec lifecycle: ✅ all pass
+- Boundaries: ✅ respected
+
 ### What changed
 - <structural changes summary>
 
@@ -154,6 +225,7 @@ Show the human what changed.
 3. <step 3 description> ✅
 
 ### Verification
+- agent-spec: ✅ contract satisfied
 - Tests: ✅ all pass (no behavioral change)
 - Lint: ✅ clean
 - Types: ✅ clean
@@ -174,5 +246,6 @@ Human decides: keep or rollback.
 - **Test coverage is your safety net**: If the code you're refactoring has no tests, write characterization tests FIRST (tests that capture current behavior). Then refactor.
 - **Rollback is always available**: `git stash`, `git reset`, `git checkout`. Use them freely when a step goes wrong.
 - **No scope creep**: Refactor what was agreed on. Note other improvements separately.
-- **Deterministic verification only**: Tests, lint, types, build. Not "I think it's the same."
+- **agent-spec verifies boundaries**: The guard catches any accidental changes outside allowed files.
+- **Deterministic verification only**: agent-spec + tests + lint + types + build. Not "I think it's the same."
 - **Adapt commands**: Use whatever toolchain the project uses.

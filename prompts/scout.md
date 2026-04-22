@@ -1,6 +1,5 @@
 ---
-description: "Scout — fast codebase recon via cheap subagent"
-subagent: scout
+description: "Scout — fast codebase recon"
 thinking: low
 skill: explore
 restore: true

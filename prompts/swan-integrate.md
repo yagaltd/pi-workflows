@@ -1,6 +1,5 @@
 ---
 description: "Swan integrate — integrate validated prototype into final app with full PRD and verification"
-model: openrouter/trinity-large-thinking
 thinking: high
 skill: add-feature
 restore: true

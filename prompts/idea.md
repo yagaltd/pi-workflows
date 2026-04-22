@@ -1,6 +1,5 @@
 ---
-description: "Idea → explore repos/URLs → discover → plan atomic tasks"
-model: openrouter/openai/gpt-5.4
+description: "Idea → explore repos/URLs → discover → plan atomic tasks with contracts"
 thinking: high
 skill: plan
 restore: true

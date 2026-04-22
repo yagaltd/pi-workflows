@@ -1,6 +1,5 @@
 ---
-description: "Fix bug — powerful model, medium thinking, root cause to regression test"
-model: openrouter/trinity-large-thinking
+description: "Fix bug — reproduces, diagnoses, fixes within boundaries, verifies with agent-spec"
 thinking: medium
 skill: fix
 restore: true

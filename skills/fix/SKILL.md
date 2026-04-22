@@ -1,13 +1,13 @@
 ---
 name: fix
-description: Find and fix bugs, failing tests, errors, and production issues with root cause analysis. Use when the user says "fix bug", "broken", "failing test", "error", "bug report", "incident", or "something is wrong".
+description: Find and fix bugs against a contract with root cause analysis and verification. Use when the user says "fix bug", "broken", "failing test", "error", "bug report", "incident", or "something is wrong".
 user-invocable: true
 argument-hint: "<bug description or error>"
 ---
 
 # Fix Workflow
 
-Reproduce → diagnose → fix → verify → prevent. Find the root cause, not the symptom.
+Reproduce → diagnose → fix within boundaries → verify with agent-spec → prevent. Find the root cause, not the symptom.
 
 ## Phase 1: REPRODUCE
 
@@ -60,6 +60,9 @@ Present to the human:
 ### Proposed fix
 <minimal change to correct the root cause>
 
+### Boundaries for the fix
+<which files will be changed — keep scope minimal>
+
 ### Regression risk
 <what could break from this fix>
 ```
@@ -68,13 +71,19 @@ Present to the human:
 
 ## Phase 3: FIX
 
-Minimal correction targeting the root cause.
+Minimal correction targeting the root cause within boundaries.
 
 1. **Write the fix**: Smallest change that corrects the root cause. Don't refactor. Don't improve. Just fix.
 2. **Add a regression test**: Write a test that would have caught this bug.
    - The test should fail BEFORE the fix and pass AFTER.
    - Test the specific edge case that caused the bug.
-3. **Run deterministic checks**:
+3. **Write a contract for the fix** (if complex):
+   ```bash
+   mkdir -p specs
+   agent-spec init --level task --lang en --name "fix-<bug-name>"
+   ```
+   Fill in Intent (what's broken), Decisions (what changes), Boundaries (only the fix area), Completion Criteria (regression test scenario).
+4. **Run deterministic checks**:
    ```
    npm test          # Bug fix test passes? No regressions?
    npm run lint      # Clean?
@@ -89,6 +98,13 @@ If checks fail → fix the fix. Don't proceed with broken state.
 
 Full verification that the fix works and nothing else broke.
 
+### Contract verification (if contract exists)
+```bash
+agent-spec lifecycle specs/fix-<bug>.spec --code . --format json
+agent-spec guard --spec-dir specs --code . --change-scope worktree
+```
+
+### Project verification
 ```bash
 # Full test suite (not just the new test)
 npm test
@@ -109,6 +125,8 @@ git diff --stat
 **Verification checklist**:
 - [ ] Original bug is fixed (reproduction passes)
 - [ ] Regression test added and passes
+- [ ] agent-spec lifecycle passes (if contract created)
+- [ ] agent-spec guard passes (only fix files changed)
 - [ ] All pre-existing tests still pass (no regressions)
 - [ ] Zero lint warnings
 - [ ] Zero type errors
@@ -126,6 +144,10 @@ git diff --stat
 
 ### Regression test
 - <test name>: verifies <edge case>
+
+### agent-spec (if applicable)
+- Contract: <file or none>
+- Scenarios: ✅ pass
 
 ### All checks
 - Tests: ✅ / ❌
@@ -166,10 +188,11 @@ Document the fix to prevent recurrence.
 
 ## Rules
 
-- **Reproduce first**: Never fix a bug you haven't reproduced. If you can't reproduce it, say so.
+- **Reproduce first**: Never fix a bug you haven't reproduced. If you can't reproduce, say so.
 - **Root cause, not symptom**: Fix why it broke, not just what's visible. A null check patches a symptom. Fixing why null reached that code fixes the root cause.
 - **Minimal fix**: Smallest change that corrects the root cause. Don't bundle improvements.
 - **Always add a regression test**: If the bug could happen again, it needs a test.
+- **Boundaries**: Only change files relevant to the fix. Don't touch unrelated code.
 - **No refactoring**: Fix phase is for fixing. Note refactor opportunities separately.
-- **Deterministic verification**: Tests, lint, types, build. No "looks right to me."
+- **Deterministic verification**: agent-spec + tests + lint + types + build. No "looks right to me."
 - **Adapt commands**: Use whatever toolchain the project uses.

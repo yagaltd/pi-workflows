@@ -1,6 +1,5 @@
 ---
 description: "Swan explore — online research + codebase analysis for autoresearch targets"
-model: openrouter/xiaomi-mimo-v2-pro
 thinking: high
 skill: explore
 restore: true
