@@ -4,7 +4,35 @@ thinking: medium
 restore: true
 ---
 
-Read `plan.md` in the current project. Find the first task with status `⬜ PENDING` whose dependencies are all `✅ DONE`.
+Read `plan.md` in the current project.
+
+### Wave-Based Task Selection
+
+Before picking a task, enforce **wave execution** to prevent parallel conflicts:
+
+1. Read ALL tasks and their statuses
+2. Identify **parallel groups** (tasks marked `[PARALLEL-GROUP: X]`)
+3. If any parallel group has tasks that are `⬜ PENDING` or `🔄 IN PROGRESS`:
+   - Do NOT start tasks from a LATER group, even if their deps are met
+   - All tasks in the current wave must be `✅ DONE` or `❌ FAILED` before advancing
+4. Pick the first task that is:
+   - `⬜ PENDING`
+   - All dependencies are `✅ DONE`
+   - In the current active wave (or no wave restriction applies)
+
+Wave rules:
+- Tasks with NO parallel group = always eligible (wave 0)
+- Tasks in `[PARALLEL-GROUP: A]` = wave 1 — all must finish before wave 2 starts
+- Tasks in `[PARALLEL-GROUP: B]` = wave 2 — starts only after wave 1 is complete
+- Within a wave, tasks run in parallel via pi-subagents (see below)
+
+If the current wave has multiple eligible tasks, ask the human:
+```
+Wave <N> has <X> parallel tasks ready:
+  - TASK 2: <goal>
+  - TASK 3: <goal>
+Run all in parallel with subagents, or pick one?
+```
 
 ### Spec Re-Validation
 
@@ -18,6 +46,35 @@ Before executing, check if the task's `.spec` contract is still valid given comp
    - Log what changed in Execution Notes
    - If the change is significant (new boundary, changed intent), present to human before proceeding
 5. If the spec is still valid, proceed
+
+### Subagent Delegation
+
+For `worker` and `scout` tasks, delegate to a subagent to keep the main session clean:
+
+```
+subagent({
+  agent: "worker",
+  task: "Implement TASK <N>: <goal>. Contract: specs/<task-id>.spec",
+  reads: ["plan.md", "specs/<task-id>.spec"],
+  progress: true
+})
+```
+
+For parallel tasks within a wave, dispatch all at once:
+```
+subagent({
+  tasks: [
+    { agent: "worker", task: "Implement TASK 2: <goal>. Contract: specs/task-2.spec", reads: ["plan.md", "specs/task-2.spec"] },
+    { agent: "worker", task: "Implement TASK 3: <goal>. Contract: specs/task-3.spec", reads: ["plan.md", "specs/task-3.spec"] },
+  ],
+  concurrency: 4,
+  worktree: true
+})
+```
+
+Use `worktree: true` for parallel worker tasks to isolate filesystem changes. Sequential tasks don't need worktrees.
+
+For `reviewer` and `quality-reviewer` tasks, run directly (no subagent needed — these are read-only checks).
 
 ### Bottleneck-Based Model Adjustment
 

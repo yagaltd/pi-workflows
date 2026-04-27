@@ -30,7 +30,19 @@ Gather information from the codebase and any relevant sources.
    - **GitHub repo**: `bash` (`git clone <url> /tmp/explore-<name> && cd /tmp/explore-<name>`), then scout
    - **Local path**: `find`, `grep`/`rg` in the specified directory
    - **Vague description**: search current codebase + online if needed
-   - **Multiple inputs**: handle each in sequence or dispatch parallel scouts
+   - **Multiple inputs** (2+ repos, URLs, or paths):
+     Use pi-subagents PARALLEL mode to scout each input concurrently:
+     ```
+     subagent({
+       tasks: [
+         { agent: "scout", task: "Scout repo at <path1>: architecture, dependencies, key patterns, tech stack" },
+         { agent: "scout", task: "Scout repo at <path2>: architecture, dependencies, key patterns, tech stack" },
+       ],
+       concurrency: 4
+     })
+     ```
+     Each scout returns a structured summary. Merge findings in Phase 3.
+     If subagents are not available, handle each input in sequence.
 
 2. **Map the territory**:
    - `find`, `grep`/`rg` for relevant files, patterns, modules

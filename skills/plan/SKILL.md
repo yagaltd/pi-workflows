@@ -71,7 +71,7 @@ Break the goal into atomic tasks. Each task that involves code changes gets a co
 ### Decomposition rules:
 1. **Scout before build** — always understand before changing
 2. **One concern per task** — don't bundle "add cache module" + "add cache to handler"
-3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`
+3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`, `[PARALLEL-GROUP: B]`, etc. Tasks in the same group run concurrently via pi-subagents. Groups execute as waves: all tasks in group A must finish before group B starts.
 4. **Sequential dependencies are explicit** — TASK 5 depends on TASK 4
 5. **Human tasks are real** — if you need a decision, make it a human task, don't guess
 6. **Include a final verification task** — reviewer runs agent-spec guard + full suite
@@ -262,14 +262,14 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 
 ## Spec Map
 
-| Task | Agent | Goal | Bottleneck | Testing Strategy | Depends On |
-|------|-------|------|------------|------------------|------------|
-| TASK_1 | scout | Survey auth module | ⚪ STANDARD | — | — |
-| TASK_2 | worker | Add login API | 🔴 BLOCKING | example-based | TASK_1 |
-| TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | TASK_1 |
-| TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | TASK_2 |
-| TASK_5 | reviewer | Verify auth system | ⚪ STANDARD | — | TASK_2-4 |
-| TASK_6 | quality-reviewer | Quality review | ⚪ STANDARD | — | TASK_5 |
+| Task | Agent | Goal | Bottleneck | Testing Strategy | Wave | Depends On |
+|------|-------|------|------------|------------------|------|------------|
+| TASK_1 | scout | Survey auth module | ⚪ STANDARD | — | 0 | — |
+| TASK_2 | worker | Add login API | 🔴 BLOCKING | example-based | 1 | TASK_1 |
+| TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | 1 | TASK_1 |
+| TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | 2 | TASK_2 |
+| TASK_5 | reviewer | Verify auth system | ⚪ STANDARD | — | 3 | TASK_2-4 |
+| TASK_6 | quality-reviewer | Quality review | ⚪ STANDARD | — | 3 | TASK_5 |
 
 ## Tasks
 
@@ -284,6 +284,7 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 ### TASK 2: Build <thing>
 - **Agent**: worker
 - **Depends on**: TASK 1
+- **Parallel group**: [PARALLEL-GROUP: A]
 - **Contract**: specs/task-<name>.spec
 - **Bottleneck**: 🔴 BLOCKING
 - **Testing strategy**: example-based
@@ -354,6 +355,15 @@ Ask the human:
 - Any missing?
 - Approve to start execution?
 
+### Wave execution summary:
+```
+Wave 0: TASK 1 (scout)
+Wave 1: TASK 2 + TASK 3 (parallel, PARALLEL-GROUP: A)
+Wave 2: TASK 4 (depends on wave 1)
+Wave 3: TASK 5 + TASK 6 (verification)
+```
+All tasks in a wave must complete before the next wave starts. `/next` enforces this.
+
 ## Phase 6: HAND OFF
 
 Once approved, tell the human:
@@ -383,3 +393,4 @@ Or run tasks manually:
 - **Keep the human in the loop** — present after planning, not after building.
 - **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
 - **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.
+- **Parallel groups execute as waves** — all tasks in a wave must finish before the next wave starts. `/next` enforces this. Within a wave, tasks run via pi-subagents with `worktree: true`.
