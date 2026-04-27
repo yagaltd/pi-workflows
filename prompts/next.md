@@ -1,36 +1,23 @@
 ---
 description: "Execute the next pending task from plan.md (implements against contract, auto-checks docs)"
-model: openrouter/trinity-large-thinking
 thinking: medium
 restore: true
 ---
 
 Read `plan.md` in the current project. Find the first task with status `⬜ PENDING` whose dependencies are all `✅ DONE`.
 
-### JIT Contract Writing
+### Spec Re-Validation
 
-If the task is a `worker` task and has NO contract file yet (status `⏳ JIT` in the Contracts table):
+Before executing, check if the task's `.spec` contract is still valid given completed work:
 
-1. Read plan.md Execution Notes for **learnings from completed tasks**
-2. Read the task's goal, bottleneck tag, testing strategy, and dependencies
-3. Use the architect agent to write a just-in-time `.spec` contract:
-   ```bash
-   mkdir -p specs
-   ```
-   Write the contract file at `specs/<task-id>.spec` with:
-   - **Intent** — what to build and why (from the task's goal in plan.md)
-   - **Decisions** — technical choices fixed from completed tasks + exploration
-   - **Boundaries** — allowed/forbidden files (from plan.md context)
-   - **Completion Criteria** — BDD scenarios with explicit `Test:` selectors
-   - Incorporate learnings: if TASK 2 revealed a pattern, TASK 3's contract should reflect it
-4. Update plan.md: mark the contract as ✅ written in the Contracts table
-5. Then proceed to execute against the contract
-
-If the contract already exists:
-```bash
-agent-spec contract <contract-file>
-```
-Understand the task's Intent, Decisions, Boundaries, and Completion Criteria before starting.
+1. Read the contract file referenced in `plan.md`
+2. Read Execution Notes for **learnings from completed tasks**
+3. Check if any decisions in the contract conflict with what was actually built
+4. If the spec is stale:
+   - Update the contract to reflect reality (completed tasks may have changed boundaries, decisions, or patterns)
+   - Log what changed in Execution Notes
+   - If the change is significant (new boundary, changed intent), present to human before proceeding
+5. If the spec is still valid, proceed
 
 ### Bottleneck-Based Model Adjustment
 
@@ -69,14 +56,14 @@ After completing the task:
    - **Cost**: $<estimate> (<tokens> tokens)
    - **Duration**: <time>
    ```
-5. Add **learnings** to the Execution Notes section — what was discovered, what patterns worked, what to adjust for future tasks. These feed into JIT contract writing.
+5. Add **learnings** to the Execution Notes section — what was discovered, what patterns worked, what to adjust for future tasks.
 6. **Auto-check docs**: if any `docs/*.md` files exist, check if they need updating:
    ```bash
    find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
    ```
    If docs exist and the task made architectural changes, run `/docs <area>` to update.
    If no relevant changes, skip silently.
-7. **Write-ahead**: if the next 1-2 worker tasks have no contract yet, write their JIT contracts now (incorporating learnings from this task). This keeps the pipeline flowing.
+7. **Validate downstream specs**: check if the next 1-2 pending tasks' contracts need updating based on learnings from this task. If they do, update them now and note the changes.
 8. Show what was done and what's next
 
 $@

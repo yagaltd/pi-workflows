@@ -1,6 +1,6 @@
 ---
 description: "Add feature — implements against contract, verifies with agent-spec"
-model: openrouter/trinity-large-thinking
+model: openrouter/arcee-ai/trinity-large-thinking
 thinking: high
 skill: add-feature
 restore: true

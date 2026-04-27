@@ -1,6 +1,6 @@
 ---
 description: "Integrate — integrate validated prototype into production with full verification"
-model: openrouter/trinity-large-thinking
+model: openrouter/arcee-ai/trinity-large-thinking
 thinking: high
 skill: add-feature
 restore: true

@@ -1,6 +1,6 @@
 ---
 name: reviewer
-model: zai/GLM5.1
+model: zai/glm-5.1
 thinking: low
 description: Mechanical contract verification — agent-spec lifecycle, tdd-guard, project checks
 tools: read, grep, find, ls, bash

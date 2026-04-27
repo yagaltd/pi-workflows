@@ -1,6 +1,6 @@
 ---
 description: "Verify — run agent-spec guard on all contracts + full project checks"
-model: zai/GLM5.1
+model: zai/glm-5.1
 thinking: low
 restore: true
 ---

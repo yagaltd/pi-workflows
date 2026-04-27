@@ -1,6 +1,6 @@
 ---
 name: quality-reviewer
-model: openrouter/trinity-large-thinking
+model: openrouter/arcee-ai/trinity-large-thinking
 thinking: medium
 description: Judgment-based code review — simplicity, security, error handling. Runs AFTER mechanical verification passes.
 tools: read, grep, find, bash

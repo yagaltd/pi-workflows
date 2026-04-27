@@ -1,6 +1,6 @@
 ---
 description: "Review — mechanical verification then quality review"
-model: zai/GLM5.1
+model: zai/glm-5.1
 thinking: low
 inheritContext: true
 restore: true

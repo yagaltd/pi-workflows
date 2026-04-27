@@ -1,6 +1,5 @@
 ---
 name: worker
-model: openrouter/trinity-large-thinking
 thinking: high
 description: General-purpose subagent that implements within contract boundaries
 defaultReads: context.md, plan.md

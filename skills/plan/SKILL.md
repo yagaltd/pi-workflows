@@ -7,7 +7,7 @@ argument-hint: "<what to plan, or path to exploration output>"
 
 # Plan Workflow
 
-Decompose work into atomic tasks. Write high-level plan first, contracts just-in-time.
+Decompose work into atomic tasks with verifiable contracts. Each worker task gets a `.spec` file upfront that defines Intent, Decisions, Boundaries, and Completion Criteria.
 
 ## Phase 1: UNDERSTAND
 
@@ -125,11 +125,15 @@ Assign a testing strategy per task based on code type:
 | State machine | stateful property tests | Complex state transitions |
 | Simple CRUD | example-based only | Boilerplate tasks |
 
-## Phase 3: WRITE PLAN (HIGH-LEVEL)
+## Phase 3: WRITE CONTRACTS
 
-Write `plan.md` with all tasks, their bottleneck tags, testing strategies, and dependencies. **Do NOT write all contracts yet.** Only write contracts for the first 1-2 eligible worker tasks (see Phase 4).
+For **every worker task**, generate a `.spec` file in `specs/`:
 
-The plan defines WHAT to do. Contracts define HOW to verify — and those are written just-in-time so they incorporate learnings from completed tasks.
+```bash
+mkdir -p specs
+```
+
+All contracts are written upfront so the human can review them before execution starts. `/next` will re-validate contracts against learnings from completed tasks and update if needed.
 
 ### Contract template:
 
@@ -238,18 +242,9 @@ Scenario: Delete removes cached key
   Then get("api:user:789") returns None
 ```
 
-## Phase 4: WRITE JIT CONTRACTS (FIRST 1-2 TASKS ONLY)
+## Phase 4: WRITE PLAN
 
-Write `.spec` files ONLY for the first 1-2 worker tasks that are ready to execute (no pending dependencies). Leave the rest for `/next` to write when their turn comes.
-
-Why JIT:
-- **Fresh context** — contracts incorporate learnings from completed tasks
-- **No waste** — if the plan changes mid-run, unused contracts are never written
-- **Adaptability** — later contracts adjust based on what worked or didn't
-
-```bash
-mkdir -p specs
-```
+Write the plan to `plan.md` in the project root. Reference contract files.
 
 ```markdown
 # Plan: <goal>
@@ -310,11 +305,10 @@ mkdir -p specs
 - **Status**: ⬜ PENDING
 
 ## Contracts
-| Task | Contract File | Status |
-|------|--------------|--------|
-| TASK 2 | specs/task-<name>.spec | ✅ written (JIT) |
-| TASK 3 | specs/task-<other>.spec | ⏳ JIT (written when eligible) |
-| TASK 4 | specs/task-<name2>.spec | ⏳ JIT (written when eligible) |
+| Task | Contract File | Scenarios |
+|------|--------------|-----------|
+| TASK 2 | specs/task-<name>.spec | 4 scenarios |
+| TASK 3 | specs/task-<other>.spec | 3 scenarios |
 
 ## Execution Notes
 <filled in as tasks are completed — includes cost, duration, and learnings per task>
@@ -338,12 +332,9 @@ Present a compact summary:
 - 🟠 VERIFICATION_HEAVY: <count> tasks (extra test budget)
 - ⚪ STANDARD: <count> tasks
 
-### Contracts written (JIT — first batch):
+### Contracts generated:
 - specs/task-<name>.spec — 4 scenarios (set/get, miss, expiry, delete)
-
-### Contracts pending (written by /next when eligible):
-- specs/task-<other>.spec
-- specs/task-<third>.spec
+- specs/task-<other>.spec — 3 scenarios
 
 ### Parallel opportunities:
 - TASK 2 + TASK 3 can run concurrently (independent modules)
@@ -359,10 +350,9 @@ Ask the human:
 - Tasks right granularity?
 - Bottleneck tags accurate?
 - Testing strategies appropriate?
+- Contracts capture the right scenarios?
 - Any missing?
 - Approve to start execution?
-
-(Note: contracts are JIT — only the first 1-2 are written now. The rest are written by `/next` as tasks become eligible, incorporating learnings from completed work.)
 
 ## Phase 6: HAND OFF
 
@@ -386,7 +376,8 @@ Or run tasks manually:
 
 - **Plans are living documents** — update `plan.md` as you learn. Mark tasks done. Add notes.
 - **Plans change** — if TASK 3 reveals that TASK 4 needs different scope, update the plan AND its contract. Don't silently deviate.
-- **Contracts are JIT** — write contracts for the next 1-2 eligible tasks, not all upfront. `/next` writes contracts as needed.
+- **Every worker task has a contract** — if you can't write a contract, the task isn't atomic enough.
+- **Contracts are validated before execution** — `/next` checks if the spec is still valid given completed work, and updates it if needed.
 - **Scout first, always** — even if the human says "just build it." One scout task saves three rework tasks.
 - **Contracts are reviewed, not code** — the human approves the contract. The machine verifies the implementation.
 - **Keep the human in the loop** — present after planning, not after building.
