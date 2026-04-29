@@ -147,7 +147,7 @@ IDEA ──► SCOUT ──► PLAN ──► EXECUTE ──► VERIFY ──►
                       testing                + project      + error handling
                       interview*             checks         + human callouts
 
-* interview uses pi-interview-tool when installed, falls back to chat
+* interview uses pi-interview when installed, falls back to chat
 ```
 
 ### Gates — worker tasks are verified before moving on
@@ -394,9 +394,24 @@ npm install -g github:yagaltd/tdd-guard
 Optional:
 
 - [bombadil](https://github.com/antithesishq/bombadil) — property-based web UI testing
-- [pi-interview-tool](https://github.com/nicobailon/pi-interview-tool) — structured interview forms for planning
-- [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation for quick UI fixes
+- [pi-interview](https://github.com/nicobailon/pi-interview-tool) — structured interview forms for unresolved decisions
+- [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation and edit capture for UI review/fixes
+- [pi-boomerang](https://github.com/nicobailon/pi-boomerang) — token-efficient autonomous execution and context collapse for long approved tasks
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize`
+
+Install optional UX helpers:
+
+```bash
+pi install npm:pi-interview
+pi install npm:pi-annotate
+pi install pi-boomerang
+```
+
+### Optional extension guidance
+
+- Use `interview()` for 2-7 independent unresolved questions after repo/docs search. Use one-by-one grill for dependent decision trees. Never ask questions answerable from code/docs.
+- Use `annotate()` for UI bug reports, frontend polish, visual acceptance, and browser edit capture. It complements Bombadil: annotate is human review; Bombadil is automated UI/property testing.
+- Use `/boomerang` for long autonomous work after specs are approved: `/next`, approved `/fix`, large refactors, or prompt chains. Avoid it during `/idea` and `/amend` decision phases.
 
 ### Configure models
 

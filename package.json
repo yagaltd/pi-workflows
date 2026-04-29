@@ -17,7 +17,8 @@
   "optionalPeerDependencies": {
     "agent-spec": ">=0.1.0",
     "bombadil": ">=0.4.0",
-    "pi-interview-tool": ">=0.1.0",
-    "pi-annotate": ">=0.1.0"
+    "pi-interview": ">=0.8.6",
+    "pi-annotate": ">=0.4.3",
+    "pi-boomerang": ">=0.1.0"
   }
 }
