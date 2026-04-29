@@ -421,7 +421,7 @@ Current defaults (edit to match your setup):
 
 | Workflow role | File | Default Model | Thinking |
 |---|---|---|---|
-| Architect | `prompts/idea.md`, `prompts/plan.md` | `openai/gpt-5.5` | high |
+| Architect (prompt-only, not a subagent) | `prompts/idea.md`, `prompts/plan.md` | `openai/gpt-5.5` | high |
 | Scout | `agents/scout.md`, `prompts/explore.md` | `deepseek/deepseek-v4-pro` | low |
 | Builder | `agents/worker.md`, `prompts/add.md`, `prompts/next.md` | `deepseek/deepseek-v4-flash` | high/medium |
 | Reviewer | `agents/reviewer.md`, `prompts/review.md`, `prompts/verify.md` | `zai/GLM5.1` | low |

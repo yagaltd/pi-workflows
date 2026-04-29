@@ -22,7 +22,7 @@ Gather enough context to plan well.
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
 
-### Structured Interview (if pi-interview-tool is available)
+### Structured Interview (if pi-interview is available)
 
 After analyzing the codebase, domain memory, ADRs, and understanding the goal, generate an interview for the human. Ask only decisions that remain unresolved after evidence gathering. Create a questions JSON file and call `interview()`.
 
@@ -39,7 +39,7 @@ Use `weight: "minor"` for style preferences.
 Use `conviction: "strong"` when the codebase analysis gives a clear answer.
 Use `conviction: "slight"` when multiple options are reasonable.
 
-If pi-interview-tool is not installed, fall back to asking questions in chat.
+If pi-interview is not installed, fall back to asking questions in chat.
 
 ### Interview → Spec Map Mapping
 
