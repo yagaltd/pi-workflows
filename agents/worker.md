@@ -1,5 +1,6 @@
 ---
 name: worker
+model: deepseek/deepseek-v4-flash
 thinking: high
 description: General-purpose subagent that implements within contract boundaries
 defaultReads: context.md, plan.md

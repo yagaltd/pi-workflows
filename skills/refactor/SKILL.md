@@ -18,17 +18,23 @@ Understand what needs to change and why.
    - What's the target state? (extract module, rename, consolidate, decouple?)
 
 2. **Map the current structure**:
+   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
    - `find` relevant files and modules
    - `grep`/`rg` for imports, usages, dependencies
    - Read key files to understand coupling and interfaces
    - Draw a quick dependency map: who uses what
 
-3. **Identify risk**:
+3. **Check domain/ADR constraints**:
+   - Use glossary terms from `CONTEXT.md` when describing modules and behavior
+   - Flag user terminology that conflicts with project language
+   - Flag refactors that contradict accepted ADRs before proposing them
+
+4. **Identify risk**:
    - How many files depend on the code being changed?
    - Are there public APIs that external consumers use?
    - How comprehensive is the existing test coverage?
 
-4. **Establish behavioral baseline**:
+5. **Establish behavioral baseline**:
    ```bash
    npm test          # Must be green before starting
    npm run lint      # Capture current state
@@ -37,7 +43,7 @@ Understand what needs to change and why.
    ```
    If baseline is RED, fix first. Refactoring on a broken baseline is dangerous.
 
-5. **Write a refactoring contract**:
+6. **Write a refactoring contract**:
    ```bash
    mkdir -p specs
    agent-spec init --level task --lang en --name "refactor-<scope>"

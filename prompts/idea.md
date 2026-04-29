@@ -1,13 +1,11 @@
 ---
-description: "Idea → explore repos/URLs → discover → plan atomic tasks with contracts"
-model: openrouter/openai/gpt-5.4
+description: "Idea — productize: explore → grill decisions → plan → specs → approval"
+model: openai/gpt-5.5
 thinking: high
-skill: plan
+skill: idea
 restore: true
 ---
 
-If pi-interview-tool is available, generate an interview to explore the idea with the user. Present options for scope, approach, and priority with your recommendations pre-selected. The user adjusts in one pass instead of multiple chat turns.
-
-If pi-interview-tool is not installed, fall back to asking questions in chat.
+Explore the repo/docs/tests/history first. Build a decision tree from evidence. Ask only unresolved decisions, with recommendations. Then write `plan.md` and `specs/*.spec`. Stop for approval.
 
 $@

@@ -40,9 +40,10 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 
 | Command | What it does |
 |---|---|
-| `/idea <description + repos/URLs>` | Scout codebase → structured interview (if available) → write `plan.md` + `.spec` contracts |
+| `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `plan.md` + `.spec` contracts → stop for approval |
 | `/plan <description>` | Plan only — you already have context. Generates contracts with bottleneck tags + testing strategies. |
-| `/explore <question>` | Quick codebase/URL research. Kill bad ideas fast. |
+| `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
+| `/amend <change>` | Update existing `plan.md` and specs when decisions change. |
 | `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
 
 ### Executing
@@ -50,7 +51,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 | Command | What it does |
 |---|---|
 | `/next` | Execute next pending task. Bottleneck-aware: adjusts model/thinking per task. Handles worker blockers. |
-| `/add <feature>` | Build a feature against a contract |
+| `/add <feature-or-spec>` | Execute approved contract. Broad ideas route to `/idea`; small surgical requests get mini-recon + contract gate. |
 | `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
 | `/refactor <scope>` | Restructure code within boundaries |
 | `/optimize <target>` | Autoresearch loop: benchmark → iterate → keep winners |
@@ -83,7 +84,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 **Adding a feature?**
 ```
 /idea Add caching to the API
-  → scouts codebase, writes plan + contracts
+  → explores evidence, grills unresolved decisions, writes plan + contracts
   → you review and approve
 /next × N    → implements each task
 /review      → verifies everything
@@ -92,7 +93,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 **Starting from scratch?**
 ```
 /idea Build a REST API for task management
-  → structured interview asks framework, auth, database choices
+  → explores repo/docs first, then asks only unresolved framework/auth/database choices
   → writes plan + contracts
   → you approve
 /next × N → /review → ship
@@ -101,7 +102,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 **Bug?**
 ```
 /fix The auth tests are failing on CI
-  → reproduces, diagnoses root cause, fixes, adds regression test
+  → builds feedback loop, reproduces, ranks hypotheses, fixes, adds regression test
 ```
 
 **UI bug?**
@@ -379,7 +380,7 @@ Add a `REVIEW_GUIDELINES.md` to your project root for project-specific rules. Th
 
 - [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
 - [pi-subagents](https://github.com/nicobailon/pi-subagents/) >= 0.17.2 — parallel and chain execution
-- [pi-prompt-template-model](https://github.com/yagaltd/pi-prompt-template-model) >= 0.8.2 — per-command model/thinking control (includes OpenRouter multi-slash fix)
+- [pi-prompt-template-model](https://github.com/nicobailon/pi-prompt-template-model) >= 0.9.2 — per-command model/thinking control
 - [agent-spec](https://github.com/yagaltd/agent-spec) — contract verification (BDD specs + boundary enforcement)
 - [tdd-guard](https://github.com/yagaltd/tdd-guard) >= 0.1.0 — test quality enforcement (integrated as agent-spec `--layers` verification; required)
 
@@ -397,31 +398,19 @@ Optional:
 - [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation for quick UI fixes
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize`
 
-### OpenRouter model IDs
-
-OpenRouter model IDs contain slashes (`anthropic/claude-3.5-haiku`), producing 3-segment specs like `openrouter/anthropic/claude-3.5-haiku`. The upstream `pi-prompt-template-model` silently rejects these.
-
-**Solution**: install the yagaltd fork which includes the fix:
-
-```bash
-pi install git:github.com/yagaltd/pi-prompt-template-model
-```
-
-See [yagaltd/pi-prompt-template-model#patches](https://github.com/yagaltd/pi-prompt-template-model#patches) for details.
-
 ### Configure models
 
 Edit the `model:` field in prompt files (`prompts/`) and agent files (`agents/`) to match your available models. Both use the same format — `provider/model-id` or bare ID.
 
 Current defaults (edit to match your setup):
 
-| Role | File | Default Model | Thinking |
+| Workflow role | File | Default Model | Thinking |
 |---|---|---|---|
-| Architect | `prompts/idea.md`, `prompts/plan.md` | `openrouter/openai/gpt-5.4` | high |
-| Scout | `agents/scout.md`, `prompts/explore.md` | `openrouter/xiaomi/mimo-v2-pro` | low |
-| Builder | `agents/worker.md`, `prompts/add.md`, `prompts/next.md` | `openrouter/trinity-large-thinking` | high/medium |
+| Architect | `prompts/idea.md`, `prompts/plan.md` | `openai/gpt-5.5` | high |
+| Scout | `agents/scout.md`, `prompts/explore.md` | `deepseek/deepseek-v4-pro` | low |
+| Builder | `agents/worker.md`, `prompts/add.md`, `prompts/next.md` | `deepseek/deepseek-v4-flash` | high/medium |
 | Reviewer | `agents/reviewer.md`, `prompts/review.md`, `prompts/verify.md` | `zai/GLM5.1` | low |
-| Quality Reviewer | `agents/quality-reviewer.md` | `openrouter/trinity-large-thinking` | medium |
+| Quality Reviewer | `agents/quality-reviewer.md` | `deepseek/deepseek-v4-flash` | medium |
 | Docs | `prompts/docs.md` | `openrouter/xiaomi/mimo-v2-pro` | low |
 
 ## Directory Structure
@@ -431,7 +420,9 @@ pi-workflows/
 ├── package.json
 ├── README.md
 ├── templates/
-│   └── REVIEW_GUIDELINES.md    # starter template for project-specific rules
+│   ├── REVIEW_GUIDELINES.md    # starter template for project-specific rules
+│   ├── CONTEXT.md              # starter domain glossary / domain rules
+│   └── ADR.md                  # starter architecture decision record
 ├── agents/
 │   ├── scout.md                # cheap, read-only recon, no context inheritance
 │   ├── worker.md               # strong, implements within contracts, blocker protocol
@@ -439,17 +430,20 @@ pi-workflows/
 │   └── quality-reviewer.md     # medium, judgment review after mechanical pass
 ├── skills/
 │   ├── explore/SKILL.md        # research + synthesize + prototype
+│   ├── idea/SKILL.md           # evidence → decision tree → plan + contracts
 │   ├── plan/SKILL.md           # decompose into atomic tasks + bottleneck tags + contracts
-│   ├── add-feature/SKILL.md    # spec → build → 3-layer verify against contract
-│   ├── fix/SKILL.md            # reproduce → diagnose → fix + UI annotate variant
+│   ├── add-feature/SKILL.md    # approved contract → build → 3-layer verify
+│   ├── amend/SKILL.md          # update plan/specs when decisions change
+│   ├── fix/SKILL.md            # feedback loop → hypotheses → fix + regression test
 │   ├── refactor/SKILL.md       # assess → execute → verify behavior preserved
 │   ├── docs/SKILL.md           # generate/update project docs
 │   └── docs-check/SKILL.md     # validate doc freshness
 └── prompts/
-    ├── idea.md                 # /idea — explore + structured interview + plan + contracts
+    ├── idea.md                 # /idea — explore + grill decisions + plan + contracts
     ├── plan.md                 # /plan — decompose from existing context + contracts
-    ├── explore.md              # /explore — quick research
-    ├── add.md                  # /add — build feature against contract
+    ├── explore.md              # /explore — research / kill / prototype
+    ├── amend.md                # /amend — update plan/specs when decisions change
+    ├── add.md                  # /add — execute approved contract
     ├── fix.md                  # /fix — accepts error text, specs, annotations, screenshots
     ├── refactor.md             # /refactor — restructure with behavior preservation
     ├── optimize.md             # /optimize — autoresearch loop
@@ -459,7 +453,7 @@ pi-workflows/
     ├── contract.md             # /contract — show contract for a task
     ├── next.md                 # /next — bottleneck-aware execution + blocker handling
     ├── status.md               # /status — progress + cost summary
-    ├── debug.md                # /debug — debugging helper
+    ├── debug.md                # /debug — full diagnose helper
     ├── prototype.md            # /prototype — parallel mini-prototypes
     └── integrate.md            # /integrate — integrate validated prototype
 ```
@@ -470,9 +464,10 @@ pi-workflows/
 
 | Command | What it does |
 |---|---|
-| `/idea <description + repos/URLs>` | Explore + plan + generate contracts |
+| `/idea <description + repos/URLs>` | Productize idea: explore → grill decisions → plan → specs → approval |
 | `/plan <description>` | Decompose into tasks + contracts |
-| `/explore <question>` | Quick research, no planning (cheap) |
+| `/explore <question>` | Research / kill / prototype, no production planning (cheap) |
+| `/amend <change>` | Update existing plan/specs when decisions change |
 | `/status` | Show plan progress + cost summary (cheap) |
 
 ### Executing
@@ -480,8 +475,8 @@ pi-workflows/
 | Command | What it does |
 |---|---|
 | `/next` | Execute next task (reads contract first) |
-| `/add <feature>` | Build feature against contract |
-| `/fix <bug>` | Fix bug within boundaries |
+| `/add <feature-or-spec>` | Execute approved contract; broad ideas route to `/idea` |
+| `/fix <bug>` | Diagnose with feedback loop, fix within boundaries |
 | `/refactor <scope>` | Restructure code, behavior preserved |
 | `/optimize <target>` | Autoresearch loop |
 

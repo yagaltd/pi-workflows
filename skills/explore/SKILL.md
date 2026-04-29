@@ -11,7 +11,7 @@ Research a question, gather evidence, make a confident decision. Kill bad ideas 
 
 ## Phase 1: DEFINE
 
-Understand what the human needs to decide.
+Understand what the human needs to decide. `/explore` is for research, kill/pivot/proceed recommendations, and optional throwaway prototypes — not production planning.
 
 - What question needs answering?
 - What would make them confident to **proceed** or **kill** this?
@@ -45,6 +45,7 @@ Gather information from the codebase and any relevant sources.
      If subagents are not available, handle each input in sequence.
 
 2. **Map the territory**:
+   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
    - `find`, `grep`/`rg` for relevant files, patterns, modules
    - Read key files to understand current architecture
    - Check dependencies (package.json, Cargo.toml, etc.)

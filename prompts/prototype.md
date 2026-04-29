@@ -1,6 +1,6 @@
 ---
 description: "Prototype — run parallel mini-prototypes to test theories and define benchmarks"
-model: openrouter/arcee-ai/trinity-large-thinking
+model: deepseek/deepseek-v4-flash
 inheritContext: true
 skill: add-feature
 ---

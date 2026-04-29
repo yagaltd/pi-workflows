@@ -1,6 +1,6 @@
 ---
-description: "Fix bug — reproduces, diagnoses, fixes within boundaries, verifies with agent-spec"
-model: openrouter/arcee-ai/trinity-large-thinking
+description: "Fix bug — feedback loop, hypotheses, regression test, verifies with agent-spec"
+model: deepseek/deepseek-v4-flash
 thinking: medium
 skill: fix
 restore: true

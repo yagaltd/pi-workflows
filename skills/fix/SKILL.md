@@ -7,45 +7,80 @@ argument-hint: "<bug description or error>"
 
 # Fix Workflow
 
-Reproduce → diagnose → fix within boundaries → verify with agent-spec → prevent. Find the root cause, not the symptom.
+Build a deterministic feedback loop → reproduce → hypothesize → instrument → fix → regression-test → verify. Find the root cause, not the symptom.
 
-## Phase 1: REPRODUCE
+## Phase 1: FEEDBACK LOOP FIRST
 
-Confirm the problem exists before trying to fix it.
+Create the fastest reliable pass/fail signal for the bug before trying to fix it.
 
-1. **Understand the report**: What's the error? When does it happen? What's expected vs actual?
-2. **Find the relevant code**: `grep`/`rg` for error messages, function names, file paths mentioned in the stack trace.
-3. **Reproduce it**:
-   - Run the failing test: `npm test -- <test-file>` or equivalent
-   - If no test: write a minimal reproduction script
-   - Capture the exact error output
+Try, in order:
+
+1. failing test at the seam that reaches the bug
+2. curl/HTTP script against a dev server
+3. CLI invocation with fixture input and expected output
+4. headless browser script for UI bugs
+5. replay captured request/payload/event log
+6. throwaway harness around the smallest useful subsystem
+7. property/fuzz loop for intermittent wrong output
+8. bisection or differential loop when regression range is known
+9. HITL script only if human clicks are unavoidable
+
+Improve the loop until it is fast, specific, and deterministic enough to debug against. For flaky bugs, raise reproduction rate with repetition, stress, parallelism, fixed seeds, or timing controls.
+
+If no loop can be built, stop. Report what you tried and ask for environment access, captured artifacts, or permission to add temporary instrumentation.
+
+## Phase 2: REPRODUCE
+
+Run the loop. Confirm it shows the user's exact symptom, not a nearby failure.
+
+Capture:
+- exact command/script
+- exact error/output/screenshot/log
+- reproduction rate if flaky
+- relevant environment details
 
 If you **cannot reproduce**:
-- Ask the human for more context (input data, environment, steps)
+- Ask the human for more context (input data, environment, steps, logs, HAR, screenshot, trace)
 - 🛑 **STOP** if reproduction is impossible. Don't fix what you can't confirm is broken.
 
 **OUTPUT**: Confirmed reproduction with exact error output.
 
-## Phase 2: DIAGNOSE
+## Phase 3: HYPOTHESIZE
+
+Generate 3-5 ranked hypotheses before testing any of them. Each must be falsifiable.
+
+Format:
+
+```markdown
+1. Hypothesis: <cause>
+   Prediction: If this is true, then <probe/change> will show <observable result>.
+   Evidence: <why plausible>
+```
+
+Show the ranked list to the user when useful. Proceed with best-ranked hypothesis if user is AFK.
+
+## Phase 4: INSTRUMENT
+
+Test one hypothesis at a time.
+
+- Prefer debugger/REPL when available.
+- Otherwise add targeted logs at boundaries that distinguish hypotheses.
+- Tag all temporary logs with a unique prefix: `[DEBUG-xxxx]`.
+- Never "log everything and grep".
+- For performance regressions: measure first with timing harness/profiler/query plan, then fix.
+
+## Phase 5: DIAGNOSE
 
 Find the ROOT CAUSE, not just the symptom.
 
-1. **Trace backward from the error**:
-   - Where does the error originate?
-   - What function/path leads there?
-   - What input/state causes the failure?
-
-2. **Check recent changes**:
+1. Trace backward from the failure through the real call path.
+2. Check recent changes:
    ```bash
-   git log --oneline -20            # Recent commits
-   git diff HEAD~5..HEAD -- <area>  # Recent changes in relevant area
+   git log --oneline -20
+   git diff HEAD~5..HEAD -- <area>
    ```
-
-3. **Check for similar patterns that work**:
-   - Is there a similar code path that handles this correctly?
-   - What's different about the failing path?
-
-4. **Form a hypothesis**: ONE testable theory about the root cause.
+3. Compare similar working paths.
+4. Identify the hypothesis that survived instrumentation.
 
 Present to the human:
 ```
@@ -55,7 +90,7 @@ Present to the human:
 <what's actually broken and why>
 
 ### Evidence
-- <trace/log/diff that supports this>
+- <repro/instrumentation/diff that supports this>
 
 ### Proposed fix
 <minimal change to correct the root cause>
@@ -67,9 +102,9 @@ Present to the human:
 <what could break from this fix>
 ```
 
-🛑 **GATE**: Human must approve diagnosis and fix approach before proceeding.
+🛑 **GATE**: Human must approve diagnosis and fix approach before proceeding unless they explicitly asked for autonomous fixing.
 
-## Phase 3: FIX
+## Phase 6: FIX
 
 Minimal correction targeting the root cause within boundaries.
 
@@ -94,11 +129,9 @@ Minimal correction targeting the root cause within boundaries.
 
 If checks fail → fix the fix. Don't proceed with broken state.
 
-## Phase 4: VERIFY
+## Phase 7: VERIFY
 
-Full verification that the fix works and nothing else broke.
-
-## Phase 4: VERIFY
+Full verification that the fix works and nothing else broke. First, re-run the original Phase 1 feedback loop. It must pass.
 
 Run in order. Stop at first failure.
 
@@ -170,7 +203,17 @@ git diff --stat
 - Build: ✅ / ❌
 ```
 
-## Phase 5: PREVENT
+## Phase 8: CLEANUP
+
+Before presenting:
+
+- Remove all `[DEBUG-...]` instrumentation (`rg "\\[DEBUG-"`).
+- Delete throwaway harnesses or move them to a clearly marked debug artifact if intentionally kept.
+- Ensure original feedback loop passes.
+- Ensure regression test passes, or document why no correct seam exists.
+- State which hypothesis was correct.
+
+## Phase 9: PREVENT
 
 Document the fix to prevent recurrence.
 

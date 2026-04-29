@@ -1,6 +1,6 @@
 ---
-description: "Add feature — implements against contract, verifies with agent-spec"
-model: openrouter/arcee-ai/trinity-large-thinking
+description: "Add feature — execute approved contract; broad ideas route to /idea"
+model: deepseek/deepseek-v4-flash
 thinking: high
 skill: add-feature
 restore: true
@@ -11,8 +11,8 @@ If a .spec file path is provided as argument, read the contract first:
 agent-spec contract <spec-file>
 ```
 
-If no spec file, the skill will create one from the feature description.
+If no spec file, only proceed for small surgical requests: mini-recon first, create a contract, ask approval. Broad or ambiguous ideas must route to `/idea`.
 
-Implement within contract boundaries. Verify with agent-spec lifecycle.
+Implement within approved contract boundaries. Verify with agent-spec lifecycle.
 
 $@

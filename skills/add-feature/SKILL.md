@@ -7,27 +7,46 @@ argument-hint: "<feature description or spec path>"
 
 # Add Feature Workflow
 
-Build a feature against a contract: understand the codebase → implement within boundaries → verify with agent-spec → ship.
+Execute an approved contract. Small surgical requests may create a contract after mini-recon. Broad ideas must route to `/idea`.
+
+## Phase 0: CLASSIFY INPUT
+
+Decide which path applies before writing code.
+
+1. **Approved `.spec` path provided** → execute that contract.
+2. **Broad or ambiguous feature idea** → stop and route to `/idea`.
+   - Broad signals: unclear behavior, multiple screens/modules, data model choice, API design, architecture tradeoff, unknown scope, or user says "figure it out".
+3. **Small surgical request** → mini-recon first, then create a contract and ask approval.
+   - Surgical signals: one known command/flag/field/endpoint, narrow behavior, likely few files, no architecture choice.
+
+If unsure, treat as broad and route to `/idea`.
 
 ## Phase 1: SPEC
 
-Ensure you have a contract before writing code.
+Ensure you have an evidence-backed contract before writing code.
 
 1. **If a `.spec` file exists**: Read it with `agent-spec contract <spec>`. This is your contract. Follow it.
-2. **If human provides a description**: Write a contract:
+2. **If no spec but request is broad**: Stop. Say: "This needs `/idea` first so we can explore, resolve decisions, and write contracts."
+3. **If no spec but request is small/surgical**: run mini-recon BEFORE creating a contract:
+   - read `CONTEXT.md`, `CONTEXT-MAP.md`, and relevant `docs/adr/*.md` if present
+   - find related code/tests with `find` and `rg`
+   - identify existing patterns and exact files likely in scope
+   - check cheap baseline tests if relevant
+
+Then create a contract:
 
 ```bash
 mkdir -p specs
 agent-spec init --level task --lang en --name "<feature-name>"
 ```
 
-Then fill in:
+Fill in from evidence:
 - **Intent**: what this feature does (1-3 sentences)
-- **Decisions**: technical choices that are fixed
-- **Boundaries**: which files you may change, which you must not
+- **Decisions**: technical choices fixed by repo patterns or user answers
+- **Boundaries**: exact files/globs allowed and forbidden
 - **Completion Criteria**: BDD scenarios with explicit test selectors
 
-Show the contract to the human. Get approval before proceeding.
+Show the contract and mini-recon evidence to the human. Get approval before proceeding.
 
 🛑 **GATE**: Contract must be approved. Do NOT start building without it.
 

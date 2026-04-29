@@ -15,6 +15,7 @@ Gather enough context to plan well.
 
 1. **What's the goal?** Read what the human described. If vague, ask 1-2 clarifying questions max.
 2. **What exists already?**
+   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
    - If the human pointed at a repo: scout it (`/scout` or read exploration output)
    - If the human pointed at URLs: read them with `bash` (`curl -sL <url> | head -500`)
    - If there's an existing exploration doc: read it
@@ -23,7 +24,7 @@ Gather enough context to plan well.
 
 ### Structured Interview (if pi-interview-tool is available)
 
-After analyzing the codebase and understanding the goal, generate an interview for the human. Create a questions JSON file and call `interview()`.
+After analyzing the codebase, domain memory, ADRs, and understanding the goal, generate an interview for the human. Ask only decisions that remain unresolved after evidence gathering. Create a questions JSON file and call `interview()`.
 
 Include questions for:
 - Framework / library choices (single-select, with `recommended` from your analysis)
@@ -124,6 +125,14 @@ Assign a testing strategy per task based on code type:
 | Web UI | example-based + pi-annotate (quick) / bombadil (full) | Browser tasks |
 | State machine | stateful property tests | Complex state transitions |
 | Simple CRUD | example-based only | Boilerplate tasks |
+
+### Domain Memory Rules
+
+- Use glossary terms from `CONTEXT.md` in task titles, specs, and test names.
+- If user language conflicts with `CONTEXT.md`, call it out before planning.
+- If requested design contradicts an ADR, flag the conflict and ask before proceeding.
+- If a durable domain term is clarified, update `CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
+- Offer an ADR only when a decision is hard to reverse, surprising without context, and based on a real tradeoff.
 
 ## Phase 3: WRITE CONTRACTS
 

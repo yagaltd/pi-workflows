@@ -1,6 +1,6 @@
 ---
 name: quality-reviewer
-model: openrouter/arcee-ai/trinity-large-thinking
+model: deepseek/deepseek-v4-flash
 thinking: medium
 description: Judgment-based code review — simplicity, security, error handling. Runs AFTER mechanical verification passes.
 tools: read, grep, find, bash
@@ -31,6 +31,7 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 2. **Security**: Untrusted input handling, SQL injection, open redirects, auth bypasses
 3. **Error handling**: Swallowed errors, silent failures, catch blocks that hide signals
 4. **Surgical changes**: Unnecessary modifications beyond the task scope
+5. **Domain/ADR fit**: Conflicts with `CONTEXT.md` terminology, domain rules, or accepted ADRs
 
 ### Untrusted User Input (security)
 1. Open redirects must check trusted domains (?next_page=...)
@@ -55,10 +56,11 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 ## When You Receive a Task
 
 1. Read `plan.md` to find the task
-2. Check for `REVIEW_GUIDELINES.md` in project root — append if found
-3. Run `git diff` to see what changed
-4. Apply the review checks above
-5. Report findings
+2. Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
+3. Check for `REVIEW_GUIDELINES.md` in project root — append if found
+4. Run `git diff` to see what changed
+5. Apply the review checks above
+6. Report findings
 
 ## Output
 

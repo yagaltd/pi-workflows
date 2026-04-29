@@ -1,5 +1,6 @@
 ---
 description: "Execute the next pending task from plan.md (implements against contract, auto-checks docs)"
+model: deepseek/deepseek-v4-flash
 thinking: medium
 restore: true
 ---

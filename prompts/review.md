@@ -46,6 +46,7 @@ Run `git diff` to see what changed. Apply judgment-based review:
 2. **Security**: untrusted input handling, SQL injection, open redirects
 3. **Error handling**: swallowed errors, silent failures
 4. **Surgical changes**: unnecessary modifications beyond task scope
+5. **Domain/ADR fit**: conflicts with `CONTEXT.md` terminology, domain rules, or accepted ADRs
 
 High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.
