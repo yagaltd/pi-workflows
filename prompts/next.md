@@ -48,54 +48,165 @@ Before executing, check if the task's `.spec` contract is still valid given comp
    - If the change is significant (new boundary, changed intent), present to human before proceeding
 5. If the spec is still valid, proceed
 
+### Bottleneck-Based Model Guidance
+
+Before dispatching, check the task's bottleneck tag in plan.md:
+- 🔴 BLOCKING → use highest thinking model, human review after
+- 🟡 RISKY → medium thinking, consider prototype first
+- 🟠 VERIFICATION_HEAVY → budget extra time for tests
+- ⚪ STANDARD → default
+
 ### Subagent Delegation
 
-For `worker` and `scout` tasks, delegate to a subagent to keep the main session clean:
+For ALL task types (`worker`, `scout`, `reviewer`, `quality-reviewer`), delegate to a subagent with the full workflow instructions embedded in the task prompt. This ensures subagents have the same high-quality instructions as inline skill execution.
+
+**Before dispatching any subagent**, create a goal for it:
+```
+create_goal({ objective: "TASK <N>: <goal> — implement within contract specs/<task-id>.spec" })
+```
+This ensures the subagent stays on track and completion is verifiable.
+
+**After the subagent completes**, update the goal:
+```
+update_goal({ status: "complete" })
+```
+
+#### Worker tasks
+
+Embed the BUILD + VERIFY workflow from the add-feature skill:
 
 ```
 subagent({
   agent: "worker",
-  task: "Implement TASK <N>: <goal>. Contract: specs/<task-id>.spec",
+  task: `Implement TASK <N>: <goal>.
+
+Read the contract at specs/<task-id>.spec.
+
+## Workflow
+
+### BUILD (TDD vertical slices)
+1. Read the contract: Intent, Decisions, Boundaries, Completion Criteria
+2. For EACH scenario in Completion Criteria:
+   a. Write ONE test for that scenario → it fails (RED)
+   b. Write minimal code to pass it (GREEN)
+   c. Refactor if needed
+3. Run all tests → they all pass
+4. Run full verification
+
+### VERIFY (run in order, stop at first failure)
+1. Contract verification:
+   agent-spec lifecycle specs/<task-id>.spec --code . --format json
+   agent-spec guard --spec-dir specs --code . --change-scope worktree
+2. Project checks: tests, lint, typecheck, build
+
+### Coding Rules
+- Simplicity first — no speculative features or abstractions
+- Surgical changes — only what the contract requires
+- Fail-fast error handling — propagate, never swallow
+- Scope lock — if something outside is broken, note it, don't fix it
+- If blocked, output WORKER_BLOCKER JSON with reason and evidence
+`,
   reads: ["plan.md", "specs/<task-id>.spec"],
   progress: true
 })
 ```
 
-For parallel tasks within a wave, dispatch all at once:
+#### Parallel worker tasks (waves)
+
+Same instructions, each task gets its own spec file:
+
 ```
 subagent({
   tasks: [
-    { agent: "worker", task: "Implement TASK 2: <goal>. Contract: specs/task-2.spec", reads: ["plan.md", "specs/task-2.spec"] },
-    { agent: "worker", task: "Implement TASK 3: <goal>. Contract: specs/task-3.spec", reads: ["plan.md", "specs/task-3.spec"] },
+    {
+      agent: "worker",
+      task: `Implement TASK 2: <goal>.\n\nRead the contract at specs/task-2.spec.\n\n## Workflow\n\n### BUILD (TDD)\nFor EACH scenario: write test (RED) → implement (GREEN) → refactor\n\n### VERIFY\n1. agent-spec lifecycle specs/task-2.spec --code .\n2. agent-spec guard\n3. Project checks\n\n### Rules\n- Simplicity first, surgical changes, fail-fast\n- If blocked, output WORKER_BLOCKER`,
+      reads: ["plan.md", "specs/task-2.spec"]
+    },
+    {
+      agent: "worker",
+      task: `Implement TASK 3: <goal>.\n\nRead the contract at specs/task-3.spec.\n\n## Workflow\n\n### BUILD (TDD)\nFor EACH scenario: write test (RED) → implement (GREEN) → refactor\n\n### VERIFY\n1. agent-spec lifecycle specs/task-3.spec --code .\n2. agent-spec guard\n3. Project checks\n\n### Rules\n- Simplicity first, surgical changes, fail-fast\n- If blocked, output WORKER_BLOCKER`,
+      reads: ["plan.md", "specs/task-3.spec"]
+    },
   ],
   concurrency: 4,
   worktree: true
 })
 ```
 
+#### Scout tasks
+
+```
+subagent({
+  agent: "scout",
+  task: `Investigate <area> for TASK <N>: <goal>.
+
+## Instructions
+1. Read domain memory: CONTEXT.md, CONTEXT-MAP.md, docs/adr/*.md if present
+2. grep/find relevant code, tests, routes, config
+3. Read key sections (use offset/limit, not entire files)
+4. Identify types, interfaces, key functions
+5. Map dependencies between files
+6. Flag conflicts between task wording, glossary, ADRs, and code
+
+## Output format
+- Files Retrieved (exact paths + line ranges)
+- Key Code (critical types, interfaces, functions)
+- Domain Memory (relevant terms and conflicts)
+- Architecture (how pieces connect)
+- Start Here (first file to look at and why)
+
+NEVER modify source files.`,
+  reads: ["plan.md"],
+  progress: true
+})
+```
+
+#### Reviewer tasks
+
+```
+subagent({
+  agent: "reviewer",
+  task: `Run contract verification for TASK <N>: <goal>.
+
+Contract: specs/<task-id>.spec
+
+Run in order. Stop at first failure.
+
+1. agent-spec lifecycle specs/<task-id>.spec --code . --format json
+2. agent-spec guard --spec-dir specs --code . --change-scope worktree
+3. Project checks: tests, lint, typecheck, build
+
+Report PASS/FAIL per layer with evidence. Mechanical only — no judgment.`,
+  reads: ["plan.md", "specs/<task-id>.spec"],
+  progress: true
+})
+```
+
+#### Quality-reviewer tasks
+
+```
+subagent({
+  agent: "quality-reviewer",
+  task: `Quality review for TASK <N>: <goal>.
+
+Assume mechanical verification passed. Check:
+1. Simplicity: unnecessary abstractions, overcomplication
+2. Security: untrusted input, injection, auth
+3. Error handling: swallowed errors, silent failures
+4. Surgical changes: modifications beyond scope
+5. Domain fit: conflicts with CONTEXT.md, ADRs
+
+Priority: P0 (blocking) > P1 (urgent) > P2 (normal) > P3 (low)
+
+Output: APPROVED / CHANGES_REQUESTED with findings and file references.
+High bar — empty review = clean code = success.`,
+  reads: ["plan.md", "specs/<task-id>.spec"],
+  progress: true
+})
+```
+
 Use `worktree: true` for parallel worker tasks to isolate filesystem changes. Sequential tasks don't need worktrees.
-
-For `reviewer` and `quality-reviewer` tasks, run directly (no subagent needed — these are read-only checks).
-
-### Bottleneck-Based Model Adjustment
-
-Before dispatching, check the task's bottleneck tag in plan.md:
-- 🔴 BLOCKING → suggest high thinking model, human review after
-- 🟡 RISKY → suggest medium thinking, warn about prototype need
-- 🟠 VERIFICATION_HEAVY → suggest budgeting extra time for tests
-- ⚪ STANDARD → default model/thinking
-
-Execute the task using the appropriate workflow:
-
-- If the task's agent is `scout`: use the explore skill to recon (no contract needed)
-- If the task's agent is `worker`: 
-  1. Read the contract
-  2. Implement within Boundaries
-  3. Write tests for every Completion Criteria scenario
-  4. Self-verify with `agent-spec lifecycle <contract> --code .`
-- If the task's agent is `reviewer`: run mechanical verification (agent-spec guard + tdd-guard + project checks)
-- If the task's agent is `quality-reviewer`: run judgment-based code review AFTER mechanical verification passes
-- If the task's agent is `human`: present the task and STOP
 
 ### Blocker Handling
 
@@ -106,22 +217,37 @@ If the worker output contains `WORKER_BLOCKER:`, extract the reason and:
 - **unsafe_request / inaccessible_resource**: Report to human, skip task
 
 After completing the task:
-1. Run `agent-spec lifecycle <contract> --code . --layers lint,boundary,test,tdd-guard --format json` (if contract exists)
+1. Run `agent-spec lifecycle <contract> --code . --layers lint,boundary,test --format json` (if contract exists)
 2. Run project verification (tests, lint, types, build)
-3. Update `plan.md`: mark task status as ✅ DONE or ❌ FAILED
-4. Add cost and duration to the task in plan.md:
+3. **(If code changed)** Run adversarial verification:
+   ```
+   subagent({
+     agent: "bug-hunter",
+     task: `Run bug-hunter --staged --scan-only on the current changes.
+   Report all findings with severity, file paths, and evidence.`,
+     progress: true
+   })
+   ```
+4. **(If code changed)** Run line-level AI review:
+   ```bash
+   ocr review --audience agent --format json 2>/dev/null || echo "ocr not installed, skip"
+   ```
+5. Update `plan.md`: mark task status as ✅ DONE or ❌ FAILED
+6. Add cost and duration to the task in plan.md:
    ```
    - **Cost**: $<estimate> (<tokens> tokens)
    - **Duration**: <time>
    ```
-5. Add **learnings** to the Execution Notes section — what was discovered, what patterns worked, what to adjust for future tasks.
-6. **Auto-check docs**: if any `docs/*.md` files exist, check if they need updating:
+7. Add **learnings** to the Execution Notes section — what was discovered, what patterns worked, what to adjust for future tasks.
+8. **Update CONTEXT.md**: if any domain decisions were made during this task, update CONTEXT.md immediately. If an architecture decision meets all 3 criteria (hard to reverse, surprising, real tradeoff), create an ADR in docs/adr/.
+9. **Auto-check docs**: if any `docs/*.md` files exist, check if they need updating:
    ```bash
    find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
    ```
    If docs exist and the task made architectural changes, run `/docs <area>` to update.
    If no relevant changes, skip silently.
-7. **Validate downstream specs**: check if the next 1-2 pending tasks' contracts need updating based on learnings from this task. If they do, update them now and note the changes.
-8. Show what was done and what's next
+10. **Validate downstream specs**: check if the next 1-2 pending tasks' contracts need updating based on learnings from this task. If they do, update them now and note the changes. If a contract changed, present to human before proceeding.
+11. **Update goal**: call update_goal({ status: "complete" }) for this task's goal.
+12. Show what was done and what's next
 
 $@

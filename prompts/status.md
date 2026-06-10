@@ -1,11 +1,19 @@
 ---
 description: "Show current plan.md progress with contract status and cost summary"
-model: openrouter/xiaomi/mimo-v2-pro
-thinking: off
+model: deepseek/deepseek-v4-flash
+thinking: high
 restore: true
 ---
 
-Read `plan.md` in the current project and show a compact progress summary:
+Read `plan.md` in the current project and show a compact progress summary. Also check CONTEXT.md and docs/adr/ for additional status:
+
+```bash
+# Check if CONTEXT.md exists and when it was last updated
+ls -la CONTEXT.md 2>/dev/null || echo "No CONTEXT.md"
+
+# Count ADRs
+ls docs/adr/*.md 2>/dev/null | wc -l | tr -d ' '
+```
 
 ```
 ## Plan: <goal>
@@ -27,6 +35,10 @@ Read `plan.md` in the current project and show a compact progress summary:
 - specs/task-thing.spec: ✅ all scenarios pass
 - specs/task-other.spec: 🔄 in progress
 - specs/task-five.spec: ❌ 2/4 scenarios fail
+
+### Domain Memory
+- CONTEXT.md: <last updated timestamp or "not created">
+- ADRs: <count> created (docs/adr/)
 
 ### Cost Summary
 - Total: $<total> (<total tokens> tokens)

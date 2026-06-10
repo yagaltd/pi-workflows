@@ -1,8 +1,6 @@
 ---
-description: "Scout — fast codebase recon"
-model: openrouter/xiaomi/mimo-v2-pro
-thinking: low
-skill: explore
-restore: true
+description: "(removed) Use /explore instead — parallel multi-angle recon with subagents"
+hidden: true
 ---
-$@
+
+This prompt is removed. Use `/explore` for multi-angle research with parallel scout subagents.

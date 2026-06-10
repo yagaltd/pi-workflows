@@ -1,7 +1,7 @@
 ---
 description: "Show contract — display the agent-spec contract for a task"
-model: openrouter/xiaomi/mimo-v2-pro
-thinking: low
+model: deepseek/deepseek-v4-flash
+thinking: high
 restore: true
 ---
 

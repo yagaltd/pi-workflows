@@ -1,7 +1,7 @@
 ---
 description: "Amend — update existing plan/specs when decisions change"
-model: openai/gpt-5.5
-thinking: high
+model: deepseek/deepseek-v4-flash
+thinking: xhigh
 skill: amend
 restore: true
 ---

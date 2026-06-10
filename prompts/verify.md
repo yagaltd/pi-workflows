@@ -23,19 +23,7 @@ Run the full verification pipeline across all contracts and the project. Ordered
    ```
 If any scenario fails or boundaries violated → report FAIL, STOP.
 
-## Layer 2: Test Quality (tdd-guard)
-
-If tdd-guard is installed:
-```bash
-tdd-guard lint --src src --tests tests --format json
-
-for spec in specs/*.spec; do
-  tdd-guard spec-verify --spec "$spec" --format json
-done
-```
-If tdd-guard is not installed, note it and skip. If any rule fails → report FAIL, STOP.
-
-## Layer 3: Project Toolchain
+## Layer 2: Project Toolchain
 
 ```bash
 # Adapt to project:
@@ -51,11 +39,7 @@ npm test && npm run lint && npm run typecheck && npm run build
 - Guard: <result>
 - Lifecycle per spec: <results>
 
-### Layer 2: tdd-guard
-- Lint: pass / fail / skipped
-- Spec-verify per spec: <results>
-
-### Layer 3: project
+### Layer 2: project
 - Tests: pass / fail
 - Lint: pass / fail
 - Types: pass / fail

@@ -1,7 +1,7 @@
 ---
 description: "Plan — decompose into atomic tasks from existing context"
-model: openai/gpt-5.5
-thinking: high
+model: deepseek/deepseek-v4-flash
+thinking: xhigh
 skill: plan
 restore: true
 ---

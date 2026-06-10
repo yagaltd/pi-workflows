@@ -1,7 +1,7 @@
 ---
 description: "Idea — productize: explore → grill decisions → plan → specs → approval"
-model: openai/gpt-5.5
-thinking: high
+model: deepseek/deepseek-v4-flash
+thinking: xhigh
 skill: idea
 restore: true
 ---

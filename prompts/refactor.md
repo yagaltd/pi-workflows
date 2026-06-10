@@ -1,7 +1,7 @@
 ---
 description: "Refactor — powerful model, deep thinking, structure change only"
-model: openrouter/xiaomi/mimo-v2-pro
-thinking: high
+model: deepseek/deepseek-v4-flash
+thinking: xhigh
 skill: refactor
 restore: true
 ---

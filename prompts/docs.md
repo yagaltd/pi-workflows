@@ -1,7 +1,7 @@
 ---
 description: "Docs — generate/update project documentation"
-model: openrouter/xiaomi/mimo-v2-pro
-thinking: low
+model: deepseek/deepseek-v4-flash
+thinking: high
 skill: docs
 restore: true
 ---

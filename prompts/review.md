@@ -1,44 +1,48 @@
 ---
-description: "Review — mechanical verification then quality review"
+description: "Review — run /verify first, then quality review with bug-hunter + judgment"
 model: zai/glm-5.1
 thinking: low
-inheritContext: true
 restore: true
 ---
 
-Run a two-stage review:
+Run a two-stage review.
 
-## Stage 1: Mechanical Verification (reviewer agent)
+## Stage 1: Mechanical Verification
 
-Read plan.md to find the current task and its contract.
+First, run the full verification suite (same as `/verify`):
 
 ### Layer 1: Contract Verification (agent-spec)
-```bash
-agent-spec lifecycle <spec> --code . --format json
-```
-If any scenario fails → report FAIL, STOP. No quality review needed.
 
-### Layer 1b: Boundary Guard
 ```bash
-agent-spec guard --spec-dir specs --code . --change-scope worktree
-```
-If boundary violated → report FAIL, STOP.
+# Guard all specs against current changes
+agent-spec guard --spec-dir specs --code . --change-scope worktree --format json
 
-### Layer 2: Test Quality (tdd-guard, if installed)
-```bash
-tdd-guard lint --src src --tests tests --format json
-tdd-guard spec-verify --spec <spec> --format json
+# Lifecycle on each spec individually
+for spec in specs/*.spec; do
+  echo "=== $spec ==="
+  agent-spec lifecycle "$spec" --code . --format json
+done
 ```
-If any rule fails → report FAIL, STOP.
+If any scenario fails or boundaries violated → report FAIL, STOP. No quality review needed.
 
-### Layer 3: Project Checks
+### Layer 2: Project Checks
+
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
+# Adapt to project stack
 ```
 
-Report PASS/FAIL for each layer. If Stage 1 FAILS → stop here.
+If Stage 1 FAILS → stop here.
 
-## Stage 2: Quality Review (quality-reviewer agent, only if Stage 1 PASSES)
+## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)
+
+### Step 1: Bug-hunter scan
+
+```bash
+which bug-hunter && bug-hunter --staged --scan-only || echo "bug-hunter not installed, skip"
+```
+
+### Step 2: Judgment-based quality review
 
 Run `git diff` to see what changed. Apply judgment-based review:
 
@@ -60,14 +64,14 @@ Include human callouts (new deps, auth changes, migrations).
 ### Stage 1: Mechanical Verification
 - agent-spec lifecycle: X/Y scenarios pass
 - agent-spec guard: boundaries respected / violations
-- tdd-guard: pass / fail / skipped
 - Tests: pass / fail
 - Lint: pass / fail
 - Types: pass / fail
 - Build: pass / fail
 
-### Stage 2: Quality Review (skipped if Stage 1 failed)
-- Findings: <list or "none">
+### Stage 2: Reviews (skipped if Stage 1 failed)
+- Bug-hunter: <findings or clean>
+- Quality review: <findings or "none">
 - Human callouts: <list or "none">
 ```
 
