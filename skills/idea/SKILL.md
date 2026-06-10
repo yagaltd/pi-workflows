@@ -110,32 +110,11 @@ Create or update `.workflows/plan.md` using the existing Plan Workflow rules:
 
 Use domain terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
 
-## Phase 5: WRITE CONTRACTS
+## Phase 5: STOP FOR APPROVAL
 
-For every worker task, write `.workflows/specs/*.spec` with:
+🛑 **GATE**: Do not proceed without approval.
 
-- Intent
-- Decisions
-- Boundaries
-- Completion Criteria with explicit `Test:` selectors
-
-Contracts must reflect resolved decisions. Do not leave broad design choices for worker agents.
-
-## Phase 6: DOMAIN MEMORY UPDATES
-
-If the conversation resolved a durable domain term, update `.workflows/CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
-
-Offer an ADR only when all are true:
-
-1. Hard to reverse
-2. Surprising without context
-3. Real tradeoff existed
-
-Use `templates/ADR.md` if creating one.
-
-## Phase 7: STOP FOR APPROVAL
-
-Do not implement. Present:
+Present the plan for human review:
 
 ```markdown
 ## Idea Ready for Approval
@@ -150,11 +129,64 @@ Do not implement. Present:
 - ...
 
 ### Plan
-- `.workflows/plan.md`
-- specs: <list>
+- `.workflows/plan.md` lists all planned worker tasks with bottleneck tags and parallel groups
+- Contracts will be generated after approval
 
 ### Next Step
-Approve plan, then run `/next` or `/add-feature .workflows/specs/<task>.spec`.
+Approve to generate contracts, then run `/next` to execute.
+```
+
+Ask the human:
+- Plan structure right?
+- Bottleneck tags accurate?
+- Testing strategies appropriate?
+- Approve to generate contracts and start execution?
+
+## Phase 6: GENERATE CONTRACTS
+
+Once approved, generate `.spec` files for every worker task:
+
+```bash
+mkdir -p .workflows/specs
+```
+
+For each worker task, write `.workflows/specs/<task-name>.spec` with:
+
+- **Intent**: what to build and why (1-3 sentences)
+- **Diagrams** (optional): Mermaid diagram showing flow, architecture, or state machine
+- **Decisions**: technical choices already fixed
+- **Boundaries**: exact files/globs allowed and forbidden
+- **Completion Criteria**: BDD scenarios with explicit `Test:` selectors
+
+Contracts must reflect resolved decisions. Include edge cases and at least one negative scenario.
+
+Use the contract template from the `/plan` workflow.
+
+## Phase 7: DOMAIN MEMORY UPDATES
+
+If the conversation resolved a durable domain term, update `.workflows/CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
+
+Offer an ADR only when all are true:
+
+1. Hard to reverse
+2. Surprising without context
+3. Real tradeoff existed
+
+Use `templates/ADR.md` if creating one.
+
+## Phase 8: HAND OFF
+
+Present what was created:
+
+```markdown
+## Idea Complete
+
+### Plan
+- `.workflows/plan.md`
+- `.workflows/specs/` — <N> contracts generated
+
+### Next Step
+Run `/next` to execute the first task, or `/auto-next` to run all tasks autonomously.
 ```
 
 ## Rules

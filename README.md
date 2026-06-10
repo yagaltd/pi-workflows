@@ -51,6 +51,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 | Command | What it does |
 |---|---|
 | `/next` | Execute next pending task. Bottleneck-aware: adjusts model/thinking per task. Handles worker blockers. |
+| `/auto-next` | Execute ALL pending tasks autonomously — runs waves in order, parallelizes within waves, stops on blockers, reports completion. |
 | `/add <feature-or-spec>` | Execute approved contract. Broad ideas route to `/idea`; small surgical requests get mini-recon + contract gate. |
 | `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
 | `/refactor <scope>` | Restructure code within boundaries |

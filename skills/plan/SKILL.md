@@ -134,132 +134,19 @@ Assign a testing strategy per task based on code type:
 - If a durable domain term is clarified, update `.workflows/CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
 - Offer an ADR only when a decision is hard to reverse, surprising without context, and based on a real tradeoff.
 
-## Phase 3: WRITE CONTRACTS
 
-For **every worker task**, generate a `.spec` file in `.workflows/specs/`:
 
-```bash
-mkdir -p .workflows/specs
-```
+## Phase 3: WRITE PLAN
 
-Before writing the plan, ensure the `.workflows/` directory exists:
+Ensure the `.workflows/` directory exists:
 
 ```bash
 mkdir -p .workflows
 ```
 
-All contracts are written upfront so the human can review them before execution starts. `/next` will re-validate contracts against learnings from completed tasks and update if needed.
+Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — they will be generated after approval in Phase 5.
 
-### Contract template:
 
-```spec
-spec: task
-name: "<task title>"
-tags: [<relevant tags>]
----
-
-## Intent
-
-<What to build and why — 1-3 sentences>
-
-## Decisions
-
-- <Technical choice already fixed>
-- <Another fixed decision>
-
-## Boundaries
-
-### Allowed Changes
-- <exact file paths or globs>
-
-### Forbidden
-- <files or areas that must not change>
-- <do not modify existing behavior in X>
-
-## Completion Criteria
-
-Scenario: <descriptive name>
-  Test: <exact test function name the worker must write>
-  Given <precondition>
-  When <action>
-  Then <expected outcome>
-  And <additional assertion>
-
-Scenario: <edge case name>
-  Test: <test function name>
-  Given <precondition>
-  When <action>
-  Then <expected outcome>
-```
-
-### Contract writing rules:
-- Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
-- Boundaries MUST list specific file paths, not vague descriptions
-- Decisions are fixed — the worker may not re-open them
-- Completion Criteria define "done" — if all scenarios pass, the task is done
-- Include edge cases: error states, boundary values, empty inputs
-- Include at least one negative scenario (what should fail)
-
-### Example contract:
-
-```spec
-spec: task
-name: "Redis cache module"
-tags: [cache, redis, api]
----
-
-## Intent
-
-Add a Redis-backed cache layer for API responses with TTL support.
-
-## Decisions
-
-- Use `redis` crate (already in Cargo.toml)
-- Cache key format: `<service>:<resource>:<id>`
-- Default TTL: 300 seconds
-
-## Boundaries
-
-### Allowed Changes
-- src/cache/**
-- src/cache.rs
-- tests/cache/**
-
-### Forbidden
-- Do not modify existing API handlers
-- Do not change the Redis connection pool configuration
-- Do not alter response serialization
-
-## Completion Criteria
-
-Scenario: Set and get cached value
-  Test: test_cache_set_then_get_returns_value
-  Given Redis is connected
-  When I set key "api:user:123" to value "{\"name\":\"Alice\"}" with TTL 300
-  Then get("api:user:123") returns "{\"name\":\"Alice\"}"
-
-Scenario: Cache miss returns None
-  Test: test_cache_get_nonexistent_key_returns_none
-  Given Redis is connected
-  When I get key "api:user:999" that does not exist
-  Then the result is None
-
-Scenario: Expired key returns None
-  Test: test_cache_expired_key_returns_none
-  Given key "api:user:456" was set with TTL 1 second
-  When 2 seconds have passed
-  Then get("api:user:456") returns None
-
-Scenario: Delete removes cached key
-  Test: test_cache_delete_removes_key
-  Given key "api:user:789" exists in cache
-  When I delete "api:user:789"
-  Then get("api:user:789") returns None
-```
-
-## Phase 4: WRITE PLAN
-
-Write the plan to `.workflows/plan.md` in the project root. Reference contract files.
 
 ```markdown
 # Plan: <goal>
@@ -320,7 +207,7 @@ Write the plan to `.workflows/plan.md` in the project root. Reference contract f
 - **What**: Judgment-based code review (simplicity, security, error handling)
 - **Status**: ⬜ PENDING
 
-## Contracts
+## Contracts (generated after approval)
 | Task | Contract File | Scenarios |
 |------|--------------|-----------|
 | TASK 2 | .workflows/specs/task-<name>.spec | 4 scenarios |
@@ -329,10 +216,9 @@ Write the plan to `.workflows/plan.md` in the project root. Reference contract f
 ## Execution Notes
 <filled in as tasks are completed — includes cost, duration, and learnings per task>
 ```
-
 🛑 **GATE**: Present the plan to the human. Do NOT proceed without approval.
 
-## Phase 5: REVIEW WITH HUMAN
+## Phase 4: REVIEW WITH HUMAN
 
 Present a compact summary:
 
@@ -348,7 +234,7 @@ Present a compact summary:
 - 🟠 VERIFICATION_HEAVY: <count> tasks (extra test budget)
 - ⚪ STANDARD: <count> tasks
 
-### Contracts generated:
+### Contracts (to be generated after approval):
 - .workflows/specs/task-<name>.spec — 4 scenarios (set/get, miss, expiry, delete)
 - .workflows/specs/task-<other>.spec — 3 scenarios
 
@@ -366,7 +252,7 @@ Ask the human:
 - Tasks right granularity?
 - Bottleneck tags accurate?
 - Testing strategies appropriate?
-- Contracts capture the right scenarios?
+- Contract descriptions clear?
 - Any missing?
 - Approve to start execution?
 
@@ -378,6 +264,148 @@ Wave 2: TASK 4 (depends on wave 1)
 Wave 3: TASK 5 + TASK 6 (verification)
 ```
 All tasks in a wave must complete before the next wave starts. `/next` enforces this.
+
+## Phase 5: GENERATE CONTRACTS
+
+Once the plan is approved, generate the `.spec` files for every worker task:
+
+```bash
+mkdir -p .workflows/specs
+```
+
+### Contract template:
+
+```spec
+spec: task
+name: "<task title>"
+tags: [<relevant tags>]
+---
+
+## Intent
+
+<What to build and why — 1-3 sentences>
+
+## Diagrams
+
+Optional: add a Mermaid diagram to clarify the flow, architecture, or state machine:
+
+```mermaid
+flowchart LR
+    A[Input] --> B{Decision}
+    B -->|Yes| C[Happy path]
+    B -->|No| D[Edge case]
+    C --> E[Result]
+    D --> E
+```
+
+## Decisions
+
+- <Technical choice already fixed>
+- <Another fixed decision>
+
+## Boundaries
+
+### Allowed Changes
+- <exact file paths or globs>
+
+### Forbidden
+- <files or areas that must not change>
+- <do not modify existing behavior in X>
+
+## Completion Criteria
+
+Scenario: <descriptive name>
+  Test: <exact test function name the worker must write>
+  Given <precondition>
+  When <action>
+  Then <expected outcome>
+  And <additional assertion>
+
+Scenario: <edge case name>
+  Test: <test function name>
+  Given <precondition>
+  When <action>
+  Then <expected outcome>
+```
+
+### Contract writing rules:
+- Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
+- Boundaries MUST list specific file paths, not vague descriptions
+- Decisions are fixed — the worker may not re-open them
+- Completion Criteria define "done" — if all scenarios pass, the task is done
+- Include edge cases: error states, boundary values, empty inputs
+- Include at least one negative scenario (what should fail)
+- **Diagrams**: add a `## Diagrams` section with a Mermaid diagram when the flow, architecture, or state machine is non-trivial. This helps the worker understand the expected behavior at a glance.
+
+### Example contract:
+
+```spec
+spec: task
+name: "Redis cache module"
+tags: [cache, redis, api]
+---
+
+## Intent
+
+Add a Redis-backed cache layer for API responses with TTL support.
+
+## Diagrams
+
+```mermaid
+flowchart LR
+    Request[API Request] --> Check{Cache hit?}
+    Check -->|Yes| Return[Return cached value]
+    Check -->|No| Fetch[Fetch from source]
+    Fetch --> Store[Store in cache]
+    Store --> Return
+```
+
+## Decisions
+
+- Use `redis` crate (already in Cargo.toml)
+- Cache key format: `<service>:<resource>:<id>`
+- Default TTL: 300 seconds
+
+## Boundaries
+
+### Allowed Changes
+- src/cache/**
+- src/cache.rs
+- tests/cache/**
+
+### Forbidden
+- Do not modify existing API handlers
+- Do not change the Redis connection pool configuration
+- Do not alter response serialization
+
+## Completion Criteria
+
+Scenario: Set and get cached value
+  Test: test_cache_set_then_get_returns_value
+  Given Redis is connected
+  When I set key "api:user:123" to value "{\"name\":\"Alice\"}" with TTL 300
+  Then get("api:user:123") returns "{\"name\":\"Alice\"}"
+
+Scenario: Cache miss returns None
+  Test: test_cache_get_nonexistent_key_returns_none
+  Given Redis is connected
+  When I get key "api:user:999" that does not exist
+  Then the result is None
+
+Scenario: Expired key returns None
+  Test: test_cache_expired_key_returns_none
+  Given key "api:user:456" was set with TTL 1 second
+  When 2 seconds have passed
+  Then get("api:user:456") returns None
+
+Scenario: Delete removes cached key
+  Test: test_cache_delete_removes_key
+  Given key "api:user:789" exists in cache
+  When I delete "api:user:789"
+  Then get("api:user:789") returns None
+```
+
+Present the generated contracts to the human for a final quick check, then proceed to handoff.
 
 ## Phase 6: HAND OFF
 
