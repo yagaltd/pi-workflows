@@ -1,7 +1,7 @@
 {
   "name": "pi-workflows",
-  "version": "0.2.0",
-  "description": "Cost-optimized multi-model workflow system for pi coding agent. Contract-driven quality with agent-spec verification, adversarial bug-hunter, and structured interview planning.",
+  "version": "0.3.0",
+  "description": "Contract-driven multi-model workflow system for pi. Plan→approve→contracts flow with subagent wave execution, /auto-next, /challenge, and .workflows/ isolation.",
   "keywords": ["pi-package"],
   "license": "MIT",
   "pi": {
