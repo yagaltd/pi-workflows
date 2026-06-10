@@ -21,8 +21,9 @@ Restart pi. All commands appear in `/` autocomplete.
 ```
 /idea I want to add caching to the API 
          → you describe what you want
-         → scouts codebase, writes .workflows/plan.md with contracts
+         → scouts codebase, writes .workflows/plan.md
          → you review and approve
+         → contracts generated automatically
      
 /next    → implements TASK 1 against contract, self-verifies
 /next    → implements TASK 2 against contract, self-verifies
@@ -32,7 +33,9 @@ Restart pi. All commands appear in `/` autocomplete.
          → all green? ship it.
 ```
 
-Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
+Two modes: `/next` × N (step by step) or `/auto-next` (fire and forget).
+
+Then finish with `/review` → all green? ship it.
 
 ## Commands
 
@@ -40,8 +43,8 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 
 | Command | What it does |
 |---|---|
-| `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` + `.spec` contracts → stop for approval |
-| `/plan <description>` | Plan only — you already have context. Generates contracts with bottleneck tags + testing strategies. |
+| `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
+| `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
 | `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
 | `/amend <change>` | Update existing `.workflows/plan.md` and specs when decisions change. |
 | `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
@@ -85,9 +88,10 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 **Adding a feature?**
 ```
 /idea Add caching to the API
-  → explores evidence, grills unresolved decisions, writes plan + contracts
-  → you review and approve
-/next × N    → implements each task
+  → explores evidence, grills unresolved decisions, writes plan
+  → you review and approve → contracts generated
+/next × N    → implements each task, one at a time
+/auto-next   → runs all tasks autonomously
 /review      → verifies everything
 ```
 
@@ -95,9 +99,9 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 ```
 /idea Build a REST API for task management
   → explores repo/docs first, then asks only unresolved framework/auth/database choices
-  → writes plan + contracts
-  → you approve
+  → writes plan → you approve → contracts generated
 /next × N → /review → ship
+/auto-next → fire and forget
 ```
 
 **Bug?**
@@ -141,12 +145,12 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 ### The flow
 
 ```
-IDEA ──► SCOUT ──► PLAN ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
-          (cheap)    (architect) (worker)   (mechanical)  (judgment)      (cheap) (you)
-                      contracts   /next ×N   agent-spec   + security       /docs
-                      bottleneck             + tdd-guard   + simplicity     auto-check
-                      testing                + project      + error handling
-                      interview*             checks         + human callouts
+IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
+          (cheap)    (architect)   (you)   (generated)  (worker)    (mechanical)  (judgment)        (cheap) (you)
+                      bottlenecks   🛑       .spec        /next ×N    agent-spec     + security         /docs
+                      testing        GATE    files        /auto-next  + tdd-guard     + simplicity       auto-check
+                      interview*                        wave         + project        + error handling
+                                                         executor     checks           + human callouts
 
 * interview uses pi-interview when installed, falls back to chat
 ```
@@ -245,7 +249,7 @@ ARCHITECT (xhigh model)
     ├── Structured interview to gather requirements
     ├── /challenge: adversarial grill, updates .workflows/CONTEXT.md inline
     ├── Writes .workflows/plan.md: atomic tasks, bottleneck tags, testing strategies
-    └── Writes JIT contracts for first 1-2 tasks only
+    └── Generates .spec contracts (after human approves plan)
     │
     ▼
 WORKER (xhigh model, subagent)
@@ -494,6 +498,7 @@ pi-workflows/
     ├── verify.md              # /verify — full mechanical suite
     ├── contract.md            # /contract — show contract for a task
     ├── next.md                # /next — waves, TDD workers, blockers, goals
+    ├── auto-next.md           # /auto-next — autonomous full-plan execution
     ├── status.md              # /status — progress + cost summary
     ├── debug.md               # /debug — hypothesis-driven investigation
     ├── prototype.md           # /prototype — parallel A/B/C (backend or UI)
