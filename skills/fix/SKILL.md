@@ -113,6 +113,7 @@ Minimal correction targeting the root cause within boundaries.
    - The test should fail BEFORE the fix and pass AFTER.
    - Test the specific edge case that caused the bug.
 3. **Write a contract for the fix** (if complex):
+
    ```bash
    mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "fix-<bug-name>"

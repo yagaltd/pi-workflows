@@ -42,6 +42,12 @@ If a question can be answered by exploring the codebase, explore instead of aski
 
 ## Phase 3: UPDATE .workflows/CONTEXT.md INLINE
 
+Ensure the `.workflows/` directory exists:
+
+```bash
+mkdir -p .workflows
+```
+
 When a term is resolved, update `.workflows/CONTEXT.md` **immediately**. Do not batch these up.
 
 Format: see `templates/CONTEXT-FORMAT.md`

@@ -33,7 +33,7 @@ Ensure you have an evidence-backed contract before writing code.
    - identify existing patterns and exact files likely in scope
    - check cheap baseline tests if relevant
 
-Then create a contract:
+Then bootstrap `.workflows/` and create a contract:
 
 ```bash
 mkdir -p .workflows/specs

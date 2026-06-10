@@ -142,6 +142,12 @@ For **every worker task**, generate a `.spec` file in `.workflows/specs/`:
 mkdir -p .workflows/specs
 ```
 
+Before writing the plan, ensure the `.workflows/` directory exists:
+
+```bash
+mkdir -p .workflows
+```
+
 All contracts are written upfront so the human can review them before execution starts. `/next` will re-validate contracts against learnings from completed tasks and update if needed.
 
 ### Contract template:

@@ -63,6 +63,12 @@ Ask one-by-one when decisions depend on previous answers. Use `interview()` only
 
 ## Phase 4: UPDATE ARTIFACTS
 
+Ensure the `.workflows/` directory exists:
+
+```bash
+mkdir -p .workflows
+```
+
 After decisions are clear, update only artifacts needed:
 
 - `.workflows/plan.md`

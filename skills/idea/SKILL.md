@@ -93,6 +93,12 @@ If no unresolved decisions remain, state that and continue.
 
 ## Phase 4: PLAN
 
+Ensure the `.workflows/` directory exists:
+
+```bash
+mkdir -p .workflows
+```
+
 Create or update `.workflows/plan.md` using the existing Plan Workflow rules:
 
 - scout tasks first when additional recon is needed

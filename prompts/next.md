@@ -5,6 +5,12 @@ thinking: medium
 restore: true
 ---
 
+Ensure the `.workflows/` directory exists:
+
+```bash
+mkdir -p .workflows
+```
+
 Read `.workflows/plan.md` in the current project.
 
 ### Wave-Based Task Selection

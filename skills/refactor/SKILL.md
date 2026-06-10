@@ -44,6 +44,7 @@ Understand what needs to change and why.
    If baseline is RED, fix first. Refactoring on a broken baseline is dangerous.
 
 6. **Write a refactoring contract**:
+
    ```bash
    mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "refactor-<scope>"

@@ -53,6 +53,12 @@ Before writing, understand the codebase.
 
 ## Phase 3: GENERATE
 
+Ensure the `.workflows/docs/` directory exists:
+
+```bash
+mkdir -p .workflows/docs
+```
+
 Write docs. Terse, architecture-focused.
 
 ### Rules for all docs:
