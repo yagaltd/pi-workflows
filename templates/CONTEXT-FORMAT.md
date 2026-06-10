@@ -1,6 +1,6 @@
-# CONTEXT.md Format
+# .workflows/CONTEXT.md Format
 
-CONTEXT.md is a **glossary of domain terms**, nothing else. No implementation details, no specs, no scratch notes.
+.workflows/CONTEXT.md is a **glossary of domain terms**, nothing else. No implementation details, no specs, no scratch notes.
 
 ## Format
 

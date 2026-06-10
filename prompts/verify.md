@@ -13,10 +13,10 @@ Run the full verification pipeline across all contracts and the project. Ordered
 2. If available, run:
    ```bash
    # Guard all specs against current changes
-   agent-spec guard --spec-dir specs --code . --change-scope worktree --format json
+   agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree --format json
    
    # Lifecycle on each spec individually
-   for spec in specs/*.spec; do
+   for spec in .workflows/specs/*.spec; do
      echo "=== $spec ==="
      agent-spec lifecycle "$spec" --code . --format json
    done

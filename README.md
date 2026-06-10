@@ -21,7 +21,7 @@ Restart pi. All commands appear in `/` autocomplete.
 ```
 /idea I want to add caching to the API 
          → you describe what you want
-         → scouts codebase, writes plan.md with contracts
+         → scouts codebase, writes .workflows/plan.md with contracts
          → you review and approve
      
 /next    → implements TASK 1 against contract, self-verifies
@@ -40,10 +40,10 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 
 | Command | What it does |
 |---|---|
-| `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `plan.md` + `.spec` contracts → stop for approval |
+| `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` + `.spec` contracts → stop for approval |
 | `/plan <description>` | Plan only — you already have context. Generates contracts with bottleneck tags + testing strategies. |
 | `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
-| `/amend <change>` | Update existing `plan.md` and specs when decisions change. |
+| `/amend <change>` | Update existing `.workflows/plan.md` and specs when decisions change. |
 | `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
 
 ### Executing
@@ -62,7 +62,7 @@ Three steps: `/idea` → `/next` × N → `/review`. That's the loop.
 |---|---|
 | `/verify` | Full mechanical suite: agent-spec lifecycle + guard + project checks. Short-circuits on fail. |
 | `/review` | Stage 1: mechanical verification (agent-spec + project checks). Stage 2: adversarial review (bug-hunter) + quality review (judgment). |
-| `/challenge <plan>` | Adversarial grill of your plan against domain model. Sharpens terminology, updates CONTEXT.md inline. |
+| `/challenge <plan>` | Adversarial grill of your plan against domain model. Sharpens terminology, updates .workflows/CONTEXT.md inline. |
 | `/contract [spec]` | Show the contract for a task |
 | `/scout <area>` | Isolated recon. Cheapest, no planning. |
 
@@ -242,8 +242,8 @@ WORKER_BLOCKER:
 ARCHITECT (xhigh model)
     │
     ├── Structured interview to gather requirements
-    ├── /challenge: adversarial grill, updates CONTEXT.md inline
-    ├── Writes plan.md: atomic tasks, bottleneck tags, testing strategies
+    ├── /challenge: adversarial grill, updates .workflows/CONTEXT.md inline
+    ├── Writes .workflows/plan.md: atomic tasks, bottleneck tags, testing strategies
     └── Writes JIT contracts for first 1-2 tasks only
     │
     ▼
@@ -252,8 +252,8 @@ WORKER (xhigh model, subagent)
     ├── Reads contract → TDD vertical slices (RED → GREEN → refactor per scenario)
     ├── Self-verifies: agent-spec lifecycle → project checks
     ├── Reports WORKER_BLOCKER if stuck
-    ├── Logs cost + duration + learnings to plan.md
-    ├── Updates CONTEXT.md with domain decisions
+    ├── Logs cost + duration + learnings to .workflows/plan.md
+    ├── Updates .workflows/CONTEXT.md with domain decisions
     └── Writes ahead: JIT contracts for next 1-2 tasks
     │
     ▼
@@ -290,17 +290,17 @@ FULL    (plan/build/refactor):            strongest + high thinking
 CURRENT (optimize):                       whatever you're on
 ```
 
-Cost and duration are estimated by the agent after each task and logged to plan.md. Not metered by pi — the agent reports its own estimate based on token usage visible in the session. `/status` aggregates from plan.md entries.
+Cost and duration are estimated by the agent after each task and logged to .workflows/plan.md. Not metered by pi — the agent reports its own estimate based on token usage visible in the session. `/status` aggregates from .workflows/plan.md entries.
 
 ## Contract Format
 
-Tasks in `plan.md` reference `.spec` files. You review the contract; the worker implements against it.
+Tasks in `.workflows/plan.md` reference `.spec` files. You review the contract; the worker implements against it.
 
 ```markdown
 ### TASK 2: Add Redis client module
 - **Agent**: worker
 - **Depends on**: TASK 1
-- **Contract**: specs/task-redis-client.spec
+- **Contract**: .workflows/specs/task-redis-client.spec
 - **Bottleneck**: 🔴 BLOCKING
 - **Testing strategy**: example-based
 - **Status**: ⬜ PENDING
@@ -373,7 +373,7 @@ The quality-reviewer uses a structured rubric with priority levels:
 
 Review covers: security, error handling, simplicity, human callouts (new deps, auth changes, migrations).
 
-Add a `REVIEW_GUIDELINES.md` to your project root for project-specific rules. The quality-reviewer loads it automatically. See `templates/REVIEW_GUIDELINES.md` for a starter template.
+Add a `.workflows/REVIEW_GUIDELINES.md` to your project root for project-specific rules. The quality-reviewer loads it automatically. See `templates/REVIEW_GUIDELINES.md` for a starter template.
 
 ## Skills
 
@@ -469,7 +469,7 @@ pi-workflows/
 │   ├── CONTEXT-FORMAT.md      # how to maintain domain glossary
 │   └── ADR-FORMAT.md          # architecture decision record template
 ├── skills/
-│   ├── challenge/SKILL.md     # adversarial grill, updates CONTEXT.md inline
+│   ├── challenge/SKILL.md     # adversarial grill, updates .workflows/CONTEXT.md inline
 │   ├── explore/SKILL.md       # research + synthesize + prototype
 │   ├── idea/SKILL.md          # evidence → decision tree → plan + contracts
 │   ├── plan/SKILL.md          # decompose into atomic tasks + contracts

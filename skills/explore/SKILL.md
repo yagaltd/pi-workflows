@@ -45,7 +45,7 @@ Gather information from the codebase and any relevant sources.
      If subagents are not available, handle each input in sequence.
 
 2. **Map the territory**:
-   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - `find`, `grep`/`rg` for relevant files, patterns, modules
    - Read key files to understand current architecture
    - Check dependencies (package.json, Cargo.toml, etc.)

@@ -4,7 +4,7 @@ model: zai/glm-5.1
 thinking: low
 description: Mechanical contract verification — agent-spec lifecycle, tdd-guard, project checks
 tools: read, grep, find, ls, bash
-defaultReads: plan.md
+defaultReads: .workflows/plan.md
 defaultProgress: true
 inheritProjectContext: true
 inheritSkills: true
@@ -27,7 +27,7 @@ If any scenario fails → report FAIL with details. Do NOT proceed to Layer 2.
 ### Layer 1b: Boundary Guard
 
 ```bash
-agent-spec guard --spec-dir specs --code . --change-scope worktree
+agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If boundary violated → report FAIL. Do NOT proceed.
 

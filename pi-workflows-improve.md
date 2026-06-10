@@ -42,30 +42,30 @@ Currently both run the same agent-spec lifecycle + project checks inline.
 /challenge <plan or idea>
 ```
 
-1. Reads `plan.md`, `CONTEXT.md`, `docs/adr/*.md`, relevant source files
+1. Reads `.workflows/plan.md`, `.workflows/CONTEXT.md`, `.workflows/docs/adr/*.md`, relevant source files
 2. Walks the decision tree one question at a time
 3. For each question: provides recommended answer, cross-references code, sharpens vague terminology
-4. Updates `CONTEXT.md` **inline** as terms are resolved
+4. Updates `.workflows/CONTEXT.md` **inline** as terms are resolved
 5. Creates ADRs when all 3 criteria met: hard to reverse + surprising + real tradeoff
-6. Outputs: finalized `CONTEXT.md` + confirmed plan
+6. Outputs: finalized `.workflows/CONTEXT.md` + confirmed plan
 
 **Implementation:** New `prompts/challenge.md` with `skill: challenge`. New `skills/challenge/SKILL.md` with the grill-with-docs workflow adapted for pi-subagents.
 
-### 5. Add CONTEXT.md auto-update to /next
+### 5. Add .workflows/CONTEXT.md auto-update to /next
 
 In `prompts/next.md`, "After completing the task" section, add:
 
 ```
-  → Update CONTEXT.md with any domain decisions discovered during this task
+  → Update .workflows/CONTEXT.md with any domain decisions discovered during this task
   → If an architecture decision meets all 3 criteria:
     - Hard to reverse
     - Surprising without context  
     - Result of a real trade-off
-    → Create ADR in docs/adr/
-  → Verify plan.md specs are still valid; if decisions changed, rewrite pending contracts
+    → Create ADR in .workflows/docs/adr/
+  → Verify .workflows/plan.md specs are still valid; if decisions changed, rewrite pending contracts
 ```
 
-This prevents the common failure: plan.md goes stale, CONTEXT.md never gets written, next worker repeats same mistakes.
+This prevents the common failure: .workflows/plan.md goes stale, .workflows/CONTEXT.md never gets written, next worker repeats same mistakes.
 
 ### 6. Switch worker to TDD vertical slices
 
@@ -168,7 +168,7 @@ When `/next` dispatches a subagent, create a goal for that subagent session:
 
 ```
 Before subagent:
-  → create_goal({ objective: "Implement TASK N: <goal> within contract specs/task-N.spec" })
+  → create_goal({ objective: "Implement TASK N: <goal> within contract .workflows/specs/task-N.spec" })
   → subagent works, self-verifies
   → update_goal({ status: "complete" })
 ```
@@ -193,7 +193,7 @@ After wave completes:
 ### 11. Add CONTEXT-FORMAT.md and ADR-FORMAT.md templates
 
 From grill-with-docs:
-- `templates/CONTEXT-FORMAT.md` — how to write CONTEXT.md entries (glossary only, no implementation details)
+- `templates/CONTEXT-FORMAT.md` — how to write .workflows/CONTEXT.md entries (glossary only, no implementation details)
 - `templates/ADR-FORMAT.md` — ADR template (title, status, context, decision, consequences)
 
 These are referenced by `/challenge` and the auto-update steps in `/next`.
@@ -214,10 +214,10 @@ This already exists in `next.md` as point 7, but is often skipped. Add explicit 
 subagent({
   agent: "delegate",
   task: `Check if pending task contracts need updating based on learnings from completed TASK N.
-Read plan.md, spec files for next 1-2 pending tasks, and the Execution Notes.
+Read .workflows/plan.md, spec files for next 1-2 pending tasks, and the Execution Notes.
 If any decisions, boundaries, or patterns changed: rewrite the affected specs.
 Report what changed and why.`,
-  reads: ["plan.md"],
+  reads: [".workflows/plan.md"],
   progress: true
 })
 ```
@@ -234,7 +234,7 @@ All prompts already updated to `deepseek/deepseek-v4-flash`. Verify no remaining
 
 Add to `/status`:
 - Subagent goal completion status
-- CONTEXT.md last updated timestamp
+- .workflows/CONTEXT.md last updated timestamp
 - Number of ADRs created vs tasks completed
 
 ---
@@ -245,7 +245,7 @@ Add to `/status`:
 Phase 1 (do first):
   ─ Remove tdd-guard from package.json + all prompts
   ─ Remove scout.md, integrate.md
-  ─ Add CONTEXT.md update enforcement to next.md
+  ─ Add .workflows/CONTEXT.md update enforcement to next.md
   ─ Switch worker to TDD vertical slices in next.md
 
 Phase 2 (core new feature):

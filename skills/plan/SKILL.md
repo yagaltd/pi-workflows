@@ -15,7 +15,7 @@ Gather enough context to plan well.
 
 1. **What's the goal?** Read what the human described. If vague, ask 1-2 clarifying questions max.
 2. **What exists already?**
-   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - If the human pointed at a repo: scout it (`/scout` or read exploration output)
    - If the human pointed at URLs: read them with `bash` (`curl -sL <url> | head -500`)
    - If there's an existing exploration doc: read it
@@ -97,7 +97,7 @@ SHIP task (human approves)
 ### Docs task (optional):
 For significant features, include a docs task:
 - **Agent**: worker (cheap model via `/docs` command)
-- **What**: Generate/update `docs/architecture.md` with what changed
+- **What**: Generate/update `.workflows/docs/architecture.md` with what changed
 - **Why**: ensures architecture docs stay current after significant changes
 - **Note**: This can be skipped if changes are minor
 
@@ -128,18 +128,18 @@ Assign a testing strategy per task based on code type:
 
 ### Domain Memory Rules
 
-- Use glossary terms from `CONTEXT.md` in task titles, specs, and test names.
-- If user language conflicts with `CONTEXT.md`, call it out before planning.
+- Use glossary terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
+- If user language conflicts with `.workflows/CONTEXT.md`, call it out before planning.
 - If requested design contradicts an ADR, flag the conflict and ask before proceeding.
-- If a durable domain term is clarified, update `CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
+- If a durable domain term is clarified, update `.workflows/CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
 - Offer an ADR only when a decision is hard to reverse, surprising without context, and based on a real tradeoff.
 
 ## Phase 3: WRITE CONTRACTS
 
-For **every worker task**, generate a `.spec` file in `specs/`:
+For **every worker task**, generate a `.spec` file in `.workflows/specs/`:
 
 ```bash
-mkdir -p specs
+mkdir -p .workflows/specs
 ```
 
 All contracts are written upfront so the human can review them before execution starts. `/next` will re-validate contracts against learnings from completed tasks and update if needed.
@@ -253,7 +253,7 @@ Scenario: Delete removes cached key
 
 ## Phase 4: WRITE PLAN
 
-Write the plan to `plan.md` in the project root. Reference contract files.
+Write the plan to `.workflows/plan.md` in the project root. Reference contract files.
 
 ```markdown
 # Plan: <goal>
@@ -287,18 +287,18 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 - **Depends on**: none
 - **Bottleneck**: ⚪ STANDARD
 - **What**: <specific>
-- **Verify**: context.md exists with findings
+- **Verify**: .workflows/CONTEXT.md exists with findings
 - **Status**: ⬜ PENDING / ✅ DONE / ❌ FAILED
 
 ### TASK 2: Build <thing>
 - **Agent**: worker
 - **Depends on**: TASK 1
 - **Parallel group**: [PARALLEL-GROUP: A]
-- **Contract**: specs/task-<name>.spec
+- **Contract**: .workflows/specs/task-<name>.spec
 - **Bottleneck**: 🔴 BLOCKING
 - **Testing strategy**: example-based
 - **What**: <specific>
-- **Verify**: agent-spec lifecycle specs/task-<name>.spec
+- **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec
 - **Status**: ⬜ PENDING
 
 ### TASK N: Verify all
@@ -317,8 +317,8 @@ Write the plan to `plan.md` in the project root. Reference contract files.
 ## Contracts
 | Task | Contract File | Scenarios |
 |------|--------------|-----------|
-| TASK 2 | specs/task-<name>.spec | 4 scenarios |
-| TASK 3 | specs/task-<other>.spec | 3 scenarios |
+| TASK 2 | .workflows/specs/task-<name>.spec | 4 scenarios |
+| TASK 3 | .workflows/specs/task-<other>.spec | 3 scenarios |
 
 ## Execution Notes
 <filled in as tasks are completed — includes cost, duration, and learnings per task>
@@ -343,8 +343,8 @@ Present a compact summary:
 - ⚪ STANDARD: <count> tasks
 
 ### Contracts generated:
-- specs/task-<name>.spec — 4 scenarios (set/get, miss, expiry, delete)
-- specs/task-<other>.spec — 3 scenarios
+- .workflows/specs/task-<name>.spec — 4 scenarios (set/get, miss, expiry, delete)
+- .workflows/specs/task-<other>.spec — 3 scenarios
 
 ### Parallel opportunities:
 - TASK 2 + TASK 3 can run concurrently (independent modules)
@@ -393,7 +393,7 @@ Or run tasks manually:
 
 ## Rules
 
-- **Plans are living documents** — update `plan.md` as you learn. Mark tasks done. Add notes.
+- **Plans are living documents** — update `.workflows/plan.md` as you learn. Mark tasks done. Add notes.
 - **Plans change** — if TASK 3 reveals that TASK 4 needs different scope, update the plan AND its contract. Don't silently deviate.
 - **Every worker task has a contract** — if you can't write a contract, the task isn't atomic enough.
 - **Contracts are validated before execution** — `/next` checks if the spec is still valid given completed work, and updates it if needed.

@@ -14,7 +14,7 @@ This runs automatically after `/next` completes a task. It can also be called ma
 
 ## Process
 
-1. Find all `docs/*.md` files in the project:
+1. Find all `.workflows/docs/*.md` files in the project:
    ```bash
    find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
    ```
@@ -39,8 +39,8 @@ Use this prompt to decide:
 
 ```
 Given these tracked docs:
-- docs/architecture.md — system overview, module relationships
-- docs/onboarding.md — quick start, key files
+- .workflows/docs/architecture.md — system overview, module relationships
+- .workflows/docs/onboarding.md — quick start, key files
 
 And these recent changes:
 <list of files changed, what was built>

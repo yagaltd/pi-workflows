@@ -1,4 +1,4 @@
-# REVIEW_GUIDELINES.md — Project-Specific Review Rules
+# .workflows/REVIEW_GUIDELINES.md — Project-Specific Review Rules
 
 This file is loaded automatically by the reviewer when it exists in the project root.
 It overrides or extends the default review rubric.

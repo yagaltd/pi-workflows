@@ -114,7 +114,7 @@ Minimal correction targeting the root cause within boundaries.
    - Test the specific edge case that caused the bug.
 3. **Write a contract for the fix** (if complex):
    ```bash
-   mkdir -p specs
+   mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "fix-<bug-name>"
    ```
    Fill in Intent (what's broken), Decisions (what changes), Boundaries (only the fix area), Completion Criteria (regression test scenario).
@@ -137,8 +137,8 @@ Run in order. Stop at first failure.
 
 ### Layer 1: Contract verification (if contract exists)
 ```bash
-agent-spec lifecycle specs/fix-<bug>.spec --code . --format json
-agent-spec guard --spec-dir specs --code . --change-scope worktree
+agent-spec lifecycle .workflows/specs/fix-<bug>.spec --code . --format json
+agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If fails → fix the fix. Don't proceed.
 

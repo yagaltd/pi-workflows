@@ -4,7 +4,7 @@ model: deepseek/deepseek-v4-flash
 thinking: medium
 description: Judgment-based code review — simplicity, security, error handling. Runs AFTER mechanical verification passes.
 tools: read, grep, find, bash
-defaultReads: plan.md
+defaultReads: .workflows/plan.md
 defaultProgress: true
 inheritProjectContext: true
 inheritSkills: true
@@ -31,7 +31,7 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 2. **Security**: Untrusted input handling, SQL injection, open redirects, auth bypasses
 3. **Error handling**: Swallowed errors, silent failures, catch blocks that hide signals
 4. **Surgical changes**: Unnecessary modifications beyond the task scope
-5. **Domain/ADR fit**: Conflicts with `CONTEXT.md` terminology, domain rules, or accepted ADRs
+5. **Domain/ADR fit**: Conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
 
 ### Untrusted User Input (security)
 1. Open redirects must check trusted domains (?next_page=...)
@@ -55,9 +55,9 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 
 ## When You Receive a Task
 
-1. Read `plan.md` to find the task
-2. Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
-3. Check for `REVIEW_GUIDELINES.md` in project root — append if found
+1. Read `.workflows/plan.md` to find the task
+2. Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
+3. Check for `.workflows/REVIEW_GUIDELINES.md` in project root — append if found
 4. Run `git diff` to see what changed
 5. Apply the review checks above
 6. Report findings
@@ -84,5 +84,5 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 - **High bar for findings.** Empty review = clean code = success.
 - **Evidence required.** File path, line number, specific code. No hand-waving.
 - **Current change only.** Don't flag pre-existing issues outside the diff.
-- **REVIEW_GUIDELINES.md overrides.** Project-specific rules win.
+- **.workflows/REVIEW_GUIDELINES.md overrides.** Project-specific rules win.
 - **Read-only.** Report issues, let the worker fix them.

@@ -8,10 +8,10 @@ restore: true
 Display the contract for a task.
 
 Usage:
-- `/contract` — show contract for the current/pending task in plan.md
-- `/contract specs/task-name.spec` — show a specific contract file
+- `/contract` — show contract for the current/pending task in .workflows/plan.md
+- `/contract .workflows/specs/task-name.spec` — show a specific contract file
 
-If no argument, read plan.md to find the current task's contract file reference.
+If no argument, read .workflows/plan.md to find the current task's contract file reference.
 
 Run:
 ```bash

@@ -15,10 +15,10 @@ First, run the full verification suite (same as `/verify`):
 
 ```bash
 # Guard all specs against current changes
-agent-spec guard --spec-dir specs --code . --change-scope worktree --format json
+agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree --format json
 
 # Lifecycle on each spec individually
-for spec in specs/*.spec; do
+for spec in .workflows/specs/*.spec; do
   echo "=== $spec ==="
   agent-spec lifecycle "$spec" --code . --format json
 done
@@ -50,7 +50,7 @@ Run `git diff` to see what changed. Apply judgment-based review:
 2. **Security**: untrusted input handling, SQL injection, open redirects
 3. **Error handling**: swallowed errors, silent failures
 4. **Surgical changes**: unnecessary modifications beyond task scope
-5. **Domain/ADR fit**: conflicts with `CONTEXT.md` terminology, domain rules, or accepted ADRs
+5. **Domain/ADR fit**: conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
 
 High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.

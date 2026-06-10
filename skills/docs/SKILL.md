@@ -18,10 +18,10 @@ Determine what docs are needed.
 3. **If existing docs exist**: Check if they're current
 
 ### Standard doc set for new projects:
-- `docs/architecture.md` — system overview, module relationships, data flow
-- `docs/decisions.md` — key technical decisions and why they were made
-- `docs/onboarding.md` — how to get started, key entry points
-- `docs/api.md` — public API surface (if applicable)
+- `.workflows/docs/architecture.md` — system overview, module relationships, data flow
+- `.workflows/docs/decisions.md` — key technical decisions and why they were made
+- `.workflows/docs/onboarding.md` — how to get started, key entry points
+- `.workflows/docs/api.md` — public API surface (if applicable)
 
 ## Phase 2: SCOUT
 
@@ -128,11 +128,11 @@ Show the human what was generated:
 ```
 ## Docs Generated
 
-### docs/architecture.md
+### .workflows/docs/architecture.md
 - Covers: module structure, data flow, key decisions
 - Focus: system design and rationale
 
-### docs/onboarding.md
+### .workflows/docs/onboarding.md
 - Covers: quick start, key files, mental model
 - Focus: getting productive quickly
 ```

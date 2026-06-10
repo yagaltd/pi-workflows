@@ -28,7 +28,7 @@ Ensure you have an evidence-backed contract before writing code.
 1. **If a `.spec` file exists**: Read it with `agent-spec contract <spec>`. This is your contract. Follow it.
 2. **If no spec but request is broad**: Stop. Say: "This needs `/idea` first so we can explore, resolve decisions, and write contracts."
 3. **If no spec but request is small/surgical**: run mini-recon BEFORE creating a contract:
-   - read `CONTEXT.md`, `CONTEXT-MAP.md`, and relevant `docs/adr/*.md` if present
+   - read `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant `.workflows/docs/adr/*.md` if present
    - find related code/tests with `find` and `rg`
    - identify existing patterns and exact files likely in scope
    - check cheap baseline tests if relevant
@@ -36,7 +36,7 @@ Ensure you have an evidence-backed contract before writing code.
 Then create a contract:
 
 ```bash
-mkdir -p specs
+mkdir -p .workflows/specs
 agent-spec init --level task --lang en --name "<feature-name>"
 ```
 
@@ -100,7 +100,7 @@ Implement the feature within contract boundaries.
 agent-spec lifecycle <spec> --code . --format json
 
 # Check boundaries
-agent-spec guard --spec-dir specs --code . --change-scope worktree
+agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If any scenario fails or boundaries violated → go back to Phase 3, fix, re-verify.
 

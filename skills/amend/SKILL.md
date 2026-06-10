@@ -13,11 +13,11 @@ Change plan/spec artifacts safely. Do not implement unless explicitly asked afte
 
 Read:
 
-1. `plan.md` if present
-2. relevant `specs/*.spec`
+1. `.workflows/plan.md` if present
+2. relevant `.workflows/specs/*.spec`
 3. `git diff --stat` and `git diff` to see in-progress work
-4. `CONTEXT.md`, `CONTEXT-MAP.md`, and relevant `docs/adr/*.md` if present
-5. completed/in-progress task notes in `plan.md`
+4. `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant `.workflows/docs/adr/*.md` if present
+5. completed/in-progress task notes in `.workflows/plan.md`
 
 If no plan/spec exists, stop and route to `/idea`.
 
@@ -32,9 +32,9 @@ Before editing anything, report:
 <change>
 
 ### Affected Artifacts
-- `plan.md`: <impact>
-- `specs/x.spec`: <impact>
-- `CONTEXT.md`: <impact or none>
+- `.workflows/plan.md`: <impact>
+- `.workflows/specs/x.spec`: <impact>
+- `.workflows/CONTEXT.md`: <impact or none>
 - ADRs: <conflict or none>
 
 ### Affected Work
@@ -65,12 +65,12 @@ Ask one-by-one when decisions depend on previous answers. Use `interview()` only
 
 After decisions are clear, update only artifacts needed:
 
-- `plan.md`
-- affected `specs/*.spec`
-- `CONTEXT.md` for durable domain terms
+- `.workflows/plan.md`
+- affected `.workflows/specs/*.spec`
+- `.workflows/CONTEXT.md` for durable domain terms
 - ADR only when hard to reverse, surprising, and based on real tradeoff
 
-Mark invalidated tasks clearly. Add amendment notes to `plan.md` so future `/next` can reason about changed boundaries.
+Mark invalidated tasks clearly. Add amendment notes to `.workflows/plan.md` so future `/next` can reason about changed boundaries.
 
 ## Phase 5: STOP
 

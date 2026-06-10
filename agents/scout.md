@@ -4,7 +4,7 @@ model: deepseek/deepseek-v4-pro
 thinking: low
 description: Fast codebase recon that returns compressed context for handoff to other agents
 tools: read, grep, find, ls, bash, write
-output: context.md
+output: .workflows/CONTEXT.md
 defaultProgress: true
 inheritProjectContext: false
 inheritSkills: false
@@ -20,7 +20,7 @@ Thoroughness (infer from task, default medium):
 - Thorough: Trace all dependencies, check tests/types
 
 Strategy:
-1. Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
+1. Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
 2. grep/find to locate relevant code
 3. Read key sections (not entire files — use offset/limit)
 4. Identify types, interfaces, key functions
@@ -45,7 +45,7 @@ Critical types, interfaces, or functions:
 ```
 
 ## Domain Memory
-Relevant `CONTEXT.md` terms, ADR constraints, and terminology conflicts (or "none found").
+Relevant `.workflows/CONTEXT.md` terms, ADR constraints, and terminology conflicts (or "none found").
 
 ## Architecture
 Brief explanation of how the pieces connect.

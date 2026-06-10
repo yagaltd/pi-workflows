@@ -9,7 +9,7 @@ All 3 must be true:
 2. **Surprising without context** — a future reader will wonder "why did they do this?"
 3. **Result of a real tradeoff** — there were genuine alternatives with different tradeoffs
 
-If any of the 3 is missing → skip the ADR. Just update CONTEXT.md or leave a code comment instead.
+If any of the 3 is missing → skip the ADR. Just update .workflows/CONTEXT.md or leave a code comment instead.
 
 ## Format
 
@@ -27,7 +27,7 @@ If any of the 3 is missing → skip the ADR. Just update CONTEXT.md or leave a c
 
 ## Naming
 
-- File: `docs/adr/<NNNN>-<short-description>.md`
+- File: `.workflows/docs/adr/<NNNN>-<short-description>.md`
 - Number sequentially: 0001, 0002, etc.
 - Use kebab-case for the description
 

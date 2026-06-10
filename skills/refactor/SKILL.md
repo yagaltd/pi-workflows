@@ -18,14 +18,14 @@ Understand what needs to change and why.
    - What's the target state? (extract module, rename, consolidate, decouple?)
 
 2. **Map the current structure**:
-   - Read domain memory if present: `CONTEXT.md`, `CONTEXT-MAP.md`, relevant `docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - `find` relevant files and modules
    - `grep`/`rg` for imports, usages, dependencies
    - Read key files to understand coupling and interfaces
    - Draw a quick dependency map: who uses what
 
 3. **Check domain/ADR constraints**:
-   - Use glossary terms from `CONTEXT.md` when describing modules and behavior
+   - Use glossary terms from `.workflows/CONTEXT.md` when describing modules and behavior
    - Flag user terminology that conflicts with project language
    - Flag refactors that contradict accepted ADRs before proposing them
 
@@ -45,7 +45,7 @@ Understand what needs to change and why.
 
 6. **Write a refactoring contract**:
    ```bash
-   mkdir -p specs
+   mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "refactor-<scope>"
    ```
    
@@ -105,7 +105,7 @@ Present to the human:
 - <what will change>
 - <what stays the same>
 
-### Contract: specs/refactor-<scope>.spec
+### Contract: .workflows/specs/refactor-<scope>.spec
 - Boundaries: <files in scope>
 - Key invariant: behavior must not change
 
@@ -155,10 +155,10 @@ Confirm behavior is UNCHANGED after all refactoring steps.
 ### Contract verification
 ```bash
 # Verify the refactoring contract
-agent-spec lifecycle specs/refactor-<scope>.spec --code . --format json
+agent-spec lifecycle .workflows/specs/refactor-<scope>.spec --code . --format json
 
 # Check boundaries — only allowed files changed
-agent-spec guard --spec-dir specs --code . --change-scope worktree
+agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 
 ### Project verification
@@ -218,7 +218,7 @@ Show the human what changed.
 ## Refactored: <scope>
 
 ### Contract
-- Spec: specs/refactor-<scope>.spec
+- Spec: .workflows/specs/refactor-<scope>.spec
 - agent-spec lifecycle: ✅ all pass
 - Boundaries: ✅ respected
 

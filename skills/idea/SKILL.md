@@ -1,6 +1,6 @@
 ---
 name: idea
-description: Productize an idea into an execution plan. Explore evidence first, grill only unresolved decisions, then write plan.md and agent-spec contracts. Use when the user has a feature/product idea and wants it turned into implementation-ready tasks.
+description: Productize an idea into an execution plan. Explore evidence first, grill only unresolved decisions, then write .workflows/plan.md and agent-spec contracts. Use when the user has a feature/product idea and wants it turned into implementation-ready tasks.
 user-invocable: true
 argument-hint: "<idea description, repo paths, URLs, or constraints>"
 ---
@@ -14,9 +14,9 @@ Productize an idea into an execution plan: evidence → decisions → plan → c
 Gather evidence before asking questions.
 
 1. **Read domain memory first** if present:
-   - `CONTEXT.md` — shared glossary and domain rules
-   - `CONTEXT-MAP.md` — multiple bounded contexts and doc locations
-   - `docs/adr/*.md` — accepted architectural decisions
+   - `.workflows/CONTEXT.md` — shared glossary and domain rules
+   - `.workflows/CONTEXT-MAP.md` — multiple bounded contexts and doc locations
+   - `.workflows/docs/adr/*.md` — accepted architectural decisions
 2. **Scout the current repo**:
    - `find`/`rg` relevant files, modules, tests, routes, CLI commands, schemas
    - read key files and tests
@@ -37,7 +37,7 @@ Gather evidence before asking questions.
 ```markdown
 ## Evidence
 - Existing pattern: <files/tests>
-- Domain terms: <CONTEXT.md terms or none>
+- Domain terms: <.workflows/CONTEXT.md terms or none>
 - ADR constraints: <relevant ADRs or none>
 - Current gaps: <what does not exist>
 - Risks/unknowns: <unknowns that matter>
@@ -93,7 +93,7 @@ If no unresolved decisions remain, state that and continue.
 
 ## Phase 4: PLAN
 
-Create or update `plan.md` using the existing Plan Workflow rules:
+Create or update `.workflows/plan.md` using the existing Plan Workflow rules:
 
 - scout tasks first when additional recon is needed
 - worker tasks for code changes
@@ -102,11 +102,11 @@ Create or update `plan.md` using the existing Plan Workflow rules:
 - bottleneck tags: 🔴 BLOCKING, 🟡 RISKY, 🔵 TIME_CONSUMING, 🟠 VERIFICATION_HEAVY, ⚪ STANDARD
 - parallel groups when independent tasks can safely run concurrently
 
-Use domain terms from `CONTEXT.md` in task titles, specs, and test names.
+Use domain terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
 
 ## Phase 5: WRITE CONTRACTS
 
-For every worker task, write `specs/*.spec` with:
+For every worker task, write `.workflows/specs/*.spec` with:
 
 - Intent
 - Decisions
@@ -117,7 +117,7 @@ Contracts must reflect resolved decisions. Do not leave broad design choices for
 
 ## Phase 6: DOMAIN MEMORY UPDATES
 
-If the conversation resolved a durable domain term, update `CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
+If the conversation resolved a durable domain term, update `.workflows/CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
 
 Offer an ADR only when all are true:
 
@@ -144,11 +144,11 @@ Do not implement. Present:
 - ...
 
 ### Plan
-- `plan.md`
+- `.workflows/plan.md`
 - specs: <list>
 
 ### Next Step
-Approve plan, then run `/next` or `/add-feature specs/<task>.spec`.
+Approve plan, then run `/next` or `/add-feature .workflows/specs/<task>.spec`.
 ```
 
 ## Rules
