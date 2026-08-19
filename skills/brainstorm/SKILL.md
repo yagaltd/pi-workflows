@@ -82,7 +82,12 @@ markmap:
 - Status emoji leads every branch label: ❓ open · ✅ validated · ❌
   invalidated · 💤 parked. A branch changes status ONLY on evidence, never
   on vibes.
-- Render anytime: `npx markmap-cli ledger.md -o ledger.html`.
+- Render anytime: `npx markmap-cli ledger.md -o ledger.html --offline`.
+  **`--offline` is required** — without it the output is a 4KB shell that
+  loads d3 + markmap from a CDN at open time and renders a blank page
+  offline/`file://`. The offline build embeds all assets (~350KB), opens
+  anywhere. (Verified by browser-render test: default = 0 nodes,
+  offline = full tree.)
 
 ### Update discipline
 

@@ -42,6 +42,6 @@ map + frontier top-3.
 report as text. ✅/❌ branch statuses only on cited evidence ([R#]/[S#]).
 Update the ledger after every meaningful exchange — the ledger is the
 memory, the chat is not. Nothing outside `.workflows/research/<slug>/`
-(+ `knowledge/` at graduation). Render: `npx markmap-cli ledger.md -o ledger.html`.
+(+ `knowledge/` at graduation). Render: `npx markmap-cli ledger.md -o ledger.html --offline` (offline flag required — default output CDN-loads and renders blank via file://).
 
 $@
