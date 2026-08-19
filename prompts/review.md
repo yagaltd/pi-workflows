@@ -29,6 +29,13 @@ npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack
 ```
 
+### Layer 3: Verdict history (audit trail)
+
+Read `.workflows/reviews/*.md` if present — every task should show a final
+`ok:true` round (or a human-accepted failure). A ✅ task in plan.md with
+no ok:true verdict on file is a **red flag**: report it as a violation of
+the verdict-gating doctrine (no model marks its own work done).
+
 If Stage 1 FAILS → stop here.
 
 ## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)
@@ -100,6 +107,7 @@ entries + 1), so ids never collide and history is preserved.
 ### Stage 1: Mechanical Verification
 - agent-spec lifecycle: X/Y scenarios pass
 - agent-spec guard: boundaries respected / violations
+- Verdict trail: X/X tasks have final ok:true (or list gaps)
 - Tests: pass / fail
 - Lint: pass / fail
 - Types: pass / fail

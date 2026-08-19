@@ -72,14 +72,37 @@ Then park on the run:
 - A failed task **auto-aborts its dependents** — when you see aborted
   downstream tasks, don't retry them; handle the failed root cause first
 
-### Step 4: After Each Task Completes
+### Step 4: After Each Task Completes (verdict gating)
 
-1. **Ground truth**: `git diff --stat` — reconcile what changed against the
+**No model marks its own work done**: a worker settling is not ✅. The
+wave's reviewer node produces the verdict; ✅ is written only on
+`ok:true`. For every `ok:false` verdict, run a **bounded fix round**
+(follow-up dispatch, never a pre-declared node):
+
+```
+verdict ok:false → subagent: fix-<task>-<N> (worker role, write, high
+                   thinking) with rejection evidence prepended verbatim
+                 → subagent: review-<task>-<N+1> (reviewer role)
+                 → repeat while ok:false and N < max-rounds (spec
+                   frontmatter, default 2)
+rounds exhausted → ❌ FAILED — report the verdict chain, do NOT loop
+```
+
+Reviewer task texts in the wave graph must end with: "End with one Verdict
+block per task: `ok: true|false` + findings with evidence." Fix-round
+task text: "Fix round <N> for TASK <T>. Rejection evidence (verbatim):
+<findings>. Correct ONLY what the findings name — same contract, same
+boundaries. Re-run verification after fixing." (Full shapes in `/next`.)
+
+Then per settled task:
+
+1. **Persist the verdict**: append the round to `.workflows/reviews/<task-id>.md`
+2. **Ground truth**: `git diff --stat` — reconcile what changed against the
    contract's Allowed Changes before trusting the child's report
-2. **Update plan.md**: mark task status as ✅ DONE or ❌ FAILED
-3. **Add learnings**: cost, duration, and any discoveries to Execution Notes
-4. **Update `.workflows/CONTEXT.md`**: add any domain decisions discovered
-5. **Check downstream specs**: update the next 1-2 pending contracts based on learnings — if an edge is already queued in a running graph, steer the affected child instead
+3. **Update plan.md**: mark ✅ DONE only on ok:true; ❌ FAILED on exhausted rounds
+4. **Add learnings**: cost, duration, and any discoveries to Execution Notes
+5. **Update `.workflows/CONTEXT.md`**: add any domain decisions discovered
+6. **Check downstream specs**: update the next 1-2 pending contracts based on learnings — if an edge is already queued in a running graph, steer the affected child instead
 
 ### Step 5: Blockers Stop the Wave
 

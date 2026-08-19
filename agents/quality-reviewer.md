@@ -58,6 +58,19 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 
 ## Output
 
+Your output MUST end with this exact verdict block — the orchestrator
+parses it to decide fix rounds:
+
+```
+## Verdict
+
+**ok: true** (≈ APPROVED) | **ok: false** (≈ CHANGES_REQUESTED)
+
+(when ok:false — findings below, same shape as the report body)
+```
+
+Body:
+
 ```
 ## Quality Review: APPROVED / CHANGES_REQUESTED
 
@@ -79,4 +92,6 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 - **Evidence required.** File path, line number, specific code. No hand-waving.
 - **Current change only.** Don't flag pre-existing issues outside the diff.
 - **.workflows/REVIEW_GUIDELINES.md overrides.** Project-specific rules win.
-- **Read-only.** Report issues, let the worker fix them.
+- **Read-only.** Report issues, let the worker fix them. **Reviewers verify, never fix.**
+- **Verdict is binding.** ok:false requires ≥1 evidence-backed finding; no
+  findings → ok:true. Never ok:true with findings attached.

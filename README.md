@@ -47,6 +47,7 @@ Then finish with `/review` → all green? ship it.
 | `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
 | `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
 | `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
+| `/audit [scope] [--security]` | Codebase map + adversarial pre-scan → `.workflows/knowledge/map.md` + findings that feed `/plan`. Before planning on existing/unfamiliar code. |
 | `/amend <change>` | Update existing `.workflows/plan.md` and specs when decisions change. |
 | `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
 
@@ -488,6 +489,7 @@ pi-workflows/
     ├── plan.md                # /plan — decompose from existing context
     ├── challenge.md           # /challenge — adversarial grill against domain model
     ├── explore.md             # /explore — parallel multi-angle research
+    ├── audit.md               # /audit — codebase map + adversarial pre-scan
     ├── brainstorm.md           # /brainstorm — divergent research, markmap ledger
     ├── amend.md               # /amend — update plan/specs
     ├── add.md                 # /add — execute approved contract

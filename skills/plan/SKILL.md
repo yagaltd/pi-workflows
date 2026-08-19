@@ -346,6 +346,9 @@ Scenario: <edge case name>
 - Completion Criteria define "done" — if all scenarios pass, the task is done
 - Include edge cases: error states, boundary values, empty inputs
 - Include at least one negative scenario (what should fail)
+- Optional frontmatter `max-rounds: N` (default 2) — cap for reviewer-rejection fix
+  rounds. Raise for tasks expected to need iteration (UI, integration); the cap
+  exists so rejection loops escalate to the human instead of looping forever.
 - **Diagrams**: add a `## Diagrams` section with a Mermaid diagram when the flow, architecture, or state machine is non-trivial. This helps the worker understand the expected behavior at a glance.
 
 ### Example contract:
@@ -445,6 +448,7 @@ Or run tasks manually:
 - **Contracts are validated before execution** — `/next` checks if the spec is still valid given completed work, and updates it if needed.
 - **Scout first, always** — even if the human says "just build it." One scout task saves three rework tasks.
 - **Contracts are reviewed, not code** — the human approves the contract. The machine verifies the implementation.
+- **No model marks its own work done** — a task's ✅ comes only from a reviewer verdict `ok:true` (mechanical before judgment). Rejections trigger bounded fix rounds (worker role + rejection evidence verbatim), capped at the spec's `max-rounds` (default 2); reviewers verify, never fix; verdicts persist to `.workflows/reviews/<task-id>.md`.
 - **Keep the human in the loop** — present after planning, not after building.
 - **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
 - **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.

@@ -10,6 +10,21 @@ All notable changes to pi-workflows are documented here.
 
 Replaced the removed `pi-subagents` + `pi-prompt-template-model` (+ implicit `pi-intercom`) extensions with `@arhen/pi-core-subagent`. No functional feature was lost — the wave engine and per-task model routing got better.
 
+### Added — verdict gating + bounded fix rounds + reviews/ audit trail (ported from pi-specflow)
+
+- **No model marks its own work done**: a task's ✅ is written only from a reviewer verdict `ok:true` (mechanical stage strictly before judgment). Reviewer and quality-reviewer role prompts now end with a binding `## Verdict` block (`ok: true|false` + evidence-backed findings; never ok:true with findings). `/next` and `/auto-next` run worker → reviewer → verdict for every task; parallel waves parse per-task verdicts.
+- **Bounded fix rounds**: `ok:false` → fix round (worker role, rejection evidence prepended verbatim, `thinking: high`) → re-review → repeat while `N < max-rounds` (spec frontmatter, default 2). Rounds exhausted → ❌ FAILED with the verdict chain to the human — rejection loops escalate, never spin. Fix rounds are follow-up dispatches, never pre-declared graph nodes. **Reviewers verify, never fix.** No separate fixer role — worker keeps the role set closed (registry).
+- **Verdict artifacts**: every round appended to `.workflows/reviews/<task-id>.md` (orchestrator-written per the charter). `/review` Stage 1 gains Layer 3: verdict trail — a ✅ task without a final ok:true on file is a reported red flag.
+- **Worker discipline lines**: bash runs in project dir (never `cd`), NEVER commit/merge/push (the uncommitted diff IS the reviewer's ground truth), a deviation is a finding to report, not an accomplishment.
+
+### Added — `/audit` (codebase map + adversarial pre-scan)
+
+Preflight (0 tokens) → recon scout → durable `.workflows/knowledge/map.md` (modules, trust boundaries, risk concentrations; updated not replaced, never archived) → bug-hunter scan subagent (repo scope, `--security` adds security lenses) → distilled findings routed into `/plan`. LOG.md line per audit. Audit feeds planning; it never plans, fixes, or commits.
+
+### Added — `scripts/check-drift.sh`
+
+Always-on drift checker (specflow `check-views.sh` pattern): dead prompt frontmatter keys, removed-extension API remnants, role files present + registered, skill/template references resolve, peerDeps pin the current engine, README command table ↔ prompt files. Exit 1 on any drift; verified both green and (injected-violation) red. Run after every refactor of this package.
+
 ### Added — `/brainstorm` (divergent research mode)
 
 New command + skill for the phase before `/explore`/`/idea`: market/competitor research, product ideation, half-formed ideas — think together with the human, no building. Living **markmap-renderable ledger** at `.workflows/research/<slug>/ledger.md` (branches with evidence-gated statuses ✅/❌/❓/💤, ranked frontier of open questions, cited sources); read-only research subagents (web/market angle with bash-for-fetch allowlist, repo via scout role, synthesis via `needs` fan-in) whose reports persist verbatim as `report-<NN>-<slug>.md`; deep-research briefs freeze scope before heavy passes; resume protocol for multi-session topics; graduation paths to `/explore`, `/idea` (optionally synthesizing `knowledge/evidence-*.md`), park, or kill. Containment: orchestrator is the single writer; `research/` joins the never-archived durable knowledge tier.

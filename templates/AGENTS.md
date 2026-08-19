@@ -21,6 +21,8 @@ disagrees with this file, this file wins.
    - `.workflows/research/**` (ledger, reports, briefs) — the orchestrator
      only (`/brainstorm`), same doctrine: research subagents report as text;
      the orchestrator writes.
+   - `.workflows/reviews/*.md` — the orchestrator only: reviewer verdicts
+     it received, appended round by round. Subagents never write here.
    - `.workflows/CONTEXT.md`, `.workflows/docs/adr/` — the orchestrator,
      from worker reports.
    - `.workflows/archive/` — `/review` (SHIP) and `/abort` only.
@@ -41,6 +43,12 @@ disagrees with this file, this file wins.
 6. **Fail loud, never auto-correct.** Blocked on a contradiction or a
    missing input? Report `WORKER_BLOCKER` (or `ask_parent`) — never silently
    widen scope.
+7. **No model marks its own work done.** A task's `✅` comes only from a
+   reviewer verdict `ok:true` (mechanical stage before judgment). Rejected
+   verdicts trigger bounded fix rounds — capped at the spec's `max-rounds`
+   (default 2) — where the fixer receives the rejection evidence verbatim.
+   **Reviewers verify, never fix.** Verdicts persist to
+   `.workflows/reviews/<task-id>.md`.
 
 ## Plan lifecycle
 

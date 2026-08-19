@@ -16,9 +16,11 @@ wins and the prompt must be fixed.
 | reviewer | `agents/reviewer.md` | `tools: ["read","grep","find","ls","bash"]` (needs bash to run agent-spec) | inherit parent | high |
 | quality-reviewer | `agents/quality-reviewer.md` | read-only (`write: false`) | inherit parent | medium |
 
-Never improvise a role not listed here. Ad-hoc angles (research, security
-review, performance) get an inline `prompt:` written per call — they are not
-roles and do not get files.
+Never improvise a role not listed here. **Fix rounds dispatch the worker
+role** (with rejection evidence prepended and `thinking: high`) — there is
+no separate fixer role; reusing the worker keeps the role set closed.
+Ad-hoc angles (research, security review, performance) get an inline
+`prompt:` written per call — they are not roles and do not get files.
 
 ## Model + thinking policy (per-task, dynamic)
 
