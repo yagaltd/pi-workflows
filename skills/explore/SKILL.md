@@ -31,18 +31,22 @@ Gather information from the codebase and any relevant sources.
    - **Local path**: `find`, `grep`/`rg` in the specified directory
    - **Vague description**: search current codebase + online if needed
    - **Multiple inputs** (2+ repos, URLs, or paths):
-     Use pi-subagents PARALLEL mode to scout each input concurrently:
+     Use pi-core-subagent parallel mode — one read-only scout task per input, all in one call (inline prompts, no agent files):
      ```
      subagent({
+       background: false,
+       concurrency: 4,
        tasks: [
-         { agent: "scout", task: "Scout repo at <path1>: architecture, dependencies, key patterns, tech stack" },
-         { agent: "scout", task: "Scout repo at <path2>: architecture, dependencies, key patterns, tech stack" },
-       ],
-       concurrency: 4
+         { agent: "scout-1", thinking: "low",
+           prompt: "You are a read-only scout. Recon the assigned target: architecture, dependencies, key patterns, tech stack. Cite paths. NEVER modify anything.",
+           task: "Scout repo at <path1>: architecture, dependencies, key patterns, tech stack" },
+         { agent: "scout-2", thinking: "low", prompt: "<same scout prompt>",
+           task: "Scout repo at <path2>: architecture, dependencies, key patterns, tech stack" },
+       ]
      })
      ```
      Each scout returns a structured summary. Merge findings in Phase 3.
-     If subagents are not available, handle each input in sequence.
+     If the subagent tool is not available, handle each input in sequence.
 
 2. **Map the territory**:
    - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`

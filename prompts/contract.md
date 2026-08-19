@@ -1,8 +1,5 @@
 ---
 description: "Show contract — display the agent-spec contract for a task"
-model: deepseek/deepseek-v4-flash
-thinking: high
-restore: true
 ---
 
 Display the contract for a task.

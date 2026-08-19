@@ -1,8 +1,5 @@
 ---
 description: "Optimize — run parallel optimization experiments, keep the winner"
-model: deepseek/deepseek-v4-flash
-thinking: high
-restore: true
 ---
 
 ## Phase 1: DEFINE TARGET AND BASELINE
@@ -34,65 +31,58 @@ For example, for "API latency":
 
 Each strategy should target a DIFFERENT bottleneck — no overlap.
 
-## Phase 3: PARALLEL EXPERIMENTS
+## Phase 3: PARALLEL EXPERIMENTS (pi-core-subagent)
 
-Spawn one subagent per strategy. Each implements the optimization and benchmarks it.
+Spawn one subagent per strategy, in one call. Parallel children share one
+filesystem (no worktrees) — **each experiment works ONLY inside its own
+directory** (`optimize/exp-a/`, `optimize/exp-b/`, ...) so strategies can't
+interfere.
 
-```
+```text
 subagent({
+  background: false,
+  concurrency: 3,
   tasks: [
     {
-      agent: "worker",
+      agent: "exp-a",
+      prompt: "You are an optimization experimenter. Implement exactly one
+               strategy inside the directory the task names — never write
+               outside it. Run the benchmark after implementing. Report honest
+               numbers even when worse; a failed experiment is a result.",
+      write: true,
+      thinking: "high",
       task: `Experiment: <approach A>
 Target metric: <baseline value>
+Work ONLY inside optimize/exp-a/ — copy what you must change there first.
 
 Implement this optimization:
 <description of approach A>
 
-Rules:
-- Only change files needed for this optimization
-- Run the benchmark after implementing
-- If it breaks, note the failure and still report
-- Do NOT change files for other strategies
+Verify: <the benchmark command, run from optimize/exp-a/>
 
 Report:
 ## Experiment: <approach A>
 - Change: <what was done>
 - Result: <metric = new value> (baseline was <value>)
 - Improvement: <+X% / -X% / failed>
-- Verdict: <BETTER / WORSE / SAME / BROKEN>`,
-      progress: true
+- Verdict: <BETTER / WORSE / SAME / BROKEN>`
     },
     {
-      agent: "worker",
+      agent: "exp-b",
+      prompt: "<same experimenter prompt>",
+      write: true,
+      thinking: "high",
       task: `Experiment: <approach B>
 Target metric: <baseline value>
-
-Implement this optimization:
-<description of approach B>
-
-Rules:
-- Only change files needed for this optimization
-- Run the benchmark after implementing
-- If it breaks, note the failure and still report
-- Do NOT change files for other strategies
-
-Report:
-## Experiment: <approach B>
-- Change: <what was done>
-- Result: <metric = new value> (baseline was <value>)
-- Improvement: <+X% / -X% / failed>
-- Verdict: <BETTER / WORSE / SAME / BROKEN>`,
-      progress: true
+Work ONLY inside optimize/exp-b/. ...same shape as A...`
     },
   ],
-  concurrency: 2,
-  worktree: true
 })
 ```
 
 Add or remove tasks based on how many strategies exist.
-Use `worktree: true` so experiments don't interfere with each other.
+After the run, check `git status --porcelain` — anything outside an
+experiment's own directory is a violation.
 
 ## Phase 4: COMPARE AND KEEP WINNER
 
@@ -124,7 +114,7 @@ If multiple strategies improved the metric, consider combining them (with care �
 ## Rules
 
 - **Measurable**: every experiment must produce a metric value
-- **Isolated**: worktree prevents interference between experiments
+- **Isolated**: one directory per experiment — experiments never touch each other's files or the main tree
 - **One change at a time**: each strategy only touches its own files
 - **Report failures**: if an experiment breaks, report it — don't hide it
 - **Winner-based**: only the winning strategy gets integrated

@@ -4,6 +4,30 @@ All notable changes to pi-workflows are documented here.
 
 ---
 
+## v0.4.0 (unreleased)
+
+### Breaking: migrated to @arhen/pi-core-subagent
+
+Replaced the removed `pi-subagents` + `pi-prompt-template-model` (+ implicit `pi-intercom`) extensions with `@arhen/pi-core-subagent`. No functional feature was lost — the wave engine and per-task model routing got better.
+
+### Changed
+
+- **Dispatch policy moved to `agents/registry.md`** (new, single source of truth): role → prompt file + toolset, and the bottleneck-tag → `model`/`thinking` ladder, applied **per task at dispatch time** (was: hardcoded model frontmatter + `subagents.agentOverrides` settings).
+- **Agent files are now verbatim role prompts** pasted into `subagent({ prompt })` — no more agent-file frontmatter, `reads:` preloading, `progress:`, or `inheritProjectContext`. The `task:` text names the files each child must read.
+- **Waves are now `needs` edges**: `/next` parallel waves and reviewer/quality-reviewer gating dispatch as one graph call — pi-core-subagent schedules waves, prepends upstream outputs to dependents, and auto-aborts dependents of failed tasks.
+- **`/auto-next`**: background runs with `notifyPerTask` + `await_subagent` loop, `reply_subagent`/`steer_subagent` for live steering, `subagent_cancel` on blockers. Removed the per-task `create_goal()` wrappers from both `/next` and `/auto-next` (proof moved to `git diff --stat` + `Verify:` exit codes; pi-native goals remain usable ad hoc).
+- **Isolation without worktrees** (in-process children share the filesystem): parallel tasks MUST have disjoint contract `Allowed Changes`; prototypes/experiments isolate by directory (`prototype/variation-a/`, `optimize/exp-a/`) — verified post-run with `git diff --stat` / `git status --porcelain`.
+- **Proof over self-report**: every dispatched task carries a runnable `Verify:` line; the orchestrator reconciles results against `git diff --stat` (exit code + diff are ground truth).
+- Prompt templates dropped `model:`/`thinking:`/`skill:`/`restore:` frontmatter (unsupported keys); `skill:` became an explicit "load SKILL.md" body instruction. Bug-hunter dispatch is now an inline subagent prompt instead of a CLI invocation.
+- README: requirements, model configuration, and directory structure updated.
+
+### Removed
+
+- `pi-subagents`, `pi-prompt-template-model` peer dependencies (now `@arhen/pi-core-subagent`).
+- `subagents.agentOverrides` settings pattern (replaced by `agents/registry.md`).
+
+---
+
 ## v0.3.0 (2026-06-10)
 
 ### New Commands

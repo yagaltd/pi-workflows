@@ -1,8 +1,5 @@
 ---
 description: "Explore — parallel multi-angle research, kill/pivot/proceed with evidence"
-model: deepseek/deepseek-v4-flash
-thinking: high
-restore: true
 ---
 
 ## Phase 1: DEFINE
@@ -21,69 +18,67 @@ Identify the **angles** that need exploration. Based on the question, pick the r
 
 Choose 2-4 angles that best match the question. Don't force all of them.
 
-## Phase 2: PARALLEL SUBAGENTS
+## Phase 2: PARALLEL SUBAGENTS (pi-core-subagent)
 
-Spawn one subagent per angle. Each investigates independently with its own expertise.
+Spawn one subagent **per angle, in one call**. There are no agent files —
+each angle gets an inline `prompt:` written for it. All angles are read-only
+recon (no `write`). Match thinking to the angle: security review deserves
+`high`, a quick architecture map is fine at `low`.
 
-For **each angle**, pick the best agent type:
-- **Architecture/codebase analysis** → use agent that maps codebases (recon or scout)
-- **Security** → use a security-focused agent (security-review, bug-hunter, or similar)
-- **Performance** → use a performance-focused agent (m10-performance or similar)
-- **Code quality** → use quality-reviewer
-- **Web research** → use a research-capable agent (scout, researcher, or similar)
-- **Feasibility** → use a planning-capable agent
-
-Match the agent to the angle. Don't use generic agents when specialized ones exist.
-
-```
+```text
 subagent({
+  background: false,
+  concurrency: 3,
   tasks: [
     {
-      agent: "recon",
+      agent: "recon-<angle>",
+      prompt: "You are a codebase recon analyst. Map structure, trust
+               boundaries, state transitions, error boundaries. Cite file:line
+               for every claim. Read key sources with offset/limit, never
+               whole files. NEVER modify anything — you are read-only.",
+      thinking: "medium",
       task: `Analyze codebase architecture for: <question>
 
-Map the structure, identify trust boundaries, state transitions, error boundaries
-Find the highest-risk files and patterns
-Read key source files to understand current architecture
-Check recent git history for related changes
-Run existing tests, build, lint to establish baseline
+Read domain memory first if present (.workflows/CONTEXT.md, .workflows/docs/adr/).
+Map the structure, identify trust boundaries, state transitions, error boundaries.
+Find the highest-risk files and patterns. Check recent git history for related changes.
+Run existing tests, build, lint to establish baseline.
 
-Output: architecture summary, risk map (CRITICAL/HIGH/MEDIUM), file-level findings`,
-      progress: true
+Verify: echo "recon complete"   # read-only angle — output is the deliverable
+
+Output: architecture summary, risk map (CRITICAL/HIGH/MEDIUM), file-level findings`
     },
     {
-      agent: "security-review",
+      agent: "security-<angle>",
+      prompt: "You are a security reviewer. Check auth vulnerabilities,
+               untrusted input, injection surfaces, JWT/secret handling,
+               trust boundaries, privilege escalation paths. Validate severe
+               findings for exploitability before reporting them. Cite
+               file:line. NEVER modify anything — you are read-only.",
+      thinking: "high",
       task: `Security review for: <question>
 
-Check for: auth vulnerabilities, untrusted input, injection, JWT/secret handling
-Identify trust boundaries and privilege escalation paths
-Run dependency scanning if relevant
-Validate severe findings for exploitability
-
-Output: findings with severity (CRITICAL/HIGH/MEDIUM), file paths, evidence`,
-      progress: true
+Output: findings with severity (CRITICAL/HIGH/MEDIUM), file paths, evidence`
     },
     {
-      agent: "quality-reviewer",
+      agent: "quality-<angle>",
+      prompt: "You are a quality reviewer. Check error handling (swallowed
+               failures, empty catches), concurrency issues, complexity,
+               domain/ADR fit. High bar: report only findings with concrete
+               evidence (path:line) introduced by recent changes. NEVER
+               modify anything — you are read-only.",
+      thinking: "medium",
       task: `Quality review for: <question>
 
-Check: error handling (swallowed failures, empty catches), 
-concurrency issues, code complexity, domain/ADR fit
-Identify patterns that will cause production issues
-
-Output: P0-P3 findings with file paths and evidence`,
-      progress: true
+Output: P0-P3 findings with file paths and evidence`
     },
   ],
-  concurrency: 3
 })
 ```
 
-If the question is about **performance**, replace one angle with a performance agent.
-If the question is about **adding a feature**, focus on architecture + feasibility.
-If the question is about **investigating a bug**, use security + quality angles.
-
-Adjust the mix. The key is using the right agent for each angle.
+Adapt the mix per question: performance questions get a performance angle
+(prompt: "You are a performance analyst..."), feature questions get
+architecture + feasibility, bug investigations get security + quality.
 
 ## Phase 3: SYNTHESIZE
 
@@ -112,17 +107,25 @@ Combine all subagent outputs into a clear recommendation.
 
 Build a minimal proof-of-concept.
 
-```
+```text
 subagent({
-  agent: "worker",
+  agent: "poc-builder",
+  prompt: "You are a prototype builder. Throwaway code, not production. Build
+           the smallest thing that tests the hypothesis, run it, report
+           honestly. Write only inside the directory the task names.",
+  write: true,
+  thinking: "medium",
+  background: false,
   task: `Build a minimal PoC to validate: <question>
 
-Rules:
+Work ONLY inside prototype/poc/ — create it if missing, never touch anything outside it.
+
 - Throwaway code, not production
 - Just enough to prove feasibility
 - Run it and report: does it work? limitations? benchmark numbers?
-- If it fails, report why. If it succeeds, show results.`,
-  progress: true
+- If it fails, report why. If it succeeds, show results.
+
+Verify: test -n "$(find prototype/poc -type f -name '*.js' -o -name '*.py' | head -1)"`
 })
 ```
 
@@ -132,5 +135,5 @@ Rules:
 
 - **Timebox**: minutes, not hours
 - **Kill fast**: bad idea → say so clearly
-- **No production code**: exploration never commits code
-- **Right agent for the angle**: generic agents produce generic results
+- **No production code**: exploration never commits code outside `prototype/`
+- **Right prompt for the angle**: generic agents produce generic results

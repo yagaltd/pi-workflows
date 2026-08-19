@@ -1,9 +1,7 @@
 ---
 description: "Challenge — adversarial grill of your plan against domain model, sharpens terminology, updates .workflows/CONTEXT.md inline"
-model: deepseek/deepseek-v4-flash
-thinking: xhigh
-skill: challenge
-restore: true
 ---
+
+Follow the 'challenge' skill workflow — load its SKILL.md with the read tool, then execute it.
 
 $@

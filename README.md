@@ -252,7 +252,7 @@ ARCHITECT (xhigh model)
     └── Generates .spec contracts (after human approves plan)
     │
     ▼
-WORKER (xhigh model, subagent)
+WORKER (subagent, thinking per bottleneck tag — see agents/registry.md)
     │
     ├── Reads contract → TDD vertical slices (RED → GREEN → refactor per scenario)
     ├── Self-verifies: agent-spec lifecycle → project checks
@@ -262,7 +262,7 @@ WORKER (xhigh model, subagent)
     └── Writes ahead: JIT contracts for next 1-2 tasks
     │
     ▼
-REVIEWER (cheap model, subagent)
+REVIEWER (subagent, mechanical — high thinking)
     │
     ├── agent-spec lifecycle (scenarios)
     ├── agent-spec guard (boundaries)
@@ -276,7 +276,7 @@ ADVERSARIAL (optional subagents)
     └── open-code-review: line-level AI review with position tracking
     │
     ▼
-QUALITY-REVIEWER (medium model, judgment)
+QUALITY-REVIEWER (subagent, medium thinking, judgment)
     │
     ├── Simplicity (unnecessary abstractions)
     ├── Security (untrusted input, injection)
@@ -393,13 +393,13 @@ Add a `.workflows/REVIEW_GUIDELINES.md` to your project root for project-specifi
 ## Requirements
 
 - [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
-- [pi-subagents](https://github.com/nicobailon/pi-subagents/) >= 0.17.2 — parallel and chain execution
-- [pi-prompt-template-model](https://github.com/nicobailon/pi-prompt-template-model) >= 0.9.2 — per-command model/thinking control
+- [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) >= 0.1 — in-process subagents: parallel / chain / graph (`needs` edges), per-task `model` + `thinking`, intercom, steering
 - [agent-spec](https://github.com/yagaltd/agent-spec) — contract verification (BDD specs + boundary enforcement)
 Install the gate CLI:
 
 ```bash
 cargo install --git https://github.com/yagaltd/agent-spec
+pi install npm:@arhen/pi-core-subagent
 ```
 
 Optional testing/verification:
@@ -426,36 +426,28 @@ pi install pi-boomerang
 
 ### Configure models
 
-Models are set in two places:
+Model and thinking are set **per subagent task, at dispatch time** (no
+agent files, no prompt frontmatter). The orchestrator reads
+`agents/registry.md` — the dispatch policy table mapping each task's
+bottleneck tag to `model` + `thinking`:
 
-1. **Prompt templates** (`prompts/*.md`): `model:` in YAML frontmatter — used by the slash command itself
-2. **Subagent overrides** (`~/.pi/agent/settings.json`): `subagents.agentOverrides` — used when subagents are spawned
-
-Current defaults (edit to match your setup):
-
-| Workflow role | Model | Thinking |
+| Bottleneck | model | thinking |
 |---|---|---|
-| Architect (`/idea`, `/plan`, `/amend`) | deepseek/deepseek-v4-flash | xhigh |
-| Builder (`/next`, `/add`, `/fix`) | deepseek/deepseek-v4-flash | high-med |
-| Scout/Explore (`/explore`, `/scout`) | deepseek/deepseek-v4-flash | high |
-| Reviewer (`/review`, `/verify`) | zai/glm-5.1 | low |
-| Quality Reviewer | deepseek/deepseek-v4-pro | xhigh |
-| Docs | deepseek/deepseek-v4-flash | high |
+| 🔴 BLOCKING | strongest available | xhigh |
+| 🟡 RISKY | strong | high |
+| 🟠 VERIFICATION_HEAVY | default | medium + full-suite `Verify:` |
+| ⚪ STANDARD | cheap/fast | medium |
+| scout | cheap | low |
+| reviewer | inherit | high (xhigh for 🔴) |
+| quality-reviewer | inherit | medium |
 
-Subagent settings in `~/.pi/agent/settings.json`:
+Roles leave `model` empty (inherit the parent session's model) unless the
+tag says otherwise — `thinking` is validated against the resolved model's
+supported levels, so a bad pairing fails loudly instead of silently.
 
-```json
-{
-  "subagents": {
-    "agentOverrides": {
-      "worker": { "model": "deepseek/deepseek-v4-flash", "thinking": "xhigh" },
-      "scout": { "model": "deepseek/deepseek-v4-flash", "thinking": "high" },
-      "reviewer": { "model": "zai/glm-5.1", "thinking": "low" },
-      "quality-reviewer": { "model": "deepseek/deepseek-v4-pro", "thinking": "xhigh" }
-    }
-  }
-}
-```
+Edit `agents/registry.md` in the installed package (or override the table in
+your project) to change the ladder. There are no `subagents.agentOverrides`
+settings anymore — the dispatch policy IS the override.
 
 ## Directory Structure
 
@@ -463,8 +455,8 @@ Subagent settings in `~/.pi/agent/settings.json`:
 pi-workflows/
 ├── package.json
 ├── README.md
-├── pi-workflows-improve.md
-├── .pi/agents/
+├── agents/                   # role prompts — pasted verbatim into subagent `prompt:`
+│   ├── registry.md           # dispatch policy: role → toolset/model/thinking per bottleneck tag
 │   ├── worker.md              # TDD vertical slices, contract verification, blocker protocol
 │   ├── scout.md               # structured codebase recon, domain memory
 │   ├── reviewer.md            # mechanical agent-spec + project checks

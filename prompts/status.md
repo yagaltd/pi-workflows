@@ -1,8 +1,5 @@
 ---
 description: "Show current .workflows/plan.md progress with contract status and cost summary"
-model: deepseek/deepseek-v4-flash
-thinking: high
-restore: true
 ---
 
 Read `.workflows/plan.md` in the current project and show a compact progress summary. Also check .workflows/CONTEXT.md and .workflows/docs/adr/ for additional status:

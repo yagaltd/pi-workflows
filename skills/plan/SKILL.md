@@ -72,7 +72,7 @@ Break the goal into atomic tasks. Each task that involves code changes gets a co
 ### Decomposition rules:
 1. **Scout before build** — always understand before changing
 2. **One concern per task** — don't bundle "add cache module" + "add cache to handler"
-3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`, `[PARALLEL-GROUP: B]`, etc. Tasks in the same group run concurrently via pi-subagents. Groups execute as waves: all tasks in group A must finish before group B starts.
+3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`, `[PARALLEL-GROUP: B]`, etc. Tasks in the same group run concurrently via pi-core-subagent (`tasks[]` in one subagent call). Groups execute as waves: all tasks in group A must finish before group B starts. **Tasks in the same parallel group MUST have disjoint `Allowed Changes` sets** — parallel subagents share one filesystem (no worktrees); overlapping boundaries → resequence with a dependency instead.
 4. **Sequential dependencies are explicit** — TASK 5 depends on TASK 4
 5. **Human tasks are real** — if you need a decision, make it a human task, don't guess
 6. **Include a final verification task** — reviewer runs agent-spec guard + full suite
@@ -436,4 +436,4 @@ Or run tasks manually:
 - **Keep the human in the loop** — present after planning, not after building.
 - **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
 - **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.
-- **Parallel groups execute as waves** — all tasks in a wave must finish before the next wave starts. `/next` enforces this. Within a wave, tasks run via pi-subagents with `worktree: true`.
+- **Parallel groups execute as waves** — all tasks in a wave must finish before the next wave starts. `/next` enforces this. Within a wave, tasks run as one pi-core-subagent call (`tasks[]`, disjoint boundaries required); model and thinking per task come from the bottleneck tag via `agents/registry.md`.

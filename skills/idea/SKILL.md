@@ -25,7 +25,7 @@ Gather evidence before asking questions.
 3. **Scout external inputs**:
    - URLs: `curl -sL <url> | head -1000`
    - GitHub repos: clone to `/tmp/explore-<name>` and scout
-   - multiple inputs: use pi-subagents parallel scout tasks when available
+   - multiple inputs: use pi-core-subagent parallel scout tasks (read-only, inline prompts) when available
 4. **Check baseline health when useful**:
    - run existing tests/lint/typecheck/build if cheap and relevant
    - report existing failures separately from proposed work

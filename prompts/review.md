@@ -1,8 +1,5 @@
 ---
 description: "Review — run /verify first, then quality review with bug-hunter + judgment"
-model: zai/glm-5.1
-thinking: low
-restore: true
 ---
 
 Run a two-stage review.
@@ -36,11 +33,26 @@ If Stage 1 FAILS → stop here.
 
 ## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)
 
-### Step 1: Bug-hunter scan
+### Step 1: Bug-hunter scan (subagent, not CLI)
 
-```bash
-which bug-hunter && bug-hunter --staged --scan-only || echo "bug-hunter not installed, skip"
+The `bug-hunter` binary is an installer, not a scanner — the protocol is
+agent-driven. Dispatch it as a write-toolset subagent:
+
+```text
+subagent({
+  agent: "bug-hunter-review",
+  prompt: "You are the bug-hunter runtime. Read ~/.pi/agent/skills/bug-hunter/SKILL.md
+           (or ./.pi/skills/bug-hunter/SKILL.md) and modes/local-sequential.md,
+           then follow the protocol EXACTLY: scan-only, single-pass, fail
+           closed. Write canonical artifacts under .bug-hunter/. NEVER fix,
+           never commit.",
+  write: true, thinking: "high", background: false,
+  task: "Adversarially scan the review diff (staged/working changes) for
+         defects and vulnerabilities. Output the summary: confirmed /
+         dismissed / manualReview counts + first evidence line per confirmed finding."
+})
 ```
+If the bug-hunter skill is not installed, skip with a note.
 
 ### Step 2: Judgment-based quality review
 
