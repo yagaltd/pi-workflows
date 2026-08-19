@@ -10,6 +10,12 @@ All notable changes to pi-workflows are documented here.
 
 Replaced the removed `pi-subagents` + `pi-prompt-template-model` (+ implicit `pi-intercom`) extensions with `@arhen/pi-core-subagent`. No functional feature was lost — the wave engine and per-task model routing got better.
 
+### Added (plan versioning, charter, grill — ported from pi-specflow / grill-for-unknowns)
+
+- **Versioned plans**: `Plan ID: YYYYMMDD-NNN` in plan.md; `/idea` + `/plan` refuse to overwrite a live plan (route to `/review` or `/abort` first). SHIP (`/review` Stage 3) archives the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<id>-<slug>/`; new `/abort` archives to `.workflows/archive/superseded/`. CONTEXT.md, ADRs, LOG.md stay live and never archive. Plan IDs derive from the archive listing so they never collide.
+- **Project charter**: new `templates/AGENTS.md` copied to the project root by `/idea` — pi auto-loads AGENTS.md for every session including pi-core-subagent children, so containment rules bind everyone: single status writer for `.workflows/`, contract-bounded code writes, no subagent commits/merges/pushes, throwaway artifacts stay in their lanes, fail loud.
+- **Grill protocol completed** (in `/idea` already; now full): unknowns taxonomy (map vs territory — known knowns / known unknowns / unknown knowns / unknown unknowns), blindspot pass for unknown unknowns before planning, unknown-knowns routing to prototypes instead of text questions, one-blocking-question-at-a-time template with AFK default, question quality bar (material / grounded / answerable) also in `/explore` and `/amend`. Protocol adapted from the grill-for-unknowns skill (Nico Bailon, Matt Pocock); pi-specflow's refinement (Recommended + Evidence + Consequence-if-different payload) folded back in.
+
 ### Changed
 
 - **Dispatch policy moved to `agents/registry.md`** (new, single source of truth): role → prompt file + toolset, and the bottleneck-tag → `model`/`thinking` ladder, applied **per task at dispatch time** (was: hardcoded model frontmatter + `subagents.agentOverrides` settings).

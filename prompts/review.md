@@ -68,6 +68,30 @@ High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.
 Include human callouts (new deps, auth changes, migrations).
 
+## Stage 3: SHIP (only if Stage 1 PASSES and the human approves)
+
+On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
+
+1. Commit the verified work (never merge, never push unless the human
+   explicitly asks):
+   ```bash
+   git add -A && git commit -m "<PlanID>: <goal>"
+   ```
+2. Archive the plan bundle — plans are versioned units:
+   ```bash
+   mkdir -p .workflows/archive/done
+   ````
+   Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
+   - `.workflows/plan.md` (set `Status: DONE` first)
+   - `.workflows/specs/`
+   - `.workflows/reviews/` (if present)
+   - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
+3. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+4. `.workflows/CONTEXT.md`, `docs/adr/`, `LOG.md` stay live — never archived.
+
+The next `/idea` derives its Plan ID from the archive listing (NNN = archive
+entries + 1), so ids never collide and history is preserved.
+
 ## Combined Output
 
 ```

@@ -50,14 +50,16 @@ If change contradicts an ADR, flag the conflict and ask before proceeding.
 
 ## Phase 3: DECISION-TREE GRILL
 
-Ask only unresolved decisions created by the amendment.
+Ask only unresolved decisions created by the amendment — same protocol as
+`/idea` Phase 3: one blocking question at a time when decisions depend on
+each other; every question material, grounded, and answerable.
 
 For each question include:
 
 - recommended answer
 - evidence from code/docs/specs
-- consequence if wrong
-- default if user is AFK
+- why it matters (consequence if wrong)
+- default if user is AFK ("If you don't care: I'll proceed with <default>")
 
 Ask one-by-one when decisions depend on previous answers. Use `interview()` only for independent choices.
 

@@ -151,8 +151,16 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 ```markdown
 # Plan: <goal>
 
+> Plan ID: <YYYYMMDD>-<NNN>
 > Created: <date>
-> Status: DRAFT / APPROVED / IN PROGRESS / COMPLETE
+> Status: DRAFT / APPROVED / IN PROGRESS / DONE / SUPERSEDED
+
+## Lifecycle
+- Plan ID is assigned once at bootstrap: NNN = (entries in `.workflows/archive/done` + `.workflows/archive/superseded`) + 1, zero-padded to 3. Never reuse a Plan ID.
+- `/idea` and `/plan` refuse to overwrite a live plan (DRAFT/APPROVED/IN PROGRESS) — route it to `/review` (ship → `archive/done/`) or `/abort` (abandon → `archive/superseded/`) first.
+- SHIP (`/review`, all tasks ✅) → set Status: DONE and move the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<PlanID>-<slug>/`.
+- `/abort` → Status: SUPERSEDED, bundle to `.workflows/archive/superseded/<PlanID>-<slug>/` with reason.
+- `.workflows/CONTEXT.md`, `docs/adr/`, `LOG.md` are never archived — durable knowledge outlives every plan.
 
 ## Context
 - <what we're building and why>
@@ -417,7 +425,8 @@ Plan approved. Execute with:
   /task 3  → run a specific task
   /status  → show plan progress + cost summary
   /verify  → run 3-layer verification on all contracts
-  /review  → mechanical + quality review
+  /review  → mechanical + quality review, then SHIP (archives the plan)
+  /abort   → abandon the plan (archives to superseded)
 
 Or run tasks manually:
   /scout   → TASK 1

@@ -10,7 +10,13 @@ ls -la .workflows/CONTEXT.md 2>/dev/null || echo "No .workflows/CONTEXT.md"
 
 # Count ADRs
 ls .workflows/docs/adr/*.md 2>/dev/null | wc -l | tr -d ' '
+
+# Archive history (versioned plans)
+ls .workflows/archive/done .workflows/archive/superseded 2>/dev/null || echo "No archived plans"
 ```
+
+Header: `## Plan: <goal> · <PlanID> · Status: <status>`, plus an archive line
+listing prior plan ids (`archived: 3 done, 1 superseded` or `none`).
 
 ```
 ## Plan: <goal>

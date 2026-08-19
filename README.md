@@ -508,6 +508,7 @@ pi-workflows/
 | `/explore <question>` | Research / kill / prototype, no production planning (cheap) |
 | `/amend <change>` | Update existing plan/specs when decisions change |
 | `/status` | Show plan progress + cost summary (cheap) |
+| `/abort` | Abandon the live plan → archive to `.workflows/archive/superseded/` |
 
 ### Executing
 

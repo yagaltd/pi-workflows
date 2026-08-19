@@ -21,6 +21,18 @@ Understand what the human needs to decide. `/explore` is for research, kill/pivo
 
 If the question is already clear from the argument, state it back briefly and move on. If vague, ask 1-2 clarifying questions max — don't over-interview.
 
+When you do ask, meet the grill bar (same protocol as `/idea`): the question
+must be **material** (could flip the verdict), **grounded** (cite what made
+you ask), and **answerable** (offer options). Format:
+
+```markdown
+Blocking question: <question>
+Why it matters: <how each answer changes the exploration verdict>
+Recommended: <answer> — Evidence: <files/docs>
+If you don't care: I'll proceed with <default>.
+```
+Never ask what the repo/docs can answer — check evidence first.
+
 ## Phase 2: SCOUT
 
 Gather information from the codebase and any relevant sources.
