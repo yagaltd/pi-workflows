@@ -1,0 +1,15 @@
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  drift:
+    name: drift check (views vs sources)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run drift checker
+        run: ./scripts/check-drift.sh
