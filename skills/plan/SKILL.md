@@ -163,7 +163,7 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 - `/idea` and `/plan` refuse to overwrite a live plan (DRAFT/APPROVED/IN PROGRESS) — route it to `/review` (ship → `archive/done/`) or `/abort` (abandon → `archive/superseded/`) first.
 - SHIP (`/review`, all tasks ✅) → set Status: DONE and move the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<PlanID>-<slug>/`.
 - `/abort` → Status: SUPERSEDED, bundle to `.workflows/archive/superseded/<PlanID>-<slug>/` with reason.
-- `.workflows/CONTEXT.md`, `docs/adr/`, `LOG.md` are never archived — durable knowledge outlives every plan.
+- `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` are never archived — durable knowledge outlives every plan.
 
 ## Context
 - <what we're building and why>

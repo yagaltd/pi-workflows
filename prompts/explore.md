@@ -80,9 +80,46 @@ Adapt the mix per question: performance questions get a performance angle
 (prompt: "You are a performance analyst..."), feature questions get
 architecture + feasibility, bug investigations get security + quality.
 
-## Phase 3: SYNTHESIZE
+## Phase 3: SYNTHESIZE (and persist)
 
-Combine all subagent outputs into a clear recommendation.
+Combine all subagent outputs into a clear recommendation — **and write it
+to disk**: exploration findings are durable, versioned knowledge, not chat
+ephemera. A later `/idea` must be able to cite them.
+
+```bash
+mkdir -p .workflows/knowledge
+```
+
+Write `.workflows/knowledge/explore-<YYYYMMDD>-<slug>.md` (commit it with the
+project — git versions it):
+
+```markdown
+# Exploration: <question>
+Date: <date> · Verdict: <PROCEED / PIVOT / KILL>
+
+## Per-angle findings
+### <angle 1> (agent: <name>)
+<the subagent's findings, condensed — keep its file:line citations>
+### <angle 2> ...
+
+## Synthesis
+- <key findings>
+- <unknowns that remain>
+
+## Recommendation
+<verdict + reason>
+
+## If we proceed
+- Scope: <estimate> · Key risks: <risks> · Suggested next: <next step>
+```
+
+Then append one line to `.workflows/LOG.md` (create if missing):
+`<date> EXPLORE <slug> — <verdict>`
+
+If any domain terms crystallized during exploration, add them to
+`.workflows/CONTEXT.md` (glossary only).
+
+Present the synthesis to the human:
 
 ```
 ## Exploration: <question>

@@ -82,7 +82,11 @@ Gather information from the codebase and any relevant sources.
 
 ## Phase 3: SYNTHESIZE
 
-Combine findings into a clear recommendation.
+Combine findings into a clear recommendation **and persist it**: write
+`.workflows/knowledge/explore-<YYYYMMDD>-<slug>.md` (question, per-angle
+findings with file:line citations, synthesis, verdict) and append a line to
+`.workflows/LOG.md` — see the `/explore` prompt for the doc shape. Domain
+terms that crystallized go into `.workflows/CONTEXT.md`.
 
 When the exploration compares options (approaches, libraries, architectures),
 place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3)

@@ -30,6 +30,12 @@ Gather evidence before asking questions.
    - run existing tests/lint/typecheck/build if cheap and relevant
    - report existing failures separately from proposed work
 
+**Persist substantial evidence**: if the recon produced more than trivial
+findings (multi-repo scout, security review, non-obvious constraints), write
+them to `.workflows/knowledge/evidence-<YYYYMMDD>-<slug>.md` (mkdir -p the
+dir) — same shape as the `/explore` knowledge doc. Contracts and later plans
+cite these files; subagent reports are never re-run when they're on disk.
+
 **Rule:** If a question can be answered by repo/docs/tests/history, answer it from evidence. Do not ask the user.
 
 **Output:** concise evidence summary:

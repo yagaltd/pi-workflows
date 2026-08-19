@@ -87,7 +87,7 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    - `.workflows/reviews/` (if present)
    - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
 3. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
-4. `.workflows/CONTEXT.md`, `docs/adr/`, `LOG.md` stay live — never archived.
+4. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive
 entries + 1), so ids never collide and history is preserved.

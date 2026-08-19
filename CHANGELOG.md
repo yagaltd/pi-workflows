@@ -18,6 +18,8 @@ Replaced the removed `pi-subagents` + `pi-prompt-template-model` (+ implicit `pi
 
 - **Thinking tools** (new `templates/THINKING-TOOLS.md`, wired into the skills that need them): **Five Whys** systemic why-chain in `/fix` diagnosis (verifiable whys only, end at a missing guard never "human error", explicit fix level: code/test/process; recurrence tests cover the class); **Six Thinking Hats** divergence→convergence for option generation in `/idea`, `/prototype` (Green generates radically different structures, White/Yellow/Black evaluate); **Impact × Effort matrix** for option convergence in `/idea`, `/optimize` (Quick Wins in, Big Bets de-risked via prototype, Money Pits dropped in writing), `/plan` (quadrants drive bottleneck tags), `/explore` (kill/pivot evidence). Recommendation-with-question was already mandatory via the grill payload — unchanged.
 
+- **Durable knowledge tier `.workflows/knowledge/`**: `/explore` now writes `explore-<date>-<slug>.md` (question, per-angle findings with citations, synthesis, verdict) + a `LOG.md` line; `/idea` persists substantial recon as `evidence-<date>-<slug>.md`; `/next` persists scout reports verbatim as `scout-<task-id>.md`. Subagents stay read-only by design (single-writer) — the orchestrator persists what they return. `knowledge/` joins CONTEXT/ADR/LOG as never-archived. Previously exploration findings were chat-only ephemera (nothing hit disk even pre-refactor).
+
 ### Changed
 
 - **Dispatch policy moved to `agents/registry.md`** (new, single source of truth): role → prompt file + toolset, and the bottleneck-tag → `model`/`thinking` ladder, applied **per task at dispatch time** (was: hardcoded model frontmatter + `subagents.agentOverrides` settings).

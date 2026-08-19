@@ -176,6 +176,12 @@ Memory, Architecture, Start Here).`,
 })
 ```
 
+After a scout settles, persist its report verbatim to
+`.workflows/knowledge/scout-<task-id>.md` (mkdir -p the dir) — scouts are
+read-only by design; the orchestrator is the single writer. Later tasks,
+contracts, and `/idea` sessions cite these files instead of re-running recon.
+Then continue with the normal post-task steps below.
+
 #### Reviewer / quality-reviewer tasks
 
 Same shape as the graph-mode reviewer entry above (single-task form: no
