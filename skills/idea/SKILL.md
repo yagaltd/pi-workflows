@@ -47,6 +47,15 @@ Gather evidence before asking questions.
 
 Extract decisions from evidence.
 
+**Option generation + convergence** (templates/THINKING-TOOLS.md §2–3):
+when 2+ viable approaches exist, generate with Green-hat divergence
+(radically different approaches, not variations of one), evaluate each with
+White (facts) → Yellow (best case) → Black (failure modes), then place the
+survivors on the Impact × Effort matrix: Quick Wins plan early, Big Bets
+de-risk via `/prototype` before committing, Money Pits get dropped in
+writing. The survivors enter the decision tree below with their quadrant
+noted.
+
 Classify each decision:
 
 - **Resolved by evidence** — include evidence and use it.

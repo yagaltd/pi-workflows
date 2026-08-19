@@ -103,7 +103,10 @@ For significant features, include a docs task:
 
 ### Bottleneck Tags
 
-Tag every task with a bottleneck indicator:
+Tag every task with a bottleneck indicator. Drive the tags from the Impact ×
+Effort matrix (templates/THINKING-TOOLS.md §3): Quick Wins (high impact, low
+effort) → ⚪ STANDARD; Big Bets (high, high) → 🟡 RISKY (prototype first) or
+🔴 BLOCKING when on the critical path; verification-heavy Big Bets → 🟠.
 
 | Tag | When | Implication |
 |---|---|---|

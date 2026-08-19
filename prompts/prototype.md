@@ -14,7 +14,9 @@ Identify if the target is a **UI** component/page or a **backend**/logic feature
 
 ### UI Branch: Parallel Visual Designs
 
-Generate radically different visual approaches. Each worker produces a self-contained, runnable artifact **in its own directory** — parallel children share one filesystem (no worktrees), so directory isolation is mandatory.
+Generate N radically different visual approaches. Each worker produces a self-contained, runnable artifact **in its own directory** — parallel children share one filesystem (no worktrees), so directory isolation is mandatory.
+
+Generate the variations with Green-hat divergence (templates/THINKING-TOOLS.md §2): each direction must differ in *structure* (layout, information architecture, interaction model), not just theming of the same layout — minimal/clean, feature-rich wizard, split-view panel, command-driven, etc.
 
 All prototype workers in one subagent call, inline prompts (no agent files):
 

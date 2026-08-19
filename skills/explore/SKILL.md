@@ -84,6 +84,12 @@ Gather information from the codebase and any relevant sources.
 
 Combine findings into a clear recommendation.
 
+When the exploration compares options (approaches, libraries, architectures),
+place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3)
+before recommending: impact = evidence-backed movement on the question's
+success criteria; effort = files/deps/LOC. Kill = the option sits in Money
+Pit with no path out.
+
 Present to the human:
 
 ```
