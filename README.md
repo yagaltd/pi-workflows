@@ -43,6 +43,7 @@ Then finish with `/review` → all green? ship it.
 
 | Command | What it does |
 |---|---|
+| `/brainstorm <topic \| resume>` | Divergent research mode: think together, evidence-validate idea branches, living markmap ledger in `.workflows/research/`. No code, no specs. Graduates to `/explore` or `/idea`. |
 | `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
 | `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
 | `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
@@ -97,6 +98,11 @@ Then finish with `/review` → all green? ship it.
 
 **Starting from scratch?**
 ```
+/brainstorm I want a task manager for freelancers
+  → divergent rounds: market, competitors, differentiation branches
+  → evidence via research subagents, markmap ledger in .workflows/research/
+  → branches validated/invalidated; frontier questions ranked
+  → graduate the winning hypothesis:
 /idea Build a REST API for task management
   → explores repo/docs first, then asks only unresolved framework/auth/database choices
   → writes plan → you approve → contracts generated
@@ -468,6 +474,7 @@ pi-workflows/
 ├── skills/
 │   ├── challenge/SKILL.md     # adversarial grill, updates .workflows/CONTEXT.md inline
 │   ├── explore/SKILL.md       # research + synthesize + prototype
+│   ├── brainstorm/SKILL.md    # divergent research mode, markmap ledger
 │   ├── idea/SKILL.md          # evidence → decision tree → plan + contracts
 │   ├── plan/SKILL.md          # decompose into atomic tasks + contracts
 │   ├── add-feature/SKILL.md   # approved contract → build → verify
@@ -481,6 +488,7 @@ pi-workflows/
     ├── plan.md                # /plan — decompose from existing context
     ├── challenge.md           # /challenge — adversarial grill against domain model
     ├── explore.md             # /explore — parallel multi-angle research
+    ├── brainstorm.md           # /brainstorm — divergent research, markmap ledger
     ├── amend.md               # /amend — update plan/specs
     ├── add.md                 # /add — execute approved contract
     ├── fix.md                 # /fix — reproduce, diagnose, fix, verify

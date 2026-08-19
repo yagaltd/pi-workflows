@@ -10,6 +10,10 @@ All notable changes to pi-workflows are documented here.
 
 Replaced the removed `pi-subagents` + `pi-prompt-template-model` (+ implicit `pi-intercom`) extensions with `@arhen/pi-core-subagent`. No functional feature was lost — the wave engine and per-task model routing got better.
 
+### Added — `/brainstorm` (divergent research mode)
+
+New command + skill for the phase before `/explore`/`/idea`: market/competitor research, product ideation, half-formed ideas — think together with the human, no building. Living **markmap-renderable ledger** at `.workflows/research/<slug>/ledger.md` (branches with evidence-gated statuses ✅/❌/❓/💤, ranked frontier of open questions, cited sources); read-only research subagents (web/market angle with bash-for-fetch allowlist, repo via scout role, synthesis via `needs` fan-in) whose reports persist verbatim as `report-<NN>-<slug>.md`; deep-research briefs freeze scope before heavy passes; resume protocol for multi-session topics; graduation paths to `/explore`, `/idea` (optionally synthesizing `knowledge/evidence-*.md`), park, or kill. Containment: orchestrator is the single writer; `research/` joins the never-archived durable knowledge tier.
+
 ### Added (plan versioning, charter, grill — ported from pi-specflow / grill-for-unknowns)
 
 - **Versioned plans**: `Plan ID: YYYYMMDD-NNN` in plan.md; `/idea` + `/plan` refuse to overwrite a live plan (route to `/review` or `/abort` first). SHIP (`/review` Stage 3) archives the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<id>-<slug>/`; new `/abort` archives to `.workflows/archive/superseded/`. CONTEXT.md, ADRs, LOG.md stay live and never archive. Plan IDs derive from the archive listing so they never collide.

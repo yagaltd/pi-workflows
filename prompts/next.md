@@ -180,6 +180,8 @@ After a scout settles, persist its report verbatim to
 `.workflows/knowledge/scout-<task-id>.md` (mkdir -p the dir) — scouts are
 read-only by design; the orchestrator is the single writer. Later tasks,
 contracts, and `/idea` sessions cite these files instead of re-running recon.
+(`/brainstorm` research angles use the same doctrine but persist under
+`.workflows/research/<slug>/` — see the brainstorm skill.)
 Then continue with the normal post-task steps below.
 
 #### Reviewer / quality-reviewer tasks

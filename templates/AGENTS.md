@@ -18,6 +18,9 @@ disagrees with this file, this file wins.
      and exploration reports it received from subagents. Subagents are
      read-only recon: they return findings as text; the orchestrator is the
      single writer.
+   - `.workflows/research/**` (ledger, reports, briefs) — the orchestrator
+     only (`/brainstorm`), same doctrine: research subagents report as text;
+     the orchestrator writes.
    - `.workflows/CONTEXT.md`, `.workflows/docs/adr/` — the orchestrator,
      from worker reports.
    - `.workflows/archive/` — `/review` (SHIP) and `/abort` only.
@@ -33,6 +36,8 @@ disagrees with this file, this file wins.
 5. **Throwaway artifacts stay in their lanes.** Prototypes and experiments
    write only inside the directory the task names (`prototype/<variant>/`,
    `optimize/exp-<x>/`). Anything outside is a violation to report.
+   **Brainstorm mode never writes code**: `/brainstorm` touches only
+   `.workflows/research/<slug>/` (+ `knowledge/` at graduation).
 6. **Fail loud, never auto-correct.** Blocked on a contradiction or a
    missing input? Report `WORKER_BLOCKER` (or `ask_parent`) — never silently
    widen scope.
@@ -44,8 +49,8 @@ disagrees with this file, this file wins.
   plan — route it to `/review` (ship) or `/abort` (abandon) first.
 - SHIP (`/review`, all ✅) → bundle moves to `.workflows/archive/done/<id>-<slug>/`.
 - Abandon (`/abort`) → `.workflows/archive/superseded/<id>-<slug>/` with reason.
-- `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` are **never
-  archived** —
+- `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `research/`, `LOG.md`
+  are **never archived** —
   durable knowledge outlives every plan.
 
 ## Communication style
