@@ -18,6 +18,11 @@ ls .workflows/archive/done .workflows/archive/superseded 2>/dev/null || echo "No
 Header: `## Plan: <goal> · <PlanID> · Status: <status>`, plus an archive line
 listing prior plan ids (`archived: 3 done, 1 superseded` or `none`).
 
+**Hygiene check** (report, don't fix): count ✅ tasks whose Execution Notes
+lack a `context:` marker — report as `context markers: X/Y` (Y = ✅ count).
+Missing markers mean the CONTEXT.md update step was skipped on those tasks;
+they'll be swept at `/review` SHIP.
+
 ```
 ## Plan: <goal>
 ## Progress: X/N tasks done

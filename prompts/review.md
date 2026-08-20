@@ -4,6 +4,21 @@ description: "Review — run /verify first, then quality review with bug-hunter 
 
 Run a two-stage review.
 
+## Stage 0: Scope the review (risk-tiered, not one-size)
+
+Read plan.md. Choose the path:
+
+- **Fast path** (small/low-risk plans: ≤2 tasks, no 🔴/🟠 tags, docs-only
+  or single-module diff): Layer 1 guard + Layer 2 suite + Layer 3 trail +
+  SHIP. Skip Stage 2 unless the diff is security-relevant.
+- **Full path** (default): everything below, including Stage 2.
+
+State which path you took and why in the output. The irreducible core —
+repo-wide guard, one final suite run on the integrated state, verdict
+trail, SHIP — never gets skipped: per-task verification ran on partial
+states and cannot catch cross-task regressions or cumulative boundary
+violations; only this pass sees the whole change set.
+
 ## Stage 1: Mechanical Verification
 
 First, run the full verification suite (same as `/verify`):
@@ -29,12 +44,17 @@ npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack
 ```
 
-### Layer 3: Verdict history (audit trail)
+### Layer 3: Verdict history + context hygiene (audit trail)
 
 Read `.workflows/reviews/*.md` if present — every task should show a final
 `ok:true` round (or a human-accepted failure). A ✅ task in plan.md with
 no ok:true verdict on file is a **red flag**: report it as a violation of
 the verdict-gating doctrine (no model marks its own work done).
+
+Also check Execution Notes: every ✅ task should carry a
+`context: <updated|no changes>` marker. Missing marker = the CONTEXT.md
+update step was skipped — run the domain-memory sweep now (Stage 3) and
+report the hygiene gap.
 
 If Stage 1 FAILS → stop here.
 
@@ -84,17 +104,23 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```bash
    git add -A && git commit -m "<PlanID>: <goal>"
    ```
-2. Archive the plan bundle — plans are versioned units:
+2. **Domain-memory sweep (guaranteed backstop)**: before archiving, sweep
+   the plan's Execution Notes + worker Domain Memory reports + LOG.md for
+   durable knowledge not yet promoted — terms/decisions →
+   `.workflows/CONTEXT.md`, hard-to-reverse decisions → new ADRs. The
+   per-task loop is best-effort; THIS sweep is the guarantee CONTEXT.md
+   never drifts from what was built. Fix missing `context:` markers now.
+3. Archive the plan bundle — plans are versioned units:
    ```bash
    mkdir -p .workflows/archive/done
-   ````
+   ```
    Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
    - `.workflows/plan.md` (set `Status: DONE` first)
    - `.workflows/specs/`
    - `.workflows/reviews/` (if present)
    - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
-3. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
-4. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
+4. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive
 entries + 1), so ids never collide and history is preserved.

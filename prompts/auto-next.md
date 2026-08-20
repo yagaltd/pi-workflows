@@ -101,7 +101,7 @@ Then per settled task:
    contract's Allowed Changes before trusting the child's report
 3. **Update plan.md**: mark ✅ DONE only on ok:true; ❌ FAILED on exhausted rounds
 4. **Add learnings**: cost, duration, and any discoveries to Execution Notes
-5. **Update `.workflows/CONTEXT.md`**: add any domain decisions discovered
+5. **Update `.workflows/CONTEXT.md` + marker**: read each worker's `## Domain Memory` section, append non-empty Terms/Decisions (ADR if 3-criteria). In every case append to that task's Execution Notes: `context: <updated | no changes>` — `/status` and `/review` audit the markers, so a missing marker is a visible gap, not a silent skip
 6. **Check downstream specs**: update the next 1-2 pending contracts based on learnings — if an edge is already queued in a running graph, steer the affected child instead
 
 ### Step 5: Blockers Stop the Wave

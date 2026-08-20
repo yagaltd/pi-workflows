@@ -41,6 +41,10 @@ New command + skill for the phase before `/explore`/`/idea`: market/competitor r
 
 ### Changed
 
+- **CONTEXT.md update made deterministic** (root cause of missed updates: conditional step + no structural forcing): worker reports now carry a **mandatory `## Domain Memory`** section (Terms/Decisions/Conflicts, "none" valid — never omitted); `/next` + `/auto-next` always record a `context: <updated|no changes>` marker per task in Execution Notes; `/status` reports `context markers: X/Y`; `/review` Layer 3 audits markers and SHIP gains a **domain-memory sweep** (guaranteed backstop — promotes unpersisted terms/decisions to CONTEXT.md/ADRs before archive).
+- **`/review` is risk-tiered (Stage 0)**: fast path for small/low-risk plans (≤2 tasks, no 🔴/🟠, docs-only/single-module diff — skips Stage 2 unless security-relevant) vs full path default. Irreducible core never skipped: repo-wide guard, one final suite run on the integrated state, verdict trail, SHIP. Rationale: per-task verification runs on partial states and cannot see cross-task regressions or cumulative boundary violations — only the final pass sees the whole change set.
+- **Plans end at build (+ optional docs) tasks**: plan-level "verify"/"quality review" tasks removed from the plan skill — they duplicated the gate chain (per-task verdict gating in `/next` + tier-2 `/review`). Reviewer/quality-reviewer are roles, not plan tasks.
+
 - **Dispatch policy moved to `agents/registry.md`** (new, single source of truth): role → prompt file + toolset, and the bottleneck-tag → `model`/`thinking` ladder, applied **per task at dispatch time** (was: hardcoded model frontmatter + `subagents.agentOverrides` settings).
 - **Agent files are now verbatim role prompts** pasted into `subagent({ prompt })` — no more agent-file frontmatter, `reads:` preloading, `progress:`, or `inheritProjectContext`. The `task:` text names the files each child must read.
 - **Waves are now `needs` edges**: `/next` parallel waves and reviewer/quality-reviewer gating dispatch as one graph call — pi-core-subagent schedules waves, prepends upstream outputs to dependents, and auto-aborts dependents of failed tasks.

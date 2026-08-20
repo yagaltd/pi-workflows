@@ -157,6 +157,15 @@ What was done.
 ## Issues Found (outside scope)
 - <anything broken you noticed but couldn't fix due to boundaries>
 
+## Domain Memory (mandatory — never omit this section)
+- Terms: <new or crystallized domain terms + one-line definitions, or "none">
+- Decisions: <domain/technical decisions made this task worth persisting, or "none">
+- Conflicts: <terms you noticed used inconsistently vs .workflows/CONTEXT.md, or "none">
+
+The orchestrator uses this section to update `.workflows/CONTEXT.md` (you
+never write it yourself). "none" everywhere is a valid answer — but the
+section must exist.
+
 ## Cost
 - Tokens: <estimate>
 - Duration: <approximate wall-clock time>

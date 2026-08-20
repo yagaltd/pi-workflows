@@ -65,9 +65,13 @@ Break the goal into atomic tasks. Each task that involves code changes gets a co
 ### Task types:
 - **scout** — read-only reconnaissance, no code changes, no contract needed
 - **worker** — builds/fixes/refactors code, REQUIRES a contract
-- **reviewer** — mechanical verification (agent-spec lifecycle + tdd-guard + project checks), no contract needed
-- **quality-reviewer** — judgment-based code review, runs AFTER mechanical verification passes
 - **human** — decision point, no contract needed
+
+Reviewer and quality-reviewer are **roles, not plan tasks**: `/next` dispatches
+the reviewer automatically for every task (verdict gating + fix rounds), and
+`/review` runs the final tier-2 gate (repo-wide guard, whole-diff adversarial
+scan, quality judgment) at SHIP. Do NOT create plan-level "verify" or
+"quality review" tasks — they duplicate the gate chain.
 
 ### Decomposition rules:
 1. **Scout before build** — always understand before changing
@@ -75,7 +79,7 @@ Break the goal into atomic tasks. Each task that involves code changes gets a co
 3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`, `[PARALLEL-GROUP: B]`, etc. Tasks in the same group run concurrently via pi-core-subagent (`tasks[]` in one subagent call). Groups execute as waves: all tasks in group A must finish before group B starts. **Tasks in the same parallel group MUST have disjoint `Allowed Changes` sets** — parallel subagents share one filesystem (no worktrees); overlapping boundaries → resequence with a dependency instead.
 4. **Sequential dependencies are explicit** — TASK 5 depends on TASK 4
 5. **Human tasks are real** — if you need a decision, make it a human task, don't guess
-6. **Include a final verification task** — reviewer runs agent-spec guard + full suite
+6. **Plans end at build tasks (+ optional docs task)** — final verification is `/review`'s job, not a plan task
 
 ### Task ordering:
 ```
@@ -84,14 +88,13 @@ SCOUT tasks first (understand the codebase)
 PLAN review (human approves)
   ↓
 BUILD tasks (ordered by dependency, parallel where independent)
-  ↓  each has a .spec contract
-VERIFY task (reviewer runs agent-spec guard + tdd-guard + full suite)
-  ↓
-QUALITY REVIEW task (quality-reviewer runs judgment review)
-  ↓
+  ↓  each has a .spec contract + per-task reviewer verdict (fix rounds on reject)
 DOCS task (optional — generate/update docs)
   ↓
-SHIP task (human approves)
+/review (tier-2 gate: repo-wide guard, whole-diff adversarial scan,
+  quality judgment, domain-memory sweep)
+  ↓
+SHIP (human approves: commit + archive)
 ```
 
 ### Docs task (optional):
@@ -181,8 +184,7 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 | TASK_2 | worker | Add login API | 🔴 BLOCKING | example-based | 1 | TASK_1 |
 | TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | 1 | TASK_1 |
 | TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | 2 | TASK_2 |
-| TASK_5 | reviewer | Verify auth system | ⚪ STANDARD | — | 3 | TASK_2-4 |
-| TASK_6 | quality-reviewer | Quality review | ⚪ STANDARD | — | 3 | TASK_5 |
+| TASK_5 | worker | Docs: auth architecture | ⚪ STANDARD | — | 3 | TASK_2-4 |
 
 ## Tasks
 
@@ -205,18 +207,14 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 - **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec
 - **Status**: ⬜ PENDING
 
-### TASK N: Verify all
-- **Agent**: reviewer
+### TASK N: Docs (optional — significant changes only)
+- **Agent**: worker (cheap dispatch per registry)
 - **Depends on**: all build tasks
-- **What**: Run 3-layer verification (agent-spec + tdd-guard + project checks)
-- **Verify**: all contracts pass, all tests green
+- **What**: Update `.workflows/docs/architecture.md` with what changed
 - **Status**: ⬜ PENDING
 
-### TASK N+1: Quality review
-- **Agent**: quality-reviewer
-- **Depends on**: verify task
-- **What**: Judgment-based code review (simplicity, security, error handling)
-- **Status**: ⬜ PENDING
+(No verify/quality tasks: `/next` verdict-gates every task automatically;
+`/review` is the final gate at SHIP.)
 
 ## Contracts (generated after approval)
 | Task | Contract File | Scenarios |
@@ -272,9 +270,10 @@ Ask the human:
 Wave 0: TASK 1 (scout)
 Wave 1: TASK 2 + TASK 3 (parallel, PARALLEL-GROUP: A)
 Wave 2: TASK 4 (depends on wave 1)
-Wave 3: TASK 5 + TASK 6 (verification)
+Wave 3: TASK 5 (docs — optional)
+→ /review (final gate + SHIP)
 ```
-All tasks in a wave must complete before the next wave starts. `/next` enforces this.
+All tasks in a wave must complete before the next wave starts. `/next` enforces this. Verification runs per task (verdict gating) and once more at `/review` on the integrated whole.
 
 ## Phase 5: GENERATE CONTRACTS
 

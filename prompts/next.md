@@ -330,7 +330,7 @@ For long autonomous runs, consider `allowIntercom: true` so workers can
    - **Duration**: <time>
    ```
 7. Add **learnings** to the Execution Notes section — what was discovered, what patterns worked, what to adjust for future tasks.
-8. **Update .workflows/CONTEXT.md**: if any domain decisions were made during this task, update .workflows/CONTEXT.md immediately. If an architecture decision meets all 3 criteria (hard to reverse, surprising, real tradeoff), create an ADR in .workflows/docs/adr/.
+8. **Update .workflows/CONTEXT.md — always record an outcome**: read the worker's `## Domain Memory` section. If Terms/Decisions/Conflicts are non-empty: append them to CONTEXT.md now (ADR instead if the decision is hard to reverse + surprising + a real tradeoff). Then — in EVERY case, including no changes — append a marker line to the task's Execution Notes entry: `context: <updated | no changes (worker reported none)>`. The marker makes absence auditable: `/status` and `/review` flag any ✅ task without one.
 9. **Auto-check docs**: if any `.workflows/docs/*.md` files exist, check if they need updating:
    ```bash
    find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
