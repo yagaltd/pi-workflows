@@ -1,11 +1,23 @@
 ---
 description: "Review — run /verify first, then quality review with bug-hunter + judgment"
-model: zai/glm-5.1
-thinking: low
-restore: true
 ---
 
 Run a two-stage review.
+
+## Stage 0: Scope the review (risk-tiered, not one-size)
+
+Read plan.md. Choose the path:
+
+- **Fast path** (small/low-risk plans: ≤2 tasks, no 🔴/🟠 tags, docs-only
+  or single-module diff): Layer 1 guard + Layer 2 suite + Layer 3 trail +
+  SHIP. Skip Stage 2 unless the diff is security-relevant.
+- **Full path** (default): everything below, including Stage 2.
+
+State which path you took and why in the output. The irreducible core —
+repo-wide guard, one final suite run on the integrated state, verdict
+trail, SHIP — never gets skipped: per-task verification ran on partial
+states and cannot catch cross-task regressions or cumulative boundary
+violations; only this pass sees the whole change set.
 
 ## Stage 1: Mechanical Verification
 
@@ -32,15 +44,42 @@ npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack
 ```
 
+### Layer 3: Verdict history + context hygiene (audit trail)
+
+Read `.workflows/reviews/*.md` if present — every task should show a final
+`ok:true` round (or a human-accepted failure). A ✅ task in plan.md with
+no ok:true verdict on file is a **red flag**: report it as a violation of
+the verdict-gating doctrine (no model marks its own work done).
+
+Also check Execution Notes: every ✅ task should carry a
+`context: <updated|no changes>` marker. Missing marker = the CONTEXT.md
+update step was skipped — run the domain-memory sweep now (Stage 3) and
+report the hygiene gap.
+
 If Stage 1 FAILS → stop here.
 
 ## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)
 
-### Step 1: Bug-hunter scan
+### Step 1: Bug-hunter scan (subagent, not CLI)
 
-```bash
-which bug-hunter && bug-hunter --staged --scan-only || echo "bug-hunter not installed, skip"
+The `bug-hunter` binary is an installer, not a scanner — the protocol is
+agent-driven. Dispatch it as a write-toolset subagent:
+
+```text
+subagent({
+  agent: "bug-hunter-review",
+  prompt: "You are the bug-hunter runtime. Read ~/.pi/agent/skills/bug-hunter/SKILL.md
+           (or ./.pi/skills/bug-hunter/SKILL.md) and modes/local-sequential.md,
+           then follow the protocol EXACTLY: scan-only, single-pass, fail
+           closed. Write canonical artifacts under .bug-hunter/. NEVER fix,
+           never commit.",
+  write: true, thinking: "high", background: false,
+  task: "Adversarially scan the review diff (staged/working changes) for
+         defects and vulnerabilities. Output the summary: confirmed /
+         dismissed / manualReview counts + first evidence line per confirmed finding."
+})
 ```
+If the bug-hunter skill is not installed, skip with a note.
 
 ### Step 2: Judgment-based quality review
 
@@ -56,6 +95,36 @@ High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.
 Include human callouts (new deps, auth changes, migrations).
 
+## Stage 3: SHIP (only if Stage 1 PASSES and the human approves)
+
+On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
+
+1. Commit the verified work (never merge, never push unless the human
+   explicitly asks):
+   ```bash
+   git add -A && git commit -m "<PlanID>: <goal>"
+   ```
+2. **Domain-memory sweep (guaranteed backstop)**: before archiving, sweep
+   the plan's Execution Notes + worker Domain Memory reports + LOG.md for
+   durable knowledge not yet promoted — terms/decisions →
+   `.workflows/CONTEXT.md`, hard-to-reverse decisions → new ADRs. The
+   per-task loop is best-effort; THIS sweep is the guarantee CONTEXT.md
+   never drifts from what was built. Fix missing `context:` markers now.
+3. Archive the plan bundle — plans are versioned units:
+   ```bash
+   mkdir -p .workflows/archive/done
+   ```
+   Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
+   - `.workflows/plan.md` (set `Status: DONE` first)
+   - `.workflows/specs/`
+   - `.workflows/reviews/` (if present)
+   - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
+4. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
+
+The next `/idea` derives its Plan ID from the archive listing (NNN = archive
+entries + 1), so ids never collide and history is preserved.
+
 ## Combined Output
 
 ```
@@ -64,6 +133,7 @@ Include human callouts (new deps, auth changes, migrations).
 ### Stage 1: Mechanical Verification
 - agent-spec lifecycle: X/Y scenarios pass
 - agent-spec guard: boundaries respected / violations
+- Verdict trail: X/X tasks have final ok:true (or list gaps)
 - Tests: pass / fail
 - Lint: pass / fail
 - Types: pass / fail

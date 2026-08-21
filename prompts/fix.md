@@ -1,10 +1,8 @@
 ---
 description: "Fix bug — feedback loop, hypotheses, regression test, verifies with agent-spec"
-model: deepseek/deepseek-v4-flash
-thinking: medium
-skill: fix
-restore: true
 ---
+
+Follow the 'fix' skill workflow — load its SKILL.md with the read tool, then execute it.
 
 ## Input Sources
 

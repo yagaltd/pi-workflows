@@ -1,8 +1,6 @@
 ---
 description: "Plan — decompose into atomic tasks from existing context"
-model: deepseek/deepseek-v4-flash
-thinking: xhigh
-skill: plan
-restore: true
 ---
+
+Follow the 'plan' skill workflow — load its SKILL.md with the read tool, then execute it.
 $@

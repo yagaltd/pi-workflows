@@ -1,8 +1,5 @@
 ---
 description: "Show current .workflows/plan.md progress with contract status and cost summary"
-model: deepseek/deepseek-v4-flash
-thinking: high
-restore: true
 ---
 
 Read `.workflows/plan.md` in the current project and show a compact progress summary. Also check .workflows/CONTEXT.md and .workflows/docs/adr/ for additional status:
@@ -13,7 +10,18 @@ ls -la .workflows/CONTEXT.md 2>/dev/null || echo "No .workflows/CONTEXT.md"
 
 # Count ADRs
 ls .workflows/docs/adr/*.md 2>/dev/null | wc -l | tr -d ' '
+
+# Archive history (versioned plans)
+ls .workflows/archive/done .workflows/archive/superseded 2>/dev/null || echo "No archived plans"
 ```
+
+Header: `## Plan: <goal> · <PlanID> · Status: <status>`, plus an archive line
+listing prior plan ids (`archived: 3 done, 1 superseded` or `none`).
+
+**Hygiene check** (report, don't fix): count ✅ tasks whose Execution Notes
+lack a `context:` marker — report as `context markers: X/Y` (Y = ✅ count).
+Missing markers mean the CONTEXT.md update step was skipped on those tasks;
+they'll be swept at `/review` SHIP.
 
 ```
 ## Plan: <goal>

@@ -89,6 +89,12 @@ Present to the human:
 ### Root cause
 <what's actually broken and why>
 
+### Why-chain (systemic — templates/THINKING-TOOLS.md §1)
+Only when the bug recurred or plausibly could: 2-5 verifiable whys, each
+checkable against code/tests/logs, ending at a **missing guard** (test,
+type, check, boundary) — never "human error". State the fix level chosen:
+code (this instance) / test (this class) / process (this category).
+
 ### Evidence
 - <repro/instrumentation/diff that supports this>
 
@@ -112,6 +118,8 @@ Minimal correction targeting the root cause within boundaries.
 2. **Add a regression test**: Write a test that would have caught this bug.
    - The test should fail BEFORE the fix and pass AFTER.
    - Test the specific edge case that caused the bug.
+   - If a why-chain ended at a missing guard, make the test cover the class,
+     not just the instance.
 3. **Write a contract for the fix** (if complex):
 
    ```bash

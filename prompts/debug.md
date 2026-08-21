@@ -1,10 +1,8 @@
 ---
 description: "Debug — hypothesis-driven investigation for complex bugs"
-model: deepseek/deepseek-v4-flash
-thinking: high
-skill: fix
-restore: true
 ---
+
+Follow the 'fix' skill workflow — load its SKILL.md with the read tool, then execute it.
 
 For complex, non-obvious bugs (multiple failed fix attempts, environment-specific, intermittent), use full diagnose mode:
 

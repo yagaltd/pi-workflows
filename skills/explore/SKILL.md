@@ -21,6 +21,18 @@ Understand what the human needs to decide. `/explore` is for research, kill/pivo
 
 If the question is already clear from the argument, state it back briefly and move on. If vague, ask 1-2 clarifying questions max — don't over-interview.
 
+When you do ask, meet the grill bar (same protocol as `/idea`): the question
+must be **material** (could flip the verdict), **grounded** (cite what made
+you ask), and **answerable** (offer options). Format:
+
+```markdown
+Blocking question: <question>
+Why it matters: <how each answer changes the exploration verdict>
+Recommended: <answer> — Evidence: <files/docs>
+If you don't care: I'll proceed with <default>.
+```
+Never ask what the repo/docs can answer — check evidence first.
+
 ## Phase 2: SCOUT
 
 Gather information from the codebase and any relevant sources.
@@ -31,18 +43,22 @@ Gather information from the codebase and any relevant sources.
    - **Local path**: `find`, `grep`/`rg` in the specified directory
    - **Vague description**: search current codebase + online if needed
    - **Multiple inputs** (2+ repos, URLs, or paths):
-     Use pi-subagents PARALLEL mode to scout each input concurrently:
+     Use pi-core-subagent parallel mode — one read-only scout task per input, all in one call (inline prompts, no agent files):
      ```
      subagent({
+       background: false,
+       concurrency: 4,
        tasks: [
-         { agent: "scout", task: "Scout repo at <path1>: architecture, dependencies, key patterns, tech stack" },
-         { agent: "scout", task: "Scout repo at <path2>: architecture, dependencies, key patterns, tech stack" },
-       ],
-       concurrency: 4
+         { agent: "scout-1", thinking: "low",
+           prompt: "You are a read-only scout. Recon the assigned target: architecture, dependencies, key patterns, tech stack. Cite paths. NEVER modify anything.",
+           task: "Scout repo at <path1>: architecture, dependencies, key patterns, tech stack" },
+         { agent: "scout-2", thinking: "low", prompt: "<same scout prompt>",
+           task: "Scout repo at <path2>: architecture, dependencies, key patterns, tech stack" },
+       ]
      })
      ```
      Each scout returns a structured summary. Merge findings in Phase 3.
-     If subagents are not available, handle each input in sequence.
+     If the subagent tool is not available, handle each input in sequence.
 
 2. **Map the territory**:
    - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
@@ -66,7 +82,17 @@ Gather information from the codebase and any relevant sources.
 
 ## Phase 3: SYNTHESIZE
 
-Combine findings into a clear recommendation.
+Combine findings into a clear recommendation **and persist it**: write
+`.workflows/knowledge/explore-<YYYYMMDD>-<slug>.md` (question, per-angle
+findings with file:line citations, synthesis, verdict) and append a line to
+`.workflows/LOG.md` — see the `/explore` prompt for the doc shape. Domain
+terms that crystallized go into `.workflows/CONTEXT.md`.
+
+When the exploration compares options (approaches, libraries, architectures),
+place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3)
+before recommending: impact = evidence-backed movement on the question's
+success criteria; effort = files/deps/LOC. Kill = the option sits in Money
+Pit with no path out.
 
 Present to the human:
 

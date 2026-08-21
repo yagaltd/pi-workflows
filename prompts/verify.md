@@ -1,8 +1,5 @@
 ---
 description: "Verify — run agent-spec guard on all contracts + full project checks"
-model: zai/glm-5.1
-thinking: low
-restore: true
 ---
 
 Run the full verification pipeline across all contracts and the project. Ordered, short-circuit on fail.

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Pre-commit: no commit may introduce drift.
+# Active when core.hooksPath=.githooks (set once per clone):
+#   git config core.hooksPath .githooks
+# CI (.github/workflows/ci.yml) is the remote backstop for clones without it.
+set -uo pipefail
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$REPO_ROOT/scripts/check-drift.sh"

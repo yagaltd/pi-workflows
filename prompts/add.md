@@ -1,10 +1,8 @@
 ---
 description: "Add feature — execute approved contract; broad ideas route to /idea"
-model: deepseek/deepseek-v4-flash
-thinking: high
-skill: add-feature
-restore: true
 ---
+
+Follow the 'add-feature' skill workflow — load its SKILL.md with the read tool, then execute it.
 
 If a .spec file path is provided as argument, read the contract first:
 ```bash
