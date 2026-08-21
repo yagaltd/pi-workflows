@@ -5,152 +5,107 @@ description: "Run ALL pending tasks in .workflows/plan.md autonomously — waves
 You are the orchestrator. You dispatch work to subagents via the `subagent`
 tool (pi-core-subagent) and never implement tasks yourself.
 
-First, read the dispatch policy: `agents/registry.md` in the pi-workflows
-package (role prompts + model/thinking per bottleneck tag + isolation rules).
+**Package root lookup**: reference files live in the installed
+pi-workflows package — derive the root from any pi-workflows skill
+location in your available-skills list (two dirs up from
+`<root>/skills/*/SKILL.md`), or `pi list`.
+
+Read first (both normative): `agents/registry.md` (dispatch policy) and
+`agents/execution-doctrine.md` (verdict gating + fix rounds — Step 4
+assumes it). Shapes for wave/scout calls: `agents/dispatch-shapes.md`.
 
 ## Auto-Next: Run Entire Plan
 
-You will execute ALL pending tasks in `.workflows/plan.md` autonomously, wave by wave, until the plan is complete or a blocker stops you.
+Execute ALL pending tasks in `.workflows/plan.md` autonomously, wave by
+wave, until the plan is complete or a blocker stops you.
 
-### Step 1: Load the Plan
+### Step 1: Load the plan
 
-Read `.workflows/plan.md` and identify:
-- All `⬜ PENDING` tasks
-- Their wave groupings (`[PARALLEL-GROUP: X]`)
-- Dependencies between tasks
-- Bottleneck tags (🔴 BLOCKING, 🟡 RISKY, etc.)
+All `⬜ PENDING` tasks, wave groupings, dependencies, bottleneck tags.
 
 ### Step 2: Build the execution graph
 
-Translate the plan into pi-core-subagent `needs` edges:
-
-- Each worker task gets an `id` (`task-<n>`) derived from its TASK number
-- Cross-wave dependencies become `needs` edges: if TASK 5 depends on TASK 4,
-  `task-5` gets `needs: ["task-4"]`
-- Reviewer tasks `needs` all build tasks in their wave; quality-reviewer
-  `needs` the reviewer. Their prompts come verbatim from
-  `agents/reviewer.md` / `agents/quality-reviewer.md`
-- **Parallel tasks must have disjoint `Allowed Changes`** (children share one
-  filesystem — registry isolation policy). Overlapping boundaries → add a
-  `needs` edge instead of parallelizing
-- Hard limits: ≤16 tasks per call (split into multiple calls at wave
-  boundaries), concurrency ≤8
-
-Dispatch each task with the full worker workflow from `/next` (prompt body
-from `agents/worker.md`, `write: true`, `thinking` from the bottleneck tag,
-task text naming the contract file to read first + the TDD BUILD + VERIFY
-workflow + a runnable `Verify:` line).
+- Each worker task gets `id: "task-<n>"`; cross-task dependencies become
+  `needs` edges; the wave's reviewer node `needs` all wave workers.
+- Role prompts use `@role:<name>` (extension resolves; else paste
+  `agents/<role>.md` verbatim).
+- Worker task text: goal + "First read: contract, plan.md Execution Notes,
+  CONTEXT.md" + `Verify:` line (the workflow lives in the role prompt —
+  do not restate it).
+- Reviewer task entries follow the registry **verification policy** —
+  model+thinking per the tier derived from each task's spec (tags + Intent
+  + Boundaries): docs-tier / standard-tier / high-risk-tier.
+- Reviewer task texts must end: "End with one Verdict block per task:
+  `ok: true|false` + findings with evidence."
+- Parallel tasks MUST have disjoint `Allowed Changes` — overlapping →
+  `needs` edge instead. Hard limits: ≤16 tasks/call (split at wave
+  boundaries), concurrency ≤8.
 
 ### Step 3: Run it
 
-For each wave (or the whole graph if it fits one call):
-
 ```text
 subagent({
-  background: true,           // you stay responsive while the wave runs
+  background: true,           // stay responsive while the wave runs
   notifyPerTask: true,        // wake as each task completes
-  allowIntercom: true,        // workers can ask_parent instead of dead-ending
+  allowIntercom: true,        // workers can ask_parent mid-task
   concurrency: 4,
   tasks: [
-    { id: "task-2", agent: "worker-task-2", prompt: "<agents/worker.md body>",
-      write: true, thinking: "<per tag>",
-      task: "Implement TASK 2 ... (full /next worker task text)" },
+    { id: "task-2", agent: "worker-task-2", prompt: "@role:worker",
+      write: true, thinking: "<per tag>", task: "Implement TASK 2 ... <per Step 2>" },
     { id: "task-3", ... },
-    { id: "verify-w1", agent: "reviewer", prompt: "<agents/reviewer.md body>",
-      tools: ["read","grep","find","ls","bash"], thinking: "high",
-      needs: ["task-2", "task-3"], task: "..." },
+    { id: "verify-w1", agent: "reviewer", prompt: "@role:reviewer",
+      tools: ["read","grep","find","ls","bash"], thinking: "high",  // per verification policy tier
+      needs: ["task-2", "task-3"], task: "<per dispatch-shapes.md>" },
   ],
 })
 ```
 
-Then park on the run:
+Park on the run: `await_subagent({ runId, timeoutMs: 20000 })` in a loop;
+`reply_subagent` for children's questions; `steer_subagent` to redirect
+(scope creep, wrong file). A failed task auto-aborts its dependents —
+handle the failed root cause, don't retry the aborted branch.
 
-- `await_subagent({ runId, timeoutMs: 20000 })` in a loop — each wake
-  delivers completed-task results and any `ask_parent` questions inline
-- Answer children with `reply_subagent` as they ask
-- `steer_subagent` to redirect a child mid-run (scope creep, wrong file, ...)
-- A failed task **auto-aborts its dependents** — when you see aborted
-  downstream tasks, don't retry them; handle the failed root cause first
+### Step 4: Per task (verdict gating — execution-doctrine.md)
 
-### Step 4: After Each Task Completes (verdict gating)
+✅ only on reviewer `ok:true`. Every `ok:false` → bounded fix round
+(fix-<task>-<N> with rejection evidence verbatim → re-review → repeat
+while N < max-rounds, default 2; exhausted → ❌ FAILED + verdict chain).
 
-**No model marks its own work done**: a worker settling is not ✅. The
-wave's reviewer node produces the verdict; ✅ is written only on
-`ok:true`. For every `ok:false` verdict, run a **bounded fix round**
-(follow-up dispatch, never a pre-declared node):
+Quality-reviewer: **per-task only for 🔴/🟡/🟠 tags** — a standalone
+follow-up dispatch after mechanical ok:true (never a `needs` node:
+conditional on the verdict; **never per-wave**: waves are independent
+parallel tasks with disjoint boundaries). ⚪ tasks skip it; `/review` is
+the whole-plan quality gate. Placement rule: execution-doctrine.md.
 
-```
-verdict ok:false → subagent: fix-<task>-<N> (worker role, write, high
-                   thinking) with rejection evidence prepended verbatim
-                 → subagent: review-<task>-<N+1> (reviewer role)
-                 → repeat while ok:false and N < max-rounds (spec
-                   frontmatter, default 2)
-rounds exhausted → ❌ FAILED — report the verdict chain, do NOT loop
-```
+Per settled task:
+1. Append the verdict round to `.workflows/reviews/<task-id>.md`
+2. **Ground truth**: `git diff --stat` vs Allowed Changes
+3. plan.md: ✅/❌ + cost/duration (subagent usage) + learnings in Execution Notes
+4. **CONTEXT.md + marker**: worker's `## Domain Memory` → append non-empty
+   Terms/Decisions (ADR if 3-criteria); ALWAYS append
+   `context: <updated | no changes>` to the task's Execution Notes
+5. Downstream specs: update next 1-2 contracts from learnings — already
+   queued in a running graph → `steer_subagent` the child instead
+6. **Docs (per templates/DOCS-POLICY.md)**: README freshness — behavior
+   a README reader would notice changed in this task → README.md updated
+   in the same round; `.workflows/docs/` architectural changes → `/docs`;
+   CHANGELOG.md never (SHIP-gate artifact)
 
-Reviewer task texts in the wave graph must end with: "End with one Verdict
-block per task: `ok: true|false` + findings with evidence." Fix-round
-task text: "Fix round <N> for TASK <T>. Rejection evidence (verbatim):
-<findings>. Correct ONLY what the findings name — same contract, same
-boundaries. Re-run verification after fixing." (Full shapes in `/next`.)
+### Step 5: Blockers stop the wave
 
-Then per settled task:
-
-1. **Persist the verdict**: append the round to `.workflows/reviews/<task-id>.md`
-2. **Ground truth**: `git diff --stat` — reconcile what changed against the
-   contract's Allowed Changes before trusting the child's report
-3. **Update plan.md**: mark ✅ DONE only on ok:true; ❌ FAILED on exhausted rounds
-4. **Add learnings**: cost, duration, and any discoveries to Execution Notes
-5. **Update `.workflows/CONTEXT.md` + marker**: read each worker's `## Domain Memory` section, append non-empty Terms/Decisions (ADR if 3-criteria). In every case append to that task's Execution Notes: `context: <updated | no changes>` — `/status` and `/review` audit the markers, so a missing marker is a visible gap, not a silent skip
-6. **Check downstream specs**: update the next 1-2 pending contracts based on learnings — if an edge is already queued in a running graph, steer the affected child instead
-
-### Step 5: Blockers Stop the Wave
-
-If a task fails or hits a WORKER_BLOCKER that needs the human
-(`missing_dependency`, `missing_secret`, `unclear_requirement`,
-`unsafe_request`):
-
-1. `subagent_cancel({ runId })` — abort the run (dependents auto-abort)
-2. Mark it `❌ FAILED` in plan.md
-3. Present to the human:
-
-```
-### Auto-Next Blocked
-
-Task <N> (<goal>) is blocked:
-- Reason: <blocker reason>
-- Evidence: <details>
-
-Plan so far:
-- Completed: <N> tasks
-- Failed: <N> tasks
-- Remaining: <N> tasks
-
-Action needed: <what human should do>
-```
-
-Do NOT continue until the human responds. After they resolve, resume from the failed task's wave.
-
-`invalid_contract` blockers do NOT stop the run: fix the contract, mark the
-task back to ⬜ PENDING, and re-dispatch it in the next wave call.
+WORKER_BLOCKER needing the human (`missing_dependency`, `missing_secret`,
+`unclear_requirement`, `unsafe_request`): `subagent_cancel({ runId })`,
+mark ❌, present blocker + plan-so-far + action needed, and STOP until the
+human responds. (`invalid_contract` does NOT stop the run: fix the
+contract, task back to ⬜, re-dispatch next wave.)
 
 ### Step 6: Completion
 
-When all waves are complete, present:
-
 ```
 ### Auto-Next Complete
-
-Plan: <goal>
-Total tasks: <N>
-- ✅ Completed: <N>
-- ❌ Failed: <N>
-- ⏭️ Skipped: <N>
-
-Duration: <total time>
-Cost: <sum of per-task usage from subagent results>
-
-Ready for /review to run full verification.
+Plan: <goal> · Total: <N> · ✅ <N> · ❌ <N> · ⏭️ <N>
+Duration: <t> · Cost: <sum of subagent usage>
+Ready for /review.
 ```
 
 $@

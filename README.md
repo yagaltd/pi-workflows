@@ -43,6 +43,7 @@ Then finish with `/review` → all green? ship it.
 
 | Command | What it does |
 |---|---|
+| `/init <description>` | Bootstrap a project: architecture design + approved folder tree + charter + README skeleton → hands off to `/plan`. Contract Boundaries derive from the documented tree. |
 | `/brainstorm <topic \| resume>` | Divergent research mode: think together, evidence-validate idea branches, living markmap ledger in `.workflows/research/`. No code, no specs. Graduates to `/explore` or `/idea`. |
 | `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
 | `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
@@ -99,6 +100,9 @@ Then finish with `/review` → all green? ship it.
 
 **Starting from scratch?**
 ```
+/init Freelancer task manager — TypeScript, Vite, node:test
+  → architecture + folder tree designed and approved BEFORE any build
+  → charter + README skeleton + scaffolded tree
 /brainstorm I want a task manager for freelancers
   → divergent rounds: market, competitors, differentiation branches
   → evidence via research subagents, markmap ledger in .workflows/research/
@@ -158,25 +162,40 @@ IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──
           (cheap)    (architect)   (you)   (generated)  (worker)    (mechanical)  (judgment)        (cheap) (you)
                       bottlenecks   🛑       .spec        /next ×N    agent-spec     + security         /docs
                       testing        GATE    files        /auto-next  + tdd-guard     + simplicity       auto-check
-                      interview*                        wave         + project        + error handling
+                      interview*                        needs graph  + project        + error handling
                                                          executor     checks           + human callouts
+                                                                                      (🔴/🟡/🟠 only)
 
 * interview happens in chat — one blocking question at a time, payload per the grill protocol
 ```
 
+The EXECUTE→VERIFY junction is one graph call: the reviewer node `needs` the
+worker and fires automatically. QUALITY REVIEW is tag-gated per-task; `/review`
+is the whole-plan quality gate.
+
 ### Gates — verdict gating: no model marks its own work done
 
-Each worker task goes through checkpoints that agents **cannot skip**:
+Each worker task goes through checkpoints that agents **cannot skip** — the engine enforces the sequencing, not the model's memory:
 
 ```
-Worker implements the task (TDD, self-verifies)
-  → Reviewer verdict (mechanical): agent-spec lifecycle + guard + project checks
+ONE subagent graph call: tasks [worker, reviewer(needs: worker)]
+  → worker implements (TDD, self-verifies) — settling is NOT completion
+  → reviewer fires MECHANICALLY when the worker settles (needs edge,
+    zero orchestrator turns) — mechanical pipeline, tier-scaled dispatch
      → ok:true  → ✅ in plan.md (only the orchestrator writes it)
      → ok:false → FIX ROUND: worker re-dispatched with the rejection evidence
                   verbatim → re-review → … capped at the spec's max-rounds
                   (default 2), then ❌ + verdict chain to you
-  → Quality gate (judgment): same verdict loop, after mechanical passes
+  → quality gate (judgment): tag-gated per-task — 🔴/🟡/🟠 only,
+     standalone follow-up after mechanical ok:true; NEVER per-wave
 ```
+
+Reviewer dispatch cost scales with task traits (docs-tier → low thinking;
+security/concurrency/parsing/external-input traits → strongest model +
+xhigh) per the registry **verification policy** — complexity scales the
+reviewer's cost, never the verdict's existence. A failed worker
+auto-aborts its reviewer node — that abort is the orchestrator's failure
+signal (never review broken work).
 
 Verdicts persist to `.workflows/reviews/<task>.md` — the fixer cites them, `/review` audits the trail, SHIP archives them. Reviewers verify, never fix; workers never write plan.md — the orchestrator is the single writer.
 
@@ -207,9 +226,35 @@ Roles are dispatched inline per call (no agent files) — model + thinking come 
 |---|---|---|
 | `scout` | low | Fast codebase recon with structured output. Read-only. |
 | `worker` | medium (xhigh if 🔴, high if 🟡) | TDD vertical slices within contract boundaries. Reports blockers + mandatory Domain Memory section. |
-| `reviewer` | high (xhigh verifying 🔴) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. |
-| `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Security, simplicity, error handling. |
+| `reviewer` | per verification-policy tier (docs: low → high-risk: strongest model + xhigh) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. Fired automatically via the `needs` edge when the worker settles. |
+| `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Per-task, 🔴/🟡/🟠 tags only. Security, simplicity, error handling. |
 | `bug-hunter` | high | Adversarial pipeline (Recon → Hunter → Skeptic → Referee) — dispatched as a subagent from `/next` and `/review`. |
+
+### The extension (mechanical enforcement)
+
+pi-workflows ships a small TypeScript extension (the package's only runtime
+code, unit-tested) that enforces the package's own conventions so the
+prompts can stay lean:
+
+- **`@role:<name>` resolution**: subagent calls that pass
+  `prompt: "@role:worker"` get the verbatim `agents/<name>.md` body
+  substituted at execution time — the orchestrator never reads or pastes
+  role files. An unresolved reference **blocks the call** with a clear
+  reason (typo-proof dispatches).
+- **Hygiene watchdog**: the moment plan.md has ✅ tasks missing `context:`
+  markers or final `ok:true` verdicts on file, a one-line reminder injects
+  into the next turn — drift surfaces when it happens, not at `/review`.
+- **Docs-drift watchdog** (per the docs policy): code files committed
+  after README.md's last update while a plan is executing → README
+  staleness reminder; `docs/*.md` older than recent code changes →
+  staleness reminder; plan complete but not SHIPped → CHANGELOG-entry
+  reminder. Git-based, one reminder per drift episode (no spam),
+  degrades gracefully outside git. On this very repo it flagged the
+  historical README-lag episode at 14 stale files, one commit into
+  the lag instead of four commits later.
+
+Without the extension everything still works (prompts instruct manual
+role-file pasting) — the extension removes the failure mode mechanically.
 
 ### Bottleneck tags
 
@@ -263,16 +308,13 @@ ARCHITECT (your session model)
     └── Generates .spec contracts (after human approves plan)
     │
     ▼
-WORKER (subagent, thinking per bottleneck tag — see agents/registry.md)
+WORKER + REVIEWER — ONE graph call (needs edge: reviewer fires mechanically)
     │
-    ├── Reads contract → TDD vertical slices (RED → GREEN → refactor per scenario)
-    ├── Self-verifies: agent-spec lifecycle → project checks
-    ├── Reports WORKER_BLOCKER if stuck + mandatory Domain Memory section
-    └── NEVER commits — the uncommitted diff is the reviewer's ground truth
-    │
+    ├── Worker: reads contract → TDD vertical slices (RED → GREEN → refactor)
+    │   self-verifies · reports WORKER_BLOCKER if stuck + mandatory Domain
+    │   Memory · NEVER commits — the uncommitted diff is the reviewer's ground truth
     ▼
-REVIEWER (subagent, mechanical — high thinking)
-    │
+    Reviewer (mechanical — thinking per verification-policy tier):
     ├── agent-spec lifecycle (scenarios)
     ├── agent-spec guard (boundaries)
     ├── Project checks (tests, lint, types, build)
@@ -284,7 +326,7 @@ ADVERSARIAL (bug-hunter subagent — after code changes, and at /review on the w
     └── Recon → Hunter → Skeptic → Referee, scan-only
     │
     ▼
-QUALITY-REVIEWER (subagent, medium thinking, judgment)
+QUALITY-REVIEWER (subagent, medium thinking, judgment — per-task, 🔴/🟡/🟠 only)
     │
     ├── Simplicity (unnecessary abstractions)
     ├── Security (untrusted input, injection)
@@ -292,6 +334,7 @@ QUALITY-REVIEWER (subagent, medium thinking, judgment)
     ├── Surgical changes (no scope creep)
     └── Human callouts (new deps, auth changes, migrations)
     Empty review = clean code = success. Verdict → fix rounds, same cap.
+    (⚪ tasks skip this gate — mechanical verdict + /review suffice; never per-wave.)
 ```
 
 (The orchestrator — not the worker — writes plan.md statuses/learnings and updates CONTEXT.md from the worker's Domain Memory report.)
@@ -306,8 +349,10 @@ on reasoning, not model names:
 scout / recon:                inherit model, low thinking
 standard tasks:               cheap/fast model, medium thinking
 risky + blocking tasks:       strong model, high/xhigh thinking
-reviewer:                     inherit, high (xhigh for 🔴)
-quality-reviewer:             inherit, medium
+reviewer:                     per verification-policy tier — docs: low thinking;
+                              standard: medium-high; security/concurrency/
+                              parsing/external-input: strongest model + xhigh
+quality-reviewer:             inherit, medium (🔴/🟡/🟠 tasks only)
 ```
 
 Cost and duration come from subagent usage stats, logged by the orchestrator to `.workflows/plan.md` after each task. `/status` aggregates from those entries.
@@ -463,14 +508,20 @@ pi-workflows/
 ├── .githooks/pre-commit         # runs scripts/check-drift.sh on every commit
 ├── .github/workflows/ci.yml     # drift check on every push/PR
 ├── scripts/check-drift.sh       # views-vs-sources drift checker (exit 1 on drift)
-├── agents/                   # role prompts — pasted verbatim into subagent `prompt:`
-│   ├── registry.md           # dispatch policy: role → toolset/model/thinking per bottleneck tag
+├── extensions/index.ts        # @role: substitution at dispatch + hygiene watchdog (unit-tested)
+├── tests/extension.test.ts    # pure-logic tests for the extension
+├── agents/                   # role prompts — resolved mechanically via `@role:`
+│   ├── registry.md           # dispatch policy: roles + verification-policy tiers (traits → reviewer model/thinking)
+│   ├── execution-doctrine.md # verdict gating + fix rounds + quality placement + reviews/ format (on demand)
+│   ├── dispatch-shapes.md    # parallel wave / scout / bug-hunter call shapes (on demand)
 │   ├── worker.md              # TDD vertical slices, contract verification, blocker protocol
 │   ├── scout.md               # structured codebase recon, domain memory
 │   ├── reviewer.md            # mechanical agent-spec + project checks, binding Verdict
 │   └── quality-reviewer.md    # P0-P3 rubric, security, error handling, binding Verdict
 ├── templates/
-│   ├── AGENTS.md              # project charter — copied to project root by /idea, binds all sessions
+│   ├── AGENTS.md              # project charter — installed by /init (binds all sessions); authoring rules in DOCS-POLICY.md
+│   ├── CONTRACT-FORMAT.md    # .spec contract template + writing rules (loaded at plan Phase 5)
+│   ├── DOCS-POLICY.md        # README/CHANGELOG/docs/ discipline: what goes where, update gates, SHIP steps
 │   ├── THINKING-TOOLS.md      # five whys · six hats · impact×effort matrix
 │   ├── REVIEW_GUIDELINES.md   # starter template for project-specific rules
 │   ├── CONTEXT.md / CONTEXT-FORMAT.md  # domain glossary seed + how to maintain it
@@ -478,7 +529,9 @@ pi-workflows/
 ├── skills/
 │   ├── challenge/SKILL.md     # adversarial grill, updates .workflows/CONTEXT.md inline
 │   ├── explore/SKILL.md       # research + synthesize + prototype
+│   ├── init/SKILL.md         # project bootstrap: architecture + folder tree + charter + docs skeleton
 │   ├── brainstorm/SKILL.md    # divergent research mode, markmap ledger
+│   │   └── references/         # ledger-format · dispatch-shapes · resume-protocol (on demand)
 │   ├── idea/SKILL.md          # evidence → decision tree → plan + contracts
 │   ├── plan/SKILL.md          # decompose into atomic tasks + contracts
 │   ├── add-feature/SKILL.md   # approved contract → build → verify
@@ -518,6 +571,7 @@ pi-workflows/
 
 | Command | What it does |
 |---|---|
+| `/init <description>` | Bootstrap: architecture + folder tree + charter + docs skeleton → `/plan` |
 | `/idea <description + repos/URLs>` | Productize idea: explore → grill decisions → plan → specs → approval |
 | `/plan <description>` | Decompose into tasks + contracts |
 | `/explore <question>` | Research / kill / prototype, no production planning (cheap) |

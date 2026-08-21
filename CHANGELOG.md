@@ -4,6 +4,41 @@ All notable changes to pi-workflows are documented here.
 
 ---
 
+## v0.5.0 (2026-08-21)
+
+### Fixed (review round — /review Stage 1-2 on this very branch)
+
+- **Drift gate was a no-op (BH-001, critical)**: every `grep | while read` loop in `check-drift.sh` ran `err()` in a pipeline subshell — `FAIL=1` never reached the parent; drift printed yet the script exited 0 ("CLEAN"). All loops converted to process substitution (`done < <(cmd)`); the `ok:` line now only prints when its section is clean. Red-tested (injected ghost role → exit 1). This is why the findings below shipped green.
+- **Dispatch-note leak into every subagent prompt (BH-002)**: `roleBody()` stripped only a *leading* HTML comment, but role files put the note *after* the `# Role:` line — the meta-note (with a dangling package-relative path) was injected into every `@role:` dispatch. Fixed strip order; regression test reads the real four role files; live-verified.
+- **Dialect triplication (BH-003)**: `prompts/next.md` still used the verbatim-paste dialect in four templates, contradicting the `@role:` doctrine in dispatch-shapes/execution-doctrine/registry. Rewritten: routes to all three reference files, `@role:` everywhere, short task texts (workflow lives in the role prompt), duplicated verdict-format/fix-round/workflow blocks deleted (5.8KB). registry.md intro rewritten to the `@role:` mechanism.
+- docs-check duplicate step numbering; CHANGELOG size/test-count/dedupe claims corrected to match the artifact.
+
+### Added — pi-workflows extension (first runtime code) + lean-context architecture
+
+Context-budget refactor: prompts shrank 40-70% by moving conditional content to on-demand reference files and making role dispatch mechanical.
+
+- **`extensions/index.ts`** (registered via `pi.extensions`): (1) `@role:<name>` resolution — subagent tool calls with `prompt: "@role:worker"` get the verbatim `agents/<role>.md` body substituted at execution time (`tool_call` event, mutable input; unresolved refs BLOCK the call); the orchestrator never reads or pastes role files — kills the worker-workflow duplication structurally. (2) Hygiene watchdog (`before_agent_start`): ✅ tasks missing `context:` markers or final `ok:true` verdicts trigger a one-line reminder injection at the moment of drift (one reminder per drift episode — no spam). Pure logic unit-tested (`bun test`).
+- **Reference-file splits** (progressive disclosure): `agents/execution-doctrine.md` (verdict gating + fix-round shapes + reviews/ format — loaded on rejection), `agents/dispatch-shapes.md` (parallel wave / scout / bug-hunter shapes — loaded when that shape fires), `templates/CONTRACT-FORMAT.md` (Phase 5 contract generation — loaded after plan approval), `skills/brainstorm/references/{ledger-format,dispatch-shapes,resume-protocol}.md` (loaded per phase).
+- **Prompts rewritten lean**: next.md routes to `agents/{registry,execution-doctrine,dispatch-shapes}.md` (sequential shape inline with `@role:` refs, everything conditional referenced), auto-next.md 6.1KB → 3.8KB, brainstorm SKILL.md 10.2KB → 4.6KB router, plan SKILL.md 17.8KB → 14.4KB. Worker workflow stated ONCE (role file), not restated in task texts.
+- **review.md / audit.md**: bug-hunter dispatch blocks → shared shape reference in `agents/dispatch-shapes.md`.
+- **templates/AGENTS.md**: trimmed 3.7KB → 2.4KB (every rule intact, prose compressed) — always-on cost per user-project session reduced.
+- **Drift checker**: new rules — every `@role:` ref resolves to a registered role file; every `references/*.md` module resolves; extension present + registered in the pi manifest. Red-tested.
+- `.workflows/` gitignored (dogfooding artifacts stay local).
+
+### Added — `/init` (project bootstrap) + documentation policy (plan 20260821-002)
+
+- **`/init` command + skill**: the step before `/idea`/`/plan` — designs the structure the contracts will later enforce. Decide (stack/domain, grill protocol) → Design (modules, boundaries → future contract Forbidden lists, Mermaid data flow, ADRs) → **Tree proposal approved as an artifact** (seeds `.workflows/docs/architecture.md` pre-build, tree included) → Scaffold (one verdict-gated worker task: dirs + stubs per the tree) → Wire (charter to project root — moved from /idea's ownership, CONTEXT.md seed, README skeleton) → hands off to `/plan` with contract Boundaries deriving from the documented tree. Existing projects route through `/audit` first — never re-scaffold over live code.
+- **Documentation policy** (`templates/DOCS-POLICY.md`, wired not inlined): README = current-state user docs, **same-task updates** (never catch-up commits — the rule violated 4× in this repo's own history, now enforced at three points: /next closeout, docs-check gate, /review Layer 4 README-freshness + folder-tree conformance check); CHANGELOG.md = append-only, **one curated entry per shipped plan, appended by the orchestrator at /review SHIP inside the commit** (workers never touch it); docs/ vs README vs `.workflows/docs/` placement rules; what never goes where (history never leaks into docs). Charter carries the binding one-liner.
+- **AGENTS.md authoring rules** (DOCS-POLICY, wired into `/init` + `/idea`): the project's AGENTS.md holds binding rules + one-liner facts + **pointers to detail docs** (`Test: npm test` · `Tests detail: tests/README.md`) — never command inventories; nested AGENTS.md files don't auto-load (pi loads context files walking up from cwd only — verified), so pointers are the only correct indirection; ~50-line budget (AGENTS.md is always-on context for every session and subagent).
+- **Docs-drift watchdog** (extension): README-staleness (code committed after README's last update, plan active — DOCS_EXEMPT filters docs/workflow-state/CI/assets/locks), docs/ staleness, and CHANGELOG-pending-at-complete-plan reminders; git-based with testable exec injection, episode-dedupe, graceful non-git degradation. Live-verified in real sessions; caught the historical README-lag episode at 14 stale files. Also fixed live: the original watchdog's reminder injection never worked (`event.injectMessage` doesn't exist — the real API is the `before_agent_start` return value); done-task counting no longer matches raw ✅ emoji (prose inflation); context-marker regex matches the inline-bullet format /next actually writes.
+
+### Added — engine-enforced verification loop (plan 20260821-001, dogfooded live)
+
+- **Unified worker→reviewer graph**: sequential `/next` dispatches ONE subagent call — `tasks: [worker, reviewer(needs: worker)]` — the reviewer fires mechanically when the worker settles (zero orchestrator turns; worker output auto-prepended). Engine = unconditional sequencing; orchestrator = conditionality (fix rounds and re-reviews stay follow-up dispatches). A failed worker auto-aborts its reviewer node — the abort is the failure signal.
+- **Verification policy (complexity-gated reviewer tiers)**: registry table mapping task traits (derived orchestrator-side from spec tags + Intent + Boundaries — never worker self-assessed) to reviewer cost: docs-tier → low thinking, one pass; standard-tier → medium-high; security/concurrency/parsing/external-input traits → strongest model + xhigh. Complexity scales reviewer cost, never the verdict's existence.
+- **Quality-reviewer placement**: per-task only for 🔴/🟡/🟠 tags, standalone follow-up after mechanical ok:true (never a `needs` node — conditional on the verdict), NEVER per-wave (waves are independent parallel tasks with disjoint boundaries; `/review` is the whole-plan quality gate).
+- **Live evidence** (scratch-repo dogfood, all recorded in plan Execution Notes): reviewer auto-fired 5× via needs edges; tier dispatches differed correctly (docs→low, security→xhigh); a REAL rejection exercised the full fix-round loop (xhigh reviewer caught a contract self-conflict → amend → docs-only fix → ok); 🔴 task got its tag-gated quality review. Unplanned robustness proof: two orchestrator cwd mis-dispatches were each caught independently by worker (WORKER_BLOCKER), reviewer (FAIL), and quality-reviewer (refused phantom approval). Malformed graphs (needs→agent-name) rejected by the engine before spawning.
+
 ## v0.4.0 (2026-08-21)
 
 ### Breaking: migrated to @arhen/pi-core-subagent

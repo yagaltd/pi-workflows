@@ -56,6 +56,21 @@ Also check Execution Notes: every ✅ task should carry a
 update step was skipped — run the domain-memory sweep now (Stage 3) and
 report the hygiene gap.
 
+### Layer 4: Docs + tree conformance (pre-SHIP doc gate)
+
+Per `templates/DOCS-POLICY.md` (pi-workflows package):
+
+- **README freshness**: diff the plan's changes against README's claims.
+  Behavior in the diff absent from README (new commands, changed
+  defaults, new install steps) → finding, fix BEFORE SHIP. README claims
+  no longer matching the code → same.
+- **Folder-tree conformance** (if `.workflows/docs/architecture.md`
+  documents a tree, e.g. from `/init`): files added outside the documented
+  modules → finding. Either the tree is stale (update the doc) or the
+  code drifted (justify or fix).
+- **CHANGELOG.md prepared**: draft the plan's entry (Plan ID, date,
+  user-facing changes) — appended in Stage 3, never before.
+
 If Stage 1 FAILS → stop here.
 
 ## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)
@@ -63,23 +78,11 @@ If Stage 1 FAILS → stop here.
 ### Step 1: Bug-hunter scan (subagent, not CLI)
 
 The `bug-hunter` binary is an installer, not a scanner — the protocol is
-agent-driven. Dispatch it as a write-toolset subagent:
-
-```text
-subagent({
-  agent: "bug-hunter-review",
-  prompt: "You are the bug-hunter runtime. Read ~/.pi/agent/skills/bug-hunter/SKILL.md
-           (or ./.pi/skills/bug-hunter/SKILL.md) and modes/local-sequential.md,
-           then follow the protocol EXACTLY: scan-only, single-pass, fail
-           closed. Write canonical artifacts under .bug-hunter/. NEVER fix,
-           never commit.",
-  write: true, thinking: "high", background: false,
-  task: "Adversarially scan the review diff (staged/working changes) for
-         defects and vulnerabilities. Output the summary: confirmed /
-         dismissed / manualReview counts + first evidence line per confirmed finding."
-})
-```
-If the bug-hunter skill is not installed, skip with a note.
+agent-driven. Dispatch it per the **bug-hunter shape** in
+`agents/dispatch-shapes.md` (pi-workflows package — root via a
+pi-workflows skill location or `pi list`; write toolset, high thinking,
+scan-only, artifacts under `.bug-hunter/`), scoped to the review diff. If
+the bug-hunter skill is not installed, skip with a note.
 
 ### Step 2: Judgment-based quality review
 
@@ -104,6 +107,10 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```bash
    git add -A && git commit -m "<PlanID>: <goal>"
    ```
+   **CHANGELOG.md first**: append the Layer-4 drafted entry (Plan ID,
+   date, user-facing changes — curated, user's perspective) BEFORE the
+   commit so it ships inside it. The orchestrator writes it; workers
+   never touch CHANGELOG.md (single-writer doctrine).
 2. **Domain-memory sweep (guaranteed backstop)**: before archiving, sweep
    the plan's Execution Notes + worker Domain Memory reports + LOG.md for
    durable knowledge not yet promoted — terms/decisions →

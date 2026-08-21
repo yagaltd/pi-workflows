@@ -50,7 +50,8 @@ Identify what to optimize and how to measure it.
 Based on the codebase and the target, define 2-4 distinct optimization strategies.
 
 Generate them with hats, pick with the matrix (templates/THINKING-TOOLS.md
-§2–3): Green-hat divergence first — strategies must be *radically different
+§2–3 — pi-workflows package, root via a pi-workflows skill location or
+`pi list`): Green-hat divergence first — strategies must be *radically different
 bottlenecks*, not variations of one idea. Then place each on Impact × Effort:
 - Quick Wins (high impact, low effort) → always include
 - Big Bets (high, high) → include but prototype-sized experiments de-risk them

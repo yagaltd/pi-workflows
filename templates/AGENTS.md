@@ -1,67 +1,49 @@
-# AGENTS.md — project charter (auto-loaded by EVERY session: orchestrator + all subagents)
+# AGENTS.md — pi-workflows project charter (auto-loaded by EVERY session: orchestrator + all subagents)
 
-You operate in a **pi-workflows** project. The orchestrator plans, delegates,
-and verifies — it never implements. Every subagent session auto-loads this
-file too, so these rules bind everyone. If a role prompt or task text
-disagrees with this file, this file wins.
+The orchestrator plans, delegates, verifies — never implements. This file
+binds every session (subagents auto-load it). On conflict with any role
+prompt or task text, this file wins.
 
-## Containment rules (binding on every agent)
+## Containment (binding)
 
-1. **Workflow state has one writer set.** Files under `.workflows/` are
-   written ONLY as follows:
-   - `.workflows/plan.md` (statuses, Execution Notes, cost) — the
-     orchestrator (`/next`, `/auto-next`) only. Subagents **report** results;
-     they never write plan.md, specs, or statuses.
-   - `.workflows/specs/*.spec` — the orchestrator (`/idea`, `/plan`,
-     `/amend`, spec re-validation in `/next`) only.
-   - `.workflows/knowledge/*.md` — the orchestrator only, persisting scout
-     and exploration reports it received from subagents. Subagents are
-     read-only recon: they return findings as text; the orchestrator is the
-     single writer.
-   - `.workflows/research/**` (ledger, reports, briefs) — the orchestrator
-     only (`/brainstorm`), same doctrine: research subagents report as text;
-     the orchestrator writes.
-   - `.workflows/reviews/*.md` — the orchestrator only: reviewer verdicts
-     it received, appended round by round. Subagents never write here.
-   - `.workflows/CONTEXT.md`, `.workflows/docs/adr/` — the orchestrator,
-     from worker reports.
-   - `.workflows/archive/` — `/review` (SHIP) and `/abort` only.
-2. **Code writes are bounded by contracts.** A worker may modify ONLY files
-   in its spec's `Allowed Changes`. Anything broken outside boundaries gets
-   reported, not fixed. `agent-spec guard` + `git diff --stat` are the
-   ground truth — not self-reports.
-3. **Subagents never spawn sub-subagents.** Only the orchestrator
-    delegates; the `needs` graph is the delegation.
+1. **`.workflows/` has one writer set** — subagents report, they never write state:
+   - `plan.md` (statuses, Execution Notes) — orchestrator only (`/next`, `/auto-next`)
+   - `specs/*.spec` — orchestrator only (`/idea`, `/plan`, `/amend`, `/next` re-validation)
+   - `reviews/*.md` — orchestrator only: reviewer verdicts, appended per round
+   - `knowledge/*.md`, `research/**` — orchestrator only, persisting subagent reports
+   - `CONTEXT.md`, `docs/adr/` — orchestrator only, from worker Domain Memory reports
+   - `archive/` — `/review` (SHIP) and `/abort` only
+2. **Code writes are bounded by contracts** — a worker touches only its spec's
+   `Allowed Changes`; anything broken outside gets reported, not fixed.
+   `agent-spec guard` + `git diff --stat` are the ground truth, not self-reports.
+3. **No sub-subagents.** Only the orchestrator delegates; the `needs` graph is the delegation.
 4. **Subagents never commit, merge, or push.** The orchestrator commits only
-   after the `/review` gate passes — and never merges or pushes without the
-   human's explicit instruction.
-5. **Throwaway artifacts stay in their lanes.** Prototypes and experiments
-   write only inside the directory the task names (`prototype/<variant>/`,
-   `optimize/exp-<x>/`). Anything outside is a violation to report.
-   **Brainstorm mode never writes code**: `/brainstorm` touches only
-   `.workflows/research/<slug>/` (+ `knowledge/` at graduation).
-6. **Fail loud, never auto-correct.** Blocked on a contradiction or a
-   missing input? Report `WORKER_BLOCKER` (or `ask_parent`) — never silently
-   widen scope.
-7. **No model marks its own work done.** A task's `✅` comes only from a
-   reviewer verdict `ok:true` (mechanical stage before judgment). Rejected
-   verdicts trigger bounded fix rounds — capped at the spec's `max-rounds`
-   (default 2) — where the fixer receives the rejection evidence verbatim.
-   **Reviewers verify, never fix.** Verdicts persist to
-   `.workflows/reviews/<task-id>.md`.
+   after `/review` passes; never merges/pushes without explicit human instruction.
+5. **Throwaway artifacts stay in their lanes** (`prototype/<variant>/`,
+   `optimize/exp-<x>/`; `/brainstorm` writes only `research/` + `knowledge/`).
+6. **Fail loud, never auto-correct** — blocked → `WORKER_BLOCKER` (or
+   `ask_parent`), never silently widen scope.
+7. **No model marks its own work done** — `✅` only from a reviewer verdict
+   `ok:true` (mechanical before judgment). Rejections trigger bounded fix
+   rounds (spec `max-rounds`, default 2) with the rejection evidence passed
+   verbatim; reviewers verify, never fix.
+
+## Docs discipline
+
+README changes land in the **same task** as the behavior change;
+CHANGELOG.md is appended **only at /review SHIP** (orchestrator-written,
+workers never touch it); docs describe current state — history never
+leaks into them (full policy: `templates/DOCS-POLICY.md` in the
+pi-workflows package).
 
 ## Plan lifecycle
 
-- One live plan per project: `.workflows/plan.md` with a unique
-  `Plan ID: YYYYMMDD-NNN`. `/idea` and `/plan` refuse to overwrite a live
-  plan — route it to `/review` (ship) or `/abort` (abandon) first.
-- SHIP (`/review`, all ✅) → bundle moves to `.workflows/archive/done/<id>-<slug>/`.
-- Abandon (`/abort`) → `.workflows/archive/superseded/<id>-<slug>/` with reason.
-- `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `research/`, `LOG.md`
-  are **never archived** —
-  durable knowledge outlives every plan.
+One live plan per project: `.workflows/plan.md` with a unique
+`Plan ID: YYYYMMDD-NNN`. `/idea` and `/plan` refuse to overwrite a live
+plan — route it to `/review` (SHIP → `archive/done/`) or `/abort`
+(→ `archive/superseded/`) first. `CONTEXT.md`, `docs/adr/`, `knowledge/`,
+`research/`, `LOG.md` are never archived — durable knowledge outlives every plan.
 
-## Communication style
+## Communication
 
-TLDR bullets first; tables for statuses; fenced code for commands. Never
-walls of prose.
+TLDR bullets first; tables for statuses; fenced code for commands.

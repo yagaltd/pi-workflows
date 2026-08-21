@@ -53,7 +53,7 @@ cite these files; subagent reports are never re-run when they're on disk.
 
 Extract decisions from evidence.
 
-**Option generation + convergence** (templates/THINKING-TOOLS.md §2–3):
+**Option generation + convergence** (templates/THINKING-TOOLS.md §2–3 — package templates/, two dirs up from this skill):
 when 2+ viable approaches exist, generate with Green-hat divergence
 (radically different approaches, not variations of one), evaluate each with
 White (facts) → Yellow (best case) → Black (failure modes), then place the
@@ -168,13 +168,13 @@ existing one is DONE/SUPERSEDED and already archived).
 `.workflows/archive/done` + `.workflows/archive/superseded`) + 1, zero-padded
 to 3. Put it in the plan header. Never reuse a Plan ID.
 
-**Install the project charter**: if no `AGENTS.md` exists in the project
-root, copy the pi-workflows package's `templates/AGENTS.md` there. It is
-auto-loaded by every session — orchestrator and all subagents — so its
-containment rules (single status writer, contract-bounded writes, no
-subagent commits, archive discipline) bind everyone without re-pasting.
-If the project already has its own AGENTS.md, append a "## pi-workflows"
-section with the containment rules instead of overwriting.
+**Charter fallback**: `/init` owns charter installation; if this `/idea`
+run is the project's first pi-workflows touch and no `AGENTS.md` exists
+in the project root, copy the package's `templates/AGENTS.md` (two dirs
+up from this skill) there (append a "## pi-workflows" section if the
+project has its own AGENTS.md — never overwrite). Project-specific
+additions follow the AGENTS.md authoring rules in `templates/DOCS-POLICY.md`
+(rules + one-liners + pointers, not command dumps).
 
 Create `.workflows/plan.md` using the existing Plan Workflow rules:
 

@@ -36,25 +36,45 @@ if [ -n "$BAD" ] || [ -n "$BAD2" ] || [ -n "$BAD3" ]; then
     [ -n "$BAD3" ] && echo -e "$BAD3" | sed 's/^/DRIFT: stale pointer: /'; } >&2; FAIL=1
 else ok "no old-API remnants, no dead integrations, no stale fork pointers"; fi
 
-echo "== 3. Every role file referenced by prompts exists and is registered =="
+
+
+echo "== 3. Roles: files exist, registered, and every @role: ref resolves =="
+SECTION3_FAIL=0
 for role in worker scout reviewer quality-reviewer; do
-  [ -f "agents/$role.md" ] || err "agents/$role.md missing but referenced by prompts"
-  grep -q "| $role |" agents/registry.md || err "agents/$role.md exists but not in agents/registry.md Roles table"
+  [ -f "agents/$role.md" ] || { err "agents/$role.md missing but referenced by prompts"; SECTION3_FAIL=1; }
+  grep -q "| $role |" agents/registry.md || { err "agents/$role.md exists but not in agents/registry.md Roles table"; SECTION3_FAIL=1; }
 done
-grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u | while read -r f; do
-  [ -f "$f" ] || err "prompt/skill references $f which does not exist"
-done
-ok "role files present and registered (worker/scout/reviewer/quality-reviewer)"
+while read -r r; do
+  [ -f "agents/$r.md" ] || { err "@role:$r referenced but agents/$r.md missing"; SECTION3_FAIL=1; }
+  grep -q "| $r |" agents/registry.md || { err "@role:$r referenced but not in registry Roles table"; SECTION3_FAIL=1; }
+done < <(grep -rhoE '@role:[a-z][a-z0-9-]*' prompts/ skills/ agents/ 2>/dev/null | sort -u | sed 's/@role://')
+while read -r f; do
+  [ -f "$f" ] || { err "prompt/skill references $f which does not exist"; SECTION3_FAIL=1; }
+done < <(grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u)
+[ "$SECTION3_FAIL" -eq 0 ] && ok "role files present, registered, @role refs resolve"
+
+echo "== 3b. Skill references/ modules resolve =="
+while read -r ref; do
+  found=0
+  for d in skills/*/; do [ -f "${d}${ref}" ] && found=1 && break; done
+  [ "$found" = "1" ] || err "referenced module $ref not found under any skill"
+done < <(grep -rhoE 'references/[a-z-]+\.md' skills/ 2>/dev/null | sort -u)
+ok "skill reference modules resolve"
+
+echo "== 3c. Extension ships and is registered =="
+[ -f "extensions/index.ts" ] || err "extensions/index.ts missing (pi manifest registers ./extensions)"
+node -e 'const p=JSON.parse(require("fs").readFileSync("package.json"));((p.pi&&p.pi.extensions)||[]).some(e=>e.includes("extensions"))||process.exit(1)' || err "package.json pi.extensions does not register ./extensions"
+ok "extension present and registered"
 
 echo "== 4. Skills referenced by prompts exist =="
 # prompts say: Follow the '<skill>' skill workflow
-grep -rh "Follow the '" prompts/ 2>/dev/null | sed -E "s/.*Follow the '([a-z-]+)'.*/\1/" | sort -u | while read -r s; do
+while read -r s; do
   [ -f "skills/$s/SKILL.md" ] || err "prompt references skill '$s' but skills/$s/SKILL.md is missing"
-done
+done < <(grep -rh "Follow the '" prompts/ 2>/dev/null | sed -E "s/.*Follow the '([a-z-]+)'.*/\1/" | sort -u)
 ok "skill references resolve"
 
 echo "== 5. Templates referenced by skills exist =="
-for t in THINKING-TOOLS.md AGENTS.md CONTEXT.md ADR.md REVIEW_GUIDELINES.md; do
+for t in THINKING-TOOLS.md AGENTS.md CONTEXT.md ADR.md REVIEW_GUIDELINES.md CONTRACT-FORMAT.md DOCS-POLICY.md; do
   [ -f "templates/$t" ] || err "templates/$t missing (referenced by skills/prompts)"
 done
 ok "template files present"
@@ -70,9 +90,9 @@ node -e '
 [ "$FAIL" -eq 0 ] && ok "peerDependencies include pi-core-subagent"
 
 echo "== 7. Commands in README command table exist as prompts =="
-grep -oE '^\| `\/[a-z-]+`' README.md 2>/dev/null | sed -E 's/\| `//; s/`//' | sort -u | while read -r c; do
+while read -r c; do
   [ -f "prompts/$c.md" ] || err "README lists /$c but prompts/$c.md is missing"
-done
+done < <(grep -oE '^\| `\/[a-z-]+`' README.md 2>/dev/null | sed -E 's/\| `//; s/`//' | sort -u)
 ok "README commands resolve to prompt files"
 
 echo

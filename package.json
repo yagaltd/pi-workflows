@@ -6,7 +6,8 @@
   "license": "MIT",
   "pi": {
     "skills": ["./skills"],
-    "prompts": ["./prompts"]
+    "prompts": ["./prompts"],
+    "extensions": ["./extensions"]
   },
   "peerDependencies": {
     "@arhen/pi-core-subagent": ">=0.1.0"

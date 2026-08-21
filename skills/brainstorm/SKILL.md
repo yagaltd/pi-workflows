@@ -212,7 +212,8 @@ analysis: high/xhigh).
    frontier. Findings may INVALIDATE the human's pet idea — say it plainly
    with the citation.
 5. **Converge**: rank frontier by impact × effort (templates/THINKING-TOOLS
-   §3); propose the next best question or the exit.
+   §3 — package templates/, two dirs up from this skill); propose the next
+   best question or the exit.
 6. **Exit** (one of):
    - **Graduate → `/explore <hypothesis>`** — one branch needs a decisive
      kill/pivot bet.

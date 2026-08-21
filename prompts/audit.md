@@ -9,8 +9,9 @@ knowledge (`.workflows/knowledge/map.md`, never archived) and findings that
 route into `/plan` as tasks.
 
 You are the orchestrator. Dispatch policy: `agents/registry.md` in the
-pi-workflows package. Nothing here commits, fixes, or plans — audit is
-read-only recon plus an adversarial scan.
+pi-workflows package (find the package root via a pi-workflows skill
+location in your available-skills list, or `pi list`). Nothing here
+commits, fixes, or plans — audit is read-only recon plus an adversarial scan.
 
 ## Phase 0: PREFLIGHT (0 subagents, quick bash)
 
@@ -59,29 +60,19 @@ top. Existing map → merge new findings, keep the history line growing.
 
 ## Phase 2: HUNT — adversarial scan (one bug-hunter subagent)
 
-The `bug-hunter` binary is an installer, not a scanner — dispatch the
-runtime. If the bug-hunter skill is not installed, skip this phase with a
-note (Phase 1's map + risk concentrations still have value).
+Dispatch per the **bug-hunter shape** in `agents/dispatch-shapes.md`
+(write toolset, high thinking, scan-only, artifacts under `.bug-hunter/`),
+with this task text. If the bug-hunter skill is not installed, skip this
+phase with a note (Phase 1's map + risk concentrations still have value).
 
 ```text
-subagent({
-  agent: "audit-hunt",
-  prompt: "You are the bug-hunter runtime. Read ~/.pi/agent/skills/bug-hunter/SKILL.md
-           (or ./.pi/skills/bug-hunter/SKILL.md) and modes/local-sequential.md,
-           then follow the protocol EXACTLY: scan-only, single-pass, fail
-           closed on evidence/source-integrity invariants. Write canonical
-           artifacts under .bug-hunter/ (triage, recon, hunter-findings.json,
-           skeptic.json, referee.json, scan-report.json, report.md). NEVER
-           fix, never commit, never claim coverage you did not achieve.
-           <If --security: add security review lenses — auth, injection,
-           secret handling, privilege escalation.>",
-  write: true, thinking: "high", background: false,
-  task: `Hunt defects in <TARGET: scope from argument or whole repo>.
+task: `Hunt defects in <TARGET: scope from argument or whole repo>.
 Recon evidence: .workflows/knowledge/map.md (read it first — trust
 boundaries and risk concentrations are your priority targets).
+<If --security: add security review lenses — auth, injection, secret
+handling, privilege escalation.>
 Output ONLY the joined summary: confirmed / dismissed / manualReview /
-unreviewed counts + first evidence line per confirmed finding.`,
-})
+unreviewed counts + first evidence line per confirmed finding.`
 ```
 
 ## Phase 3: DISTILL (orchestrator)
