@@ -69,6 +69,11 @@ verdict for ✅** (doctrine #7 unchanged).
 | standard-tier | ordinary code tasks (default) | inherit parent | medium–high | standard mechanical pipeline |
 | high-risk-tier | security, concurrency, parsing, external input, crypto | strongest available model | xhigh | full mechanical pipeline + adversarial depth |
 
+**Quality-reviewer placement**: per-task only for 🔴/🟡/🟠 bottleneck tags,
+dispatched after mechanical `ok:true` — never per-wave. `/review` remains
+the whole-plan quality gate. Rule lives in `agents/execution-doctrine.md`
+(the loop section).
+
 ## Toolsets
 
 Two toolsets only (pi-core-subagent design): read-only (`read, grep, find,

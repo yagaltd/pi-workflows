@@ -32,6 +32,15 @@ Rules:
 - The same loop applies to the judgment stage: a quality-reviewer
   `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
   only after mechanical ok:true.
+- **Quality-reviewer placement — per-task, tag-gated, never per-wave.**
+  Dispatch a quality-reviewer only for tasks whose bottleneck tag is
+  🔴/🟡/🟠, as a standalone follow-up AFTER the mechanical reviewer returns
+  `ok:true` — it cannot be a `needs` node because it is conditional on the
+  verdict. ⚪ tasks skip it (mechanical verdict + `/review` suffice).
+  Never run it per-wave: wave tasks are independent parallel tasks with
+  disjoint boundaries — quality-judging unrelated changes together is the
+  wrong granularity. `/review` stays the whole-plan quality gate, where
+  integration effects are judged.
 - In parallel waves: parse each task's verdict from the reviewer's output;
   run fix rounds for every ok:false before advancing the wave.
 

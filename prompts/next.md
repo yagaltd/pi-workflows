@@ -228,11 +228,21 @@ The same loop applies to the judgment stage: a quality-reviewer
 `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
 only after mechanical ok:true.
 
+**Quality-reviewer gate** (placement rule in execution-doctrine.md): run
+the quality-reviewer loop **per-task only for 🔴/🟡/🟠 bottleneck tags** —
+a standalone follow-up dispatch after the mechanical `ok:true` (it cannot
+be a `needs` node: it is conditional on the verdict). ⚪ tasks skip it —
+mechanical verdict + `/review` suffice. **Never per-wave**: wave tasks are
+independent parallel tasks with disjoint boundaries — quality-judging
+unrelated changes together is the wrong granularity. `/review` stays the
+whole-plan quality gate.
+
 #### Parallel worker wave (one call, graph mode)
 
-All tasks in the wave go in ONE `tasks[]` array. Reviewer/quality-reviewer
-follow the wave as **`needs:` edges** — pi-core-subagent gates them and
-prepends the workers' outputs to their prompts automatically:
+All tasks in the wave go in ONE `tasks[]` array. The wave's reviewer
+follows as **`needs:` edges** — pi-core-subagent gates it and
+prepends the workers' outputs to its prompt automatically (the
+quality-reviewer never runs per-wave — see the gate above):
 
 ```text
 subagent({
@@ -303,7 +313,8 @@ Standalone single-task form of the reviewer entry above (no `needs`) —
 for re-review rounds after a fix and for the quality-reviewer pass.
 Reviewer = mechanical pipeline from `agents/reviewer.md`;
 quality-reviewer = judgment review from `agents/quality-reviewer.md`, runs
-only after the reviewer passes.
+only after the reviewer passes, tag-gated to 🔴/🟡/🟠 tasks only —
+see the quality-reviewer gate above.
 
 #### Blocker Handling
 

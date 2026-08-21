@@ -71,6 +71,12 @@ handle the failed root cause, don't retry the aborted branch.
 (fix-<task>-<N> with rejection evidence verbatim → re-review → repeat
 while N < max-rounds, default 2; exhausted → ❌ FAILED + verdict chain).
 
+Quality-reviewer: **per-task only for 🔴/🟡/🟠 tags** — a standalone
+follow-up dispatch after mechanical ok:true (never a `needs` node:
+conditional on the verdict; **never per-wave**: waves are independent
+parallel tasks with disjoint boundaries). ⚪ tasks skip it; `/review` is
+the whole-plan quality gate. Placement rule: execution-doctrine.md.
+
 Per settled task:
 1. Append the verdict round to `.workflows/reviews/<task-id>.md`
 2. **Ground truth**: `git diff --stat` vs Allowed Changes
