@@ -43,6 +43,10 @@ New command + skill for the phase before `/explore`/`/idea`: market/competitor r
 
 Measurement-gated optimization skill (appeared during user testing, adopted): Phase 0 baseline-or-nothing hard gate (committed benchmark, N reps, median + spread, baked-in equivalence oracle), Phase 1 profile-names-the-target, Phase 2 double contracts (equivalence clause + measured-delta clause with rejection floors), Phase 3 per-task worker+reviewer with independently reproduced numbers, Phase 4 integrated re-run + no-regression sweep. `prompts/optimize.md` now routes explicitly: experiment mode (parallel candidates, this prompt) vs deep mode (this skill).
 
+### Added — `/optimize` mode 3: pi-autoresearch handoff
+
+`/optimize` now routes three modes (experiments / contracted deep pass / unattended loop). Loop mode hands off to the pi-autoresearch extension like `/review` hands off to bug-hunter, but file-based: Phase 0/1 run here first, then the skill's **Handoff to pi-autoresearch** section maps contract vocabulary onto `.auto/` session files — benchmark → `measure.sh` (METRIC output), equivalence oracle + suite → `checks.sh` (oracle failure blocks keep: mechanical per-iteration equivalence), Allowed Changes/Forbidden → `prompt.md` Files in Scope/Off Limits. Handoff artifacts are verified (one measure run + one checks run) before entering the loop. Close chain: `autoresearch-finalize` → `/review` (tier-2 SHIP stays human-gated). Graceful fallback to deep mode when the extension is absent.
+
 ### Changed
 
 - **CONTEXT.md update made deterministic** (root cause of missed updates: conditional step + no structural forcing): worker reports now carry a **mandatory `## Domain Memory`** section (Terms/Decisions/Conflicts, "none" valid — never omitted); `/next` + `/auto-next` always record a `context: <updated|no changes>` marker per task in Execution Notes; `/status` reports `context markers: X/Y`; `/review` Layer 3 audits markers and SHIP gains a **domain-memory sweep** (guaranteed backstop — promotes unpersisted terms/decisions to CONTEXT.md/ADRs before archive).

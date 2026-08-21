@@ -60,7 +60,7 @@ Then finish with `/review` → all green? ship it.
 | `/add <feature-or-spec>` | Execute approved contract. Broad ideas route to `/idea`; small surgical requests get mini-recon + contract gate. |
 | `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
 | `/refactor <scope>` | Restructure code within boundaries |
-| `/optimize <target>` | Autoresearch loop: benchmark → iterate → keep winners |
+| `/optimize <target>` | Three modes: parallel experiments (unknown approach) · contracted deep pass (known target, equivalence proof) · pi-autoresearch loop handoff (known target, many unattended iterations — benchmark + oracle prepared from our contract vocabulary) |
 
 ### Verification
 
@@ -415,7 +415,7 @@ Optional testing/verification:
 - [pi-interview](https://github.com/nicobailon/pi-interview-tool) — structured interview forms for unresolved decisions
 - [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation and edit capture for UI review/fixes
 - [pi-boomerang](https://github.com/nicobailon/pi-boomerang) — token-efficient autonomous execution and context collapse for long approved tasks
-- [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize`
+- [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` mode 3 (unattended loop): `/optimize` prepares `.auto/` session files (measure.sh with METRIC output, checks.sh equivalence oracle as keep-backpressure, prompt.md scope) and hands off; closes with autoresearch-finalize → `/review`
 
 Install optional UX helpers:
 
@@ -496,7 +496,7 @@ pi-workflows/
     ├── add.md                 # /add — execute approved contract
     ├── fix.md                 # /fix — reproduce, diagnose, fix, verify
     ├── refactor.md            # /refactor — restructure, preserve behavior
-    ├── optimize.md            # /optimize — parallel optimization experiments
+    ├── optimize.md            # /optimize — experiments / deep pass / autoresearch handoff
     ├── review.md              # /review — verify + adversarial + quality review
     ├── verify.md              # /verify — full mechanical suite
     ├── contract.md            # /contract — show contract for a task

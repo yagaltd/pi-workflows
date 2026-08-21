@@ -95,6 +95,53 @@ After the final wave:
 4. Docs: record the result in `.workflows/CONTEXT.md` (numbers + what was learned about the hot
    path). Then `/review` → SHIP, as usual.
 
+## Mode 3: Handoff to pi-autoresearch (unattended loop)
+
+When the target is known, the benchmark exists (Phase 0 satisfied), and the
+work is **many small iterations you want to run unattended** (test speed,
+bundle size, build times), hand off to the **pi-autoresearch** extension
+(`davebcn87/pi-autoresearch`, optional dep). Like `/review` → bug-hunter,
+this package doesn't re-implement the engine — it prepares the session so
+the engine runs with OUR doctrine: baseline-or-nothing, equivalence oracle
+as backpressure, contract-bounded scope.
+
+**If the extension is not installed** (no `init_experiment` tool / no
+`/autoresearch` command): fall back to deep mode (Phases 0-4 above) and say so.
+
+### Handoff procedure (after Phase 0/1 of this skill)
+
+1. Run Phase 0 (baseline) and Phase 1 (profile) here — the loop inherits
+   them; do not hand off a hand-waved baseline.
+2. Author the `.auto/` session files from the contract vocabulary:
+
+   | This skill's concept | `.auto/` artifact |
+   |---|---|
+   | Committed benchmark (N reps, median + spread) | `.auto/measure.sh` — must emit `METRIC <name>=<value>` lines (primary + secondary metrics) |
+   | Equivalence oracle + suite | `.auto/checks.sh` — **oracle failure blocks `keep`** (autoresearch backpressure): equivalence is proven mechanically per iteration, not asserted |
+   | Objective, primary metric + tradeoff monitors | `.auto/prompt.md` — Objective, Metrics (primary = this skill's metric; secondary = independent tradeoff monitors) |
+   | Contract Allowed Changes / Forbidden | `.auto/prompt.md` — Files in Scope / Off Limits |
+   | Constraints (tests green, no new deps, …) | `.auto/prompt.md` — Constraints |
+
+3. Verify the handoff artifacts yourself before starting: run
+   `./.auto/measure.sh` once (outputs METRIC lines, matches the Phase 0
+   baseline within noise) and `./.auto/checks.sh` once (green). A session
+   that starts with a broken measure/checks script burns iterations blind.
+4. Enter the loop: `/autoresearch <objective + primary metric + floor>`.
+   Monitor with `/autoresearch export`; resume anytime — `.auto/prompt.md`
+   is the session memory (keep its "What's Been Tried" current from the loop's
+   learnings).
+5. **Close the loop with our gate chain**: `autoresearch-finalize` (noisy
+   branch → clean per-change branches, disjoint files) → then **`/review`**
+   on the result for the tier-2 human SHIP gate. The engine gates each
+   iteration mechanically; `/review` still owns whole-diff judgment,
+   verdict-trail audit, and commit/archive. The loop never commits past the
+   human.
+
+Rules that survive the handoff: below-floor wins are rejections (set the
+floor in the handoff prompt), no behavior change (checks.sh oracle), report
+negative results (the loop's log.jsonl records them — promote them to
+`.auto/prompt.md`'s What's Been Tried and later to CONTEXT.md at `/review`).
+
 ## Rules
 
 - **Never optimize without a baseline.** Phase 0 gate has no override.

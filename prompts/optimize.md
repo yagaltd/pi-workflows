@@ -1,8 +1,8 @@
 ---
-description: "Optimize — parallel optimization experiments, keep the winner"
+description: "Optimize — experiments, contracted deep passes, or an autoresearch loop"
 ---
 
-Two modes — pick by the situation:
+Three modes — pick by the situation:
 
 1. **Experiment mode (this prompt's flow below)**: 2-4 *candidate strategies*
    compete in parallel, benchmarked, winner kept. Use when the best approach
@@ -13,9 +13,19 @@ Two modes — pick by the situation:
    nothing gate, equivalence oracle, measured-delta contracts, no-regression
    sweep. Use when the target is already chosen and correctness of "no
    behavior change" must be proven.
+3. **Loop mode (pi-autoresearch handoff)**: a known target + committed
+   benchmark need **many small unattended iterations** (test speed, bundle
+   size, build times) — define the benchmark and goals, then hand off to the
+   pi-autoresearch extension. Follow the 'optimize' skill's **Handoff to
+   pi-autoresearch** section (skills/optimize/SKILL.md): it maps this
+   package's contract vocabulary onto `.auto/` session files (measure.sh,
+   checks.sh, prompt.md) so the loop runs with our equivalence oracle as
+   mechanical backpressure. Requires the `pi-autoresearch` extension
+   (optional dep); if absent, fall back to deep mode.
 
-If unsure which mode: if you can name the hot path, use the skill; if you're
-still choosing between approaches, use the experiment flow below.
+Choosing: still choosing between approaches → mode 1. One target, few
+large risky changes → mode 2. One target, many small safe iterations,
+unattended grind → mode 3.
 
 ## Phase 1: DEFINE TARGET AND BASELINE
 
