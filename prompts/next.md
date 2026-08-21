@@ -90,10 +90,12 @@ A worker settling is NOT completion. The task's `✅` in plan.md is written
 judgment. Every worker task therefore ends with this loop:
 
 ```
-worker settles → reviewer (mechanical) → verdict
+worker → reviewer in ONE graph call (`needs` edge) → verdict
+   reviewer fires mechanically when the worker settles — no orchestrator turn between
    ok:true → persist verdict → ✅ DONE
-   ok:false → fix round N → re-review → verdict …
+   ok:false → fix round N (follow-up dispatch) → re-review → verdict …
               (N capped at max-rounds, default 2)
+   worker failed/blocked → reviewer auto-aborts — the abort is the failure signal
    rounds exhausted → ❌ FAILED + verdict chain to the human
 ```
 
@@ -123,72 +125,21 @@ Task: <goal> · Contract: <spec path>
 
   The verdict file is the fixer's input and `/review`'s audit trail.
 
-#### Sequential dispatch with verdict gating (default shape)
+#### Sequential dispatch with verdict gating (default shape — one graph call)
 
-Dispatch 1 — worker (task text as below). After it settles:
-
-Dispatch 2 — reviewer:
-
-```text
-subagent({
-  agent: "review-<task-id>",
-  prompt: "<verbatim body of agents/reviewer.md>",
-  tools: ["read","grep","find","ls","bash"],
-  thinking: "high",            // xhigh when the task tag is 🔴 BLOCKING
-  background: false,
-  task: `Mechanical verification for TASK <N>: <goal>.
-First read .workflows/specs/<task-id>.spec, then run in order, stop at
-first failure: agent-spec lifecycle, guard, tdd-guard (if installed),
-project checks (tests, lint, typecheck, build).
-End with the Verdict block (ok: true|false + findings with evidence).`,
-})
-```
-
-Parse the verdict:
-- `ok:true` → append the round to `.workflows/reviews/<task-id>.md`, mark
-  ✅, continue to "After the task completes".
-- `ok:false` and round < max-rounds → **fix round**: dispatch the worker
-  role again with:
+Worker and reviewer go in ONE subagent call as a two-node graph. The
+reviewer's `needs: ["worker-<task-id>"]` edge makes pi-core-subagent fire
+it mechanically the moment the worker settles — no orchestrator turn in
+between — and prepends the worker's output to the reviewer's prompt:
 
 ```text
 subagent({
-  agent: "fix-<task-id>-<N>",
-  prompt: "<verbatim body of agents/worker.md>",
-  write: true,
-  thinking: "high",            // fix rounds get high thinking
   background: false,
-  task: `Fix round <N> for TASK <T>: <goal>.
-
-## Rejection evidence (verbatim from the reviewer)
-<the reviewer's findings + evidence, pasted verbatim>
-Full verdict: .workflows/reviews/<task-id>.md
-
-Correct ONLY what the findings name — same contract, same boundaries
-(.workflows/specs/<task-id>.spec). No refactors, no drive-by fixes.
-Re-run the verification pipeline after fixing.
-
-Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <project test cmd>`,
-})
-```
-
-  then re-dispatch the reviewer (round N+1). Repeat until ok:true or cap.
-- `ok:false` at max-rounds → mark ❌ FAILED, append the final round, present
-  the verdict chain to the human (every finding + what was attempted).
-
-The same loop applies to the judgment stage: a quality-reviewer
-`ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
-only after mechanical ok:true.
-
-#### Sequential worker task (default shape)
-
-```text
-subagent({
-  agent: "worker-<task-id>",
-  prompt: "<verbatim body of agents/worker.md>",
-  write: true,
-  thinking: "<from bottleneck tag: xhigh | high | medium>",
-  background: false,
-  task: `Implement TASK <N>: <goal>.
+  tasks: [
+    { id: "worker-<task-id>", agent: "worker-<task-id>",
+      prompt: "<verbatim body of agents/worker.md>",
+      write: true, thinking: "<from bottleneck tag: xhigh | high | medium>",
+      task: `Implement TASK <N>: <goal>.
 
 First read these files (in order):
 1. .workflows/specs/<task-id>.spec — your contract: Intent, Decisions, Boundaries, Completion Criteria
@@ -217,9 +168,64 @@ Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <projec
 - Fail-fast error handling — propagate, never swallow
 - Scope lock — if something outside is broken, note it, don't fix it
 - If blocked and you truly need the human, output WORKER_BLOCKER JSON
-  (reason, evidence, requestedAction) as your final answer.`,
+  (reason, evidence, requestedAction) as your final answer.` },
+    { id: "review-<task-id>", agent: "review-<task-id>",
+      prompt: "<verbatim body of agents/reviewer.md>",
+      tools: ["read","grep","find","ls","bash"],
+      thinking: "high",            // xhigh when the task tag is 🔴 BLOCKING
+      needs: ["worker-<task-id>"],
+      task: `Mechanical verification for TASK <N>: <goal>.
+The worker's report is prepended above — verify against the contract, not
+the self-report: read .workflows/specs/<task-id>.spec yourself, then run
+in order, stop at first failure: agent-spec lifecycle, guard, tdd-guard
+(if installed), project checks (tests, lint, typecheck, build).
+End with the Verdict block (ok: true|false + findings with evidence).` },
+  ],
 })
 ```
+
+With `background: false` the call returns when the whole graph settles.
+
+**Abort semantics**: a failed or blocked worker auto-aborts the reviewer
+node — correct, broken work must not be reviewed. There is no verdict, so
+read the abort itself as the failure signal: inspect the worker's output,
+handle a `WORKER_BLOCKER` per the blocker rules, then decide retry vs ❌.
+
+Parse the verdict:
+- `ok:true` → append the round to `.workflows/reviews/<task-id>.md`, mark
+  ✅, continue to "After the task completes".
+- `ok:false` and round < max-rounds → **fix round**: dispatch the worker
+  role again with:
+
+```text
+subagent({
+  agent: "fix-<task-id>-<N>",
+  prompt: "<verbatim body of agents/worker.md>",
+  write: true,
+  thinking: "high",            // fix rounds get high thinking
+  background: false,
+  task: `Fix round <N> for TASK <T>: <goal>.
+
+## Rejection evidence (verbatim from the reviewer)
+<the reviewer's findings + evidence, pasted verbatim>
+Full verdict: .workflows/reviews/<task-id>.md
+
+Correct ONLY what the findings name — same contract, same boundaries
+(.workflows/specs/<task-id>.spec). No refactors, no drive-by fixes.
+Re-run the verification pipeline after fixing.
+
+Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <project test cmd>`,
+})
+```
+
+  then re-dispatch the reviewer standalone (round N+1: single-task form,
+  no `needs`, same task text). Repeat until ok:true or cap.
+- `ok:false` at max-rounds → mark ❌ FAILED, append the final round, present
+  the verdict chain to the human (every finding + what was attempted).
+
+The same loop applies to the judgment stage: a quality-reviewer
+`ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
+only after mechanical ok:true.
 
 #### Parallel worker wave (one call, graph mode)
 
@@ -292,8 +298,9 @@ Then continue with the normal post-task steps below.
 
 #### Reviewer / quality-reviewer tasks
 
-Same shape as the graph-mode reviewer entry above (single-task form: no
-`needs`). Reviewer = mechanical pipeline from `agents/reviewer.md`;
+Standalone single-task form of the reviewer entry above (no `needs`) —
+for re-review rounds after a fix and for the quality-reviewer pass.
+Reviewer = mechanical pipeline from `agents/reviewer.md`;
 quality-reviewer = judgment review from `agents/quality-reviewer.md`, runs
 only after the reviewer passes.
 

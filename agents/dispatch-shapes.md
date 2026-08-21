@@ -6,6 +6,41 @@ specific shape fires. Normative — follow exactly. Role prompts use the
 extension; if the extension is absent, paste the verbatim body of
 `agents/<name>.md` instead).
 
+## Sequential worker→reviewer (one call, graph mode)
+
+The default dispatch: worker and reviewer in ONE `tasks[]` array — the
+reviewer's `needs:` edge fires it mechanically when the worker settles
+(no orchestrator turn between) and prepends the worker's output to its
+prompt:
+
+```text
+subagent({
+  background: false,
+  tasks: [
+    { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
+      write: true, thinking: "<from bottleneck tag>",
+      task: `Implement TASK <N>: <goal>. First read .workflows/specs/<task-id>.spec
+(the workflow is in your role prompt — follow it).` },
+    { id: "review-<task-id>", agent: "review-<task-id>", prompt: "@role:reviewer",
+      tools: ["read","grep","find","ls","bash"], thinking: "high",   // xhigh when tag is 🔴
+      needs: ["worker-<task-id>"],
+      task: `Mechanical verification for TASK <N>: <goal>.
+The worker's report is prepended above — verify against the contract, not
+the self-report: read .workflows/specs/<task-id>.spec yourself, then run
+in order, stop at first failure: agent-spec lifecycle, guard, tdd-guard
+(if installed), project checks (tests, lint, typecheck, build).
+End with the Verdict block (ok: true|false + findings with evidence).` },
+  ],
+})
+```
+
+Notes:
+- A failed worker auto-aborts the reviewer (broken upstream must not be
+  reviewed) — the abort is your signal the task failed.
+- With `background: false`, the call returns when the whole graph settles.
+- Fix rounds stay follow-up dispatches (per `agents/execution-doctrine.md`);
+  re-reviews run standalone (no `needs`).
+
 ## Parallel worker wave (one call, graph mode)
 
 All tasks in the wave go in ONE `tasks[]` array. Reviewer follows the wave
