@@ -41,6 +41,36 @@ doc-drift bug. Enforcement points:
    plan entry (Plan ID, date, user-facing changes) — mechanical, never
    skipped.
 
+## AGENTS.md (project) — binding rules + pointers, nothing else
+
+AGENTS.md is the most expensive real estate in the system: pi auto-loads
+it for **every session, every subagent, always** (ancestors of cwd only —
+verified). Bloat there is paid on every dispatch, forever.
+
+**Goes in AGENTS.md:**
+- Binding rules agents must not violate (containment, commit discipline,
+  "never do X")
+- **One-liner facts** the agent needs constantly — e.g. `Test: npm test`
+- **Pointers** to detail docs read on demand — e.g. `Tests detail:
+tests/README.md (coverage, watch mode, fixtures)`
+
+**Never goes in AGENTS.md:**
+- Full command inventories (that's what the pointer target is for —
+  `tests/README.md`, `docs/conventions.md`)
+- Anything from README.md (install/usage are human-facing; the agent
+  doesn't need them at every turn)
+- History/changelog notes (banned everywhere but CHANGELOG.md)
+
+**Why pointers, not nested AGENTS.md files**: pi loads context files
+walking *up* from cwd — a nested `tests/AGENTS.md` only loads when a
+session's cwd is inside `tests/`, which almost never happens (sessions
+run at project root). So nested AGENTS.md files are silently dead
+weight; a `tests/README.md` referenced by pointer is read exactly when
+needed and costs nothing otherwise.
+
+**Budget**: keep the project's AGENTS.md under ~50 lines. If it grows,
+move detail to pointer targets and keep the rules.
+
 ## CHANGELOG entry shape
 
 ```markdown

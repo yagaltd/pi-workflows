@@ -172,7 +172,9 @@ to 3. Put it in the plan header. Never reuse a Plan ID.
 run is the project's first pi-workflows touch and no `AGENTS.md` exists
 in the project root, copy the package's `templates/AGENTS.md` (two dirs
 up from this skill) there (append a "## pi-workflows" section if the
-project has its own AGENTS.md — never overwrite).
+project has its own AGENTS.md — never overwrite). Project-specific
+additions follow the AGENTS.md authoring rules in `templates/DOCS-POLICY.md`
+(rules + one-liners + pointers, not command dumps).
 
 Create `.workflows/plan.md` using the existing Plan Workflow rules:
 

@@ -93,7 +93,12 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 
 1. **Charter**: copy `templates/AGENTS.md` (package: two dirs up from
    this skill) to the project root. Every session — orchestrator and all
-   subagents — auto-loads it from here on.
+   subagents — auto-loads it from here on. If the project adds its own
+   sections (test commands, conventions), follow the AGENTS.md authoring
+   rules in `templates/DOCS-POLICY.md`: binding rules + one-liner facts
+   + pointers to detail docs (e.g. `Test: npm test` · `Tests detail:
+   tests/README.md`) — never command inventories; nested AGENTS.md files
+   don't auto-load (pi walks up from cwd only).
 2. **CONTEXT.md**: seed `.workflows/CONTEXT.md` from Phase 1-2 decisions
    (glossary terms + decisions; ADRs already written in Phase 2).
 3. **README skeleton**: create per `templates/DOCS-POLICY.md` — title,
