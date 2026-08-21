@@ -18,6 +18,11 @@ Context-budget refactor: prompts shrank 40-70% by moving conditional content to 
 - **Drift checker**: new rules — every `@role:` ref resolves to a registered role file; every `references/*.md` module resolves; extension present + registered in the pi manifest. Red-tested.
 - `.workflows/` gitignored (dogfooding artifacts stay local).
 
+### Added — `/init` (project bootstrap) + documentation policy (plan 20260821-002)
+
+- **`/init` command + skill**: the step before `/idea`/`/plan` — designs the structure the contracts will later enforce. Decide (stack/domain, grill protocol) → Design (modules, boundaries → future contract Forbidden lists, Mermaid data flow, ADRs) → **Tree proposal approved as an artifact** (seeds `.workflows/docs/architecture.md` pre-build, tree included) → Scaffold (one verdict-gated worker task: dirs + stubs per the tree) → Wire (charter to project root — moved from /idea's ownership, CONTEXT.md seed, README skeleton) → hands off to `/plan` with contract Boundaries deriving from the documented tree. Existing projects route through `/audit` first — never re-scaffold over live code.
+- **Documentation policy** (`templates/DOCS-POLICY.md`, wired not inlined): README = current-state user docs, **same-task updates** (never catch-up commits — the rule violated 4× in this repo's own history, now enforced at three points: /next closeout, docs-check gate, /review Layer 4 README-freshness + folder-tree conformance check); CHANGELOG.md = append-only, **one curated entry per shipped plan, appended by the orchestrator at /review SHIP inside the commit** (workers never touch it); docs/ vs README vs `.workflows/docs/` placement rules; what never goes where (history never leaks into docs). Charter carries the binding one-liner.
+
 ### Added — engine-enforced verification loop (plan 20260821-001, dogfooded live)
 
 - **Unified worker→reviewer graph**: sequential `/next` dispatches ONE subagent call — `tasks: [worker, reviewer(needs: worker)]` — the reviewer fires mechanically when the worker settles (zero orchestrator turns; worker output auto-prepended). Engine = unconditional sequencing; orchestrator = conditionality (fix rounds and re-reviews stay follow-up dispatches). A failed worker auto-aborts its reviewer node — the abort is the failure signal.

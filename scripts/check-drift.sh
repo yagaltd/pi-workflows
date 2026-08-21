@@ -71,7 +71,7 @@ done
 ok "skill references resolve"
 
 echo "== 5. Templates referenced by skills exist =="
-for t in THINKING-TOOLS.md AGENTS.md CONTEXT.md ADR.md REVIEW_GUIDELINES.md; do
+for t in THINKING-TOOLS.md AGENTS.md CONTEXT.md ADR.md REVIEW_GUIDELINES.md CONTRACT-FORMAT.md DOCS-POLICY.md; do
   [ -f "templates/$t" ] || err "templates/$t missing (referenced by skills/prompts)"
 done
 ok "template files present"

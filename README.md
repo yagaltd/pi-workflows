@@ -43,6 +43,7 @@ Then finish with `/review` → all green? ship it.
 
 | Command | What it does |
 |---|---|
+| `/init <description>` | Bootstrap a project: architecture design + approved folder tree + charter + README skeleton → hands off to `/plan`. Contract Boundaries derive from the documented tree. |
 | `/brainstorm <topic \| resume>` | Divergent research mode: think together, evidence-validate idea branches, living markmap ledger in `.workflows/research/`. No code, no specs. Graduates to `/explore` or `/idea`. |
 | `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
 | `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
@@ -99,6 +100,9 @@ Then finish with `/review` → all green? ship it.
 
 **Starting from scratch?**
 ```
+/init Freelancer task manager — TypeScript, Vite, node:test
+  → architecture + folder tree designed and approved BEFORE any build
+  → charter + README skeleton + scaffolded tree
 /brainstorm I want a task manager for freelancers
   → divergent rounds: market, competitors, differentiation branches
   → evidence via research subagents, markmap ledger in .workflows/research/
@@ -509,6 +513,7 @@ pi-workflows/
 ├── templates/
 │   ├── AGENTS.md              # project charter — copied to project root by /idea, binds all sessions
 │   ├── CONTRACT-FORMAT.md    # .spec contract template + writing rules (loaded at plan Phase 5)
+│   ├── DOCS-POLICY.md        # README/CHANGELOG/docs/ discipline: what goes where, update gates, SHIP steps
 │   ├── THINKING-TOOLS.md      # five whys · six hats · impact×effort matrix
 │   ├── REVIEW_GUIDELINES.md   # starter template for project-specific rules
 │   ├── CONTEXT.md / CONTEXT-FORMAT.md  # domain glossary seed + how to maintain it
@@ -516,6 +521,7 @@ pi-workflows/
 ├── skills/
 │   ├── challenge/SKILL.md     # adversarial grill, updates .workflows/CONTEXT.md inline
 │   ├── explore/SKILL.md       # research + synthesize + prototype
+│   ├── init/SKILL.md         # project bootstrap: architecture + folder tree + charter + docs skeleton
 │   ├── brainstorm/SKILL.md    # divergent research mode, markmap ledger
 │   │   └── references/         # ledger-format · dispatch-shapes · resume-protocol (on demand)
 │   ├── idea/SKILL.md          # evidence → decision tree → plan + contracts
@@ -557,6 +563,7 @@ pi-workflows/
 
 | Command | What it does |
 |---|---|
+| `/init <description>` | Bootstrap: architecture + folder tree + charter + docs skeleton → `/plan` |
 | `/idea <description + repos/URLs>` | Productize idea: explore → grill decisions → plan → specs → approval |
 | `/plan <description>` | Decompose into tasks + contracts |
 | `/explore <question>` | Research / kill / prototype, no production planning (cheap) |

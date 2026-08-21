@@ -86,6 +86,10 @@ Per settled task:
    `context: <updated | no changes>` to the task's Execution Notes
 5. Downstream specs: update next 1-2 contracts from learnings — already
    queued in a running graph → `steer_subagent` the child instead
+6. **Docs (per templates/DOCS-POLICY.md)**: README freshness — behavior
+   a README reader would notice changed in this task → README.md updated
+   in the same round; `.workflows/docs/` architectural changes → `/docs`;
+   CHANGELOG.md never (SHIP-gate artifact)
 
 ### Step 5: Blockers stop the wave
 

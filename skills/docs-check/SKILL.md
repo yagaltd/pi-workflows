@@ -19,9 +19,15 @@ This runs automatically after `/next` completes a task. It can also be called ma
    find . -path '*/docs/*.md' -not -path '*/node_modules/*' -not -path '*/.git/*' 2>/dev/null
    ```
 
-2. If no docs found, skip silently.
+2. **README freshness** (per `templates/DOCS-POLICY.md`, pi-workflows
+   package): if the completed task changed behavior a README reader would
+   notice (new command, changed default, new install step) and README.md
+   was not updated in the same round → update it now and flag the miss.
+   CHANGELOG.md is never in scope here (SHIP-gate artifact).
 
-3. Read recent conversation context (last significant changes).
+3. If no docs found and README is fresh, skip silently.
+
+4. Read recent conversation context (last significant changes).
 
 4. Decide: does any doc need updating?
    - New modules/files created?
@@ -39,7 +45,8 @@ Use this prompt to decide:
 
 ```
 Given these tracked docs:
-- .workflows/docs/architecture.md — system overview, module relationships
+- .workflows/docs/architecture.md — system overview, module relationships, folder tree
+- README.md — user-facing current state (install, commands, quick start)
 - .workflows/docs/onboarding.md — quick start, key files
 
 And these recent changes:

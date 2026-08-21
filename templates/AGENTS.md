@@ -28,6 +28,14 @@ prompt or task text, this file wins.
    rounds (spec `max-rounds`, default 2) with the rejection evidence passed
    verbatim; reviewers verify, never fix.
 
+## Docs discipline
+
+README changes land in the **same task** as the behavior change;
+CHANGELOG.md is appended **only at /review SHIP** (orchestrator-written,
+workers never touch it); docs describe current state — history never
+leaks into them (full policy: `templates/DOCS-POLICY.md` in the
+pi-workflows package).
+
 ## Plan lifecycle
 
 One live plan per project: `.workflows/plan.md` with a unique
