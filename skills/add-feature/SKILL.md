@@ -128,7 +128,8 @@ git diff --stat
 ### Optional: UI Verification
 
 If the feature has a UI component:
-- **Check**: dispatch a browser-automation subagent (agent-browser skill) to verify elements render and behave correctly; or ask the user to eyeball a screenshot
+- **Quick check**: dispatch a browser-automation subagent (agent-browser skill) to verify elements render and behave correctly; or ask the user to eyeball a screenshot
+- **Property check** (🟠 VERIFICATION_HEAVY web tasks, if bombadil is installed): `bombadil test <origin> [spec.ts] --exit-on-violation` — autonomous property-based exploration of the running app; violations are review findings
 - **Skip**: If no UI or UI is trivial
 
 **Verification checklist**:

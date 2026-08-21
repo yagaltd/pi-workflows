@@ -424,7 +424,7 @@ Optional (all degrade gracefully with a note when absent):
   ```bash
   git clone https://github.com/yagaltd/tdd-guard && cd tdd-guard && npm install && npm link
   ```
-  *Evaluated [probity](https://github.com/nizos/probity) (TDD Guard's successor) as a replacement: not adopted — it's a continuous agent hook reading session transcripts (Claude Code / Codex / Copilot CLI only, no pi support) with no agent-spec integration; revisit if it adds pi support.*
+- [bombadil](https://github.com/antithesishq/bombadil) — property-based testing for web and terminal UIs (Antithesis): autonomously explores the running app in a managed browser and validates correctness properties. Assigned to 🟠 VERIFICATION_HEAVY web UI tasks when installed (`bombadil test <origin> --exit-on-violation`). Install: see [the Bombadil Manual](https://antithesishq.github.io/bombadil/browser/2-getting-started.html#installation).
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` mode 3 (unattended loop): `/optimize` prepares `.auto/` session files (measure.sh with METRIC output, checks.sh equivalence oracle as keep-backpressure, prompt.md scope) and hands off; closes with autoresearch-finalize → `/review`
 - [bug-hunter](https://github.com/nicobailon/bug-hunter) skill — adversarial scan at `/next` (code changed) and `/review` (whole diff)
 

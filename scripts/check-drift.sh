@@ -22,8 +22,9 @@ else ok "no dead frontmatter keys in prompts/"; fi
 echo "== 2. Removed-extension API remnants + dead integrations =="
 BAD=$(grep -rn -E 'worktree: true|progress: true|reads: *\(|agentOverrides|inheritProjectContext|inheritSkills|pi-subagents|pi-prompt-template-model|pi-intercom' \
   prompts/ skills/ agents/ templates/ package.json 2>/dev/null | grep -v 'registry.md.*there is no' || true)
-# Dead integrations (removed 2026-08-21): pi-annotate, pi-boomerang, pi-interview, bombadil
-BAD2=$(grep -rn -E 'pi-annotate|pi-boomerang|pi-interview|bombadil' \
+# Dead integrations (removed 2026-08-21): pi-annotate, pi-boomerang, pi-interview
+# (bombadil is a supported optional dep — do NOT ban it)
+BAD2=$(grep -rn -E 'pi-annotate|pi-boomerang|pi-interview' \
   prompts/ skills/ agents/ templates/ README.md package.json 2>/dev/null || true)
 # Stale fork pointer: agent-spec is upstream ZhangHanDong, not the old yagaltd fork
 BAD3=$(grep -rn 'yagaltd/agent-spec' prompts/ skills/ agents/ templates/ README.md package.json 2>/dev/null || true)

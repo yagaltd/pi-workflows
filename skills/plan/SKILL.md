@@ -124,7 +124,7 @@ Assign a testing strategy per task based on code type:
 | API endpoint / CLI command | example-based (agent-spec BDD) | Most tasks |
 | Domain logic (math, parsing, transformation) | property-based (fast-check, proptest) | Pure functions |
 | External input handler | fuzz + example-based | Parsing user data |
-| Web UI | example-based + browser-automation subagent (agent-browser skill) | Browser tasks |
+| Web UI | example-based + browser-automation subagent (quick) / bombadil property-based (if installed) | Browser tasks |
 | State machine | stateful property tests | Complex state transitions |
 | Simple CRUD | example-based only | Boilerplate tasks |
 

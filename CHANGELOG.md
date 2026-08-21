@@ -51,6 +51,14 @@ Measurement-gated optimization skill (appeared during user testing, adopted): Ph
 
 - **`tdd-guard spec-verify` → `tdd-guard verify`**: prompts called a command the installed CLI doesn't have (`spec-verify`); every invocation would fail as unknown-command and be skipped. Fixed in agents/reviewer.md, agents/worker.md, skills/add-feature.
 
+### Fixed (bombadil correction)
+
+The previous entry misclassified **bombadil** as a dead integration — it is installed and supported: restored as an optional dep (property-based testing for web/terminal UIs, Antithesis). Wiring: plan skill testing table routes web UI to example-based + browser subagent (quick) / bombadil (property-based); add-feature UI verification gains a property check (`bombadil test <origin> --exit-on-violation`) for 🟠 VERIFICATION_HEAVY web tasks; package.json + README optional deps. Drift checker un-bans bombadil (pi-annotate / pi-boomerang / pi-interview stay banned).
+
+Also: removed the internal probity-evaluation note from the README requirements — the README is user documentation; evaluation rationale lives here.
+
+Not adopted: **lonkero** (dynamic web security scanner) — requires a vendor API license key; no integration.
+
 ### Changed (integration reality check)
 
 - **agent-spec**: requirements now point at the upstream [ZhangHanDong/agent-spec](https://github.com/ZhangHanDong/agent-spec) (the fork URL was stale; the installed v1.4.0 builds from upstream).

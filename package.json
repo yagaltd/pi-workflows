@@ -14,6 +14,7 @@
   "optionalPeerDependencies": {
     "agent-spec": ">=1.0.0",
     "tdd-guard": ">=0.1.0",
+    "bombadil": ">=0.4.0",
     "pi-autoresearch": ">=0.1.0"
   }
 }
