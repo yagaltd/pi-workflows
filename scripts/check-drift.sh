@@ -19,11 +19,21 @@ BAD=$(grep -rn -E '^(model|thinking|skill|restore|tools|agent):' prompts/ 2>/dev
 if [ -n "$BAD" ]; then echo "$BAD" | sed 's/^/DRIFT: dead frontmatter key: /' >&2; FAIL=1
 else ok "no dead frontmatter keys in prompts/"; fi
 
-echo "== 2. Removed-extension API remnants =="
+echo "== 2. Removed-extension API remnants + dead integrations =="
 BAD=$(grep -rn -E 'worktree: true|progress: true|reads: *\(|agentOverrides|inheritProjectContext|inheritSkills|pi-subagents|pi-prompt-template-model|pi-intercom' \
   prompts/ skills/ agents/ templates/ package.json 2>/dev/null | grep -v 'registry.md.*there is no' || true)
-if [ -n "$BAD" ]; then echo "$BAD" | sed 's/^/DRIFT: old API: /' >&2; FAIL=1
-else ok "no old-API remnants"; fi
+# Dead integrations (removed 2026-08-21): pi-annotate, pi-boomerang, pi-interview, bombadil
+BAD2=$(grep -rn -E 'pi-annotate|pi-boomerang|pi-interview|bombadil' \
+  prompts/ skills/ agents/ templates/ README.md package.json 2>/dev/null || true)
+# Stale fork pointer: agent-spec is upstream ZhangHanDong, not the old yagaltd fork
+BAD3=$(grep -rn 'yagaltd/agent-spec' prompts/ skills/ agents/ templates/ README.md package.json 2>/dev/null || true)
+# Legacy agent-file dir must not come back (roles live in agents/, pasted into prompts)
+if [ -d ".pi/agents" ]; then BAD3="$BAD3\nDRIFT: .pi/agents/ exists (legacy agent files — roles live in agents/)"; fi
+if [ -n "$BAD" ] || [ -n "$BAD2" ] || [ -n "$BAD3" ]; then
+  { [ -n "$BAD" ] && echo "$BAD" | sed 's/^/DRIFT: old API: /'
+    [ -n "$BAD2" ] && echo "$BAD2" | sed 's/^/DRIFT: dead integration: /'
+    [ -n "$BAD3" ] && echo -e "$BAD3" | sed 's/^/DRIFT: stale pointer: /'; } >&2; FAIL=1
+else ok "no old-API remnants, no dead integrations, no stale fork pointers"; fi
 
 echo "== 3. Every role file referenced by prompts exists and is registered =="
 for role in worker scout reviewer quality-reviewer; do

@@ -108,7 +108,7 @@ If any scenario fails or boundaries violated → go back to Phase 3, fix, re-ver
 
 ```bash
 tdd-guard lint --src src --tests tests --format json
-tdd-guard spec-verify --spec <spec> --format json
+tdd-guard verify --spec <spec> --format json
 ```
 If tdd-guard is not installed, skip and note it. If any rule fails → go back to Phase 3.
 
@@ -128,15 +128,13 @@ git diff --stat
 ### Optional: UI Verification
 
 If the feature has a UI component:
-- **Quick check**: Ask user to `/annotate` and verify elements look correct
-- **Full check**: Run bombadil test suite (if installed)
+- **Check**: dispatch a browser-automation subagent (agent-browser skill) to verify elements render and behave correctly; or ask the user to eyeball a screenshot
 - **Skip**: If no UI or UI is trivial
 
 **Verification checklist**:
 - [ ] agent-spec lifecycle passes (all scenarios pass)
 - [ ] agent-spec guard passes (boundaries respected)
 - [ ] tdd-guard passes (test quality verified) or skipped (not installed)
-- [ ] bombadil passes (if web UI)
 - [ ] All tests pass (including new ones)
 - [ ] Zero lint warnings
 - [ ] Zero type errors
@@ -151,9 +149,6 @@ If the feature has a UI component:
 - Contract: <spec file>
 - Scenarios: X passed, Y failed
 - Boundaries: ✅ respected
-
-### bombadil (if applicable)
-- Properties: ✅ all hold / ❌ N violations
 
 ### Project checks
 - Tests: <X passed, Y failed>

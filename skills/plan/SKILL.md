@@ -22,24 +22,20 @@ Gather enough context to plan well.
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
 
-### Structured Interview (if pi-interview is available)
+### Structured Interview (in chat)
 
-After analyzing the codebase, domain memory, ADRs, and understanding the goal, generate an interview for the human. Ask only decisions that remain unresolved after evidence gathering. Create a questions JSON file and call `interview()`.
+After analyzing the codebase, domain memory, ADRs, and understanding the goal, interview the human in chat. Ask only decisions that remain unresolved after evidence gathering.
 
-Include questions for:
-- Framework / library choices (single-select, with `recommended` from your analysis)
-- Feature scope (multi-select, pre-select essential ones)
-- Testing strategy preference (single-select, map from bottleneck analysis)
-- Model / thinking preferences for critical tasks
+Ask about:
+- Framework / library choices (offer options with a `recommended` from your analysis)
+- Feature scope (which essentials are in/out)
+- Testing strategy preference (map from bottleneck analysis)
+- Model / thinking preferences for critical tasks (only when it changes cost materially)
 - Constraints (deadline, budget, compatibility)
-- Open questions (text input for anything structured options miss)
+- Open questions (anything structured options miss)
 
-Use `weight: "critical"` for decisions that affect architecture.
-Use `weight: "minor"` for style preferences.
-Use `conviction: "strong"` when the codebase analysis gives a clear answer.
-Use `conviction: "slight"` when multiple options are reasonable.
-
-If pi-interview is not installed, fall back to asking questions in chat.
+Treat decisions that affect architecture as critical; style preferences as minor.
+Have strong conviction when the codebase gives a clear answer; slight when multiple options are reasonable.
 
 ### Interview → Spec Map Mapping
 
@@ -128,7 +124,7 @@ Assign a testing strategy per task based on code type:
 | API endpoint / CLI command | example-based (agent-spec BDD) | Most tasks |
 | Domain logic (math, parsing, transformation) | property-based (fast-check, proptest) | Pure functions |
 | External input handler | fuzz + example-based | Parsing user data |
-| Web UI | example-based + pi-annotate (quick) / bombadil (full) | Browser tasks |
+| Web UI | example-based + browser-automation subagent (agent-browser skill) | Browser tasks |
 | State machine | stateful property tests | Complex state transitions |
 | Simple CRUD | example-based only | Boilerplate tasks |
 

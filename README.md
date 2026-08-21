@@ -119,9 +119,9 @@ Then finish with `/review` → all green? ship it.
 
 **UI bug?**
 ```
-/fix (with pi-annotate)
-  → user annotates broken elements with screenshots + selectors
-  → agent maps selectors to source files, fixes, asks for re-annotate
+/fix (paste the error, attach a screenshot, or describe what looks wrong)
+  → browser-automation subagent inspects the page (selectors, styles, a11y)
+  → agent maps selectors to source files, fixes, asks you to re-verify
 ```
 
 **Existing codebase needs attention?**
@@ -161,7 +161,7 @@ IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──
                       interview*                        wave         + project        + error handling
                                                          executor     checks           + human callouts
 
-* interview uses pi-interview when installed, falls back to chat
+* interview happens in chat — one blocking question at a time, payload per the grill protocol
 ```
 
 ### Gates — verdict gating: no model marks its own work done
@@ -232,7 +232,7 @@ Assigned per task based on code type:
 | API / CLI command | example-based (agent-spec BDD) | Most tasks |
 | Domain logic (math, parsing) | property-based (fast-check, proptest) | Pure functions |
 | External input handler | fuzz + example-based | Parsing user data |
-| Web UI | example-based + pi-annotate / bombadil | Browser tasks |
+| Web UI | example-based + browser-automation subagent | Browser tasks |
 | State machine | stateful property tests | Complex state transitions |
 | Simple CRUD | example-based only | Boilerplate |
 
@@ -407,37 +407,26 @@ Add a `.workflows/REVIEW_GUIDELINES.md` to your project root for project-specifi
 
 ## Requirements
 
+Required:
+
 - [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
 - [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) >= 0.1 — in-process subagents: parallel / chain / graph (`needs` edges), per-task `model` + `thinking`, intercom, steering
-- [agent-spec](https://github.com/yagaltd/agent-spec) — contract verification (BDD specs + boundary enforcement)
-Install the gate CLI:
+- [agent-spec](https://github.com/ZhangHanDong/agent-spec) — contract verification (BDD specs + boundary enforcement)
 
 ```bash
-cargo install --git https://github.com/yagaltd/agent-spec
 pi install npm:@arhen/pi-core-subagent
+cargo install --git https://github.com/ZhangHanDong/agent-spec
 ```
 
-Optional testing/verification:
+Optional (all degrade gracefully with a note when absent):
 
-- [bombadil](https://github.com/antithesishq/bombadil) — property-based web UI testing
-- [pi-interview](https://github.com/nicobailon/pi-interview-tool) — structured interview forms for unresolved decisions
-- [pi-annotate](https://github.com/nicobailon/pi-annotate) — visual annotation and edit capture for UI review/fixes
-- [pi-boomerang](https://github.com/nicobailon/pi-boomerang) — token-efficient autonomous execution and context collapse for long approved tasks
+- [tdd-guard](https://github.com/yagaltd/tdd-guard) — test-quality gate: `tdd-guard lint` (static test analysis) + `tdd-guard verify --spec` (tests cover contract decisions/boundaries/selectors). Used in the reviewer pipeline. Install (not on npm):
+  ```bash
+  git clone https://github.com/yagaltd/tdd-guard && cd tdd-guard && npm install && npm link
+  ```
+  *Evaluated [probity](https://github.com/nizos/probity) (TDD Guard's successor) as a replacement: not adopted — it's a continuous agent hook reading session transcripts (Claude Code / Codex / Copilot CLI only, no pi support) with no agent-spec integration; revisit if it adds pi support.*
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` mode 3 (unattended loop): `/optimize` prepares `.auto/` session files (measure.sh with METRIC output, checks.sh equivalence oracle as keep-backpressure, prompt.md scope) and hands off; closes with autoresearch-finalize → `/review`
-
-Install optional UX helpers:
-
-```bash
-pi install npm:pi-interview
-pi install npm:pi-annotate
-pi install pi-boomerang
-```
-
-### Optional extension guidance
-
-- Use `interview()` for 2-7 independent unresolved questions after repo/docs search. Use one-by-one grill for dependent decision trees. Never ask questions answerable from code/docs.
-- Use `annotate()` for UI bug reports, frontend polish, visual acceptance, and browser edit capture. It complements Bombadil: annotate is human review; Bombadil is automated UI/property testing.
-- Use `/boomerang` for long autonomous work after specs are approved: `/next`, approved `/fix`, large refactors, or prompt chains. Avoid it during `/idea` and `/amend` decision phases.
+- [bug-hunter](https://github.com/nicobailon/bug-hunter) skill — adversarial scan at `/next` (code changed) and `/review` (whole diff)
 
 ### Configure models
 

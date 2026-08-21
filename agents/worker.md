@@ -78,7 +78,7 @@ If any scenario fails or boundaries violated → report FAIL. Do NOT proceed.
 ```bash
 # Only if agent-spec passed above
 tdd-guard lint --src src --tests tests --format json
-tdd-guard spec-verify --spec .workflows/specs/<task>.spec --format json
+tdd-guard verify --spec .workflows/specs/<task>.spec --format json
 ```
 If tdd-guard is not installed, skip and note it. If any rule fails → report FAIL.
 

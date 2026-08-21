@@ -47,7 +47,18 @@ Measurement-gated optimization skill (appeared during user testing, adopted): Ph
 
 `/optimize` now routes three modes (experiments / contracted deep pass / unattended loop). Loop mode hands off to the pi-autoresearch extension like `/review` hands off to bug-hunter, but file-based: Phase 0/1 run here first, then the skill's **Handoff to pi-autoresearch** section maps contract vocabulary onto `.auto/` session files — benchmark → `measure.sh` (METRIC output), equivalence oracle + suite → `checks.sh` (oracle failure blocks keep: mechanical per-iteration equivalence), Allowed Changes/Forbidden → `prompt.md` Files in Scope/Off Limits. Handoff artifacts are verified (one measure run + one checks run) before entering the loop. Close chain: `autoresearch-finalize` → `/review` (tier-2 SHIP stays human-gated). Graceful fallback to deep mode when the extension is absent.
 
-### Changed
+### Fixed
+
+- **`tdd-guard spec-verify` → `tdd-guard verify`**: prompts called a command the installed CLI doesn't have (`spec-verify`); every invocation would fail as unknown-command and be skipped. Fixed in agents/reviewer.md, agents/worker.md, skills/add-feature.
+
+### Changed (integration reality check)
+
+- **agent-spec**: requirements now point at the upstream [ZhangHanDong/agent-spec](https://github.com/ZhangHanDong/agent-spec) (the fork URL was stale; the installed v1.4.0 builds from upstream).
+- **tdd-guard** now documented as a first-class optional dep (yagaltd fork, clone + `npm link` — not on npm; npm's `tdd-guard@1.7.0` is an unrelated project). Evaluated **probity** (TDD Guard's successor) as replacement — **not adopted**: continuous agent-transcript hook (Claude Code/Codex/Copilot CLI only, no pi), no agent-spec integration; revisit if pi support lands.
+- **Removed dead integrations everywhere** (never in the active toolchain): pi-interview (skills now interview in chat per the grill protocol), pi-annotate (UI fixes use a browser-automation subagent — agent-browser skill), pi-boomerang, bombadil (add-feature checklist/sections, fix annotate flow, plan testing table, README journeys/guidance, package.json optionalPeerDeps).
+- **package.json optionalPeerDependencies** now match reality: agent-spec, tdd-guard, pi-autoresearch.
+- **Drift checker hardened**: catches dead integrations (pi-annotate/pi-boomerang/pi-interview/bombadil), stale agent-spec fork URL, and `.pi/agents/` resurrection. Verified green + red.
+- Deleted stale `.pi/agents/*` legacy files (were gitignored, disk-only).
 
 - **CONTEXT.md update made deterministic** (root cause of missed updates: conditional step + no structural forcing): worker reports now carry a **mandatory `## Domain Memory`** section (Terms/Decisions/Conflicts, "none" valid — never omitted); `/next` + `/auto-next` always record a `context: <updated|no changes>` marker per task in Execution Notes; `/status` reports `context markers: X/Y`; `/review` Layer 3 audits markers and SHIP gains a **domain-memory sweep** (guaranteed backstop — promotes unpersisted terms/decisions to CONTEXT.md/ADRs before archive).
 - **`/review` is risk-tiered (Stage 0)**: fast path for small/low-risk plans (≤2 tasks, no 🔴/🟠, docs-only/single-module diff — skips Stage 2 unless security-relevant) vs full path default. Irreducible core never skipped: repo-wide guard, one final suite run on the integrated state, verdict trail, SHIP. Rationale: per-task verification runs on partial states and cannot see cross-task regressions or cumulative boundary violations — only the final pass sees the whole change set.

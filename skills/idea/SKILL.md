@@ -122,7 +122,7 @@ Ask only decisions that remain unresolved after Phase 1.
 
 **One blocking question at a time** when answers affect later questions —
 walk the decision tree branch by branch; don't dump the whole tree.
-Use `interview()` only for independent decisions that can be reviewed in one batch.
+For independent decisions, a single message with all of them is fine.
 
 Every question must be **material** (could change architecture/scope/API/
 data model), **grounded** (points at evidence, not preference fishing), and

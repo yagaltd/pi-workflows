@@ -29,7 +29,7 @@ If boundary violated → report FAIL. Do NOT proceed. (The `--change-scope workt
 
 ```bash
 tdd-guard lint --src src --tests tests --format json
-tdd-guard spec-verify --spec <spec> --format json
+tdd-guard verify --spec <spec> --format json
 ```
 If tdd-guard is not installed, skip this layer and note it.
 If any rule fails → report FAIL with details. Do NOT proceed to Layer 3.

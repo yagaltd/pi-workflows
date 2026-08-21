@@ -265,21 +265,11 @@ Document the fix to prevent recurrence.
 
 ## UI Fix Variant
 
-If the issue is visual/UI and pi-annotate is available:
+If the issue is visual/UI:
 
-1. Ask the user to run `/annotate <url>` (or `/annotate` for current tab)
-2. User clicks broken elements, adds comments per element
-3. User optionally enables "Etch" toggle to record style tweaks they try in DevTools
-4. Receive structured annotation:
-   - CSS selectors for each element
-   - Box model (padding, border, margin, content size)
-   - Accessibility info (role, name, ARIA states)
-   - Key CSS styles (display, position, colors, typography)
-   - Per-element screenshots with 20px padding
-   - Edit capture diffs if user tweaked styles (before/after screenshots + property-level diffs)
-   - User comments per element ("make this blue", "too much padding")
-5. Map selectors to source files (grep for class names, IDs)
-6. Apply fix directly from annotation data
-7. Ask user to re-annotate to verify — faster than running full bombadil suite
-
-If pi-annotate is not installed, fall back to text description + screenshot.
+1. Ask the user for a screenshot and a text description of what looks wrong
+2. Dispatch a browser-automation subagent (agent-browser skill) against the page:
+   CSS selectors, computed styles, accessibility info, screenshots per broken element
+3. Map selectors to source files (grep for class names, IDs)
+4. Apply fix
+5. Ask user to re-verify with a screenshot

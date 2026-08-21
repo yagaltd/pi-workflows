@@ -61,7 +61,7 @@ For each question include:
 - why it matters (consequence if wrong)
 - default if user is AFK ("If you don't care: I'll proceed with <default>")
 
-Ask one-by-one when decisions depend on previous answers. Use `interview()` only for independent choices.
+Ask one-by-one when decisions depend on previous answers. For independent choices, a single message works.
 
 ## Phase 4: UPDATE ARTIFACTS
 
