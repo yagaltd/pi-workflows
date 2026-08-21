@@ -32,6 +32,9 @@ All `⬜ PENDING` tasks, wave groupings, dependencies, bottleneck tags.
 - Worker task text: goal + "First read: contract, plan.md Execution Notes,
   CONTEXT.md" + `Verify:` line (the workflow lives in the role prompt —
   do not restate it).
+- Reviewer task entries follow the registry **verification policy** —
+  model+thinking per the tier derived from each task's spec (tags + Intent
+  + Boundaries): docs-tier / standard-tier / high-risk-tier.
 - Reviewer task texts must end: "End with one Verdict block per task:
   `ok: true|false` + findings with evidence."
 - Parallel tasks MUST have disjoint `Allowed Changes` — overlapping →
@@ -51,7 +54,7 @@ subagent({
       write: true, thinking: "<per tag>", task: "Implement TASK 2 ... <per Step 2>" },
     { id: "task-3", ... },
     { id: "verify-w1", agent: "reviewer", prompt: "@role:reviewer",
-      tools: ["read","grep","find","ls","bash"], thinking: "high",
+      tools: ["read","grep","find","ls","bash"], thinking: "high",  // per verification policy tier
       needs: ["task-2", "task-3"], task: "<per dispatch-shapes.md>" },
   ],
 })

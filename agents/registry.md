@@ -42,7 +42,7 @@ bottleneck tag in `.workflows/plan.md`:
 | 🟠 VERIFICATION_HEAVY | default | medium | budget extra verify time — Verify: line must run the full suite |
 | ⚪ STANDARD | cheap/fast model | medium | default flow |
 | scout tasks (any tag) | cheap model | low | recon only |
-| reviewer tasks | inherit | high (xhigh if verifying a 🔴 task) | mechanical only |
+| reviewer tasks | per Verification policy tier (below) | per tier | mechanical only |
 | quality-reviewer tasks | inherit | medium | judgment review |
 
 Rules:
@@ -54,6 +54,20 @@ Rules:
   otherwise, which is correct: fix the pairing, don't silence the check.
 - Leave `model` empty (inherit) unless the bottleneck table says otherwise —
   the parent session already knows what's available and what it's paying.
+
+## Verification policy (complexity-gated reviewer tiers)
+
+Single source of truth for reviewer dispatch cost. The orchestrator derives
+the tier from the task's **spec** — tags + Intent + Boundaries — when building
+the reviewer node; the worker never self-assesses its tier. Complexity scales
+the reviewer's cost, never its existence: **every tier requires a reviewer
+verdict for ✅** (doctrine #7 unchanged).
+
+| Tier | Traits (from spec) | reviewer model | reviewer thinking | pass shape |
+|---|---|---|---|---|
+| docs-tier | pure docs / test-data / spec-only — no production code touched | cheap model | low | one mechanical pass |
+| standard-tier | ordinary code tasks (default) | inherit parent | medium–high | standard mechanical pipeline |
+| high-risk-tier | security, concurrency, parsing, external input, crypto | strongest available model | xhigh | full mechanical pipeline + adversarial depth |
 
 ## Toolsets
 

@@ -107,6 +107,7 @@ Rules:
   keeps evidence independent.
 - **`max-rounds`** comes from the spec frontmatter (`max-rounds: N`,
   default 2). Exhausted rounds = ❌ FAILED, never an infinite loop.
+- **Reviewer model+thinking follow the registry verification policy** — tier derived from the task's spec (tags + Intent + Boundaries), never worker self-assessed. Complexity scales reviewer cost, never the verdict's existence.
 - **Persist every verdict** (ok:true and ok:false alike) to
   `.workflows/reviews/<task-id>.md`, appending each round:
 
@@ -172,7 +173,7 @@ Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <projec
     { id: "review-<task-id>", agent: "review-<task-id>",
       prompt: "<verbatim body of agents/reviewer.md>",
       tools: ["read","grep","find","ls","bash"],
-      thinking: "high",            // xhigh when the task tag is 🔴 BLOCKING
+      thinking: "high",            // per registry verification policy (tier from the spec)
       needs: ["worker-<task-id>"],
       task: `Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
