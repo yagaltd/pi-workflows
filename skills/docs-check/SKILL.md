@@ -29,15 +29,15 @@ This runs automatically after `/next` completes a task. It can also be called ma
 
 4. Read recent conversation context (last significant changes).
 
-4. Decide: does any doc need updating?
+5. Decide: does any doc need updating?
    - New modules/files created?
    - Architecture decisions made?
    - Key patterns changed?
    - Dependencies added/removed?
 
-5. If yes: run `/docs <changed-area>` to update relevant docs.
+6. If yes: run `/docs <changed-area>` to update relevant docs.
 
-6. If no: skip silently.
+7. If no: skip silently.
 
 ## Gate Logic (cheap model)
 

@@ -13,30 +13,26 @@
  *    moment it happens, not at /review time. Reminds once per new gap
  *    count (no spam).
  *
- * Deliberately dumb: substitution + watchdog only. No workflow logic here.
+ * Deliberately small: role substitution + drift watchdogs. The
+ * watchdogs encode the docs/verdict policy checks (see
+ * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
+ * here must stay aligned); everything else stays out.
  */
 
 import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 
-/** Strip the leading "# Role:" header comment block from a role file. */
+/** Strip the leading "# Role:" header and any HTML dispatch-note comment
+ *  that follows it (real role files put the note AFTER the heading, not
+ *  before — bug-hunter BH-002). Also drops leading blank lines. */
 export function roleBody(content: string): string {
-  // Drop leading HTML comment (the dispatch note) and the "# Role:" line.
   return content
-    .replace(/^<!--[\s\S]*?-->\s*/, "")
     .replace(/^#\s*Role:[^\n]*\n+/, "")
+    .replace(/^<!--[\s\S]*?-->\s*/, "")
+    .replace(/^<!--[\s\S]*?-->\s*/, "")
+    .replace(/^\s+/, "")
     .trim();
-}
-
-/** All `@role:<name>` references found in a prompt/task string. */
-export function roleRefs(text: string): string[] {
-  if (typeof text !== "string") return [];
-  const out: string[] = [];
-  const re = /@role:([a-z][a-z0-9-]*)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) out.push(m[1]);
-  return out;
 }
 
 /** Resolve `@role:` refs in a single prompt string. Unknown roles: keep text, collect error. */
@@ -56,28 +52,30 @@ export function resolveRefs(
   return { text: resolved, errors };
 }
 
-/** Rewrite every prompt-ish field of a subagent tool input in place. */
+/** Rewrite every prompt-ish field of a subagent tool input in place.
+ *  Walks input.prompt and tasks[].prompt directly; returns accumulated
+ *  errors (missing role files). */
 export function resolveSubagentInput(
   input: any,
   readFile: (name: string) => string | null
 ): string[] {
   const errors: string[] = [];
-  const fields: (string | undefined)[] = [];
+  const targets: string[] = [];
   if (input && typeof input === "object") {
-    if (typeof input.prompt === "string") fields.push(input.prompt);
+    if (typeof input.prompt === "string") targets.push("prompt");
     if (Array.isArray(input.tasks)) {
-      for (const t of input.tasks) if (t && typeof t.prompt === "string") fields.push(t.prompt);
+      input.tasks.forEach((_: unknown, i: number) => {
+        if (input.tasks[i] && typeof input.tasks[i].prompt === "string") targets.push(`tasks[${i}].prompt`);
+      });
     }
   }
-  // Only rewrite when a ref is present; leave everything else untouched.
-  for (const f of fields) {
+  for (const path of targets) {
+    const obj = path === "prompt" ? input : input.tasks[Number(path.match(/\d+/)![0])];
+    const f: string = obj.prompt;
     if (!f || !f.includes("@role:")) continue;
     const r = resolveRefs(f, readFile);
     if (r.errors.length) errors.push(...r.errors);
-    if (input.prompt === f) input.prompt = r.text;
-    else if (Array.isArray(input.tasks)) {
-      for (const t of input.tasks) if (t && t.prompt === f) t.prompt = r.text;
-    }
+    obj.prompt = r.text;
   }
   return errors;
 }

@@ -41,21 +41,21 @@ for role in worker scout reviewer quality-reviewer; do
   [ -f "agents/$role.md" ] || err "agents/$role.md missing but referenced by prompts"
   grep -q "| $role |" agents/registry.md || err "agents/$role.md exists but not in agents/registry.md Roles table"
 done
-grep -rhoE '@role:[a-z][a-z0-9-]*' prompts/ skills/ agents/ 2>/dev/null | sort -u | sed 's/@role://' | while read -r r; do
+while read -r r; do
   [ -f "agents/$r.md" ] || err "@role:$r referenced but agents/$r.md missing"
   grep -q "| $r |" agents/registry.md || err "@role:$r referenced but not in registry Roles table"
-done
-grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u | while read -r f; do
+done < <(grep -rhoE '@role:[a-z][a-z0-9-]*' prompts/ skills/ agents/ 2>/dev/null | sort -u | sed 's/@role://')
+while read -r f; do
   [ -f "$f" ] || err "prompt/skill references $f which does not exist"
-done
+done < <(grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u)
 ok "role files present, registered, @role refs resolve"
 
 echo "== 3b. Skill references/ modules resolve =="
-grep -rhoE 'references/[a-z-]+\.md' skills/ 2>/dev/null | sort -u | while read -r ref; do
+while read -r ref; do
   found=0
   for d in skills/*/; do [ -f "${d}${ref}" ] && found=1 && break; done
   [ "$found" = "1" ] || err "referenced module $ref not found under any skill"
-done
+done < <(grep -rhoE 'references/[a-z-]+\.md' skills/ 2>/dev/null | sort -u)
 ok "skill reference modules resolve"
 
 echo "== 3c. Extension ships and is registered =="
@@ -65,9 +65,9 @@ ok "extension present and registered"
 
 echo "== 4. Skills referenced by prompts exist =="
 # prompts say: Follow the '<skill>' skill workflow
-grep -rh "Follow the '" prompts/ 2>/dev/null | sed -E "s/.*Follow the '([a-z-]+)'.*/\1/" | sort -u | while read -r s; do
+while read -r s; do
   [ -f "skills/$s/SKILL.md" ] || err "prompt references skill '$s' but skills/$s/SKILL.md is missing"
-done
+done < <(grep -rh "Follow the '" prompts/ 2>/dev/null | sed -E "s/.*Follow the '([a-z-]+)'.*/\1/" | sort -u)
 ok "skill references resolve"
 
 echo "== 5. Templates referenced by skills exist =="
@@ -87,9 +87,9 @@ node -e '
 [ "$FAIL" -eq 0 ] && ok "peerDependencies include pi-core-subagent"
 
 echo "== 7. Commands in README command table exist as prompts =="
-grep -oE '^\| `\/[a-z-]+`' README.md 2>/dev/null | sed -E 's/\| `//; s/`//' | sort -u | while read -r c; do
+while read -r c; do
   [ -f "prompts/$c.md" ] || err "README lists /$c but prompts/$c.md is missing"
-done
+done < <(grep -oE '^\| `\/[a-z-]+`' README.md 2>/dev/null | sed -E 's/\| `//; s/`//' | sort -u)
 ok "README commands resolve to prompt files"
 
 echo

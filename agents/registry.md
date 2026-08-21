@@ -2,10 +2,12 @@
 
 The role files in `agents/` are **verbatim subagent system prompts** (no
 frontmatter, no agent-file magic — pi-core-subagent never reads agent files).
-The orchestrator (`/next`, `/auto-next`, and anything else that dispatches)
-reads the role file, pastes its body into the `prompt:` field, and applies
-the dispatch policy below. If this table and a prompt disagree, this file
-wins and the prompt must be fixed.
+Dispatch shapes reference them as `@role:<name>`; the pi-workflows extension
+substitutes the verbatim body at execution time (without the extension, the
+orchestrator reads and pastes the file — see dispatch-shapes.md). This file
+is the dispatch policy: toolset, model, thinking, verification tiers. If
+this table and a prompt disagree, this file wins and the prompt must be
+fixed.
 
 ## Roles
 

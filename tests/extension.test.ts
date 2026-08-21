@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   roleBody,
-  roleRefs,
   resolveRefs,
   resolveSubagentInput,
   computeHygieneDrift,
@@ -9,29 +8,43 @@ import {
   computeDocsDrift,
 } from "../extensions/index";
 
-const WORKER = `# Role: worker (implements within contract boundaries)
+const WORKER = `# Role: worker
 
-<!-- note -->
+<!-- dispatch note -->
 You are a worker. Follow the contract.`;
+
+const WORKER_NOTE_FIRST = `<!-- note first -->
+# Role: worker
+
+You are a worker.`;
 
 describe("roleBody", () => {
   test("strips the # Role: header line", () => {
     expect(roleBody(WORKER)).not.toContain("# Role:");
     expect(roleBody(WORKER)).toContain("You are a worker.");
   });
-});
-
-describe("roleRefs", () => {
-  test("finds refs in a string", () => {
-    expect(roleRefs("@role:worker")).toEqual(["worker"]);
-    expect(roleRefs("no refs here")).toEqual([]);
-    expect(roleRefs("@role:quality-reviewer then @role:scout")).toEqual([
-      "quality-reviewer",
-      "scout",
-    ]);
+  test("strips the dispatch-note comment AFTER the heading (BH-002: note leaks into prompts)", () => {
+    expect(roleBody(WORKER)).not.toContain("dispatch note");
+    expect(roleBody(WORKER)).not.toContain("<!--");
   });
-  test("ignores non-strings", () => {
-    expect(roleRefs(undefined as any)).toEqual([]);
+  test("strips a note placed before the heading too", () => {
+    expect(roleBody(WORKER_NOTE_FIRST)).not.toContain("note first");
+    expect(roleBody(WORKER_NOTE_FIRST)).toContain("You are a worker.");
+  });
+  test("real role file shapes stay clean (all four files)", () => {
+    for (const f of ["worker", "scout", "reviewer", "quality-reviewer"]) {
+      const fs = require("fs");
+      const path = require("path");
+      const content = fs.readFileSync(
+        path.join(__dirname, "..", "agents", `${f}.md`),
+        "utf8"
+      );
+      const body = roleBody(content);
+      expect(body.startsWith("You are")).toBe(true);
+      expect(body).not.toContain("<!--");
+      expect(body).not.toContain("# Role:");
+      expect(body).not.toContain("agents/registry.md"); // stale meta-note must not leak
+    }
   });
 });
 
