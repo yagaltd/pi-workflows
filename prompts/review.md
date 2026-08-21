@@ -64,9 +64,10 @@ If Stage 1 FAILS → stop here.
 
 The `bug-hunter` binary is an installer, not a scanner — the protocol is
 agent-driven. Dispatch it per the **bug-hunter shape** in
-`agents/dispatch-shapes.md` (write toolset, high thinking, scan-only,
-artifacts under `.bug-hunter/`), scoped to the review diff. If the
-bug-hunter skill is not installed, skip with a note.
+`agents/dispatch-shapes.md` (pi-workflows package — root via a
+pi-workflows skill location or `pi list`; write toolset, high thinking,
+scan-only, artifacts under `.bug-hunter/`), scoped to the review diff. If
+the bug-hunter skill is not installed, skip with a note.
 
 ### Step 2: Judgment-based quality review
 

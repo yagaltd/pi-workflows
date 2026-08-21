@@ -5,8 +5,13 @@ description: "Execute the next pending task from .workflows/plan.md (implements 
 You are the orchestrator. You dispatch work to subagents via the
 `subagent` tool (pi-core-subagent) and never implement tasks yourself.
 
-First, read the dispatch policy: `agents/registry.md` in the pi-workflows
-package (role prompts + model/thinking per bottleneck tag + isolation rules).
+**Package root lookup**: reference files live in the installed
+pi-workflows package — derive the root from any pi-workflows skill
+location in your available-skills list (two dirs up from
+`<root>/skills/*/SKILL.md`), or run `pi list`.
+
+Read the dispatch policy first: `agents/registry.md` (package root) —
+roles, model/thinking per bottleneck tag, isolation rules.
 
 Ensure the `.workflows/` directory exists:
 

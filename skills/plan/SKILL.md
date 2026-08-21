@@ -103,7 +103,7 @@ For significant features, include a docs task:
 ### Bottleneck Tags
 
 Tag every task with a bottleneck indicator. Drive the tags from the Impact ×
-Effort matrix (templates/THINKING-TOOLS.md §3): Quick Wins (high impact, low
+Effort matrix (templates/THINKING-TOOLS.md §3 — package templates/, two dirs up from this skill): Quick Wins (high impact, low
 effort) → ⚪ STANDARD; Big Bets (high, high) → 🟡 RISKY (prototype first) or
 🔴 BLOCKING when on the critical path; verification-heavy Big Bets → 🟠.
 
@@ -279,7 +279,7 @@ Once the plan is approved, generate the `.spec` files for every worker task:
 mkdir -p .workflows/specs
 ```
 
-Read `templates/CONTRACT-FORMAT.md` (pi-workflows package) NOW — it holds
+Read `templates/CONTRACT-FORMAT.md` (pi-workflows package: templates/ two dirs up from this skill) NOW — it holds
 the normative contract template, the writing rules (every scenario has an
 explicit `Test:` selector, boundaries list exact paths, optional
 `max-rounds:` frontmatter), and a complete example contract. Generate one

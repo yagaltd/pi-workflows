@@ -89,7 +89,7 @@ findings with file:line citations, synthesis, verdict) and append a line to
 terms that crystallized go into `.workflows/CONTEXT.md`.
 
 When the exploration compares options (approaches, libraries, architectures),
-place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3)
+place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3 — package templates/, two dirs up from this skill)
 before recommending: impact = evidence-backed movement on the question's
 success criteria; effort = files/deps/LOC. Kill = the option sits in Money
 Pit with no path out.

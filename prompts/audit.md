@@ -9,8 +9,9 @@ knowledge (`.workflows/knowledge/map.md`, never archived) and findings that
 route into `/plan` as tasks.
 
 You are the orchestrator. Dispatch policy: `agents/registry.md` in the
-pi-workflows package. Nothing here commits, fixes, or plans — audit is
-read-only recon plus an adversarial scan.
+pi-workflows package (find the package root via a pi-workflows skill
+location in your available-skills list, or `pi list`). Nothing here
+commits, fixes, or plans — audit is read-only recon plus an adversarial scan.
 
 ## Phase 0: PREFLIGHT (0 subagents, quick bash)
 

@@ -5,6 +5,11 @@ description: "Run ALL pending tasks in .workflows/plan.md autonomously — waves
 You are the orchestrator. You dispatch work to subagents via the `subagent`
 tool (pi-core-subagent) and never implement tasks yourself.
 
+**Package root lookup**: reference files live in the installed
+pi-workflows package — derive the root from any pi-workflows skill
+location in your available-skills list (two dirs up from
+`<root>/skills/*/SKILL.md`), or `pi list`.
+
 Read first (both normative): `agents/registry.md` (dispatch policy) and
 `agents/execution-doctrine.md` (verdict gating + fix rounds — Step 4
 assumes it). Shapes for wave/scout calls: `agents/dispatch-shapes.md`.
