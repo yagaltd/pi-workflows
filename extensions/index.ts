@@ -18,6 +18,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { execSync } from "child_process";
 
 /** Strip the leading "# Role:" header comment block from a role file. */
 export function roleBody(content: string): string {
@@ -81,18 +82,98 @@ export function resolveSubagentInput(
   return errors;
 }
 
-/** Hygiene drift between plan.md statuses and the audit trails. */
+/** Hygiene drift between plan.md statuses and the audit trails.
+ *  Done tasks are counted by status-line pattern — NOT raw ✅ emoji,
+ *  which also appears in prose (headers, notes) and inflates counts. */
 export function computeHygieneDrift(
   planContent: string,
   reviewFiles: { name: string; content: string }[]
 ): { missingContextMarkers: number; missingFinalVerdicts: number } {
-  const doneTasks = (planContent.match(/✅/g) || []).length;
-  const contextMarkers = (planContent.match(/^context: /gm) || []).length;
+  const doneTasks = (planContent.match(/- \*\*Status\*\*:? *✅/g) || []).length;
+  // markers appear as bare lines (`context: updated`) or inline bullets
+  // (`- **context: updated**`) per the /next closeout step
+  const contextMarkers = (planContent.match(/^\s*-?\s*\*{0,2}context: /gm) || []).length;
   const finalOkTrue = reviewFiles.filter((f) => /\*\*ok: true\*\*/.test(f.content)).length;
   return {
     missingContextMarkers: Math.max(0, doneTasks - contextMarkers),
     missingFinalVerdicts: Math.max(0, doneTasks - finalOkTrue),
   };
+}
+
+/** Files whose changes never require doc updates (docs/README/CHANGELOG
+ *  are the docs themselves; workflow state, CI config, assets, and lock
+ *  files are not user-facing behavior). */
+export function isDocsExempt(file: string): boolean {
+  return (
+    file === "" ||
+    file === "README.md" ||
+    file === "CHANGELOG.md" ||
+    file === ".gitignore" ||
+    file === "LICENSE" ||
+    file.endsWith(".lock") ||
+    file === "package-lock.json" ||
+    file === "bun.lockb" ||
+    file.startsWith("docs/") ||
+    file.startsWith(".workflows/") ||
+    file.startsWith(".github/") ||
+    file.startsWith(".git") ||
+    file.startsWith("asset/") ||
+    file.startsWith("assets/")
+  );
+}
+
+export interface DocsDrift {
+  /** code files committed after README.md's last commit (plan active) */
+  staleReadmeCount: number;
+  /** docs/*.md files while code changed since docs/'s last commit */
+  staleDocsCount: number;
+  /** plan complete (done === total > 0) → SHIP requires a CHANGELOG entry */
+  changelogPending: boolean;
+}
+
+/** Docs-policy drift, git-based (falls back to zeros without git).
+ *  exec runs a shell command in the project cwd and returns trimmed stdout
+ *  or null on failure (injected for testability). ref overrides the head
+ *  (used by the historical dogfood demo). */
+export function computeDocsDrift(
+  planContent: string,
+  exec: (cmd: string) => string | null,
+  listDocs: () => string[],
+  ref = "HEAD"
+): DocsDrift {
+  const done = (planContent.match(/- \*\*Status\*\*:? *✅/g) || []).length;
+  const total = (planContent.match(/- \*\*Status\*\*:/g) || []).length;
+  const changelogPending = total > 0 && done === total;
+
+  const codeChangedSince = (fromRef: string): number => {
+    const out = exec(`git diff --name-only ${fromRef}..${ref}`);
+    if (out === null || out === "") return 0;
+    return out
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((f) => !isDocsExempt(f)).length;
+  };
+
+  // README freshness: code committed after README's last commit,
+  // while the plan is executing (at least one ✅).
+  let staleReadmeCount = 0;
+  const readmeCommit = exec(`git log -1 --format=%H ${ref} -- README.md`);
+  if (readmeCommit && done > 0) {
+    staleReadmeCount = codeChangedSince(readmeCommit);
+  }
+
+  // docs/ folder freshness: docs exist + code changed since docs/'s
+  // last commit → all docs are potentially stale (coarse, reminder-grade).
+  let staleDocsCount = 0;
+  const docs = listDocs();
+  if (docs.length > 0 && done > 0) {
+    const lastDocsCommit = exec(`git log -1 --format=%H ${ref} -- docs`);
+    if (lastDocsCommit && codeChangedSince(lastDocsCommit) > 0) {
+      staleDocsCount = docs.length;
+    }
+  }
+
+  return { staleReadmeCount, staleDocsCount, changelogPending };
 }
 
 /* ---------------------------------- wiring ---------------------------------- */
@@ -121,14 +202,19 @@ export default function register(pi: any): void {
     return undefined;
   });
 
-  // 2. Hygiene watchdog — remind once per new gap count, never spam.
+  // 2. Hygiene watchdog — remind once per new drift state, never spam.
+  //    Injection is via the RETURN value of before_agent_start
+  //    ({ message: { customType, content, display } }) — verified against
+  //    the pi extensions docs (event.injectMessage does NOT exist).
   let lastNotified: string = "";
-  pi.on("before_agent_start", async (event: any, ctx: any) => {
+  pi.on("before_agent_start", async (event: any) => {
     try {
-      const cwd = event?.cwd || ctx?.cwd || process.cwd();
+      const cwd = event?.cwd || process.cwd();
       const planPath = path.join(cwd, ".workflows", "plan.md");
-      if (!fs.existsSync(planPath)) return;
+      if (!fs.existsSync(planPath)) return undefined;
       const plan = fs.readFileSync(planPath, "utf8");
+
+      // verdict/context-marker drift
       const reviewDir = path.join(cwd, ".workflows", "reviews");
       const reviewFiles: { name: string; content: string }[] = [];
       if (fs.existsSync(reviewDir)) {
@@ -140,25 +226,75 @@ export default function register(pi: any): void {
           });
         }
       }
-      const drift = computeHygieneDrift(plan, reviewFiles);
-      const key = JSON.stringify(drift);
-      if (
-        (drift.missingContextMarkers > 0 || drift.missingFinalVerdicts > 0) &&
-        key !== lastNotified
-      ) {
-        lastNotified = key;
-        const parts: string[] = [];
-        if (drift.missingContextMarkers > 0)
-          parts.push(`${drift.missingContextMarkers} ✅ task(s) missing a 'context:' marker`);
-        if (drift.missingFinalVerdicts > 0)
-          parts.push(`${drift.missingFinalVerdicts} ✅ task(s) without a final ok:true verdict on file`);
-        const reminder = `[pi-workflows hygiene] ${parts.join("; ")} — run the CONTEXT.md/verdict sweep (see /review Layer 3).`;
-        if (typeof event.injectMessage === "function") event.injectMessage(reminder);
-      } else if (drift.missingContextMarkers === 0 && drift.missingFinalVerdicts === 0) {
+      const hygiene = computeHygieneDrift(plan, reviewFiles);
+
+      // docs-policy drift (git-based; degrades to changelogPending only
+      // outside git)
+      const exec = (cmd: string): string | null => {
+        try {
+          return execSync(cmd, {
+            cwd,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+            timeout: 5000,
+          }).trim();
+        } catch {
+          return null;
+        }
+      };
+      const listDocs = (): string[] => {
+        const docsDir = path.join(cwd, "docs");
+        if (!fs.existsSync(docsDir)) return [];
+        return fs
+          .readdirSync(docsDir)
+          .filter((f) => f.endsWith(".md"))
+          .map((f) => path.join("docs", f));
+      };
+      const docs = computeDocsDrift(plan, exec, listDocs);
+
+      const parts: string[] = [];
+      if (hygiene.missingContextMarkers > 0)
+        parts.push(`${hygiene.missingContextMarkers} ✅ task(s) missing a 'context:' marker`);
+      if (hygiene.missingFinalVerdicts > 0)
+        parts.push(`${hygiene.missingFinalVerdicts} ✅ task(s) without a final ok:true verdict on file`);
+      if (docs.staleReadmeCount > 0)
+        parts.push(
+          `${docs.staleReadmeCount} code file(s) committed since README.md was last updated — check the DOCS-POLICY same-task rule`
+        );
+      if (docs.staleDocsCount > 0)
+        parts.push(`${docs.staleDocsCount} docs/ file(s) older than recent code changes`);
+      if (docs.changelogPending)
+        parts.push(
+          "plan complete — SHIP requires a CHANGELOG.md entry (orchestrator-written, /review Stage 3)"
+        );
+
+      // Dedupe on the boolean drift state — one reminder per episode,
+      // not per count change.
+      const key = JSON.stringify({
+        m: hygiene.missingContextMarkers > 0,
+        v: hygiene.missingFinalVerdicts > 0,
+        r: docs.staleReadmeCount > 0,
+        d: docs.staleDocsCount > 0,
+        c: docs.changelogPending,
+      });
+
+      if (parts.length === 0) {
         lastNotified = "";
+        return undefined;
       }
+      if (key === lastNotified) return undefined;
+      lastNotified = key;
+      const reminder = `[pi-workflows hygiene] ${parts.join("; ")} — run the sweep (see /review Layer 3/4).`;
+      return {
+        message: {
+          customType: "pi-workflows-hygiene",
+          content: reminder,
+          display: true,
+        },
+      };
     } catch {
       // Watchdog must never break a turn.
+      return undefined;
     }
   });
 }
