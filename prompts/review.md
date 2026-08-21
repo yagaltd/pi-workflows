@@ -63,23 +63,10 @@ If Stage 1 FAILS → stop here.
 ### Step 1: Bug-hunter scan (subagent, not CLI)
 
 The `bug-hunter` binary is an installer, not a scanner — the protocol is
-agent-driven. Dispatch it as a write-toolset subagent:
-
-```text
-subagent({
-  agent: "bug-hunter-review",
-  prompt: "You are the bug-hunter runtime. Read ~/.pi/agent/skills/bug-hunter/SKILL.md
-           (or ./.pi/skills/bug-hunter/SKILL.md) and modes/local-sequential.md,
-           then follow the protocol EXACTLY: scan-only, single-pass, fail
-           closed. Write canonical artifacts under .bug-hunter/. NEVER fix,
-           never commit.",
-  write: true, thinking: "high", background: false,
-  task: "Adversarially scan the review diff (staged/working changes) for
-         defects and vulnerabilities. Output the summary: confirmed /
-         dismissed / manualReview counts + first evidence line per confirmed finding."
-})
-```
-If the bug-hunter skill is not installed, skip with a note.
+agent-driven. Dispatch it per the **bug-hunter shape** in
+`agents/dispatch-shapes.md` (write toolset, high thinking, scan-only,
+artifacts under `.bug-hunter/`), scoped to the review diff. If the
+bug-hunter skill is not installed, skip with a note.
 
 ### Step 2: Judgment-based quality review
 

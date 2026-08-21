@@ -36,15 +36,32 @@ if [ -n "$BAD" ] || [ -n "$BAD2" ] || [ -n "$BAD3" ]; then
     [ -n "$BAD3" ] && echo -e "$BAD3" | sed 's/^/DRIFT: stale pointer: /'; } >&2; FAIL=1
 else ok "no old-API remnants, no dead integrations, no stale fork pointers"; fi
 
-echo "== 3. Every role file referenced by prompts exists and is registered =="
+echo "== 3. Roles: files exist, registered, and every @role: ref resolves =="
 for role in worker scout reviewer quality-reviewer; do
   [ -f "agents/$role.md" ] || err "agents/$role.md missing but referenced by prompts"
   grep -q "| $role |" agents/registry.md || err "agents/$role.md exists but not in agents/registry.md Roles table"
 done
+grep -rhoE '@role:[a-z][a-z0-9-]*' prompts/ skills/ agents/ 2>/dev/null | sort -u | sed 's/@role://' | while read -r r; do
+  [ -f "agents/$r.md" ] || err "@role:$r referenced but agents/$r.md missing"
+  grep -q "| $r |" agents/registry.md || err "@role:$r referenced but not in registry Roles table"
+done
 grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u | while read -r f; do
   [ -f "$f" ] || err "prompt/skill references $f which does not exist"
 done
-ok "role files present and registered (worker/scout/reviewer/quality-reviewer)"
+ok "role files present, registered, @role refs resolve"
+
+echo "== 3b. Skill references/ modules resolve =="
+grep -rhoE 'references/[a-z-]+\.md' skills/ 2>/dev/null | sort -u | while read -r ref; do
+  found=0
+  for d in skills/*/; do [ -f "${d}${ref}" ] && found=1 && break; done
+  [ "$found" = "1" ] || err "referenced module $ref not found under any skill"
+done
+ok "skill reference modules resolve"
+
+echo "== 3c. Extension ships and is registered =="
+[ -f "extensions/index.ts" ] || err "extensions/index.ts missing (pi manifest registers ./extensions)"
+node -e 'const p=JSON.parse(require("fs").readFileSync("package.json"));((p.pi&&p.pi.extensions)||[]).some(e=>e.includes("extensions"))||process.exit(1)' || err "package.json pi.extensions does not register ./extensions"
+ok "extension present and registered"
 
 echo "== 4. Skills referenced by prompts exist =="
 # prompts say: Follow the '<skill>' skill workflow

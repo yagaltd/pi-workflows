@@ -9,6 +9,11 @@ wins and the prompt must be fixed.
 
 ## Roles
 
+Roles are referenced as `@role:<name>` in dispatch shapes — the pi-workflows
+extension (shipped in this package) substitutes the verbatim role body at
+execution time; without the extension, the orchestrator reads and pastes
+`agents/<name>.md` itself.
+
 | id | prompt file | toolset | model | thinking default |
 |---|---|---|---|---|
 | scout | `agents/scout.md` | read-only (`write: false`) | inherit parent | low |

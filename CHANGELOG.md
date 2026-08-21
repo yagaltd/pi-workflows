@@ -4,6 +4,20 @@ All notable changes to pi-workflows are documented here.
 
 ---
 
+## v0.5.0 (unreleased — branch refactor/lean-context)
+
+### Added — pi-workflows extension (first runtime code) + lean-context architecture
+
+Context-budget refactor: prompts shrank 40-70% by moving conditional content to on-demand reference files and making role dispatch mechanical.
+
+- **`extensions/index.ts`** (registered via `pi.extensions`): (1) `@role:<name>` resolution — subagent tool calls with `prompt: "@role:worker"` get the verbatim `agents/<role>.md` body substituted at execution time (`tool_call` event, mutable input; unresolved refs BLOCK the call); the orchestrator never reads or pastes role files — kills the worker-workflow duplication structurally. (2) Hygiene watchdog (`before_agent_start`): ✅ tasks missing `context:` markers or final `ok:true` verdicts trigger a one-line reminder injection at the moment of drift (once per new gap count — no spam). Pure logic unit-tested (13 tests, `bun test`).
+- **Reference-file splits** (progressive disclosure): `agents/execution-doctrine.md` (verdict gating + fix-round shapes + reviews/ format — loaded on rejection), `agents/dispatch-shapes.md` (parallel wave / scout / bug-hunter shapes — loaded when that shape fires), `templates/CONTRACT-FORMAT.md` (Phase 5 contract generation — loaded after plan approval), `skills/brainstorm/references/{ledger-format,dispatch-shapes,resume-protocol}.md` (loaded per phase).
+- **Prompts rewritten lean**: next.md 15.0KB → 4.5KB (sequential shape inline, everything conditional referenced), auto-next.md 6.1KB → 3.8KB, brainstorm SKILL.md 10.2KB → 4.6KB router, plan SKILL.md 17.8KB → 14.4KB. Worker workflow stated ONCE (role file), not restated in task texts.
+- **review.md / audit.md**: bug-hunter dispatch blocks → shared shape reference in `agents/dispatch-shapes.md`.
+- **templates/AGENTS.md**: trimmed 3.7KB → 2.4KB (every rule intact, prose compressed) — always-on cost per user-project session reduced.
+- **Drift checker**: new rules — every `@role:` ref resolves to a registered role file; every `references/*.md` module resolves; extension present + registered in the pi manifest. Red-tested.
+- `.workflows/` gitignored (dogfooding artifacts stay local).
+
 ## v0.4.0 (2026-08-21)
 
 ### Breaking: migrated to @arhen/pi-core-subagent

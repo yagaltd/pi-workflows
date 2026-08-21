@@ -463,8 +463,12 @@ pi-workflows/
 ├── .githooks/pre-commit         # runs scripts/check-drift.sh on every commit
 ├── .github/workflows/ci.yml     # drift check on every push/PR
 ├── scripts/check-drift.sh       # views-vs-sources drift checker (exit 1 on drift)
-├── agents/                   # role prompts — pasted verbatim into subagent `prompt:`
+├── extensions/index.ts        # @role: substitution at dispatch + hygiene watchdog (unit-tested)
+├── tests/extension.test.ts    # pure-logic tests for the extension
+├── agents/                   # role prompts — resolved mechanically via `@role:`
 │   ├── registry.md           # dispatch policy: role → toolset/model/thinking per bottleneck tag
+│   ├── execution-doctrine.md # verdict gating + fix rounds + reviews/ format (on demand)
+│   ├── dispatch-shapes.md    # parallel wave / scout / bug-hunter call shapes (on demand)
 │   ├── worker.md              # TDD vertical slices, contract verification, blocker protocol
 │   ├── scout.md               # structured codebase recon, domain memory
 │   ├── reviewer.md            # mechanical agent-spec + project checks, binding Verdict
