@@ -244,6 +244,14 @@ prompts can stay lean:
 - **Hygiene watchdog**: the moment plan.md has ✅ tasks missing `context:`
   markers or final `ok:true` verdicts on file, a one-line reminder injects
   into the next turn — drift surfaces when it happens, not at `/review`.
+- **Docs-drift watchdog** (per the docs policy): code files committed
+  after README.md's last update while a plan is executing → README
+  staleness reminder; `docs/*.md` older than recent code changes →
+  staleness reminder; plan complete but not SHIPped → CHANGELOG-entry
+  reminder. Git-based, one reminder per drift episode (no spam),
+  degrades gracefully outside git. On this very repo it flagged the
+  historical README-lag episode at 14 stale files, one commit into
+  the lag instead of four commits later.
 
 Without the extension everything still works (prompts instruct manual
 role-file pasting) — the extension removes the failure mode mechanically.
@@ -511,7 +519,7 @@ pi-workflows/
 │   ├── reviewer.md            # mechanical agent-spec + project checks, binding Verdict
 │   └── quality-reviewer.md    # P0-P3 rubric, security, error handling, binding Verdict
 ├── templates/
-│   ├── AGENTS.md              # project charter — copied to project root by /idea, binds all sessions
+│   ├── AGENTS.md              # project charter — installed by /init (binds all sessions); authoring rules in DOCS-POLICY.md
 │   ├── CONTRACT-FORMAT.md    # .spec contract template + writing rules (loaded at plan Phase 5)
 │   ├── DOCS-POLICY.md        # README/CHANGELOG/docs/ discipline: what goes where, update gates, SHIP steps
 │   ├── THINKING-TOOLS.md      # five whys · six hats · impact×effort matrix
