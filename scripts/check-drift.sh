@@ -36,19 +36,22 @@ if [ -n "$BAD" ] || [ -n "$BAD2" ] || [ -n "$BAD3" ]; then
     [ -n "$BAD3" ] && echo -e "$BAD3" | sed 's/^/DRIFT: stale pointer: /'; } >&2; FAIL=1
 else ok "no old-API remnants, no dead integrations, no stale fork pointers"; fi
 
+
+
 echo "== 3. Roles: files exist, registered, and every @role: ref resolves =="
+SECTION3_FAIL=0
 for role in worker scout reviewer quality-reviewer; do
-  [ -f "agents/$role.md" ] || err "agents/$role.md missing but referenced by prompts"
-  grep -q "| $role |" agents/registry.md || err "agents/$role.md exists but not in agents/registry.md Roles table"
+  [ -f "agents/$role.md" ] || { err "agents/$role.md missing but referenced by prompts"; SECTION3_FAIL=1; }
+  grep -q "| $role |" agents/registry.md || { err "agents/$role.md exists but not in agents/registry.md Roles table"; SECTION3_FAIL=1; }
 done
 while read -r r; do
-  [ -f "agents/$r.md" ] || err "@role:$r referenced but agents/$r.md missing"
-  grep -q "| $r |" agents/registry.md || err "@role:$r referenced but not in registry Roles table"
+  [ -f "agents/$r.md" ] || { err "@role:$r referenced but agents/$r.md missing"; SECTION3_FAIL=1; }
+  grep -q "| $r |" agents/registry.md || { err "@role:$r referenced but not in registry Roles table"; SECTION3_FAIL=1; }
 done < <(grep -rhoE '@role:[a-z][a-z0-9-]*' prompts/ skills/ agents/ 2>/dev/null | sort -u | sed 's/@role://')
 while read -r f; do
-  [ -f "$f" ] || err "prompt/skill references $f which does not exist"
+  [ -f "$f" ] || { err "prompt/skill references $f which does not exist"; SECTION3_FAIL=1; }
 done < <(grep -rhoE 'agents/[a-z-]+\.md' prompts/ skills/ 2>/dev/null | sort -u)
-ok "role files present, registered, @role refs resolve"
+[ "$SECTION3_FAIL" -eq 0 ] && ok "role files present, registered, @role refs resolve"
 
 echo "== 3b. Skill references/ modules resolve =="
 while read -r ref; do

@@ -4,7 +4,14 @@ All notable changes to pi-workflows are documented here.
 
 ---
 
-## v0.5.0 (unreleased — branch refactor/lean-context)
+## v0.5.0 (2026-08-21)
+
+### Fixed (review round — /review Stage 1-2 on this very branch)
+
+- **Drift gate was a no-op (BH-001, critical)**: every `grep | while read` loop in `check-drift.sh` ran `err()` in a pipeline subshell — `FAIL=1` never reached the parent; drift printed yet the script exited 0 ("CLEAN"). All loops converted to process substitution (`done < <(cmd)`); the `ok:` line now only prints when its section is clean. Red-tested (injected ghost role → exit 1). This is why the findings below shipped green.
+- **Dispatch-note leak into every subagent prompt (BH-002)**: `roleBody()` stripped only a *leading* HTML comment, but role files put the note *after* the `# Role:` line — the meta-note (with a dangling package-relative path) was injected into every `@role:` dispatch. Fixed strip order; regression test reads the real four role files; live-verified.
+- **Dialect triplication (BH-003)**: `prompts/next.md` still used the verbatim-paste dialect in four templates, contradicting the `@role:` doctrine in dispatch-shapes/execution-doctrine/registry. Rewritten: routes to all three reference files, `@role:` everywhere, short task texts (workflow lives in the role prompt), duplicated verdict-format/fix-round/workflow blocks deleted (5.8KB). registry.md intro rewritten to the `@role:` mechanism.
+- docs-check duplicate step numbering; CHANGELOG size/test-count/dedupe claims corrected to match the artifact.
 
 ### Added — pi-workflows extension (first runtime code) + lean-context architecture
 
