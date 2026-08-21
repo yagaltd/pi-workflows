@@ -135,7 +135,9 @@ Then finish with `/review` → all green? ship it.
 **Improve something?**
 ```
 /optimize API response latency
-  → autoresearch loop: benchmark, iterate, keep winners
+  → picks a mode: parallel experiments (unknown approach) ·
+    contracted deep pass (equivalence proof) · autoresearch loop
+    (unattended iterations: benchmark + oracle prepared, then handoff)
 ```
 
 **Try multiple approaches?**
@@ -143,7 +145,7 @@ Then finish with `/review` → all green? ship it.
 /prototype approach A vs approach B
   → parallel workers build minimal proofs-of-concept
   → each benchmarks and reports results
-/integrate approach A
+/add integrate approach A
   → production integration with full verification
 ```
 
@@ -162,19 +164,21 @@ IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──
 * interview uses pi-interview when installed, falls back to chat
 ```
 
-### Gates — worker tasks are verified before moving on
+### Gates — verdict gating: no model marks its own work done
 
-Each worker task goes through multiple checkpoints that agents **cannot skip**:
+Each worker task goes through checkpoints that agents **cannot skip**:
 
 ```
-Worker implements the task
-  → Contract gate: did we build the right thing? (agent-spec lifecycle)
-  → Boundary gate: did we change only allowed files? (agent-spec guard)
-  → Adversarial gate: did we introduce bugs? (bug-hunter scan)
-  → Quality gate: is the code clean? (quality-reviewer judgment)
+Worker implements the task (TDD, self-verifies)
+  → Reviewer verdict (mechanical): agent-spec lifecycle + guard + project checks
+     → ok:true  → ✅ in plan.md (only the orchestrator writes it)
+     → ok:false → FIX ROUND: worker re-dispatched with the rejection evidence
+                  verbatim → re-review → … capped at the spec's max-rounds
+                  (default 2), then ❌ + verdict chain to you
+  → Quality gate (judgment): same verdict loop, after mechanical passes
 ```
 
-Short-circuits on first failure. Worker gets failure evidence and retries. You never see a broken task silently passing.
+Verdicts persist to `.workflows/reviews/<task>.md` — the fixer cites them, `/review` audits the trail, SHIP archives them. Reviewers verify, never fix; workers never write plan.md — the orchestrator is the single writer.
 
 ### Three hard rails
 
@@ -184,28 +188,28 @@ Short-circuits on first failure. Worker gets failure evidence and retries. You n
 | **Adversarial** | Did we introduce bugs or vulnerabilities? | bug-hunter: Recon → Hunter → Skeptic → Referee — optional, recommended |
 | **Quality** | Is the code maintainable? | quality-reviewer: simplicity, security, error handling — judgment-based |
 
-### JIT contracts
+### Contracts (generated after approval, then kept honest)
 
-Contracts are written just-in-time: only for the next 1-2 tasks, not the whole plan upfront. The architect writes the first batch during planning. `/next` writes the rest as tasks become eligible.
+`/plan`/`/idea` write the plan first, stop for approval, THEN generate `.spec` contracts for every worker task. After that, `/next` keeps them honest: before executing a task it re-validates its contract against what was actually built, and after each task it updates the next 1-2 downstream contracts from learnings (significant changes go back to you first).
 
 Why:
-- **Fresh context** — contracts incorporate learnings from completed tasks
-- **No waste** — if the plan changes mid-run, unused contracts are never written
-- **Adaptability** — later contracts adjust based on what worked or didn't
-
-After each task completes, `/next` writes ahead: JIT contracts for the next 1-2 eligible tasks, using learnings from the task that just finished.
+- **Human approves contracts, not code** — you review the plan + contracts once, upfront
+- **Fresh context** — downstream contracts absorb learnings from completed tasks
+- **No silent drift** — a contract that no longer matches reality is updated and logged, never ignored
 
 Everything else (coding guidelines, architecture preferences) is a **soft rail** — instructions that guide but can't force.
 
 ### Agents
 
-| Agent | Model | Purpose |
+Roles are dispatched inline per call (no agent files) — model + thinking come from `agents/registry.md`, driven by the task's bottleneck tag (model empty = inherit your session's model):
+
+| Role | Thinking default | Purpose |
 |---|---|---|
-| `scout` | deepseek/deepseek-v4-flash (high) | Fast codebase recon with structured output |
-| `worker` | deepseek/deepseek-v4-flash (xhigh) | TDD vertical slices within contract boundaries. Reports blockers. |
-| `reviewer` | zai/glm-5.1 (low) | Mechanical verification only. No judgment. |
-| `quality-reviewer` | deepseek/deepseek-v4-pro (xhigh) | Judgment-based review after mechanical pass. Security, simplicity, error handling. |
-| `bug-hunter` | (external skill) | Adversarial bug hunting pipeline (Recon → Hunter → Skeptic → Referee) |
+| `scout` | low | Fast codebase recon with structured output. Read-only. |
+| `worker` | medium (xhigh if 🔴, high if 🟡) | TDD vertical slices within contract boundaries. Reports blockers + mandatory Domain Memory section. |
+| `reviewer` | high (xhigh verifying 🔴) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. |
+| `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Security, simplicity, error handling. |
+| `bug-hunter` | high | Adversarial pipeline (Recon → Hunter → Skeptic → Referee) — dispatched as a subagent from `/next` and `/review`. |
 
 ### Bottleneck tags
 
@@ -251,7 +255,7 @@ WORKER_BLOCKER:
 ### Quality pipeline
 
 ```
-ARCHITECT (xhigh model)
+ARCHITECT (your session model)
     │
     ├── Structured interview to gather requirements
     ├── /challenge: adversarial grill, updates .workflows/CONTEXT.md inline
@@ -263,24 +267,21 @@ WORKER (subagent, thinking per bottleneck tag — see agents/registry.md)
     │
     ├── Reads contract → TDD vertical slices (RED → GREEN → refactor per scenario)
     ├── Self-verifies: agent-spec lifecycle → project checks
-    ├── Reports WORKER_BLOCKER if stuck
-    ├── Logs cost + duration + learnings to .workflows/plan.md
-    ├── Updates .workflows/CONTEXT.md with domain decisions
-    └── Writes ahead: JIT contracts for next 1-2 tasks
+    ├── Reports WORKER_BLOCKER if stuck + mandatory Domain Memory section
+    └── NEVER commits — the uncommitted diff is the reviewer's ground truth
     │
     ▼
 REVIEWER (subagent, mechanical — high thinking)
     │
     ├── agent-spec lifecycle (scenarios)
     ├── agent-spec guard (boundaries)
-    └── Project checks (tests, lint, types, build)
-    Stops on first failure. No judgment.
+    ├── Project checks (tests, lint, types, build)
+    └── Binding Verdict: ok:true → ✅ · ok:false → fix round (capped)
     │
     ▼
-ADVERSARIAL (optional subagents)
+ADVERSARIAL (bug-hunter subagent — after code changes, and at /review on the whole diff)
     │
-    ├── bug-hunter: staged scan for bugs and vulnerabilities
-    └── open-code-review: line-level AI review with position tracking
+    └── Recon → Hunter → Skeptic → Referee, scan-only
     │
     ▼
 QUALITY-REVIEWER (subagent, medium thinking, judgment)
@@ -290,19 +291,26 @@ QUALITY-REVIEWER (subagent, medium thinking, judgment)
     ├── Error handling (swallowed errors, silent failures)
     ├── Surgical changes (no scope creep)
     └── Human callouts (new deps, auth changes, migrations)
-    Empty review = clean code = success.
+    Empty review = clean code = success. Verdict → fix rounds, same cap.
 ```
+
+(The orchestrator — not the worker — writes plan.md statuses/learnings and updates CONTEXT.md from the worker's Domain Memory report.)
 
 ### Cost strategy
 
+Model + thinking are set **per subagent task at dispatch time** via the
+`agents/registry.md` ladder (bottleneck tag → model/thinking). Spend tokens
+on reasoning, not model names:
+
 ```
-CHEAP   (explore/scout/status/docs):      cheap model + low thinking
-MEDIUM  (fix/quality-reviewer):           medium model + medium thinking
-FULL    (plan/build/refactor):            strongest + high thinking
-CURRENT (optimize):                       whatever you're on
+scout / recon:                inherit model, low thinking
+standard tasks:               cheap/fast model, medium thinking
+risky + blocking tasks:       strong model, high/xhigh thinking
+reviewer:                     inherit, high (xhigh for 🔴)
+quality-reviewer:             inherit, medium
 ```
 
-Cost and duration are estimated by the agent after each task and logged to .workflows/plan.md. Not metered by pi — the agent reports its own estimate based on token usage visible in the session. `/status` aggregates from .workflows/plan.md entries.
+Cost and duration come from subagent usage stats, logged by the orchestrator to `.workflows/plan.md` after each task. `/status` aggregates from those entries.
 
 ## Contract Format
 
@@ -462,16 +470,22 @@ settings anymore — the dispatch policy IS the override.
 pi-workflows/
 ├── package.json
 ├── README.md
+├── CHANGELOG.md
+├── .githooks/pre-commit         # runs scripts/check-drift.sh on every commit
+├── .github/workflows/ci.yml     # drift check on every push/PR
+├── scripts/check-drift.sh       # views-vs-sources drift checker (exit 1 on drift)
 ├── agents/                   # role prompts — pasted verbatim into subagent `prompt:`
 │   ├── registry.md           # dispatch policy: role → toolset/model/thinking per bottleneck tag
 │   ├── worker.md              # TDD vertical slices, contract verification, blocker protocol
 │   ├── scout.md               # structured codebase recon, domain memory
-│   ├── reviewer.md            # mechanical agent-spec + project checks
-│   └── quality-reviewer.md    # P0-P3 rubric, security, error handling
+│   ├── reviewer.md            # mechanical agent-spec + project checks, binding Verdict
+│   └── quality-reviewer.md    # P0-P3 rubric, security, error handling, binding Verdict
 ├── templates/
+│   ├── AGENTS.md              # project charter — copied to project root by /idea, binds all sessions
+│   ├── THINKING-TOOLS.md      # five whys · six hats · impact×effort matrix
 │   ├── REVIEW_GUIDELINES.md   # starter template for project-specific rules
-│   ├── CONTEXT-FORMAT.md      # how to maintain domain glossary
-│   └── ADR-FORMAT.md          # architecture decision record template
+│   ├── CONTEXT.md / CONTEXT-FORMAT.md  # domain glossary seed + how to maintain it
+│   └── ADR.md / ADR-FORMAT.md # architecture decision record template + format
 ├── skills/
 │   ├── challenge/SKILL.md     # adversarial grill, updates .workflows/CONTEXT.md inline
 │   ├── explore/SKILL.md       # research + synthesize + prototype
@@ -500,11 +514,12 @@ pi-workflows/
     ├── review.md              # /review — verify + adversarial + quality review
     ├── verify.md              # /verify — full mechanical suite
     ├── contract.md            # /contract — show contract for a task
-    ├── next.md                # /next — waves, TDD workers, blockers, goals
+    ├── next.md                # /next — waves, verdict gating, fix rounds, blockers
     ├── auto-next.md           # /auto-next — autonomous full-plan execution
-    ├── status.md              # /status — progress + cost summary
+    ├── status.md              # /status — progress + cost + context-marker hygiene
     ├── debug.md               # /debug — hypothesis-driven investigation
     ├── prototype.md           # /prototype — parallel A/B/C (backend or UI)
+    ├── abort.md               # /abort — abandon plan → archive/superseded
     └── docs.md                # /docs — generate/update project documentation
 ```
 
@@ -517,6 +532,7 @@ pi-workflows/
 | `/idea <description + repos/URLs>` | Productize idea: explore → grill decisions → plan → specs → approval |
 | `/plan <description>` | Decompose into tasks + contracts |
 | `/explore <question>` | Research / kill / prototype, no production planning (cheap) |
+| `/audit [scope]` | Codebase map + adversarial pre-scan → knowledge/map.md |
 | `/amend <change>` | Update existing plan/specs when decisions change |
 | `/status` | Show plan progress + cost summary (cheap) |
 | `/abort` | Abandon the live plan → archive to `.workflows/archive/superseded/` |
@@ -529,14 +545,13 @@ pi-workflows/
 | `/add <feature-or-spec>` | Execute approved contract; broad ideas route to `/idea` |
 | `/fix <bug>` | Diagnose with feedback loop, fix within boundaries |
 | `/refactor <scope>` | Restructure code, behavior preserved |
-| `/optimize <target>` | Autoresearch loop |
+| `/optimize <target>` | Three modes: experiments · deep pass · autoresearch loop |
 
 ### Prototyping
 
 | Command | What it does |
 |---|---|
 | `/prototype <theories>` | Parallel mini-prototypes to test approaches |
-| `/integrate <prototype>` | Integrate validated prototype into production |
 
 ### Verification
 
@@ -550,7 +565,7 @@ pi-workflows/
 
 | Command | What it does |
 |---|---|
-| `/docs [area]` | Generate/update project docs (cheap model) |
+| `/docs [area]` | Generate/update project docs (cheap dispatch) |
 | `/docs all` | Generate full doc set |
 
 ### Delegated
@@ -561,4 +576,4 @@ pi-workflows/
 
 ### Flow
 
-`/idea` → `/challenge` (grill plan) → approve plan → `/next` × N → `/review` → ship
+`/idea` → `/challenge` (grill plan) → approve plan → `/next` × N (verdict-gated, fix rounds) → `/review` → SHIP (commit + archive) — or `/abort` to archive as superseded

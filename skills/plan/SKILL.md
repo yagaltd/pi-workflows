@@ -426,11 +426,10 @@ Once approved, tell the human:
 
 ```
 Plan approved. Execute with:
-  /next    → run the next pending task
-  /task 3  → run a specific task
+  /next    → run the next pending task (verdict-gated, fix rounds on reject)
   /status  → show plan progress + cost summary
-  /verify  → run 3-layer verification on all contracts
-  /review  → mechanical + quality review, then SHIP (archives the plan)
+  /verify  → run mechanical verification on all contracts
+  /review  → tier-2 gate + SHIP (commit + archive)
   /abort   → abandon the plan (archives to superseded)
 
 Or run tasks manually:
