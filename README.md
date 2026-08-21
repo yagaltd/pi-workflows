@@ -483,6 +483,7 @@ pi-workflows/
 │   ├── fix/SKILL.md           # feedback loop → fix + regression test
 │   ├── refactor/SKILL.md      # restructure with behavior preservation
 │   ├── docs/SKILL.md          # generate/update project docs
+│   ├── optimize/SKILL.md      # measurement-gated deep optimization (baseline, equivalence oracle, delta floors)
 │   └── docs-check/SKILL.md    # validate doc freshness
 └── prompts/
     ├── idea.md                # /idea — explore + grill + plan + contracts

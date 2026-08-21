@@ -1,6 +1,21 @@
 ---
-description: "Optimize — run parallel optimization experiments, keep the winner"
+description: "Optimize — parallel optimization experiments, keep the winner"
 ---
+
+Two modes — pick by the situation:
+
+1. **Experiment mode (this prompt's flow below)**: 2-4 *candidate strategies*
+   compete in parallel, benchmarked, winner kept. Use when the best approach
+   is unknown and alternatives are cheap to try.
+2. **Deep optimization mode**: a *single known target* must get measurably
+   faster with behavior provably unchanged — follow the 'optimize' skill
+   workflow (load skills/optimize/SKILL.md with the read tool): baseline-or-
+   nothing gate, equivalence oracle, measured-delta contracts, no-regression
+   sweep. Use when the target is already chosen and correctness of "no
+   behavior change" must be proven.
+
+If unsure which mode: if you can name the hot path, use the skill; if you're
+still choosing between approaches, use the experiment flow below.
 
 ## Phase 1: DEFINE TARGET AND BASELINE
 

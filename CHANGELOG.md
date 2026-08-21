@@ -39,6 +39,10 @@ New command + skill for the phase before `/explore`/`/idea`: market/competitor r
 
 - **Durable knowledge tier `.workflows/knowledge/`**: `/explore` now writes `explore-<date>-<slug>.md` (question, per-angle findings with citations, synthesis, verdict) + a `LOG.md` line; `/idea` persists substantial recon as `evidence-<date>-<slug>.md`; `/next` persists scout reports verbatim as `scout-<task-id>.md`. Subagents stay read-only by design (single-writer) — the orchestrator persists what they return. `knowledge/` joins CONTEXT/ADR/LOG as never-archived. Previously exploration findings were chat-only ephemera (nothing hit disk even pre-refactor).
 
+### Added — `skills/optimize` (deep optimization mode)
+
+Measurement-gated optimization skill (appeared during user testing, adopted): Phase 0 baseline-or-nothing hard gate (committed benchmark, N reps, median + spread, baked-in equivalence oracle), Phase 1 profile-names-the-target, Phase 2 double contracts (equivalence clause + measured-delta clause with rejection floors), Phase 3 per-task worker+reviewer with independently reproduced numbers, Phase 4 integrated re-run + no-regression sweep. `prompts/optimize.md` now routes explicitly: experiment mode (parallel candidates, this prompt) vs deep mode (this skill).
+
 ### Changed
 
 - **CONTEXT.md update made deterministic** (root cause of missed updates: conditional step + no structural forcing): worker reports now carry a **mandatory `## Domain Memory`** section (Terms/Decisions/Conflicts, "none" valid — never omitted); `/next` + `/auto-next` always record a `context: <updated|no changes>` marker per task in Execution Notes; `/status` reports `context markers: X/Y`; `/review` Layer 3 audits markers and SHIP gains a **domain-memory sweep** (guaranteed backstop — promotes unpersisted terms/decisions to CONTEXT.md/ADRs before archive).
