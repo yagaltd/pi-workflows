@@ -18,6 +18,13 @@ Context-budget refactor: prompts shrank 40-70% by moving conditional content to 
 - **Drift checker**: new rules — every `@role:` ref resolves to a registered role file; every `references/*.md` module resolves; extension present + registered in the pi manifest. Red-tested.
 - `.workflows/` gitignored (dogfooding artifacts stay local).
 
+### Added — engine-enforced verification loop (plan 20260821-001, dogfooded live)
+
+- **Unified worker→reviewer graph**: sequential `/next` dispatches ONE subagent call — `tasks: [worker, reviewer(needs: worker)]` — the reviewer fires mechanically when the worker settles (zero orchestrator turns; worker output auto-prepended). Engine = unconditional sequencing; orchestrator = conditionality (fix rounds and re-reviews stay follow-up dispatches). A failed worker auto-aborts its reviewer node — the abort is the failure signal.
+- **Verification policy (complexity-gated reviewer tiers)**: registry table mapping task traits (derived orchestrator-side from spec tags + Intent + Boundaries — never worker self-assessed) to reviewer cost: docs-tier → low thinking, one pass; standard-tier → medium-high; security/concurrency/parsing/external-input traits → strongest model + xhigh. Complexity scales reviewer cost, never the verdict's existence.
+- **Quality-reviewer placement**: per-task only for 🔴/🟡/🟠 tags, standalone follow-up after mechanical ok:true (never a `needs` node — conditional on the verdict), NEVER per-wave (waves are independent parallel tasks with disjoint boundaries; `/review` is the whole-plan quality gate).
+- **Live evidence** (scratch-repo dogfood, all recorded in plan Execution Notes): reviewer auto-fired 5× via needs edges; tier dispatches differed correctly (docs→low, security→xhigh); a REAL rejection exercised the full fix-round loop (xhigh reviewer caught a contract self-conflict → amend → docs-only fix → ok); 🔴 task got its tag-gated quality review. Unplanned robustness proof: two orchestrator cwd mis-dispatches were each caught independently by worker (WORKER_BLOCKER), reviewer (FAIL), and quality-reviewer (refused phantom approval). Malformed graphs (needs→agent-name) rejected by the engine before spawning.
+
 ## v0.4.0 (2026-08-21)
 
 ### Breaking: migrated to @arhen/pi-core-subagent
