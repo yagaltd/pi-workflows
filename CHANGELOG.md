@@ -4,7 +4,7 @@ All notable changes to pi-workflows are documented here.
 
 ---
 
-## v0.4.0 (unreleased)
+## v0.4.0 (2026-08-21)
 
 ### Breaking: migrated to @arhen/pi-core-subagent
 
