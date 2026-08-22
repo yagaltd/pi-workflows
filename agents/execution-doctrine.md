@@ -197,3 +197,40 @@ Then re-dispatch the reviewer standalone (round N+1: single-task form,
 no `needs`). Repeat until ok:true or cap.
 At the cap: mark ❌ FAILED, append the final round, present the verdict
 chain to the human (every finding + what was attempted).
+
+## Dispatch failure taxonomy (six classes) & the inline/worker value matrix
+
+Dogfooded on MorphEditor plan 20260822-008: 5 of 7 implementation
+dispatches misfired with the SAME class before the pattern was named.
+Classify every misfire before re-dispatching — the class decides the fix.
+
+| # | Class | Signature | Fix |
+|---|---|---|---|
+| 1 | wrong-artifact | Output exists but wrong shape/location (e.g. plan doc where code was asked) | Re-dispatch with explicit artifact path + format |
+| 2 | budget-exhaustion | stopReason=length; reasoning ate the budget before the first write | Explicit line budget + "write early" instruction |
+| 3 | capability-gap | Model/thinking route lacks what the task needs (tool schema missing, thinking level unsupported) | Change model/thinking at dispatch — never retry same route |
+| 4 | grounding-gap | Artifact cites facts not on disk (hallucinated APIs, invented conventions) | Pre-inline the scout facts; re-dispatch |
+| 5 | **workflow-hijack** | Worker converts an implementation task into a research/planning doc — zero production files; may write into orchestrator-owned dirs (`.workflows/scout/`, `specs/`) | Two strikes → **inline**; salvage the research as scout facts |
+| 6 | silent-death | Session/tool dies mid-run; extension may even report success | Verify artifacts on disk, never trust 'succeeded'; recover from child session JSONL |
+
+### The open-ended/bounded split (class-5 root cause)
+
+The standard slot (cheap model) lands **bounded** tasks — ports, mirrors,
+verbatim implementations with a PoC or spec as source — first try. It
+**misfires on open-ended integration/design tasks** ("wire the modules
+together", "make it work") because ambiguity makes research-documents the
+model's safest completion. Prompt framing does NOT reliably fix this (the
+plan-008 T4 round 3 had every fact pre-inlined and still produced research).
+
+**Routing rule**: open-ended tasks (Tier B 🟡/🔴 with design decisions, any
+"integration" task) go **orchestrator-inline** or to the `strong` slot;
+bounded port/mirror/doc tasks go to workers on the `standard` slot. Salvage
+rule: a class-5 misfire's research output is usually high quality — mine it
+as scout facts for the inline implementation instead of discarding.
+
+### Misfire accounting (mechanical, per run)
+
+Every dispatch misfire costs ~10–25 min wall + a wasted worktree. Record
+in LOG.md per task: `T<N> misfire x<K> (class #<n>: <one-line>)` — the
+ledger is how the taxonomy gets validated across plans. (See
+`models/registry.json` + dispatch telemetry for the model-level view.)
