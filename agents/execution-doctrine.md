@@ -133,6 +133,19 @@ as a standalone task after all other tasks pass mechanical review):
 - The smoke task has its own spec, reviewer, and verdict; it gates
   the final `/review`.
 
+### Visual check (the "looks right" layer)
+
+Geometry-green ≠ looks right (plan-008 chrome: every smoke check passed,
+  the layout was still terrible). A visual check dispatches a **read-only
+  child on `@model:vision`** (image-input model, e.g.
+  deepseek-v4-flash-vision-exp): the smoke worker saves screenshots to disk
+  (light + dark, key states), the vision child reads each image file via
+  the read tool, and reports structured findings against the plan's visual
+criteria (alignment, spacing, contrast, hierarchy — per the DESIGN.md/W4
+  checklist when one exists). Vision findings are findings — same verdict
+  pipeline as smoke. Do NOT trust a text-only model's secondhand judgment
+  of a screenshot; either the vision slot reads the pixels or a human does.
+
 ## Worker→reviewer graph dispatch (verdict-producing)
 
 Sequential dispatch is ONE subagent call: worker + reviewer linked by a

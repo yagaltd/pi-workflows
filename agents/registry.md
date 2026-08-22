@@ -44,6 +44,7 @@ bottleneck tag in `.workflows/plan.md`:
 | 🔵 TIME_CONSUMING | B | `@model:standard` | medium | split if it stalls |
 | 🟠 VERIFICATION_HEAVY | B | `@model:standard` | medium | budget extra verify time — Verify: line must run the full suite |
 | ⚪ STANDARD | A or B (per plan) | `@model:standard` | medium | default flow |
+| visual verification (screenshot smoke, design gates, "looks right" checks) | any | `@model:vision` | medium (validate: thinking map unknown — pi validates loudly) | read-only child; screenshot saved to disk first, child reads the image file via the read tool and reports structured findings |
 | scout tasks (any tag) | A | `@model:scout` | low | recon only |
 | reviewer tasks | spec-derived (complexity tier table below) | `@model:reviewer` | per tier | mechanical only |
 | quality-reviewer tasks | — | inherit | medium | judgment review |

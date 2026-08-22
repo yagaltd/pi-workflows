@@ -105,7 +105,9 @@ const DEEPSEEK_PRICING = new Map([
 
 // ── Family → regex table (matches against OpenRouter model ids) ─────────
 const FAMILY_REGEX = {
-  'deepseek-flash': /^deepseek\/deepseek-v4-flash(?:-vision)?(?:-\d{4})?$/,
+  // negative lookahead keeps vision variants out of the plain flash family
+  'deepseek-flash': /^deepseek\/deepseek-v4-flash(?!-vision)(?:-\d{4})?$/,
+  'deepseek-flash-vision': /^deepseek\/deepseek-v4-flash-vision(?:-exp|-\d{4})?$/,
   'deepseek-pro': /^deepseek\/deepseek-v4-pro(?:-\d{4})?$/,
   'deepseek-r1': /^deepseek\/deepseek-r1(?:-\d{4})?$/,
   'claude-sonnet': /^anthropic\/claude-sonnet(?:-[\d.]+)?$/,
@@ -121,11 +123,13 @@ const FAMILY_REGEX = {
 const EXCLUDE_SUFFIX = /:batch$/;
 
 // ── Role slots (fixed) ───────────────────────────────────────────────────
-const ROLES = ['standard', 'strong', 'reviewer', 'scout'];
+// vision: image-input model for visual verification (screenshot smoke,
+// design gates) — read-only children that read screenshots via the read tool.
+const ROLES = ['standard', 'strong', 'reviewer', 'scout', 'vision'];
 
 // ── Default prefs (used when no registry exists) ─────────────────────────
 const DEFAULT_PREFS = {
-  families: ['deepseek-flash', 'deepseek-pro', 'claude-sonnet', 'gemini-flash'],
+  families: ['deepseek-flash', 'deepseek-pro', 'claude-sonnet', 'gemini-flash', 'deepseek-flash-vision'],
   providers: ['deepseek-api', 'openrouter'],
 };
 

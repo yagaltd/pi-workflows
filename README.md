@@ -393,6 +393,8 @@ on reasoning, not model names:
 scout / recon:                inherit model, low thinking
 standard tasks:               cheap/fast model, medium thinking
 risky + blocking tasks:       strong model, high/xhigh thinking
+visual verification:          vision model (image input), medium — screenshot saved
+                              to disk, read-only child reads the image and reports
 reviewer:                     per verification-policy tier — docs: low thinking;
                               standard: medium-high; security/concurrency/
                               parsing/external-input: strongest model + xhigh
@@ -530,6 +532,7 @@ bottleneck tag to `model` + `thinking`:
 | 🟡 RISKY | strong | high |
 | 🟠 VERIFICATION_HEAVY | default | medium + full-suite `Verify:` |
 | ⚪ STANDARD | cheap/fast | medium |
+| visual verification | vision (`@model:vision`, image input) | medium |
 | scout | cheap | low |
 | reviewer | inherit | high (xhigh for 🔴) |
 | quality-reviewer | inherit | medium |
@@ -543,9 +546,10 @@ your project) to change the ladder. There are no `subagents.agentOverrides`
 settings anymore — the dispatch policy IS the override.
 
 > **Prefs are positional**: `families[i]` maps to role slot `i` in order
-> standard, strong, reviewer, scout. Four slots, four entries — e.g.
-> `deepseek-flash, deepseek-pro, deepseek-pro, deepseek-flash` gives
-> scout the cheap model. Fewer entries fall back to the last one.
+> standard, strong, reviewer, scout, vision. Five slots — e.g.
+> `deepseek-flash, deepseek-pro, deepseek-pro, deepseek-flash,
+> deepseek-flash-vision` gives scout the cheap model and routes visual
+> verification to the vision model. Fewer entries fall back to the last one.
 
 ### Model registry
 
