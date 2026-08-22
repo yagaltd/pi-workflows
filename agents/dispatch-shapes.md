@@ -11,6 +11,14 @@ The `model:` field in any dispatch shape accepts `@model:<role>` syntax
 resolution — unresolvable role → explicit legacy id + WARN, never silent).
 Leave `model` empty to inherit the parent session's model.
 
+**Failed-dependency recovery (needs-race)**: when a task in a graph-mode call
+fails or stalls, every task that `needs:` it is auto-**aborted**, not run —
+including reviewers. An aborted reviewer is NOT a review verdict; the
+recovery is mechanical: fix/redo the failed task (worker re-dispatch or
+orchestrator-inline), then **re-dispatch the gate fresh** — its prompt
+reviews the on-disk ground truth (diffs + artifacts), so a re-run needs no
+memory of the aborted round.
+
 ## Sequential worker→reviewer (one call, graph mode)
 
 The default dispatch: worker and reviewer in ONE `tasks[]` array — the

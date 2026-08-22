@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.5.7 (2026-08-22)
+
+### Added — docs round: herdr note, needs-race recovery, spikes formalized, ship end-state check
+
+- **README (herdr, optional)**: Agents section now states the default — subagents always run
+  in-process via pi-core-subagent, no extra tooling — and the option: with herdr, a wave can be
+  delegated to a child pi session in its own tab so the parent pays only 5-line summaries.
+  herdr is never required. (User-facing only; nothing about our internal subagent patching.)
+- **Failed-dependency recovery (needs-race) documented** (dispatch-shapes.md): a failed/stalled
+  task auto-aborts every `needs:` dependent including reviewers — an aborted reviewer is NOT a
+  verdict; recovery = fix the task, re-dispatch the gate fresh (reviews on-disk truth, so a
+  re-run needs no memory of the aborted round). Hit live in plan 009 (T4 stall → reviewer skip).
+- **Spikes formalized** (explore skill + README): `/explore` prototypes live in
+  `.workflows/spikes/<slug>/` — poc + sample.md + VERDICT.md (GO/NO-GO + evidence table);
+  a spike without VERDICT.md is unfinished. Standardizes the convention used in MorphEditor
+  (settings-as-markdown, shell-block) into the package.
+- **Ship ritual end-state check** (execution-doctrine.md): at SHIP the `.workflows/` top level
+  must contain only durable items — leftover plan.md / plan-draft-*.md / populated reviews/ is
+  a hygiene violation, swept into the plan's archive bundle before the ship commit. Closes the
+  gap that left 008's plan.md un-archived until user-caught.
+
 ## v0.5.6 (2026-08-22)
 
 ### Added — pi-core-subagent 1.3.30 integration: worktree-native doctrine + live-verified (plan 20260822-009)

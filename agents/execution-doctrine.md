@@ -81,6 +81,14 @@ Rules:
 - **Ship ritual archive step**: at SHIP, consumed specs move to
   `.workflows/archive/done/<plan-id>/specs/` — reviewers and guard layers see
   only live specs.
+- **Ship ritual end-state check** (mechanical, after the archive step): the
+  `.workflows/` top level must contain ONLY durable items (`CONTEXT.md`,
+  `LOG.md`, `archive/`, `knowledge/`, `research/`, `scout/`, `specs/`,
+  `spikes/`, `patches/` as applicable) — a leftover `plan.md` (unsettled
+  status), `plan-draft-*.md`, or populated `reviews/` at ship time is a
+  hygiene violation: sweep each into its plan's `archive/done/` bundle
+  before the ship commit. Never silently skip — a lifecycle skip is not a
+  pass.
 - **Await-loop economy** (engine-native): background-first spawns;
   `autoAwait: true` only when the result gates the very next step; long runs
   use the slice-loop (`await_subagent` in short `timeoutMs` slices — process

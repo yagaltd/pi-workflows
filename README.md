@@ -47,7 +47,7 @@ Then finish with `/review` → all green? ship it.
 | `/brainstorm <topic \| resume>` | Divergent research mode: think together, evidence-validate idea branches, living markmap ledger in `.workflows/research/`. No code, no specs. Graduates to `/explore` or `/idea`. |
 | `/idea <description + repos/URLs>` | Productize idea: explore evidence → grill unresolved decisions → write `.workflows/plan.md` → stop for approval → generate `.spec` contracts |
 | `/plan <description>` | Plan only — you already have context. Writes plan.md with bottleneck tags, then generates contracts after approval. |
-| `/explore <question>` | Research / kill / prototype. No production plan unless asked. |
+| `/explore <question>` | Research / kill / prototype. No production plan unless asked. Prototypes land in `.workflows/spikes/<slug>/` (poc + VERDICT.md, GO/NO-GO + evidence). |
 | `/audit [scope] [--security]` | Codebase map + adversarial pre-scan → `.workflows/knowledge/map.md` + findings that feed `/plan`. Before planning on existing/unfamiliar code. |
 | `/amend <change>` | Update existing `.workflows/plan.md` and specs when decisions change. |
 | `/status` | Show plan progress, cost summary, bottleneck breakdown, duration stats. |
@@ -265,6 +265,14 @@ Roles are dispatched inline per call (no agent files) — model + thinking come 
 | `reviewer` | per verification-policy tier (docs: low → high-risk: strongest model + xhigh) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. Fired automatically via the `needs` edge when the worker settles. |
 | `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Per-task, 🔴/🟡/🟠 tags only. Security, simplicity, error handling. |
 | `bug-hunter` | high | Adversarial pipeline (Recon → Hunter → Skeptic → Referee) — dispatched as a subagent from `/next` and `/review`. |
+
+**How subagents run**: always in-process, inside your session, via the
+pi-core-subagent extension — no extra tooling required. **Optional — herdr**:
+if you use the herdr terminal (TUI workspace manager), a whole
+wave can be delegated to a *child pi session* in its own terminal tab
+(wave delegation), so your orchestrating session pays only 5-line summaries
+instead of the wave's traffic. herdr is never required — without it, waves
+run in-process exactly the same way.
 
 ### The extension (mechanical enforcement)
 

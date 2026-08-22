@@ -124,6 +124,15 @@ Do NOT proceed to prototype without explicit approval.
 
 Build a minimal proof-of-concept. This is throwaway code.
 
+**Artifact convention (spikes)**: every prototype lives in its own
+`.workflows/spikes/<slug>/` directory — self-contained and revivable later:
+
+- `poc.mjs` (or `.py`/`.ts` as fits the stack) — the runnable proof
+- `sample.md` — the input/sample the PoC runs against
+- `VERDICT.md` — `> **Verdict: GO|NO-GO**` one-liner + an evidence table
+  (stage | status | what it proves) + limitations. The verdict is what a
+  later `/plan` cites; a spike without VERDICT.md is unfinished.
+
 1. **Scope the prototype**: What's the minimum that proves feasibility?
 2. **Build it**: Quick and dirty. No tests needed. No polish.
 3. **Run it**: Does it work? What are the limitations?
