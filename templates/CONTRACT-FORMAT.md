@@ -64,6 +64,13 @@ Scenario: <edge case name>
 ### Contract writing rules:
 - Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
 - Boundaries MUST list specific file paths, not vague descriptions
+- **Git-status criteria are task-scoped** to the task's own Allowed files plus
+  the pre-dispatch whitelist: judge `git status` / `git diff` only against
+  those paths — sibling outputs from other tasks in the same wave are never
+  violations. The whitelist covers `.workflows/` bookkeeping:
+  `M .workflows/LOG.md`, `M .workflows/plan.md`, `?? .workflows/specs/*.spec`.
+- Criteria against `.workflows/` paths verify via the filesystem
+  (`ls` / `test -f`) — never `git status` for untracked state.
 - Decisions are fixed — the worker may not re-open them
 - Completion Criteria define "done" — if all scenarios pass, the task is done
 - Include edge cases: error states, boundary values, empty inputs
