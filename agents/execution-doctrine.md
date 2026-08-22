@@ -275,3 +275,67 @@ Unmerged-branch rule: a branch whose only unique commits are misfire
    artifacts (research docs, planning files) is discarded once its content
    is salvaged into `.workflows/scout/` — the worktree ledger entry in
    LOG.md records what was salvaged where.
+
+## Stuck handling & escalation
+
+Workers carry the stuck protocol (agents/worker.md): named stall signals →
+ONE structured HELP via ask_parent (workers dispatch with
+`allowIntercom: true`; reviewers stay silent — their verdict is the
+escalation channel). When a HELP wakes you (inside an await or a notice):
+
+1. **Reply fast** — the child is parked waiting. A decision beats a
+   perfect decision; the HELP shape gives you options + a recommendation.
+2. **Reply with a decision**, exactly one of:
+   - **unblock** — answer the blocked-on point, or correct the premise
+   - **narrow** — cut scope: which criterion to drop/defer for this round
+   - **escalate** — re-dispatch at a stronger slot (below)
+   - **abort** — cancel the task; it needs a plan-level decision
+   Never reply "figure it out" or "use your judgment" — that is how
+   class-5 misfires happen.
+3. **Record** — LOG.md one line (`T<N> HELP: <blocked-on> → <decision>`)
+   and ledger annotate `<task> blocked` (dispatch-ledger.mjs).
+
+### Escalation matrix
+
+| Signal in HELP / observation | Response |
+|---|---|
+| contract ambiguity, two readings | **unblock**: you pick the reading, note it as an errata to the spec |
+| missing dependency outside Allowed | **narrow** (make it optional + spec errata) or **abort** (spec is wrong) |
+| repeated technical failure, coherent report | **escalate** — re-dispatch shape below |
+| requirement contradicts spec/plan | **abort** — plan-level decision, human informed |
+| no HELP but stalled (watch-children: turns without progress) | steer first ("state hypothesis + next step"), escalate on next check |
+
+### Escalation re-dispatch shape (same contract, stronger slot, salvage prepended)
+
+Mid-run model/thinking switching does not exist in pi-core-subagent — by
+design. Escalation = cancel + re-dispatch, with the stuck child's findings
+salvaged into the new prompt:
+
+```text
+subagent({
+  agent: "worker-<task-id>-e<level>", prompt: "@role:worker",
+  write: true, thinking: "high" /* xhigh at level 2 */, allowIntercom: true,
+  model: "@model:strong",
+  task: `TASK <N> (ESCALATED, level <K>): <same goal verbatim>.
+Contract: .workflows/specs/<task-id>.spec — unchanged.
+
+## Salvage from the previous attempt (its report, verbatim)
+<HELP exchange + prior child's final report / findings>
+
+Known-dead ends (do NOT retry): <from the HELP exchange>.
+Decisions already made: <unblock/narrow replies, if any>.`,
+})
+```
+
+Then the reviewer fires fresh on the new attempt (needs edge or standalone
+re-dispatch — never reuse an aborted reviewer's verdict). Cap: 2 escalation
+levels; beyond that the task is 🟡/🔴 by nature and goes to the human.
+
+**Ledger outcomes**: `blocked` (HELP sent), `escalated:<from>→<to>` (e.g.
+`escalated:standard→strong`). These are the evidence the model registry
+needs: a tier that escalates constantly is routed wrong.
+
+Self-report is not the only channel — the class-5 agent does not know it
+is stuck. While workers can now ask, the orchestrator still watches
+(watch-children pane, dispatch ledger) for the silent case; a watchdog
+formalization is parked in docs/20260822-improvements-test-first-and-escalation.md.

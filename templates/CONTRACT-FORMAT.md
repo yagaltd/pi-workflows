@@ -61,6 +61,25 @@ Scenario: <edge case name>
   Then <expected outcome>
 ```
 
+### Prototype specs (task type `prototype`)
+
+Same file, same pipeline — three differences:
+- **One bounded question** as the goal ("does X hold at seam Y?"), not a
+  feature. If the spec describes user-visible behavior, it is an impl spec.
+- **Allowed Changes = `.workflows/spikes/<slug>/**` only**; production paths
+  are Forbidden. Poc code is throwaway by design.
+- **Completion Criteria = evidence criteria**: artifact exists on disk,
+  measurement recorded (numbers, not adjectives), the concrete API/requirement
+  discovered, dead ends named. Example scenario:
+  `Scenario: approach proven
+     Test: <artifact check — file exists with recorded measurements>
+     Given the spike dir .workflows/spikes/<slug>/
+     When the reviewer reads the findings
+     Then the bounded question is answered GO or NO-GO with numbers
+     And every claim cites a file:line or command output in the spike dir`
+The reviewer verdict + spike artifacts are the impl spec's evidence source
+(drafted after, per the Prototype two-stage rule in skills/plan/SKILL.md).
+
 ### Contract writing rules:
 - Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
 - Boundaries MUST list specific file paths, not vague descriptions

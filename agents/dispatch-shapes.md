@@ -11,6 +11,14 @@ The `model:` field in any dispatch shape accepts `@model:<role>` syntax
 resolution — unresolvable role → explicit legacy id + WARN, never silent).
 Leave `model` empty to inherit the parent session's model.
 
+**Intercom**: worker dispatches carry `allowIntercom: true` — the worker
+role's stuck protocol sends structured HELP via ask_parent. When the
+leader is parked in `await_subagent`, a HELP wakes it with the question
+inside the await result; answer with `reply_subagent` (run resumes) —
+see agents/execution-doctrine.md §Stuck handling. Reviewers and read-only
+children stay `allowIntercom: false` (default) — their verdict IS the
+escalation channel.
+
 **Failed-dependency recovery (needs-race)**: when a task in a graph-mode call
 fails or stalls, every task that `needs:` it is auto-**aborted**, not run —
 including reviewers. An aborted reviewer is NOT a review verdict; the
@@ -32,7 +40,7 @@ subagent({
   cwd: "<absolute repo path>",
   tasks: [
     { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
-      write: true, thinking: "<from bottleneck tag>",
+      write: true, thinking: "<from bottleneck tag>", allowIntercom: true,
       task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK <N> of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/<task-id>.spec. Upstream tasks: <list>.
@@ -84,7 +92,7 @@ subagent({
   concurrency: 4,
   tasks: [
     { id: "task-<2>", agent: "worker-task-2", prompt: "@role:worker",
-      write: true, thinking: "<per tag>",
+      write: true, thinking: "<per tag>", allowIntercom: true,
       task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK 2 of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/task-2.spec.
@@ -92,7 +100,7 @@ TASK 2 of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/tas
 Implement per contract. First read .workflows/specs/task-2.spec
 (the workflow is in your role prompt — follow it).` },
     { id: "task-<3>", agent: "worker-task-3", prompt: "@role:worker",
-      write: true, thinking: "<per tag>",
+      write: true, thinking: "<per tag>", allowIntercom: true,
       task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK 3 of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/task-3.spec.

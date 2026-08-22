@@ -100,6 +100,36 @@ For significant features, include a docs task:
 - **Why**: ensures architecture docs stay current after significant changes
 - **Note**: This can be skipped if changes are minor
 
+### Prototype tasks (for 🟡 RISKY / large Tier B tasks)
+
+When a task's approach is unproven (the adversarial pass flagged it 🟡, or
+the integration seam is unmapped), the plan decomposes it as
+`prototype → impl` instead of one open-ended task:
+
+- **The prototype is a first-class task type in plan.md** — `TASK <N>p (prototype)` —
+  dispatched BEFORE the impl task it informs, with **its own spec** and the
+  standard worker→reviewer loop. Same pipeline as every other task; no
+  special verdict format, no separate VERDICT.md file.
+- **Spec shape**: one bounded question ("does approach X hold for seam Y?"),
+  Allowed Changes = `.workflows/spikes/<slug>/**` (poc code lives there,
+  never in production paths), Forbidden = everything else. Completion
+  Criteria are evidence criteria: artifact on disk, measurements, the
+  concrete API/requirements discovered — not feature behavior.
+- **Routing**: `@model:strong` + thinking high, serial, never in a parallel
+  group (Tier C discipline — a prototype that lands in production files has
+  violated its spec).
+- **The draft plan is the living artifact**: the impl task it precedes stays
+  in the plan draft with a placeholder spec deferred until the prototype's
+  reviewer verdict lands. Then the orchestrator drafts the impl spec FROM
+  the verdict's findings (same spec-drafter fan-out, evidence = verdict +
+  spike artifacts) and re-presents the plan at the human approval gate —
+  same process as usual; the gate confirms the plan with prototype evidence
+  in hand. No separate confirmation artifact.
+- **Why**: an open-ended "wire it together" task is the single most
+  misfire-prone shape (class-5 evidence, plan-008: 5/7); a prototype task
+  converts it into bounded-with-evidence — the impl task's spec cites
+  measured facts instead of hoping the worker discovers them.
+
 ### Bottleneck Tags
 
 Tag every task with a bottleneck indicator. Drive the tags from the Impact ×
@@ -110,7 +140,7 @@ effort) → ⚪ STANDARD; Big Bets (high, high) → 🟡 RISKY (prototype first)
 | Tag | When | Implication |
 |---|---|---|
 | 🔴 BLOCKING | Others depend on this. Must succeed first. | Use strongest model, human review after |
-| 🟡 RISKY | Approach uncertain. Might fail. | Consider prototype first, then build |
+| 🟡 RISKY | Approach uncertain. Might fail. | **Prototype task first** (see Prototype tasks), then build |
 | 🔵 TIME_CONSUMING | Large scope but straightforward. | Break into smaller steps |
 | 🟠 VERIFICATION_HEAVY | Needs extensive testing (UI, security, edge cases). | Budget extra verification time |
 | ⚪ STANDARD | Normal task. Default. | Default flow |
@@ -148,6 +178,7 @@ Every worker task is sized into one of three tiers; the tier decides routing (mo
 
 - **Tier A explicitly includes the orchestrator-inline option** — when the subagent round-trip costs more than the edit, don't dispatch; do the edit yourself in the orchestrator.
 - **Tiers are written next to tasks, not inferred** — every task carries its tier in plan.md (e.g. `TASK 3 (Tier B 🟡)`), and the tier is decided in the adversarial pass (phase 3 of the Drafting Pipeline), never by the worker.
+- **Prototype tasks carry `(prototype)` instead of a tier** (e.g. `TASK 2p (prototype)`) — Tier C routing rules apply (strong model, thinking high, serial), plus their own spec and standard review loop (see Prototype tasks above).
 
 
 
@@ -248,7 +279,12 @@ The plan is drafted in five phases on evidence, not memory; only the last phase 
      orchestrator-inline exists precisely for this); a plan that survives this pass is
      minimal, not just decomposed.
 4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped). **Pre-dispatch git-dirty whitelist:** before any spec-drafter subagent dispatches, the orchestrator enumerates a deterministic shared-worktree **whitelist** so a dirty working tree is never a false blocker — sibling spec outputs are never violations by definition; the concrete enumerated whitelist is `M .workflows/LOG.md`, `M .workflows/plan.md`, `?? .workflows/specs/*.spec`. Only changes outside this whitelist count against the gate (e.g. stray edits to `src/` or other tasks' specs).
-5. **Human approval gate** — unchanged: nothing dispatches before user approval.
+   **Prototype two-stage rule**: when the plan contains prototype tasks, only
+   the prototype specs (and specs of prototype-independent tasks) are drafted
+   now. Impls that consume a prototype's findings get their specs drafted
+   AFTER that prototype's reviewer verdict — evidence = verdict + spike
+   artifacts — followed by the human approval gate re-presenting the plan.
+5. **Human approval gate** — unchanged: nothing dispatches before user approval. With prototype tasks, the gate fires twice: once to dispatch the prototypes, once (with prototype evidence attached) to confirm the impls.
 
 ## Phase 4: REVIEW WITH HUMAN
 

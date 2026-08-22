@@ -1,6 +1,13 @@
 # Improvement brainstorm — test-first planning & stuck-agent escalation
 
-- **Status**: PARKED (brainstorm + research; nothing decided, nothing dispatched)
+- **Status**: PARTIALLY IMPLEMENTED (2026-08-22, same session): idea-1 V1
+  shipped as the **prototype task type** (own spec + standard review loop,
+  no VERDICT.md — the plan draft re-confirms at the human gate; skills/plan/
+  SKILL.md + templates/CONTRACT-FORMAT.md); idea-2 V1+V3 shipped as the
+  **worker stuck protocol + escalation matrix** (agents/worker.md,
+  dispatch-shapes allowIntercom, execution-doctrine.md §Stuck handling).
+  Remaining: V2 watchdog (needs the wake-mechanism spike), idea-1 V2/V3
+  (parked unless justified).
 - **Created**: 2026-08-22, session following plan-008 dogfood (5 class-5 misfires) + v0.5.7 ship
 - **Method**: grounded brainstorm — every claim below checked against the current
   repo state (`skills/plan/SKILL.md`, `templates/CONTRACT-FORMAT.md`, `agents/worker.md`,

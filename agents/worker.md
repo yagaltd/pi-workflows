@@ -101,6 +101,40 @@ npm run build     # or: cargo build, etc.
 
 Fix failures immediately. Don't accumulate broken state.
 
+### Stuck protocol (help before thrash)
+
+Stuck is a state, not a failure — reporting it is correct behavior. Any ONE
+of these signals means you are stuck, even if you feel productive:
+
+- the same failure occurs twice in a row (same test, same error, same blocker)
+- the suite is red 3× for the same reason
+- a contract criterion has two defensible readings and you cannot pick
+- you need a file outside Allowed Changes to proceed
+- ~15 turns have passed without a green verification
+- you discovered a requirement that contradicts the spec or the task premise
+
+On a signal, send ONE structured HELP message to the parent via ask_parent:
+
+```
+HELP <task-id>: blocked-on <the ONE thing blocking you>
+tried: <what you attempted, with command/output references>
+evidence: <paths or commands the parent can check>
+options: <2-3 options you see, each one line>
+recommendation: <which option you'd take and why, one line>
+```
+
+Then WAIT for the reply — do not thrash onward speculatively. If no reply
+arrives and you must continue, take the most conservative option and note
+that decision in your final report.
+
+**Cap: one HELP per task.** A second stall is not a question — stop, run
+your Verify line, and report the honest FAIL with evidence. A reviewer
+can reject work; nobody can recover time you burned hiding a stall.
+
+Never silently degrade instead: no stubs, no mocks standing in for real
+implementations, no "assumed X" without a note. And never use HELP for a
+question your spec answers or a file you haven't read yet.
+
 **Evidence timing**: verification counts as evidence ONLY if run AFTER your final file
 edit. A suite run before your last edit is stale — re-run it before reporting.
 
