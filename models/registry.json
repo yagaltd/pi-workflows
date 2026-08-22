@@ -95,8 +95,11 @@
       },
       "source": "openrouter-live",
       "thinking": {
-        "supported": [],
-        "source": "unknown"
+        "supported": [
+          "high",
+          "xhigh"
+        ],
+        "source": "observed: pi validation rejected medium, 2026-08-22 live dispatch"
       },
       "resolvedAt": "2026-08-22T18:27:49.715Z"
     }
