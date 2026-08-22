@@ -234,6 +234,26 @@ Why:
 
 Everything else (coding guidelines, architecture preferences) is a **soft rail** — instructions that guide but can't force.
 
+### Planning
+
+**Task tiers** (decided at plan time, routed via the registry): every task carries
+a tier next to it in plan.md — **Tier A** mechanical (small, grep-verifiable:
+`@model:standard` + low thinking, grep-only review or done orchestrator-inline),
+**Tier B** bounded (normal module + tests under contract, full mechanical review
+pipeline), **Tier C** spike/architecture (`@model:strong` + high thinking,
+**serial — never in a parallel group**, verdict artifact before any production
+code). The tier is assigned in the plan's adversarial pass, never by the worker.
+
+**Delegated drafting pipeline** — plans draft faster and review cheaper via
+**scout facts → strong-model draft → adversarial split/risk pass → spec-drafter
+fan-out → human gate**: a scout writes facts to `.workflows/scout/<plan-id>.md`
+(cite-able `file:line`), a strong-model subagent drafts against them, the
+orchestrator grills the draft (single-surface inventory, seam hunt, per-task
+tier), then one **spec-drafter** subagent per decision turns each decision
+verbatim into a house-format `.spec`, mechanically reviewed for disjoint,
+task-scoped boundaries before your approval. Hand-writing stays the fallback —
+≥2-wave plans default to the fan-out.
+
 ### Agents
 
 Roles are dispatched inline per call (no agent files) — model + thinking come from `agents/registry.md`, driven by the task's bottleneck tag (model empty = inherit your session's model):
@@ -666,3 +686,5 @@ pi-workflows/
 ### Flow
 
 `/idea` → `/challenge` (grill plan) → approve plan → `/next` × N (verdict-gated, fix rounds) → `/review` → SHIP (commit + archive) — or `/abort` to archive as superseded
+
+SHIP archives consumed specs to `.workflows/archive/done/<plan-id>/specs/` (reviewers see only live specs), and every plan carries a single-writer status line (`Status: DRAFT|DISPATCHED|EXECUTED|SHIPPED`) — only the orchestrator writes it.

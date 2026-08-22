@@ -180,3 +180,85 @@ evidence to .workflows/docs/smoke-<task-id>.md.`,
 After the smoke task settles, dispatch its reviewer standalone (same
 shape as a fix-round re-review). The smoke verdict gates the final
 `/review` — a failing smoke means the plan is not done.
+
+## Spec drafting fan-out (one call, graph mode)
+
+N spec-drafter tasks in ONE `tasks[]` array — one per spec to land. Keep
+them independent (disjoint filenames: each drafter writes only its own
+spec — isolation policy applies). Every task text carries the same spine:
+repo GUARD line, the decision VERBATIM, scout-fact slices pasted inline,
+boundaries, and the exact spec filename:
+
+```text
+subagent({
+  background: false,
+  cwd: "<absolute repo path>",
+  concurrency: min(4, N),
+  tasks: [
+    { id: "spec-<task-1>", agent: "spec-drafter-<task-1>", prompt: "@role:spec-drafter",
+      write: true, thinking: "high",
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+
+Draft spec for TASK <N> of .workflows/plan.md (plan <id>): <goal>.
+
+DECISION (verbatim — do not paraphrase): <paste the plan's decision text exactly>.
+Scout facts (inline slices): <paste the relevant scout report slices verbatim
+  — the spec cites evidence, it does not re-derive it>.
+Boundaries: Allowed Changes = <...>; Forbidden = <everything else, incl. ...>.
+Output EXACTLY one file: .workflows/specs/<task-id>.spec — write:true is
+contract-limited to .workflows/specs/**.` },
+    { id: "spec-<task-2>", agent: "spec-drafter-<task-2>", prompt: "@role:spec-drafter",
+      write: true, thinking: "high",
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+
+Draft spec for TASK <N+1> of .workflows/plan.md (plan <id>): <goal-2>.
+
+DECISION (verbatim — do not paraphrase): <paste the plan's decision text exactly>.
+Scout facts (inline slices): <paste the relevant scout report slices verbatim>.
+Boundaries: Allowed Changes = <...>; Forbidden = <...>.
+Output EXACTLY one file: .workflows/specs/<task-id-2>.spec.` },
+  ],
+})
+```
+
+The orchestrator reviews each landed spec **mechanically after the
+fan-out** — **orchestrator-side is the default** (per spec: GUARD line
+present, decision verbatim, boundaries complete, exact filename, spec
+frontmatter valid). The `needs:`-edge alternative — one review task
+deduping all drafted specs — works too; prefer it when the fan-out is
+large and a dedicated reviewer pass is cheaper than an orchestrator
+pass. Specs are small; a compact mechanical pass is expected, not a full
+reviewer node by default.
+
+## Plan draft delegation (single task)
+
+One `@model:strong` thinking-high task receives scout facts + user goal +
+plan format and returns a draft plan — a proposal, never a contract:
+
+```text
+subagent({
+  background: false,
+  cwd: "<absolute repo path>",
+  tasks: [
+    { id: "plan-draft-<id>", agent: "plan-draft-<id>",
+      model: "@model:strong", write: true, thinking: "high",
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+
+Draft a plan for: <user goal, verbatim>.
+Scout facts (inline slices): <paste domain map + risks + evidence slices verbatim>.
+Plan format: <link or paste the plan skeleton — sections, task granularity,
+  spec naming scheme>.
+Output EXACTLY one file: .workflows/plan-draft-<id>.md. Never write specs —
+.workflows/specs/** is off-limits; drafts are proposals, not contracts.` },
+  ],
+})
+```
+
+- **Never dispatched without the adversarial pass** — the draft goes
+  through the plan-time grilling (decision tree + domain walk) before any
+  task is extracted; delegation covers drafting, never deciding.
+- **Never writes specs** — the draft lands in `.workflows/plan-draft-<id>.md`
+  only; specs are authored later by spec-drafters from the reviewed plan.
+- The orchestrator stays the single writer: it keeps the draft under
+  `.workflows/plan-draft-<id>.md` and renders it into `.workflows/plan.md`
+  only after the adversarial pass and user sign-off.

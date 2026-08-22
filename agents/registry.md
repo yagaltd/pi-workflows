@@ -22,6 +22,7 @@ execution time; without the extension, the orchestrator reads and pastes
 | worker | `agents/worker.md` | `write: true` | inherit parent | medium |
 | reviewer | `agents/reviewer.md` | `tools: ["read","grep","find","ls","bash"]` (needs bash to run agent-spec) — **bash non-optional** — dispatching a reviewer without bash is a dispatch bug; the role itself VOIDs mechanical layers without it (see agents/reviewer.md) | inherit parent | high |
 | quality-reviewer | `agents/quality-reviewer.md` | read-only (`write: false`) | inherit parent | medium |
+| spec-drafter | `agents/spec-drafter.md` | `write: true`, contract-limited to `.workflows/specs/**` | `@model:standard` | high |
 
 Never improvise a role not listed here. **Fix rounds dispatch the worker
 role** (with rejection evidence prepended and `thinking: high`) — there is
@@ -36,16 +37,30 @@ parent's current model) and `thinking` (validated against the resolved
 model's thinking level map) **per task**. Drive them from the task's
 bottleneck tag in `.workflows/plan.md`:
 
-| Bottleneck | model | thinking | extra |
-|---|---|---|---|
-| 🔴 BLOCKING | `@model:strong` | xhigh | human review after |
-| 🟡 RISKY | `@model:strong` | high | consider prototype first |
-| 🔵 TIME_CONSUMING | `@model:standard` | medium | split if it stalls |
-| 🟠 VERIFICATION_HEAVY | `@model:standard` | medium | budget extra verify time — Verify: line must run the full suite |
-| ⚪ STANDARD | `@model:standard` | medium | default flow |
-| scout tasks (any tag) | `@model:scout` | low | recon only |
-| reviewer tasks | `@model:reviewer` | per tier | mechanical only |
-| quality-reviewer tasks | inherit | medium | judgment review |
+| Bottleneck | Tier | model | thinking | extra |
+|---|---|---|---|---|
+| 🔴 BLOCKING | C or B (per plan) | `@model:strong` | xhigh | human review after |
+| 🟡 RISKY | B | `@model:strong` | high | consider prototype first |
+| 🔵 TIME_CONSUMING | B | `@model:standard` | medium | split if it stalls |
+| 🟠 VERIFICATION_HEAVY | B | `@model:standard` | medium | budget extra verify time — Verify: line must run the full suite |
+| ⚪ STANDARD | A or B (per plan) | `@model:standard` | medium | default flow |
+| scout tasks (any tag) | A | `@model:scout` | low | recon only |
+| reviewer tasks | spec-derived (complexity tier table below) | `@model:reviewer` | per tier | mechanical only |
+| quality-reviewer tasks | — | inherit | medium | judgment review |
+
+Tier refines routing:
+
+- **A** → `@model:standard` + thinking low + grep-only review (one `Verify:`
+  line suffices — no reviewer node) or orchestrator-inline
+- **B** → existing per-tag routing above, unchanged
+- **C** → `@model:strong` + thinking high + **serial, never parallel**
+
+## Task tiers (routing overlay)
+
+Tier is decided at plan time (adversarial pass), written next to each task
+in `.workflows/plan.md` (the planner assigns it, the dispatcher reads it
+verbatim), and refines — never overrides the existence of — reviewer
+verdicts: **every tier still requires a verdict for ✅** (doctrine #7).
 
 ## Model resolution
 

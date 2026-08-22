@@ -65,6 +65,22 @@ Rules:
   (e.g., `--selftest` mode, tdd-guard selectors + suite green, manual
   grep checks). Never silently treat a lifecycle skip as a pass.
 
+## Plan lifecycle & await economy
+
+- **Status line**: every plan.md opens with
+  `Status: DRAFT|DISPATCHED|EXECUTED|SHIPPED` — the single writer is the
+  orchestrator; per-task emoji flips only after that task's reviewer settles
+  (stale-echo rule: a settled task is never re-marked from a newer report).
+- **Ship ritual archive step**: at SHIP, consumed specs move to
+  `.workflows/archive/done/<plan-id>/specs/` — reviewers and guard layers see
+  only live specs.
+- **Await-loop economy** (engine-native): background-first spawns;
+  `autoAwait: true` only when the result gates the very next step; long runs
+  use the slice-loop (`await_subagent` in short `timeoutMs` slices — process
+  settled tasks incrementally, never park on the whole run); targeted
+  `subagent_result(taskId)` for full text (completion notices stay 3-line);
+  wake budget ≈ one await per wave; never re-read settled reports.
+
 ## Verdict artifact format
 
 Persist EVERY verdict (ok:true and ok:false alike) to

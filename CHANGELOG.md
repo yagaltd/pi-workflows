@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.3 (2026-08-22)
+
+### Added — task tiers, delegated drafting pipeline, plan hygiene (plan 20260822-005)
+
+The planning process itself got the contract treatment. Evidence base: three sessions showing workers rarely fail — seams and planning gaps do — plus the wave-parallelism incident (a worker briefly reverted a sibling's landed files in the shared tree) and a spec-design flaw surfaced by an honest reviewer (boundary vs. pre-existing state conflict → orchestrator amendment + round-2 verdict, the doctrine triangle working end to end).
+
+- **Task tiers (routing overlay)**: every plan task carries Tier A (mechanical — `@model:standard`+low, grep-only review via the `Verify:` line, or **orchestrator-inline: don't dispatch at all**), B (bounded — existing per-tag pipeline), or C (spike/architecture — `@model:strong`+high, serial, never parallel). Decided in the adversarial pass, written next to each task; refines routing, never the existence of a verdict. Wired as a Tier column in `agents/registry.md` (16 `@model:` refs preserved).
+- **Delegated drafting pipeline** (`skills/plan/SKILL.md`, insertions-only): scout facts artifact (`.workflows/scout/<plan-id>.md`, file:line grounding) → strong-model draft → **adversarial + SPLIT/RISK pass** (single-surface inventory, seam hunt, per-task tier check; why-waves rationale cited) → **spec-drafter fan-out** (one subagent per decision; decision verbatim + scout slices + boundaries; orchestrator mechanical review) → human gate. ≥2-wave plans default to the fan-out.
+- **`agents/spec-drafter.md`** (fifth role): one decision in, one house-format spec out; SPEC_BLOCKER on ambiguity; filesystem-verified criteria for gitignored paths; task-scoped diff criteria.
+- **Dispatch shapes**: `Spec drafting fan-out` + `Plan draft delegation` templates.
+- **Hygiene**: consumed specs archive at ship (`archive/done/<plan-id>/specs/` — 003's and 004's nine archived retroactively); plan `Status:` line (single-writer orchestrator, stale-echo rule); **await-loop economy** (background-first, gated autoAwait, slice-loop awaits, targeted subagent_result — engine-native v1.3.28 mechanics).
+
+Registry routing live-proven during this plan's own dispatch: `deepseek-v4-flash-0731` / `pro-0813` resolved and ran (no fallback needed).
+
+---
+
 ## v0.5.2 (2026-08-22)
 
 ### Added — model registry + reviewer integrity hardening (plan 20260822-004)

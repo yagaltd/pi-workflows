@@ -136,6 +136,19 @@ Assign a testing strategy per task based on code type:
 - If a durable domain term is clarified, update `.workflows/CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
 - Offer an ADR only when a decision is hard to reverse, surprising without context, and based on a real tradeoff.
 
+### Task Tiers
+
+Every worker task is sized into one of three tiers; the tier decides routing (model/thinking), review depth, and parallelism.
+
+| Tier | Size | Routing & review | Parallelism |
+|---|---|---|---|
+| **Tier A — mechanical** | ≤20 lines changed, single file, grep-able done | `@model:standard` + thinking low; review = grep-only tier OR the task's `Verify:` line (exit code + git diff — Graph Protocol §9: verification command, never self-report); or **orchestrator-inline** — don't dispatch at all when the subagent round-trip costs more than the edit | any group |
+| **Tier B — bounded** | module + tests under contract, one concern | `@model:standard` (⚪/🔵/🟠) or `@model:strong` (🟡/🔴) per bottleneck tag; full mechanical review pipeline | any group |
+| **Tier C — spike/architecture** | verdict artifact required | `@model:strong` + thinking high; serial, **never in a parallel group**; zero production files unless the verdict says GO | serial only |
+
+- **Tier A explicitly includes the orchestrator-inline option** — when the subagent round-trip costs more than the edit, don't dispatch; do the edit yourself in the orchestrator.
+- **Tiers are written next to tasks, not inferred** — every task carries its tier in plan.md (e.g. `TASK 3 (Tier B 🟡)`), and the tier is decided in the adversarial pass (phase 3 of the Drafting Pipeline), never by the worker.
+
 
 
 ## Phase 3: WRITE PLAN
@@ -223,6 +236,16 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 ```
 🛑 **GATE**: Present the plan to the human. Do NOT proceed without approval.
 
+## Drafting Pipeline
+
+The plan is drafted in five phases on evidence, not memory; only the last phase is interactive.
+
+1. **Scout** — facts-on-disk artifact `.workflows/scout/<plan-id>.md`: grep evidence, file paths with line anchors, API/vendor realities, existing-convention citations. Facts only — never summaries. (Reusable for every downstream phase; commit-adjacent, lives under `.workflows/` like specs.)
+2. **Draft** — a subagent (`@model:strong`, thinking high) receives the scout facts + user goal + this SKILL.md format → writes the plan draft. **Grounding rule**: every Context claim must cite a scout fact (`file:line`) — uncited claims get flagged in phase 3.
+3. **Adversarial + SPLIT/RISK pass** — orchestrator, challenge-skill discipline: walk every decision; single-surface inventory ("does this plan create a second path to X?"); per task: "can it be smaller? which tier? where's the integration seam?" — split or resequence accordingly. Rationale on record: dependency-partitioned graphs beat flat fan-out (+14% pass, −35% cost — pi-core-subagent "Why waves"); static ties dynamic when structure is known up front — which this pass produces. Adjust the draft directly; the draft is never dispatched unreviewed.
+4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped).
+5. **Human approval gate** — unchanged: nothing dispatches before user approval.
+
 ## Phase 4: REVIEW WITH HUMAN
 
 Present a compact summary:
@@ -284,6 +307,9 @@ the normative contract template, the writing rules (every scenario has an
 explicit `Test:` selector, boundaries list exact paths, optional
 `max-rounds:` frontmatter), and a complete example contract. Generate one
 `.spec` per worker task following it exactly.
+
+For plans with **≥2 waves**, the default path is the spec-drafter fan-out from the
+Drafting Pipeline; the fallback is hand-writing the specs.
 
 Present the generated contracts to the human for a final quick check, then
 proceed to handoff.
