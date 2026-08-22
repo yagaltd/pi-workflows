@@ -71,7 +71,7 @@ cd "$repo" 2>/dev/null || { echo "ALARM: repo inaccessible: $repo"; exit 2; }
 top="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "ALARM: not a git repo: $repo"; exit 2; }
 
 # S1 — landing check (binary): any diff within allowed paths?
-status="$(git status --porcelain -- "${allowed[@]}" 2>/dev/null)"
+status="$(git status --porcelain -uall -- "${allowed[@]}" 2>/dev/null)"  # -uall: untracked dirs must list files (S2 blind-spot fix, found live 2026-08-22)
 if [ -z "$status" ]; then
     echo "ALARM [S1]: write-task claims done but zero diff in allowed paths (${allowed[*]}) under $top"
     exit 1
