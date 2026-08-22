@@ -234,3 +234,31 @@ Every dispatch misfire costs ~10–25 min wall + a wasted worktree. Record
 in LOG.md per task: `T<N> misfire x<K> (class #<n>: <one-line>)` — the
 ledger is how the taxonomy gets validated across plans. (See
 `models/registry.json` + dispatch telemetry for the model-level view.)
+
+## Worktree hygiene (disk + end-state)
+
+Write agents run in isolated worktrees (`<repo>/.git/subagents/<run>/<task>`,
+branch `subagents/<run>/<task>`). Cleanup is a shared responsibility:
+
+1. **Automatic (extension ≥1.3.32)** — after `git merge --no-ff <branch>`
+   the extension reaps merged branches + dirs at the next session start
+   (`cleanupMerged`, live runs protected via `skipBranches`); crashed
+   children get their uncommitted work committed and the branch kept,
+   dir dropped (`reapDeadWorktrees`); stale shells swept (`sweepStale`).
+2. **Manual safety net** — a crashed *parent* session leaves leftovers
+   (the auto-clean never ran). At SHIP ritual, or anytime `.git/subagents`
+   is non-empty:
+   `node <pi-workflows>/scripts/cleanup-worktrees.sh [repo]`
+   — merged branches removed, unmerged ones reported (exit 2, never
+   auto-deleted), live runs (< 30 min old) skipped.
+3. **SHIP-ritual end-state check** (extend the .workflows check): besides
+   `specs/` empty and no stray plan.md, assert `git branch --list
+   'subagents/*'` is empty and `.git/subagents/` absent. A leftover
+   unmerged branch at SHIP is a signal — either a misfire whose research
+   was salvaged (discard after confirming the salvage landed) or real
+   unmerged work (merge or explicitly defer, note in LOG.md).
+
+Unmerged-branch rule: a branch whose only unique commits are misfire
+   artifacts (research docs, planning files) is discarded once its content
+   is salvaged into `.workflows/scout/` — the worktree ledger entry in
+   LOG.md records what was salvaged where.
