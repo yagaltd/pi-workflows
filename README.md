@@ -688,3 +688,4 @@ pi-workflows/
 `/idea` → `/challenge` (grill plan) → approve plan → `/next` × N (verdict-gated, fix rounds) → `/review` → SHIP (commit + archive) — or `/abort` to archive as superseded
 
 SHIP archives consumed specs to `.workflows/archive/done/<plan-id>/specs/` (reviewers see only live specs), and every plan carries a single-writer status line (`Status: DRAFT|DISPATCHED|EXECUTED|SHIPPED`) — only the orchestrator writes it.
+- 2026-08-22 LIVE-VERIFY-130: worktree write landed (branch + diffstat reported, GUARD passed in-worktree).
