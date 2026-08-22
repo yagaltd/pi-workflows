@@ -21,7 +21,14 @@
         "ctx": 1310720
       },
       "source": "deepseek-docs",
-      "resolvedAt": "2026-08-22T09:26:03.086Z"
+      "thinking": {
+        "supported": [
+          "high",
+          "xhigh"
+        ],
+        "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
+      },
+      "resolvedAt": "2026-08-22T10:41:09.833Z"
     },
     "strong": {
       "id": "deepseek/deepseek-v4-pro-0813",
@@ -32,7 +39,14 @@
         "ctx": 1048576
       },
       "source": "deepseek-docs",
-      "resolvedAt": "2026-08-22T09:26:03.087Z"
+      "thinking": {
+        "supported": [
+          "high",
+          "xhigh"
+        ],
+        "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
+      },
+      "resolvedAt": "2026-08-22T10:41:09.834Z"
     },
     "reviewer": {
       "id": "deepseek/deepseek-v4-pro-0813",
@@ -43,7 +57,14 @@
         "ctx": 1048576
       },
       "source": "deepseek-docs",
-      "resolvedAt": "2026-08-22T09:26:03.087Z"
+      "thinking": {
+        "supported": [
+          "high",
+          "xhigh"
+        ],
+        "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
+      },
+      "resolvedAt": "2026-08-22T10:41:09.834Z"
     },
     "scout": {
       "id": "deepseek/deepseek-v4-flash-0731",
@@ -54,7 +75,14 @@
         "ctx": 1310720
       },
       "source": "deepseek-docs",
-      "resolvedAt": "2026-08-22T09:26:03.087Z"
+      "thinking": {
+        "supported": [
+          "high",
+          "xhigh"
+        ],
+        "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
+      },
+      "resolvedAt": "2026-08-22T10:41:09.834Z"
     }
   }
 }

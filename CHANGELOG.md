@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.5.4 (2026-08-22)
+
+### Added — herdr wave-orchestrator spike (verdict: NO-GO, successful spike) + two dogfood hardenings (plan 20260822-006)
+
+First plan run end-to-end through the v0.5.3 delegated drafting pipeline (scout facts → strong-model draft → adversarial pass → spec-drafter fan-out → human gate). The spike asked: can a per-wave orchestrator pi session in its own herdr tab run waves via in-process children so the parent pays summaries only?
+
+- **Spike verdict: NO-GO** (`.workflows/scout/006-wave-orchestrator-verdict.md`) — harness and economics PROVEN (TUI child in own workspace, lifecycle-tracked, ground-truth verification, ~**100:1 context compression** for $0.028; print-mode children invisible to herdr — `herdr-agent-state.ts:228`), but **depth-2 dispatch is systematically broken**: child→grandchild workers executed ZERO tools in 2/2 rounds (0 tools · 1 turn, ↓75–152B) while the runtime reported ✓ succeeded. Depth-1 on the same model worked all session. Next step: root-cause nested tool execution, then re-spike. NO-GO is a successful spike per doctrine.
+- **Value/impact matrix** (T5, orchestrator-inline — the tier rule applied to itself): every task in the adversarial pass must answer "cheapest path to the user-visible outcome?" — delete or inline tasks that only serve the design.
+- **Thinking maps in the registry** (T6): roles gain `thinking: {supported, source}` resolved at scan time from the installed pi package's provider data (`pi-package:` anchors) with observed/constants fallback — kills the `thinking:medium`-on-pro-0813 dispatch failure class hit live during this plan's own drafting. Tests 40/40.
+
+Pipeline dogfood findings on record: 3× `stopReason:length` on pro-0813 (read-heavy + high-thinking dies mid-generation — mitigation: compact contracts, inlined evidence, early writes); spec criteria must be re-checked when a plan is amended post-draft (C10/C17 stale after +T6); grep-literal criteria need the artifact author to know the exact strings.
+
+---
+
 ## v0.5.3 (2026-08-22)
 
 ### Added — task tiers, delegated drafting pipeline, plan hygiene (plan 20260822-005)

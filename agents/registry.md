@@ -89,6 +89,7 @@ Rules:
 - **Never set `thinking` without checking the model supports it.**
   Non-reasoning models accept `thinking: "off"` only — the call fails loudly
   otherwise, which is correct: fix the pairing, don't silence the check.
+- Consult the role's thinking.supported before setting thinking — never guess; empty array means unverified, pi validates loudly.
 - Leave `model` empty (inherit) unless the bottleneck table says otherwise —
   the parent session already knows what's available and what it's paying.
 

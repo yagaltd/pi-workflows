@@ -252,6 +252,91 @@ describe("CC4: Atomic write", () => {
   });
 });
 
+// ── CC7: Thinking maps — registry shape + fallback path ────────────────
+
+describe("CC7: Thinking maps (D-THINKING-MAPS)", () => {
+  test("every role has thinking with string-array supported + string source", () => {
+    const backup = backupRegistry();
+
+    try {
+      const result = runScan(["--fixture", LIVE_FIXTURE]);
+      expect(result.status).toBe(0);
+
+      const registry = JSON.parse(readFileSync(REGISTRY, "utf-8"));
+      for (const name of Object.keys(registry.roles)) {
+        const role = registry.roles[name];
+        expect(role.id).toBeString();
+        expect(role.provider).toBeString();
+        expect(role.seen).toBeObject();
+        expect(typeof role.seen.inPerM).toBe("number");
+        expect(typeof role.seen.outPerM).toBe("number");
+        expect(role.seen.ctx).toBeNumber();
+        expect(["openrouter-live", "deepseek-docs"]).toContain(role.source);
+        expect(role.resolvedAt).toBeString();
+        // new thinking field retains existing fields (O1)
+        expect(Array.isArray(role.thinking.supported)).toBe(true);
+        expect(typeof role.thinking.source).toBe("string");
+        const allowed = ["unknown", "observed"];
+        const isPiPkg = /^pi-package:[^:]+:[0-9]+$/.test(role.thinking.source);
+        if (allowed.includes(role.thinking.source) || isPiPkg) {
+          // valid provenance
+        } else {
+          throw new Error(`bad thinking.source ${role.thinking.source}`);
+        }
+      }
+    } finally {
+      restoreRegistry(backup);
+    }
+  });
+
+  test("deepseek-v4-pro-0813 fallback → [\"high\",\"xhigh\"], source observed or pi-package", () => {
+    const backup = backupRegistry();
+
+    try {
+      const result = runScan(["--fixture", LIVE_FIXTURE]);
+      expect(result.status).toBe(0);
+
+      const registry = JSON.parse(readFileSync(REGISTRY, "utf-8"));
+      expect(registry.roles.strong.id).toBe("deepseek/deepseek-v4-pro-0813");
+      expect(registry.roles.strong.thinking.supported).toEqual(["high", "xhigh"]);
+      expect(registry.roles.reviewer.id).toBe("deepseek/deepseek-v4-pro-0813");
+      expect(registry.roles.reviewer.thinking.supported).toEqual(["high", "xhigh"]);
+      // fallback constant keyed by bare id must be present in the script
+      const src = readFileSync(resolve(ROOT, "scripts", "models-scan.mjs"), "utf-8");
+      expect(src).toMatch(/['"]deepseek-v4-pro-0813['"]/);
+      expect(src).toMatch(/'observed'/);
+    } finally {
+      restoreRegistry(backup);
+    }
+  });
+
+  test("supported values stay within pi's level vocabulary", () => {
+    const backup = backupRegistry();
+
+    try {
+      const result = runScan(["--fixture", LIVE_FIXTURE]);
+      expect(result.status).toBe(0);
+
+      const vocab = new Set(["off", "low", "medium", "high", "xhigh"]);
+      const registry = JSON.parse(readFileSync(REGISTRY, "utf-8"));
+      for (const name of Object.keys(registry.roles)) {
+        const t = registry.roles[name].thinking;
+        for (const v of t.supported) {
+          expect(vocab.has(v)).toBe(true);
+        }
+        if (t.source === "observed") {
+          expect(t.supported.length).toBeGreaterThan(0);
+        }
+        if (t.source === "unknown") {
+          expect(t.supported.length).toBe(0);
+        }
+      }
+    } finally {
+      restoreRegistry(backup);
+    }
+  });
+});
+
 // ── CC5: Zero deps ─────────────────────────────────────────────────────
 
 describe("CC5: Zero deps", () => {

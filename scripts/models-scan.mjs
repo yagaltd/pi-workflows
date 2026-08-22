@@ -12,7 +12,7 @@
  *   node scripts/models-scan.mjs --prefs families=deepseek-flash,claude-sonnet providers=deepseek-api,openrouter
  */
 
-import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, renameSync, mkdirSync, unlinkSync, readdirSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -22,6 +22,73 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const REGISTRY_PATH = resolve(ROOT, 'models', 'registry.json');
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/models';
+
+// ── DeepSeek thinking-level fallback constants (observed-only, never invented) ──
+// Mirrors the DEEPSEEK_PRICING structure below. Priorities: (1) AUTHORITATIVE —
+// grep the installed pi package for the resolved model id's thinkingLevelMap;
+// (2) FALLBACK — these observed-only constants, `source: "observed"`;
+// (3) UNKNOWN — empty array + `source: "unknown"` (dispatcher must rely on pi's
+// loud validation). Never invent levels that were not actually observed.
+//
+// Observed live 2026-08-22: pi rejected DeepSeek-v4-pro-0813 with
+//   `Thinking level "medium" is not supported ... Supported: high | xhigh`
+const THINKING_FALLBACK = new Map([
+  ['deepseek-v4-pro-0813', ['high', 'xhigh']],
+]);
+
+// Installed pi package root (read-only grep source; ~-expanded via env HOME).
+const PI_AGENT_NODE = '@earendil-works/pi-coding-agent';
+const PI_PACKAGE_ROOT = resolve(process.env.HOME || '~', '.npm-global', 'lib', 'node_modules', PI_AGENT_NODE);
+const PI_PROVIDER_DATA = resolve(PI_PACKAGE_ROOT, 'node_modules', '@earendil-works', 'pi-ai', 'dist', 'providers', 'data');
+
+// pi's thinking level vocabulary
+const KNOWN_LEVELS = ['off', 'low', 'medium', 'high', 'xhigh'];
+
+// ── authoritative thinkingLevelMap discovery ─────────────────────────────
+let PI_THINKING_INDEX = null;
+function piDataFiles(dir, out = []) {
+  let entries;
+  try { entries = readdirSync(dir); } catch { return out; }
+  for (const name of entries) {
+    const p = resolve(dir, name);
+    let st;
+    try { st = statSync(p); } catch { continue; }
+    if (st.isDirectory()) {
+      piDataFiles(p, out);
+    } else if (name.endsWith('.json')) {
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+function collectPiMapsFromFile(filePath, acc) {
+  let data;
+  try { data = JSON.parse(readFileSync(filePath, 'utf-8')); } catch { return; }
+  const rel = filePath.startsWith(PI_PACKAGE_ROOT)
+    ? filePath.slice(PI_PACKAGE_ROOT.length + 1)
+    : filePath;
+  // pi provider-data files nest model objects deep inside; walk for model maps.
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (typeof node.id === 'string' && node.thinkingLevelMap && typeof node.thinkingLevelMap === 'object') {
+      const supported = KNOWN_LEVELS.filter(l => typeof node.thinkingLevelMap[l] === 'string');
+      if (supported.length > 0) {
+        acc.set(node.id, { supported, source: `pi-package:${rel}:1` });
+      }
+    }
+    for (const v of Object.values(node)) walk(v);
+  };
+  walk(data);
+}
+
+function getPiThinkingIndex() {
+  if (PI_THINKING_INDEX) return PI_THINKING_INDEX;
+  const idx = new Map();
+  for (const p of piDataFiles(PI_PROVIDER_DATA)) collectPiMapsFromFile(p, idx);
+  PI_THINKING_INDEX = idx;
+  return idx;
+}
 
 // ── DeepSeek official pricing (source: https://api-docs.deepseek.com/quick_start/pricing) ──
 // Verified against docs as of 2026-08-22. DeepSeek has NO pricing API.
@@ -164,6 +231,19 @@ function resolveFamily(models, family) {
   return sortNewestFirst(candidates)[0];
 }
 
+// ── resolve thinking for a resolved model id ─────────────────────────────
+// Priority: (1) AUTHORITATIVE pi-package grep; (2) FALLBACK constants;
+// (3) UNKNOWN → empty + "unknown".
+function resolveThinkingFor(modelId) {
+  const pkg = getPiThinkingIndex().get(modelId);
+  if (pkg) return pkg;
+  const bare = modelId.includes('/') ? modelId.slice(modelId.indexOf('/') + 1) : modelId;
+  if (THINKING_FALLBACK.has(bare)) {
+    return { supported: THINKING_FALLBACK.get(bare), source: 'observed' };
+  }
+  return { supported: [], source: 'unknown' };
+}
+
 // ── resolve provider and pricing ─────────────────────────────────────────
 function resolveProvider(model, providers) {
   const modelId = model.id;
@@ -225,6 +305,7 @@ function resolveRoles(models, families, providers) {
         ctx: pricing.ctx,
       },
       source: pricing.source,
+      thinking: resolveThinkingFor(model.id),
       resolvedAt: new Date().toISOString(),
     };
   }
