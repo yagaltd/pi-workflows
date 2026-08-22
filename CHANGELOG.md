@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.1 (2026-08-22)
+
+### Added — subagent landing hardening: cwd GUARD + anti-phantom tripwire + VOID semantics (plan 20260822-003, dogfooded live)
+
+Root cause chain from the MorphEditor 20260822-002 incident: pi-core-subagent honored run-level `cwd` in only 3/10 spawns → one worker scaffolded an entire fake project in a phantom directory; four reviews produced void verdicts from the wrong root. All retries with per-task `cwd` + a landing guard landed 13/13. This plan turned that fix into enforced policy — and validated itself during its own execution (11/11 nodes landed correctly; a round-1 boundary rejection was correctly vacated in round 2 as D7a union-noise, proven by the new tripwire's attribution).
+
+- **`tooling/verify-landing.sh`** (new): mechanical phantom-work tripwire — S1 landing check (any diff within the task's Allowed paths in the expected repo; zero diff + claimed done = ALARM), S2 claims-vs-reality (every file in the worker's Files Changed must appear in `git status` — catches partial fakes), S3 magnitude (informational numstat + explicit untracked count). `--selftest` builds four mktemp fixture repos and asserts all behaviors (4 PASS). LOC/tokei deliberately rejected as detectors — the phantom produced a *full project*; the failure is location, not volume.
+- **`agents/registry.md`**: dispatch cwd policy — per-task `cwd` mandatory, run-level/inherit never sufficient (evidence: 3/10 vs 13/13); isolation policy gains the tripwire mandate (run after every claimed-done write task; ALARM → report untrusted → verify cwd → redispatch); reviewer tier notes point at the new provenance line + VOID semantics.
+- **`agents/worker.md`**: **Step 0 — GUARD (verify your landing)** before any work: `pwd` + `git rev-parse --show-toplevel` must match the absolute repo path named in the task text's first line; mismatch → `WORKER_BLOCKER: inaccessible_resource`. Includes the **anti-scaffold clause** (an empty or foreign project tree is an environment failure, NEVER a build instruction), the spec-reachability rule (deliberately absent → proceed from task text; expected-but-unreadable → blocker — unreachable ≠ missing), and read-AGENTS.md-if-present (the harness does not inject it — verified empirically). The old "your bash already runs in the project working directory" assertion corrected to a verify-it form.
+- **`agents/reviewer.md` + `agents/quality-reviewer.md`**: read-only Step 0 GUARD + **VOID semantics** (wrong root → exactly one line `VOID — wrong working directory (<found> ≠ <expected>); no verdicts emitted` — never per-spec verdicts from a wrong root) + mandatory `repo: <git toplevel>` provenance line opening every report. Quality-reviewer's CONTEXT.md domain-memory read unchanged (context routing: specs are the single decision channel).
+- **`agents/execution-doctrine.md`**: the loop gains the tripwire step between reviewer `ok:true` and verdict persist (fake work is never reviewed); **consolidated final review** rule (wave-time `agent-spec guard` over a shared worktree is union-noise; the full-tree review at plan end is the review of record — proven by live fire in this plan's own round-1/round-2 exchange); **lifecycle-skip honesty** (scenario skips are "unverified-by-lifecycle", a documented gap — never silently treated as pass); **live-smoke layer** (UI-facing plans include a live smoke task; unit-green ≠ working — F1 form-persist + F2 stale-serve evidence).
+- **`agents/dispatch-shapes.md`**: every dispatch template gains `cwd: "<absolute repo path>"`; worker task-texts open with the absolute-repo GUARD anchor line; new **live-smoke dispatch shape**.
+
 All notable changes to pi-workflows are documented here.
 
 ---

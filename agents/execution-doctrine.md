@@ -12,7 +12,9 @@ judgment:
 ```
 worker → reviewer in ONE graph call (`needs` edge) → verdict
    reviewer fires mechanically when the worker settles — no orchestrator turn between
-   ok:true → persist verdict → ✅ DONE
+   ok:true → orchestrator runs tooling/verify-landing.sh <repo> <allowed>... < claims.txt (tripwire)
+       tripwire OK → persist verdict → ✅ DONE
+       tripwire ALARM → phantom work → worker report untrusted → redispatch with explicit per-task cwd
    ok:false → fix round N (follow-up dispatch) → re-review → verdict …
               (N capped at max-rounds, default 2)
    worker failed/blocked → reviewer auto-aborts — the abort is the failure signal
@@ -43,6 +45,25 @@ Rules:
   integration effects are judged.
 - In parallel waves: parse each task's verdict from the reviewer's output;
   run fix rounds for every ok:false before advancing the wave.
+- **Tripwire (verify-landing.sh) runs after every claimed-done write task**
+  — the orchestrator runs `tooling/verify-landing.sh <repo> <allowed>...`
+  with claimed files on stdin. ALARM = phantom work → the worker's report
+  is untrusted → verify cwd → redispatch with explicit per-task cwd.
+  Fake work is never reviewed. The script's `--selftest` mode is the
+  authoritative verification for fixture-based contract scenarios that
+  agent-spec lifecycle cannot cover.
+- **Consolidated final review**: when parallel waves share one worktree,
+  wave-time `agent-spec guard` output is union-noise (5/6 specs failing
+  because sibling tasks are still pending). The consolidated full-tree
+  review at plan end — running guard once over all specs against the
+  complete worktree — is the review of record. Wave reviewers note
+  "union-noise (D7a)" and proceed; the final `/review` catches everything.
+- **Lifecycle-skip honesty**: `agent-spec lifecycle` scenario skips are
+  "unverified-by-lifecycle" — a documented gap
+  (fixture-based or grep-based scenarios have no verifier bound).
+  Orchestrators instruct reviewers explicitly how skips are covered
+  (e.g., `--selftest` mode, tdd-guard selectors + suite green, manual
+  grep checks). Never silently treat a lifecycle skip as a pass.
 
 ## Verdict artifact format
 
@@ -63,6 +84,23 @@ Task: <goal> · Contract: <spec path>
 ```
 
 The verdict file is the fixer's input and `/review`'s audit trail.
+
+## Live-smoke layer (UI-facing plans only)
+
+Unit-green ≠ working. Two real-world escapes from plan 20260822-002:
+- **F1 form-persist**: unit tests passed, but submitted form data vanished
+  on refresh — no persistence binding wired.
+- **F2 stale-serve**: dev server returned cached builds after code changes
+  — tests ran against the new code, the browser ran the old build.
+
+UI-facing plans include a dedicated live-smoke task (worker role, dispatched
+as a standalone task after all other tasks pass mechanical review):
+- Start the dev server, drive the real product with a browser (agent-browser
+  or equivalent), and record observed states honestly.
+- Failures are findings — never rationalized away or softened.
+- Evidence file: `.workflows/docs/smoke-<task-id>.md`.
+- The smoke task has its own spec, reviewer, and verdict; it gates
+  the final `/review`.
 
 ## Worker→reviewer graph dispatch (verdict-producing)
 

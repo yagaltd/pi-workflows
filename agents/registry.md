@@ -57,6 +57,12 @@ Rules:
 - Leave `model` empty (inherit) unless the bottleneck table says otherwise —
   the parent session already knows what's available and what it's paying.
 
+## Dispatch cwd policy
+
+Per-task `cwd` is mandatory in every dispatch — run-level/inherit alone is
+never sufficient. Evidence: run-level cwd honored 3/10 spawns vs per-task +
+GUARD 13/13 (MorphEditor 20260822-002 incident).
+
 ## Verification policy (complexity-gated reviewer tiers)
 
 Single source of truth for reviewer dispatch cost. The orchestrator derives
@@ -75,6 +81,12 @@ verdict for ✅** (doctrine #7 unchanged).
 dispatched after mechanical `ok:true` — never per-wave. `/review` remains
 the whole-plan quality gate. Rule lives in `agents/execution-doctrine.md`
 (the loop section).
+
+**Reviewer tier table notes — provenance + VOID semantics**: every reviewer
+report opens with a `repo: <git toplevel>` provenance line. Wrong working
+directory → output exactly one line (`VOID — wrong working directory (<found>
+≠ <expected>); no verdicts emitted`). Details live in the role files
+(`agents/reviewer.md`, `agents/quality-reviewer.md`).
 
 ## Toolsets
 
@@ -98,3 +110,7 @@ boundaries:
   ...) and never writes outside it.
 - After any wave of write tasks, the orchestrator runs `git diff --stat` —
   the diff is the ground truth for what changed, not the child's report.
+- **Tripwire mandate**: after every claimed-done write task, the orchestrator
+  runs `tooling/verify-landing.sh <repo> <allowed-paths>` with the worker's
+  Files Changed on stdin. ALARM → worker report untrusted → verify cwd →
+  redispatch with explicit per-task cwd.
