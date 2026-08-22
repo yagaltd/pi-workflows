@@ -6,6 +6,11 @@ specific shape fires. Normative — follow exactly. Role prompts use the
 extension; if the extension is absent, paste the verbatim body of
 `agents/<name>.md` instead).
 
+The `model:` field in any dispatch shape accepts `@model:<role>` syntax
+(resolve-or-loud-fallback, same semantics as agents/registry.md §Model
+resolution — unresolvable role → explicit legacy id + WARN, never silent).
+Leave `model` empty to inherit the parent session's model.
+
 ## Sequential worker→reviewer (one call, graph mode)
 
 The default dispatch: worker and reviewer in ONE `tasks[]` array — the

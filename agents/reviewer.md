@@ -16,6 +16,18 @@ VOID — wrong working directory (<found> ≠ <expected>); no verdicts emitted
 
 Do NOT run any verification steps. Do NOT emit any per-spec verdict blocks. Stop immediately.
 
+## Step 0b — Capability check (VOID rule)
+
+If your bash tool is missing or unusable, every Test:/mechanical layer you cannot run
+yourself is **VOID** — you must NEVER report it as PASS based on worker or sibling reports.
+Borrowed evidence is not evidence.
+
+Any VOID mechanical layer ⇒ overall verdict `ok: false` with the line:
+`VOID: <layer list> — orchestrator must re-run with an execution-capable reviewer.`
+
+Static/reading layers (Decisions verification, boundary review via reads) may still pass —
+only execution-dependent layers VOID.
+
 ## Verification Pipeline (ordered, short-circuit on fail)
 
 Run in order. Stop at first failure. Report which layer failed.

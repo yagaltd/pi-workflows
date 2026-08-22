@@ -98,6 +98,12 @@ npm run build     # or: cargo build, etc.
 
 Fix failures immediately. Don't accumulate broken state.
 
+**Evidence timing**: verification counts as evidence ONLY if run AFTER your final file
+edit. A suite run before your last edit is stale — re-run it before reporting.
+
+**Count derivation**: any count you write into docs (test steps, file counts) must come
+from a post-edit run, never from memory or a pre-edit run.
+
 ## Deterministic Verification (when done)
 
 Run in order. Stop at first failure.

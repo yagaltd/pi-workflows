@@ -20,7 +20,7 @@ execution time; without the extension, the orchestrator reads and pastes
 |---|---|---|---|---|
 | scout | `agents/scout.md` | read-only (`write: false`) | inherit parent | low |
 | worker | `agents/worker.md` | `write: true` | inherit parent | medium |
-| reviewer | `agents/reviewer.md` | `tools: ["read","grep","find","ls","bash"]` (needs bash to run agent-spec) | inherit parent | high |
+| reviewer | `agents/reviewer.md` | `tools: ["read","grep","find","ls","bash"]` (needs bash to run agent-spec) — **bash non-optional** — dispatching a reviewer without bash is a dispatch bug; the role itself VOIDs mechanical layers without it (see agents/reviewer.md) | inherit parent | high |
 | quality-reviewer | `agents/quality-reviewer.md` | read-only (`write: false`) | inherit parent | medium |
 
 Never improvise a role not listed here. **Fix rounds dispatch the worker
@@ -38,14 +38,34 @@ bottleneck tag in `.workflows/plan.md`:
 
 | Bottleneck | model | thinking | extra |
 |---|---|---|---|
-| 🔴 BLOCKING | strongest available model | xhigh | human review after |
-| 🟡 RISKY | strong model | high | consider prototype first |
-| 🔵 TIME_CONSUMING | default | medium | split if it stalls |
-| 🟠 VERIFICATION_HEAVY | default | medium | budget extra verify time — Verify: line must run the full suite |
-| ⚪ STANDARD | cheap/fast model | medium | default flow |
-| scout tasks (any tag) | cheap model | low | recon only |
-| reviewer tasks | per Verification policy tier (below) | per tier | mechanical only |
+| 🔴 BLOCKING | `@model:strong` | xhigh | human review after |
+| 🟡 RISKY | `@model:strong` | high | consider prototype first |
+| 🔵 TIME_CONSUMING | `@model:standard` | medium | split if it stalls |
+| 🟠 VERIFICATION_HEAVY | `@model:standard` | medium | budget extra verify time — Verify: line must run the full suite |
+| ⚪ STANDARD | `@model:standard` | medium | default flow |
+| scout tasks (any tag) | `@model:scout` | low | recon only |
+| reviewer tasks | `@model:reviewer` | per tier | mechanical only |
 | quality-reviewer tasks | inherit | medium | judgment review |
+
+## Model resolution
+
+The orchestrator resolves `@model:<role>` from `models/registry.json` at
+dispatch time. The registry maps each role to a concrete model id with
+provenance (provider, pricing, context window). If the role is unresolvable
+(e.g., missing from registry, registry absent, parsing failure) the
+orchestrator picks an **explicit legacy id** and prints a WARN line naming
+the role and the fallback — **never silent**:
+
+- `@model:strong` → `` `deepseek/deepseek-v4-pro` `` (fallback constant)
+- `@model:standard`, `@model:reviewer`, `@model:scout` → `` `deepseek/deepseek-v4-flash` ``
+  (fallback constant)
+
+```
+WARN: @model:<role> unresolvable — falling back to <legacy-id>
+```
+
+Legacy ids appear ONLY as marked fallback constants; the registry is the
+single source of truth for live model resolution.
 
 Rules:
 
@@ -73,9 +93,9 @@ verdict for ✅** (doctrine #7 unchanged).
 
 | Tier | Traits (from spec) | reviewer model | reviewer thinking | pass shape |
 |---|---|---|---|---|
-| docs-tier | pure docs / test-data / spec-only — no production code touched | cheap model | low | one mechanical pass |
+| docs-tier | pure docs / test-data / spec-only — no production code touched | `@model:standard` | low | one mechanical pass |
 | standard-tier | ordinary code tasks (default) | inherit parent | medium–high | standard mechanical pipeline |
-| high-risk-tier | security, concurrency, parsing, external input, crypto | strongest available model | xhigh | full mechanical pipeline + adversarial depth |
+| high-risk-tier | security, concurrency, parsing, external input, crypto | `@model:strong` | xhigh | full mechanical pipeline + adversarial depth |
 
 **Quality-reviewer placement**: per-task only for 🔴/🟡/🟠 bottleneck tags,
 dispatched after mechanical `ok:true` — never per-wave. `/review` remains

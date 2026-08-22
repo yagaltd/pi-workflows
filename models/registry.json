@@ -1,0 +1,60 @@
+{
+  "prefs": {
+    "families": [
+      "deepseek-flash",
+      "deepseek-pro",
+      "deepseek-pro",
+      "deepseek-flash"
+    ],
+    "providers": [
+      "deepseek-api",
+      "openrouter"
+    ]
+  },
+  "roles": {
+    "standard": {
+      "id": "deepseek/deepseek-v4-flash-0731",
+      "provider": "deepseek-api",
+      "seen": {
+        "inPerM": 0.14,
+        "outPerM": 0.28,
+        "ctx": 1310720
+      },
+      "source": "deepseek-docs",
+      "resolvedAt": "2026-08-22T09:26:03.086Z"
+    },
+    "strong": {
+      "id": "deepseek/deepseek-v4-pro-0813",
+      "provider": "deepseek-api",
+      "seen": {
+        "inPerM": 0.55,
+        "outPerM": 2.19,
+        "ctx": 1048576
+      },
+      "source": "deepseek-docs",
+      "resolvedAt": "2026-08-22T09:26:03.087Z"
+    },
+    "reviewer": {
+      "id": "deepseek/deepseek-v4-pro-0813",
+      "provider": "deepseek-api",
+      "seen": {
+        "inPerM": 0.55,
+        "outPerM": 2.19,
+        "ctx": 1048576
+      },
+      "source": "deepseek-docs",
+      "resolvedAt": "2026-08-22T09:26:03.087Z"
+    },
+    "scout": {
+      "id": "deepseek/deepseek-v4-flash-0731",
+      "provider": "deepseek-api",
+      "seen": {
+        "inPerM": 0.14,
+        "outPerM": 0.28,
+        "ctx": 1310720
+      },
+      "source": "deepseek-docs",
+      "resolvedAt": "2026-08-22T09:26:03.087Z"
+    }
+  }
+}

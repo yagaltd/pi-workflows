@@ -207,6 +207,22 @@ Verdicts persist to `.workflows/reviews/<task>.md` — the fixer cites them, `/r
 | **Adversarial** | Did we introduce bugs or vulnerabilities? | bug-hunter: Recon → Hunter → Skeptic → Referee — optional, recommended |
 | **Quality** | Is the code maintainable? | quality-reviewer: simplicity, security, error handling — judgment-based |
 
+### Reviewer integrity
+
+Three rules every dispatch must enforce for mechanical verification to be trustworthy:
+
+1. **bash non-optional** — the reviewer role explicitly lists `bash` in its toolset
+   (`agents/registry.md`). Dispatching a reviewer without bash is a dispatch bug;
+   the role itself VOIDs mechanical layers that depend on execution (see
+   `agents/reviewer.md` Step 0b).
+2. **VOID rule** — a reviewer whose bash tool is missing or unusable MUST NEVER
+   certify borrowed evidence as PASS. Any execution-dependent layer run via
+   sibling report is VOID: `ok: false` with `VOID: <layer list>`.
+   Static/reading layers (decisions verification, boundary reads) may still pass.
+3. **Verify-after-edit** — worker verification counts as evidence ONLY after the
+   final file edit. Counts (test steps, file tallies) must come from a post-edit
+   run, never from memory or a pre-edit run (`agents/worker.md`).
+
 ### Contracts (generated after approval, then kept honest)
 
 `/plan`/`/idea` write the plan first, stop for approval, THEN generate `.spec` contracts for every worker task. After that, `/next` keeps them honest: before executing a task it re-validates its contract against what was actually built, and after each task it updates the next 1-2 downstream contracts from learnings (significant changes go back to you first).
@@ -497,6 +513,36 @@ supported levels, so a bad pairing fails loudly instead of silently.
 Edit `agents/registry.md` in the installed package (or override the table in
 your project) to change the ladder. There are no `subagents.agentOverrides`
 settings anymore — the dispatch policy IS the override.
+
+> **Prefs are positional**: `families[i]` maps to role slot `i` in order
+> standard, strong, reviewer, scout. Four slots, four entries — e.g.
+> `deepseek-flash, deepseek-pro, deepseek-pro, deepseek-flash` gives
+> scout the cheap model. Fewer entries fall back to the last one.
+
+### Model registry
+
+The orchestrator resolves `@model:<role>` references from
+`models/registry.json` at dispatch time — no hardcoded model IDs in policy
+code. To scan or update:
+
+1. **Scan** — `node scripts/models-scan.mjs` fetches OpenRouter models live,
+   matches families to roles via `models/registry.json` prefs, and writes back
+   a fresh registry with pricing and `resolvedAt` timestamps.
+2. **Edit preferences** — edit `models/registry.json` → `prefs` to change
+   the family list or providers (`deepseek-api`, `openrouter`). Re-running the
+   scan picks up the new prefs. The role → model binding is derived from
+   prefs + live scan, never hand-written.
+3. **Offline keeps last** — if the live fetch fails (network unavailable, API
+   down), the script prints a `WARN` and exits 1, leaving the registry
+   byte-identical. Previous resolutions survive until the next successful scan.
+4. **`@model:<role>` refs** — dispatch shapes and policy tables reference
+   `@model:standard`, `@model:strong`, `@model:reviewer`, `@model:scout`.
+   These resolve against the registry at dispatch time. An unresolvable role
+   falls back to a legacy constant and prints a WARN naming the role and the
+   fallback — never silent.
+
+See `agents/registry.md` → **Model resolution** for the fallback contract and
+`scripts/models-scan.mjs` for the implementation.
 
 ## Directory Structure
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.5.2 (2026-08-22)
+
+### Added — model registry + reviewer integrity hardening (plan 20260822-004)
+
+Two live incidents from the MorphEditor sessions became enforced policy: a final reviewer dispatched without bash certified borrowed worker reports as PASS ("122/334/0 ✅ confirmed by others" — actual 121/333/1), and every dispatch hardcoded 0423-era model ids while newer, cheaper builds sat live.
+
+- **`scripts/models-scan.mjs`** (new, zero-dep ESM): resolves preference slots to concrete provider/model ids from live OpenRouter pricing (`GET /api/v1/models`) + DeepSeek official docs constants (no pricing API exists). Newest-dated-build-wins, atomic temp+rename write, offline keeps last resolutions + WARN + exit 1 (never wipes), `--fixture`/`--dry-run`/`--prefs` flags. 11 offline tests.
+- **`models/registry.json`** (new, user-editable): 4 role slots (standard/strong/reviewer/scout) — prefs order maps positionally to role order. Seeded live: flash-0731 $0.14/$0.28, pro-0813 $0.55/$2.19 per M (deepseek-api, official pricing — far below the old hardcoded OR aliases).
+- **`agents/registry.md` + `agents/dispatch-shapes.md`**: bottleneck table speaks `@model:<role>` refs (13 across all 4 roles; raw ids only as marked fallback constants); resolve-or-**loud-fallback** contract (WARN naming role + fallback — never silent); reviewer toolset marked **bash non-optional**.
+- **`agents/reviewer.md`**: **Step 0b — Capability check (VOID rule)** — no bash ⇒ every execution-dependent layer is VOID, NEVER PASS from worker/sibling reports ("borrowed evidence is not evidence"); any VOID ⇒ `ok: false` + orchestrator-must-re-run. Insertions-only (+12).
+- **`agents/worker.md`**: evidence-timing rules — verification counts only if run AFTER the final file edit; doc counts derived from a post-edit run, never memory (+6). Kills the 3×-recurrence stale-count class.
+- **`README.md`**: Model registry + Reviewer integrity sections.
+
+Dogfooded live in-plan: every reviewer carried bash + the Step 0b discipline; the orchestrator's own re-verification caught one wave-parallelism incident (T2 briefly reverted T3's role files in the shared tree — steer + reconstruction verified insertions-only by diff). Spec-design finding ledgered for 005: `git diff`-style CCs must be task-scoped in shared parallel worktrees.
+
+---
+
 ## v0.5.1 (2026-08-22)
 
 ### Added — subagent landing hardening: cwd GUARD + anti-phantom tripwire + VOID semantics (plan 20260822-003, dogfooded live)
