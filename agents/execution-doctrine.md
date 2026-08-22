@@ -12,7 +12,7 @@ judgment:
 ```
 worker → reviewer in ONE graph call (`needs` edge) → verdict
    reviewer fires mechanically when the worker settles — no orchestrator turn between
-   ok:true → orchestrator runs tooling/verify-landing.sh <repo> <allowed>... < claims.txt (tripwire)
+   ok:true → orchestrator runs tooling/verify-landing.sh --branches subagents/* <repo> <allowed>... < claims.txt (tripwire)
        tripwire OK → persist verdict → ✅ DONE
        tripwire ALARM → phantom work → worker report untrusted → redispatch with explicit per-task cwd
    ok:false → fix round N (follow-up dispatch) → re-review → verdict …
@@ -46,18 +46,22 @@ Rules:
 - In parallel waves: parse each task's verdict from the reviewer's output;
   run fix rounds for every ok:false before advancing the wave.
 - **Tripwire (verify-landing.sh) runs after every claimed-done write task**
-  — the orchestrator runs `tooling/verify-landing.sh <repo> <allowed>...`
-  with claimed files on stdin. ALARM = phantom work → the worker's report
-  is untrusted → verify cwd → redispatch with explicit per-task cwd.
-  Fake work is never reviewed. The script's `--selftest` mode is the
-  authoritative verification for fixture-based contract scenarios that
-  agent-spec lifecycle cannot cover.
-- **Consolidated final review**: when parallel waves share one worktree,
-  wave-time `agent-spec guard` output is union-noise (5/6 specs failing
-  because sibling tasks are still pending). The consolidated full-tree
-  review at plan end — running guard once over all specs against the
-  complete worktree — is the review of record. Wave reviewers note
-  "union-noise (D7a)" and proceed; the final `/review` catches everything.
+  — the orchestrator runs `tooling/verify-landing.sh --branches subagents/* <repo> <allowed>...`
+  with claimed files on stdin. The tripwire accepts branch evidence: S1
+  passes on a dirty main tree OR an allowed-scoped non-empty task branch
+  (`subagents/<run>/<task>`), never on branch existence alone — an
+  empty-diff branch with a done claim is still an ALARM. ALARM = phantom work
+  → the worker's report is untrusted → verify cwd → redispatch with explicit
+  per-task cwd. Fake work is never reviewed. The script's `--selftest` mode
+  is the authoritative verification for fixture-based contract scenarios
+  that agent-spec lifecycle cannot cover.
+- **Consolidated final review**: parallel waves no longer share a single
+  tree — each write task lands on its own `subagents/<run>/<task>` branch,
+  and that per-task branch diff (`git diff <base>..<branch>`) is the review
+  surface wave reviewers verify, never a shared tree. The consolidated
+  full-tree review at plan end — running guard once over all specs against
+  the complete tree — remains the review of record; the final `/review`
+  catches everything (including cross-task integration).
 - **Lifecycle-skip honesty**: `agent-spec lifecycle` scenario skips are
   "unverified-by-lifecycle" — a documented gap
   (fixture-based or grep-based scenarios have no verifier bound).
@@ -71,6 +75,9 @@ Rules:
   `Status: DRAFT|DISPATCHED|EXECUTED|SHIPPED` — the single writer is the
   orchestrator; per-task emoji flips only after that task's reviewer settles
   (stale-echo rule: a settled task is never re-marked from a newer report).
+- **Ship ritual branch merge**: before the ship commit, `git merge --no-ff`
+  each write-task branch in the run's namespace (`subagents/*`) into the
+  main branch — each per-task `--no-ff` merge commit documents the wave.
 - **Ship ritual archive step**: at SHIP, consumed specs move to
   `.workflows/archive/done/<plan-id>/specs/` — reviewers and guard layers see
   only live specs.

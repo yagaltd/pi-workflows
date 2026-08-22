@@ -20,12 +20,12 @@ prompt:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   cwd: "<absolute repo path>",
   tasks: [
     { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
       write: true, thinking: "<from bottleneck tag>",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK <N> of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/<task-id>.spec. Upstream tasks: <list>.
 
@@ -34,13 +34,18 @@ Implement per contract. First read .workflows/specs/<task-id>.spec
     { id: "review-<task-id>", agent: "review-<task-id>", prompt: "@role:reviewer",
       tools: ["read","grep","find","ls","bash"], thinking: "high",   // xhigh when tag is 🔴
       needs: ["worker-<task-id>"],
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
 the self-report: read .workflows/specs/<task-id>.spec yourself, then run
 in order, stop at first failure: agent-spec lifecycle, guard, tdd-guard
 (if installed), project checks (tests, lint, typecheck, build).
+Write tasks: the result carries the child's branch + diffstat — verify
+git diff <base>..<branch> against the spec instead of the shared tree
+(write work lands on the child's branch, leaving the tree clean).
+Read-only tasks: keep dirty-tree verification (in-place children run in
+the shared tree, which stays authoritative).
 End with the Verdict block (ok: true|false + findings with evidence).` },
   ],
 })
@@ -49,7 +54,12 @@ End with the Verdict block (ok: true|false + findings with evidence).` },
 Notes:
 - A failed worker auto-aborts the reviewer (broken upstream must not be
   reviewed) — the abort is your signal the task failed.
-- With `background: false`, the call returns when the whole graph settles.
+- With `autoAwait: true`, the call returns when the whole graph settles.
+- **Worktree contract**: a write-capable child runs in
+  `<repo>/.git/subagents/<run>/<task>` on branch `subagents/<run>/<task>`;
+  the extension tells the child its branch before work, the child runs NO
+  branch-switching git commands (no checkout/switch to its branch), and the
+  extension auto-commits the child's changes at completion.
 - Fix rounds stay follow-up dispatches (per `agents/execution-doctrine.md`);
   re-reviews run standalone (no `needs`).
 
@@ -61,13 +71,13 @@ workers' outputs to its prompt automatically:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   cwd: "<absolute repo path>",
   concurrency: 4,
   tasks: [
     { id: "task-<2>", agent: "worker-task-2", prompt: "@role:worker",
       write: true, thinking: "<per tag>",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK 2 of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/task-2.spec.
 
@@ -75,7 +85,7 @@ Implement per contract. First read .workflows/specs/task-2.spec
 (the workflow is in your role prompt — follow it).` },
     { id: "task-<3>", agent: "worker-task-3", prompt: "@role:worker",
       write: true, thinking: "<per tag>",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK 3 of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/task-3.spec.
 
@@ -84,7 +94,7 @@ Implement per contract. First read .workflows/specs/task-3.spec
     { id: "verify-<2-3>", agent: "reviewer", prompt: "@role:reviewer",
       tools: ["read","grep","find","ls","bash"], thinking: "high",
       needs: ["task-2", "task-3"],
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 Mechanical verification for TASK 2 and TASK 3.
 First read .workflows/plan.md and the two specs, then run in order, stop at first failure:
@@ -92,6 +102,9 @@ First read .workflows/plan.md and the two specs, then run in order, stop at firs
 2. agent-spec lifecycle .workflows/specs/task-3.spec --code . --format json
 3. agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 4. Project checks (tests, lint, typecheck, build).
+Write tasks: each worker's result carries its branch + diffstat — verify
+git diff <base>..<branch> against the spec instead of the shared tree.
+Read-only tasks: keep dirty-tree verification (in-place children).
 Report per task: TASK <n>: ok <true|false> + findings. End with one Verdict block per task.
 Verify: agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree` },
   ],
@@ -102,9 +115,17 @@ Notes:
 - **`needs` replaces wave bookkeeping**: the reviewer starts only when all
   workers settle; a failed worker auto-aborts it (a broken upstream must
   not be reviewed) — that abort is your signal the task failed.
+- **Worktree contract**: write-capable children run in
+  `<repo>/.git/subagents/<run>/<task>` worktrees on branch
+  `subagents/<run>/<task>`; the extension tells each child its branch
+  before work, children run NO branch-switching git commands, and the
+  extension auto-commits each child's changes at completion.
 - Hard limits: ≤16 tasks per call, concurrency ≤8.
 - **Verdict gating applies per task** — fix rounds per
   `agents/execution-doctrine.md` for every ok:false before advancing.
+- **Ship/merge step**: once every verdict passes, the orchestrator merges
+  each write task's branch with `git merge --no-ff subagents/<run>/<task>`
+  before the ship commit (merged branches + worktree dirs are auto-cleaned).
 - Parallel tasks MUST have disjoint `Allowed Changes` (registry isolation
   policy); overlapping boundaries → resequence with a dependency instead.
 
@@ -116,7 +137,7 @@ subagent({
   prompt: "@role:scout",
   cwd: "<absolute repo path>",
   thinking: "low",            // cheap recon — see registry
-  background: false,
+  autoAwait: true,
   task: `Investigate <area> for TASK <N>: <goal>.
 
 First read domain memory (if present): .workflows/CONTEXT.md,
@@ -144,7 +165,7 @@ subagent({
            then follow the protocol EXACTLY: scan-only, single-pass, fail
            closed. Write canonical artifacts under .bug-hunter/. NEVER fix,
            never commit.",
-  write: true, thinking: "high", background: false,
+  write: true, thinking: "high", autoAwait: true,
   task: "Scan the current changes (git diff — or the review diff for /review)
           for defects. Report findings with severity, file paths, and evidence.
           Output the joined summary: confirmed / dismissed / manualReview counts."
@@ -162,8 +183,8 @@ subagent({
   agent: "smoke-<task-id>",
   prompt: "@role:worker",
   cwd: "<absolute repo path>",
-  write: true, thinking: "medium", background: false,
-  task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+  write: true, thinking: "medium", autoAwait: true,
+  task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 TASK <N> of .workflows/plan.md (plan <id>): Live-smoke <goal>. Contract: .workflows/specs/task-smoke-<id>.spec.
 
@@ -191,13 +212,13 @@ boundaries, and the exact spec filename:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   cwd: "<absolute repo path>",
   concurrency: min(4, N),
   tasks: [
     { id: "spec-<task-1>", agent: "spec-drafter-<task-1>", prompt: "@role:spec-drafter",
       write: true, thinking: "high",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 Draft spec for TASK <N> of .workflows/plan.md (plan <id>): <goal>.
 
@@ -209,7 +230,7 @@ Output EXACTLY one file: .workflows/specs/<task-id>.spec — write:true is
 contract-limited to .workflows/specs/**.` },
     { id: "spec-<task-2>", agent: "spec-drafter-<task-2>", prompt: "@role:spec-drafter",
       write: true, thinking: "high",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 Draft spec for TASK <N+1> of .workflows/plan.md (plan <id>): <goal-2>.
 
@@ -237,12 +258,12 @@ plan format and returns a draft plan — a proposal, never a contract:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   cwd: "<absolute repo path>",
   tasks: [
     { id: "plan-draft-<id>", agent: "plan-draft-<id>",
       model: "@model:strong", write: true, thinking: "high",
-      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel match before anything).
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
 
 Draft a plan for: <user goal, verbatim>.
 Scout facts (inline slices): <paste domain map + risks + evidence slices verbatim>.

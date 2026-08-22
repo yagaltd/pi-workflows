@@ -131,22 +131,31 @@ ls`) or write (`read, grep, find, ls, bash, edit, write` via `write: true`).
 The one exception is `reviewer`, which needs `bash` to run agent-spec but
 must not edit — use the explicit `tools` allowlist above.
 
-## Isolation policy (no worktrees)
+## Isolation policy (native worktrees)
 
-pi-core-subagent children run **in-process and share the parent's
-filesystem** — there is no `worktree: true`. Isolation comes from contract
-boundaries:
+pi-core-subagent 1.3.30 runs write-capable children isolated in **native
+worktrees**: each write task runs at `.git/subagents/<run>/<task>` on
+branch `subagents/<run>/<task>` (non-git repos fall back in-place).
+Isolation mechanics:
 
+- The extension auto-commits the child's changes to its worktree branch at
+  completion and reports the **branch + diffstat** — that diffstat is the
+  evidence of record for what changed.
+- The leader merges each task branch back with `git merge --no-ff` (one
+  merge per task branch); merged branches and worktree dirs are cleaned up.
 - **Tasks in the same parallel wave MUST have disjoint `Allowed Changes`
-  sets.** If two parallel tasks touch the same files, do not parallelize
-  them — resequence (drop one into a later wave or make it `needs:` the
-  other).
-- Throwaway artifacts (prototypes, experiments) isolate by directory: each
-  gets its own subdir (`prototype/variation-a/`, `prototype/variation-b/`,
-  ...) and never writes outside it.
-- After any wave of write tasks, the orchestrator runs `git diff --stat` —
-  the diff is the ground truth for what changed, not the child's report.
+  sets.** This is **merge-cleanliness / review hygiene**, not filesystem
+  collision prevention: parallel tasks writing the same files produce
+  merge conflicts when their branches merge. If two parallel tasks touch
+  the same files, do not parallelize them — resequence (drop one into a
+  later wave or make it `needs:` the other).
+- Throwaway artifacts (prototypes, experiments) stay contained in their own
+  subdir within the worktree (or in-place for read-only children) and never
+  write outside it.
+- After any wave of write tasks, the ground truth for what changed is each
+  task's branch diff (`git diff <base>..<branch>` / the extension's
+  diffstat) — under worktrees the main tree stays clean during a task.
 - **Tripwire mandate**: after every claimed-done write task, the orchestrator
-  runs `tooling/verify-landing.sh <repo> <allowed-paths>` with the worker's
-  Files Changed on stdin. ALARM → worker report untrusted → verify cwd →
+  runs `tooling/verify-landing.sh` (branch-aware) with the worker's Files
+  Changed on stdin. ALARM → worker report untrusted → verify cwd →
   redispatch with explicit per-task cwd.

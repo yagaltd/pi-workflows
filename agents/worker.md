@@ -24,8 +24,11 @@ Run **both** of these commands immediately:
 pwd && git rev-parse --show-toplevel
 ```
 
-Both **must** show the absolute repo path named in the task text's first line.
-If they **mismatch** → output a `WORKER_BLOCKER`:
+The landing is correct when EITHER:
+- `pwd` AND `git rev-parse --show-toplevel` both equal the absolute repo path named in the task text's first line, OR
+- `pwd` equals that absolute repo path AND `git rev-parse --show-toplevel` starts with the prefix `<repo>/.git/subagents/` — this repo's own native worktree (1.3.30: write children run at `.git/subagents/<run>/<task>`; toplevel returns the worktree path there).
+
+Repo identity stays strict: a worktree of a **different** repo is still a wrong landing. If the landing is wrong → output a `WORKER_BLOCKER`:
 
 ```
 WORKER_BLOCKER:
