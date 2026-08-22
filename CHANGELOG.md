@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.5.6 (2026-08-22)
+
+### Added — pi-core-subagent 1.3.30 integration: worktree-native doctrine + live-verified (plan 20260822-009)
+
+The extension update (1.3.30) wiped our in-place patch and shipped mandatory worktree isolation
+for write agents (no opt-out). Scout found SIX of our surfaces wrong or broken under it (every
+write-task GUARD would fail in a worktree; the tripwire would false-ALARM on every legitimate
+worktree task; registry claimed "no worktrees"; shapes carried 8x removed `background:false`;
+doctrine said waves "share one worktree"; our patch + both upstream findings un-fixed).
+
+- **Doctrine now worktree-native** (T1-T3): GUARD accepts `<repo>/.git/subagents/**` (wrong-repo
+  still blocks); registry isolation section rewritten (branch `subagents/<run>/<task>`,
+  extension auto-commit + branch/diffstat, leader `merge --no-ff`; disjoint-Allowed re-labeled
+  merge-cleanliness); tripwire accepts branch evidence — **HARD INVARIANT: empty-diff branch +
+  claimed done still ALARMs** (phantom detection never weakens; selftest 9/9 incl. 4 new
+  worktree fixtures); shapes on `autoAwait:true` + branch-diff review + wave merge step.
+- **Patch re-applied to 1.3.30** (T4, orchestrator-inline after worker stall): precedence fix
+  only — explicit `input.tools` wins; `write:true` never downgraded by a read-only agent file.
+  Artifacts + upstream issue draft (both findings, 006/008 evidence chain):
+  `.workflows/patches/pi-core-subagent-1.3.30/` (NOT submitted — user's call).
+- **T5 live-fire PASS** (fresh herdr process, disk 1.3.30): a real write worker ran in a REAL
+  worktree, extension auto-committed (`5f2dda5`), branch+diffstat reported, GUARD passed
+  in-worktree, branch-aware tripwire passed rc0 on its FIRST real branch, `merge --no-ff` landed
+  the line (`2cbc7b3`), cleanup clean. Evidence: `.workflows/scout/009-live-verify.md`.
+- Pipeline round-4 dogfood: the adversarial self-pass caught the rule-maker's own disjoint
+  violation (T1/T2 both claimed dispatch-shapes.md); THIRD subagent failure class recorded
+  (recurring token-level write corruption — spec rewritten inline; taxonomy: length-death,
+  thinking-reject, write-corruption, stall); failed-dependency aborts skip downstream reviewers
+  (needs-race) — re-dispatch is the recovery; reviewer rounds work: round-1 caught a real defect
+  (canonical upstream URL is the pi-extensions monorepo) despite a bash-less dispatch, round-2
+  (bash-capable) gated 4/4 after the fix set.
+
 ## v0.5.5 (2026-08-22)
 
 ### Added — wave-orchestrator re-spike: GO (plan 20260822-008) + spec git-dirty whitelist (landed by the wave itself)
