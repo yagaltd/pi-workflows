@@ -243,6 +243,10 @@ The plan is drafted in five phases on evidence, not memory; only the last phase 
 1. **Scout** — facts-on-disk artifact `.workflows/scout/<plan-id>.md`: grep evidence, file paths with line anchors, API/vendor realities, existing-convention citations. Facts only — never summaries. (Reusable for every downstream phase; commit-adjacent, lives under `.workflows/` like specs.)
 2. **Draft** — a subagent (`@model:strong`, thinking high) receives the scout facts + user goal + this SKILL.md format → writes the plan draft. **Grounding rule**: every Context claim must cite a scout fact (`file:line`) — uncited claims get flagged in phase 3.
 3. **Adversarial + SPLIT/RISK pass** — orchestrator, challenge-skill discipline: walk every decision; single-surface inventory ("does this plan create a second path to X?"); per task: "can it be smaller? which tier? where's the integration seam?" — split or resequence accordingly. Rationale on record: dependency-partitioned graphs beat flat fan-out (+14% pass, −35% cost — pi-core-subagent "Why waves"); static ties dynamic when structure is known up front — which this pass produces. Adjust the draft directly; the draft is never dispatched unreviewed.
+     **Value/impact matrix**: for every task ask "what is the cheapest path to the
+     user-visible outcome?" — delete or inline tasks that only serve the design (Tier A
+     orchestrator-inline exists precisely for this); a plan that survives this pass is
+     minimal, not just decomposed.
 4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped).
 5. **Human approval gate** — unchanged: nothing dispatches before user approval.
 
