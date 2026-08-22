@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.5.5 (2026-08-22)
+
+### Added — wave-orchestrator re-spike: GO (plan 20260822-008) + spec git-dirty whitelist (landed by the wave itself)
+
+The 006 NO-GO re-tested at production shape after the depth-2 fix: a herdr-hosted child pi ran
+ONE multi-task wave — 2 parallel Tier-A workers (disjoint Allowed) + a reviewer on `needs:` edges,
+ALL in-child — landing two REAL production edits (no manufactured work):
+
+- **Verdict: GO** (`.workflows/scout/008-wave-respike-verdict.md`, T5 depth-1 gated, 17/17 after
+  a narrow round-2 artifact fix): every wave task executed real tools (6/11/5 toolCalls,
+  session-JSONL-sourced — the 006 zero-tool gap stays closed at wave scale); reviewer-in-child
+  works; failure path none; **~100:1 context compression holds at wave scale** ($0.0157/wave,
+  parent paid ~1.2KB of a 124KB wave).
+- **Spec git-dirty whitelist** (the wave's real work, twice-flagged ledger item): task-scoped
+  git-dirty criteria must whitelist pre-dispatch files (`M .workflows/LOG.md`, `M .workflows/
+  plan.md`, the plan's own `?? .workflows/specs/*.spec`) — in BOTH rule sources: `skills/plan/
+  SKILL.md` fan-out rule + `templates/CONTRACT-FORMAT.md` (drives future spec-drafter output).
+- Pipeline round-3 dogfood: draft + spec + wave all first-try (no length-deaths); spec-drafter
+  self-caught 2 literal bugs; T5 caught the metrics-literal gap the child and parent both missed
+  — case-exact REQUIRED-LITERALS now proven to need exactly one reviewer pass to enforce.
+
+Upstream note: pi-core-subagent v1.3.30 released mid-spike (worktree isolation for write agents
++ trust-boundary file-tools intersection). Evaluation + tripwire/dispatch-shapes integration is
+the next plan; two of our findings remain un-fixed upstream (explicit input.tools still narrowed
+by ambient file match; read-only file + write:true still silently drops edit/write) — issue-ready.
+
+---
+
 ## v0.5.4 (2026-08-22)
 
 ### Added — herdr wave-orchestrator spike (verdict: NO-GO, successful spike) + two dogfood hardenings (plan 20260822-006)
