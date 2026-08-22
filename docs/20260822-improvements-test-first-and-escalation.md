@@ -1,13 +1,54 @@
 # Improvement brainstorm — test-first planning & stuck-agent escalation
 
-- **Status**: PARTIALLY IMPLEMENTED (2026-08-22, same session): idea-1 V1
-  shipped as the **prototype task type** (own spec + standard review loop,
-  no VERDICT.md — the plan draft re-confirms at the human gate; skills/plan/
-  SKILL.md + templates/CONTRACT-FORMAT.md); idea-2 V1+V3 shipped as the
-  **worker stuck protocol + escalation matrix** (agents/worker.md,
-  dispatch-shapes allowIntercom, execution-doctrine.md §Stuck handling).
-  Remaining: V2 watchdog (needs the wake-mechanism spike), idea-1 V2/V3
-  (parked unless justified).
+- **Status**: IMPLEMENTED (idea-1 V1 + idea-2 V1/V3) + **VALIDATED by plan-009 dogfood
+  (2026-08-22)** — see "Dogfood validation" below. Remaining: V2 watchdog (spike
+  still required), idea-1 V2/V3 (parked unless justified).
+
+## Dogfood validation (plan 20260822-009, from dispatch-ledger data)
+
+23+ dispatches over 6 waves, every task gated ok:true, ~$11 total, one full arc
+(spec fan-out → 2 worker waves → prototype → impl → docs) in a single session.
+
+**Prototype task type: VALIDATED.** The plan-008 evidence base was 5/7 class-5
+misfires on open-ended CSS/integration work. Plan-009's equivalent task (T5,
+🟡 full-chrome re-skin) decomposed T5p → impl: the spike landed GO first-try
+(after one class-2 length misfire on pro/high, resolved by write-early +
+down-route), the impl landed first-try, and the verdict's extrapolation proved
+conservative-accurate (estimated ~40 remaining declarations, actual 30; ~38
+token resolutions, actual 27). The misfire-prone shape is now the best-behaved
+shape in the ledger. Two-stage spec drafting worked as designed: the impl spec
+cited measured facts (A1–A4 rulings) the worker never had to discover.
+
+**Stuck protocol: armed, never triggered (0 HELP in 23+ dispatches).**
+Interpretation: bounded specs leave nothing to be stuck on — consistent with
+the routing-rule thesis (open-endedness, not difficulty, causes stalls). No
+data against the protocol itself; no data for it either.
+
+**Watchdog V2 verdict: STILL JUSTIFIED, still unproven, by different evidence.**
+Plan-009 produced ZERO silent stalls — the one failure (class-2 length) was
+caught immediately by the extension's stopReason reporting, no watchdog
+needed. But the failure watchdog exists for is the one that does NOT report
+itself (plan-008's T6 session death, class-5 confident misfires). Plan-009's
+clean run is survivorship-shaped: bounded tasks + prototype conversion removed
+the open-ended stressors. The wake-mechanism spike remains the prerequisite;
+priority drops below where plan-008 evidence put it.
+
+**Test skeletons (idea-1 V2): verdict — keep parked.** T1 (the test-heavy task:
+double-sided gate tests, idempotence proofs) landed first-try under the existing
+`Test:`-naming-in-spec discipline; tdd-guard's only contribution was 9 flags
+later proven tooling false-positives. No evidence spec-time skeletons would
+have added anything this plan; the double-authority cost remains real.
+
+**New findings feeding the machinery** (beyond this doc's original scope):
+1. Ledger under-capture: children that restart sessions (multi-JSONL) report
+   only the last file's turns (W1 t1/t2 show 4t/0m vs actual 139 turns). Name-
+   session aggregation should sum sibling files. Telemetry gap, not a verdict.
+2. Sibling-repo tests (`../Morph`) ENOENT in isolated worktrees — merge-time
+   re-run in the main repo is mandatory doctrine (W2/W3b followed it).
+3. Vendor-manifest side-effect: the vendor-refresh test re-pins the manifest
+   when ../Morph moves — restore after test runs (bit twice at ship).
+4. Per-task cwd MUST be pinned for worktree isolation (finding #1 confirmed
+   live: W1 in-place, W2+ isolated).
 - **Created**: 2026-08-22, session following plan-008 dogfood (5 class-5 misfires) + v0.5.7 ship
 - **Method**: grounded brainstorm — every claim below checked against the current
   repo state (`skills/plan/SKILL.md`, `templates/CONTRACT-FORMAT.md`, `agents/worker.md`,
