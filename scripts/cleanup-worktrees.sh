@@ -15,7 +15,16 @@ set -u
 REPO="${1:-$PWD}"
 SUB="$REPO/.git/subagents"
 
-[ -d "$SUB" ] || { echo "no .git/subagents in $REPO — nothing to do"; exit 0; }
+cd "$REPO" || exit 1
+
+# Harness-leak guard: .subagent-owner must never be tracked (it rides child
+# branches — MorphEditor plan-009 shipped one by accident)
+LEAKED=0
+if git ls-files --error-unmatch .subagent-owner >/dev/null 2>&1; then
+  echo "LEAK: .subagent-owner is tracked — run: git rm .subagent-owner && echo .subagent-owner >> .gitignore"
+  LEAKED=1
+fi
+[ -d "$SUB" ] || { echo "no .git/subagents in $REPO — nothing to do"; [ "$LEAKED" = 1 ] && exit 3; exit 0; }
 
 cd "$REPO" || exit 1
 removed=0; kept=0
@@ -52,4 +61,5 @@ done
 git worktree prune
 rmdir "$SUB" 2>/dev/null && echo "(removed empty .git/subagents)"
 echo "── $removed removed, $kept kept ──"
+[ "${LEAKED:-0}" = 1 ] && exit 3          # exit 3 = harness leak
 [ "$kept" -gt 0 ] && exit 2 || exit 0   # exit 2 = unmerged work needs review

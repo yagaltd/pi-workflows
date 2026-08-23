@@ -359,6 +359,18 @@ levels; beyond that the task is 🟡/🔴 by nature and goes to the human.
 `escalated:standard→strong`). These are the evidence the model registry
 needs: a tier that escalates constantly is routed wrong.
 
+### Cross-repo source rule (read the host's rules first)
+
+A task whose Allowed Changes consume another repo as a *source* (vendor
+refresh, cross-repo write-back, importing from a sibling) must — at spec
+time — read that repo's AGENTS.md and any document it names as governing
+the integration, and cite those refs in the spec. Battle: MorphEditor
+plan-009 T3 never read Morph's AGENTS.md → never read
+`docs/vendor-cookbook.md` → glob-swept 24 unconsumed files into the
+vendor pin (the mother's test infra + a showcase whose import was broken
+in-tree). The spec-drafter, worker, and reviewer all verified byte-exact
+against a wrong-shaped contract.
+
 Self-report is not the only channel — the class-5 agent does not know it
 is stuck. While workers can now ask, the orchestrator still watches
 (watch-children pane, dispatch ledger) for the silent case; a watchdog
