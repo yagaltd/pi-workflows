@@ -146,6 +146,30 @@ criteria (alignment, spacing, contrast, hierarchy — per the DESIGN.md/W4
   pipeline as smoke. Do NOT trust a text-only model's secondhand judgment
   of a screenshot; either the vision slot reads the pixels or a human does.
 
+**Vision dispatch checklist** (validated live 2026-08-22, plan-009 test
+loop — five failure layers, each found the hard way):
+1. **Registry thinking**: vision-exp supports high|xhigh only (observed;
+  in models/registry.json). Medium fails loudly at dispatch — correct
+  behavior, just use high.
+2. **Provider data policy**: OpenRouter accounts restricting routing to
+  non-training providers get `404 No endpoints available matching your
+  guardrail restrictions and data policy` — user-side fix at
+  openrouter.ai/settings/privacy.
+3. **pi `images.blockImages`**: if true (user-global settings.json), the
+  read tool returns "Image reading is disabled" for EVERY model including
+  vision children. Must be false for the vision slot to function.
+4. **Anti-hallucination probe phrasing**: with a weak prompt, a
+  vision-blocked child will FABRICATE a plausible answer from the filename
+  (observed: "#ffffff browser" for a never-seen image). Probe prompts must
+  demand verifiable specifics (count the nav items, name the section
+  headers) or an explicit CANNOT-SEE-IMAGE + error text — never accept a
+  one-line "what do you see" answer as proof of pixel access.
+5. **Blind tests work**: once unblocked, the vision child independently
+  found a known WCAG failure (light muted text) in a blind run, estimating
+  contrast ≈2.8:1 from pixels vs the measured 2.61:1, and correctly ranked
+  theme severity. Trust it for contrast/hierarchy/coherence findings;
+  treat exact hex values as approximate (near-whites indistinguishable).
+
 ## Worker→reviewer graph dispatch (verdict-producing)
 
 Sequential dispatch is ONE subagent call: worker + reviewer linked by a
