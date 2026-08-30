@@ -10,7 +10,7 @@
     "extensions": ["./extensions"]
   },
   "peerDependencies": {
-    "@arhen/pi-core-subagent": ">=0.1.0"
+    "@arhen/pi-core-subagent": ">=1.3.49"
   },
   "optionalPeerDependencies": {
     "agent-spec": ">=1.0.0",

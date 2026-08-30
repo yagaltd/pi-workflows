@@ -561,7 +561,7 @@ code. To scan or update:
    matches families to roles via `models/registry.json` prefs, and writes back
    a fresh registry with pricing and `resolvedAt` timestamps.
 2. **Edit preferences** — edit `models/registry.json` → `prefs` to change
-   the family list or providers (`deepseek-api`, `openrouter`). Re-running the
+   the family list or providers (`deepseek`, `openrouter`). Re-running the
    scan picks up the new prefs. The role → model binding is derived from
    prefs + live scan, never hand-written.
 3. **Offline keeps last** — if the live fetch fails (network unavailable, API

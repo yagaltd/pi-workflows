@@ -8,14 +8,14 @@
       "deepseek-flash-vision"
     ],
     "providers": [
-      "deepseek-api",
+      "deepseek",
       "openrouter"
     ]
   },
   "roles": {
     "standard": {
-      "id": "deepseek/deepseek-v4-flash-0731",
-      "provider": "deepseek-api",
+      "id": "deepseek/deepseek-v4-flash",
+      "provider": "deepseek",
       "seen": {
         "inPerM": 0.14,
         "outPerM": 0.28,
@@ -24,16 +24,17 @@
       "source": "deepseek-docs",
       "thinking": {
         "supported": [
+          "low",
           "high",
-          "xhigh"
+          "max"
         ],
         "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
       },
-      "resolvedAt": "2026-08-22T18:27:49.714Z"
+      "resolvedAt": "2026-08-24"
     },
     "strong": {
-      "id": "deepseek/deepseek-v4-pro-0813",
-      "provider": "deepseek-api",
+      "id": "deepseek/deepseek-v4-pro",
+      "provider": "deepseek",
       "seen": {
         "inPerM": 0.55,
         "outPerM": 2.19,
@@ -43,15 +44,15 @@
       "thinking": {
         "supported": [
           "high",
-          "xhigh"
+          "max"
         ],
         "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
       },
-      "resolvedAt": "2026-08-22T18:27:49.714Z"
+      "resolvedAt": "2026-08-24"
     },
     "reviewer": {
-      "id": "deepseek/deepseek-v4-pro-0813",
-      "provider": "deepseek-api",
+      "id": "deepseek/deepseek-v4-pro",
+      "provider": "deepseek",
       "seen": {
         "inPerM": 0.55,
         "outPerM": 2.19,
@@ -61,15 +62,15 @@
       "thinking": {
         "supported": [
           "high",
-          "xhigh"
+          "max"
         ],
         "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
       },
-      "resolvedAt": "2026-08-22T18:27:49.715Z"
+      "resolvedAt": "2026-08-24"
     },
     "scout": {
-      "id": "deepseek/deepseek-v4-flash-0731",
-      "provider": "deepseek-api",
+      "id": "deepseek/deepseek-v4-flash",
+      "provider": "deepseek",
       "seen": {
         "inPerM": 0.14,
         "outPerM": 0.28,
@@ -78,12 +79,13 @@
       "source": "deepseek-docs",
       "thinking": {
         "supported": [
+          "low",
           "high",
-          "xhigh"
+          "max"
         ],
         "source": "pi-package:node_modules/@earendil-works/pi-ai/dist/providers/data/openrouter.json:1"
       },
-      "resolvedAt": "2026-08-22T18:27:49.715Z"
+      "resolvedAt": "2026-08-24"
     },
     "vision": {
       "id": "deepseek/deepseek-v4-flash-vision-exp",
