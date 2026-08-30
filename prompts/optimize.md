@@ -73,7 +73,7 @@ interfere.
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   concurrency: 3,
   tasks: [
     {

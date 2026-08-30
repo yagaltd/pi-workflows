@@ -27,7 +27,7 @@ recon (no `write`). Match thinking to the angle: security review deserves
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   concurrency: 3,
   tasks: [
     {
@@ -152,7 +152,7 @@ subagent({
            honestly. Write only inside the directory the task names.",
   write: true,
   thinking: "medium",
-  background: false,
+  autoAwait: true,
   task: `Build a minimal PoC to validate: <question>
 
 Work ONLY inside prototype/poc/ — create it if missing, never touch anything outside it.

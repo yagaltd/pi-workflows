@@ -78,6 +78,10 @@ Rules:
 - **Ship ritual branch merge**: before the ship commit, `git merge --no-ff`
   each write-task branch in the run's namespace (`subagents/*`) into the
   main branch — each per-task `--no-ff` merge commit documents the wave.
+  Chained write tasks (`chain:[A,B]`, both `write:true`) stack on the
+  upstream branch (B sees A's edits; merges are order-independent) and
+  sibling write-branch overlaps raise `CONFLICT RISK` naming the files
+  (≥1.3.51) — resequence overlapping writers instead of merging.
 - **Ship ritual archive step**: at SHIP, consumed specs move to
   `.workflows/archive/done/<plan-id>/specs/` — reviewers and guard layers see
   only live specs.
@@ -95,6 +99,11 @@ Rules:
   settled tasks incrementally, never park on the whole run); targeted
   `subagent_result(taskId)` for full text (completion notices stay 3-line);
   wake budget ≈ one await per wave; never re-read settled reports.
+- **Runtime ceiling** (engine-native, ≥1.3.43): every task has a hard
+  wall-clock cap — 1 h default; `/subagents auto-limit off` RAISES it to
+  6 h (it no longer removes the cap). Long waves set `maxRuntimeMs`
+  explicitly; a killed child's partial output is salvaged onto the task,
+  never silently lost.
 
 ## Verdict artifact format
 
@@ -179,7 +188,7 @@ its prompt:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   tasks: [
     { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
       write: true, thinking: "<from bottleneck tag>",
@@ -215,7 +224,7 @@ subagent({
   prompt: "@role:worker",
   write: true,
   thinking: "high",            // fix rounds get high thinking
-  background: false,
+  autoAwait: true,
   task: `Fix round <N> for TASK <T>: <goal>.
 
 ## Rejection evidence (verbatim from the reviewer)

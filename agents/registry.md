@@ -150,6 +150,14 @@ Isolation mechanics:
   merge conflicts when their branches merge. If two parallel tasks touch
   the same files, do not parallelize them — resequence (drop one into a
   later wave or make it `needs:` the other).
+- **Sibling overlap is detected (≥1.3.51)**: same-wave writers whose
+  `changedFiles` overlap raise `CONFLICT RISK` naming the files at
+  completion — a real 3-way merge, flagged before you merge. Resequence
+  rather than merge through it.
+- **Chained write tasks stack (≥1.3.51)**: `chain:[A,B]` with both
+  `write:true` gives B a branch based on A's completed branch (not main
+  HEAD), so B sees A's edits and merging B no longer reverts A; merges are
+  order-independent.
 - Throwaway artifacts (prototypes, experiments) stay contained in their own
   subdir within the worktree (or in-place for read-only children) and never
   write outside it.

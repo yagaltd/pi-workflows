@@ -45,7 +45,6 @@ All `⬜ PENDING` tasks, wave groupings, dependencies, bottleneck tags.
 
 ```text
 subagent({
-  background: true,           // stay responsive while the wave runs
   notifyPerTask: true,        // wake as each task completes
   allowIntercom: true,        // workers can ask_parent mid-task
   concurrency: 4,

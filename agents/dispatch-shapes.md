@@ -27,6 +27,21 @@ orchestrator-inline), then **re-dispatch the gate fresh** — its prompt
 reviews the on-disk ground truth (diffs + artifacts), so a re-run needs no
 memory of the aborted round.
 
+**Field placement (≥1.3.51)**: in `tasks:[...]` mode the per-task fields
+(`agent`, `task`, `prompt`, `model`, `thinking`, `write`, `tools`, `cwd`,
+`id`, `needs`) go inside each task object. Single-mode-only fields placed at
+top level beside `tasks:[...]` (`write`, `model`, `thinking`, `tools`) are
+now **refused with the fix named** — previously they were silently dropped
+(a stray top-level `write: true` produced read-only workers). Never put a
+bare `write: true` next to `tasks:`; array-mode top level is `autoAwait`,
+`notifyPerTask`, `concurrency`, plus run-wide `cwd` / `maxRuntimeMs` (which
+fan out as per-task defaults).
+
+**Runtime ceiling**: every task has a hard wall-clock cap — 1 h default,
+raised to 6 h by `/subagents auto-limit off` (never removed). Long waves set
+`maxRuntimeMs` per task; a killed child's partial output is salvaged, never
+silently lost.
+
 ## Sequential worker→reviewer (one call, graph mode)
 
 The default dispatch: worker and reviewer in ONE `tasks[]` array — the

@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.5.8 (2026-08-30)
+
+### Docs sync — pi-core-subagent 1.3.51 (patch removed; doctrine, shapes, templates updated)
+
+- **Removed the in-place patch** (`.workflows/patches/pi-core-subagent-1.3.28|1.3.30`).
+  The tool-precedence bug we patched — explicit `tools:`/`write:` overridden by an
+  ambient agent-file match, `write:true` downgraded to read-only — shipped upstream
+  in `@arhen/pi-core-subagent@1.3.49` (issue #3) and is verified in the live 1.3.51
+  install: explicit tools win, `write:true` no longer downgraded, and the override
+  surfaces as a task `toolsNote`. No re-apply step remains after `pi update --extensions`.
+- **Swept the stale `background:` param** from every dispatch template
+  (`agents/`, `skills/`, `prompts/`). Blocking mode was removed upstream in 1.3.26 —
+  `background: false` → `autoAwait: true`; the lone `background: true` (auto-next)
+  dropped (background is the default). Templates now match the engine.
+- **Shape/doctrine updates for 1.3.51 behavior**:
+  - Single-mode-only fields (`write`, `model`, `thinking`, `tools`) beside `tasks:[...]`
+    are now **refused with the fix named** (was: silently dropped to read-only) —
+    `dispatch-shapes.md` documents per-task placement.
+  - Runtime ceiling: 1 h default, 6 h with `/subagents auto-limit off` (was
+    user-disablable) — long waves set `maxRuntimeMs`; killed-child output is salvaged.
+  - Chained write tasks stack on the upstream branch (B sees A's edits; merges
+    order-independent); sibling write-branch overlaps raise `CONFLICT RISK`.
+  - README requirement floor `>= 0.1` → `>= 1.3.49`.
+- Upstream-only fixes noted for the record (no doc surface): OS boot-id (NTP-safe
+  worktree markers), persist write-then-rename, git stderr no longer leaking into the TUI.
+
 ## v0.5.7 (2026-08-22)
 
 ### Added — docs round: herdr note, needs-race recovery, spikes formalized, ship end-state check

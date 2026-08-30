@@ -501,7 +501,7 @@ Add a `.workflows/REVIEW_GUIDELINES.md` to your project root for project-specifi
 Required:
 
 - [pi](https://github.com/mariozechner/pi-coding-agent) >= 0.60
-- [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) >= 0.1 — in-process subagents: parallel / chain / graph (`needs` edges), per-task `model` + `thinking`, intercom, steering
+- [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) >= 1.3.49 — in-process subagents: parallel / chain / graph (`needs` edges), per-task `model` + `thinking`, intercom, steering, native worktree isolation for write tasks
 - [agent-spec](https://github.com/ZhangHanDong/agent-spec) — contract verification (BDD specs + boundary enforcement)
 
 ```bash

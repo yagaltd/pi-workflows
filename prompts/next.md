@@ -44,7 +44,7 @@ before proceeding.
 
 ## 3. Dispatch (shapes and roles)
 
-Every dispatch is one subagent call, `background: false`. Role prompts
+Every dispatch is one subagent call, `autoAwait: true`. Role prompts
 use `@role:<name>` — the pi-workflows extension substitutes the verbatim
 role body at execution time; if the extension is not loaded, paste
 `agents/<role>.md` yourself.
@@ -54,7 +54,7 @@ role body at execution time; if the extension is not loaded, paste
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   tasks: [
     { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
       write: true, thinking: "<from bottleneck tag: xhigh | high | medium>",

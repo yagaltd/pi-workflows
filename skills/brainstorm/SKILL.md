@@ -120,7 +120,7 @@ subagent({
            If a claim can't be sourced, label it UNSUBSTANTIATED.",
   tools: ["read","grep","find","ls","bash"],
   thinking: "medium",
-  background: false,
+  autoAwait: true,
   task: `Research for: <central question>
 Angle: <e.g. competitor pricing for task-tracking tools / market size /
 prior art for X / library landscape>
@@ -153,7 +153,7 @@ synthesizer with `needs:` — upstream outputs arrive prepended automatically:
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   tasks: [
     { id: "r1", ...research tasks as above... },
     { id: "r2", ... },

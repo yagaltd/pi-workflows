@@ -22,7 +22,7 @@ All prototype workers in one subagent call, inline prompts (no agent files):
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   concurrency: 3,
   tasks: [
     {
@@ -79,7 +79,7 @@ directory and benchmarks it.
 
 ```text
 subagent({
-  background: false,
+  autoAwait: true,
   concurrency: 3,
   tasks: [
     {

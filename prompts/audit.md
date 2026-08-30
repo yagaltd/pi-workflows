@@ -35,7 +35,7 @@ subagent({
   agent: "audit-recon",
   prompt: "<verbatim body of agents/scout.md — thorough mode>",
   thinking: "medium",            // thorough recon, not a quick lookup
-  background: false,
+  autoAwait: true,
   task: `Map this codebase for an audit. Thoroughness: thorough.
 Read .workflows/knowledge/map.md if present — update rather than rediscover.
 

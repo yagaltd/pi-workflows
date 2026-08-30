@@ -46,7 +46,7 @@ Gather information from the codebase and any relevant sources.
      Use pi-core-subagent parallel mode — one read-only scout task per input, all in one call (inline prompts, no agent files):
      ```
      subagent({
-       background: false,
+       autoAwait: true,
        concurrency: 4,
        tasks: [
          { agent: "scout-1", thinking: "low",
