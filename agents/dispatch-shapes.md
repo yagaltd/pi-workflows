@@ -60,8 +60,17 @@ subagent({
 
 TASK <N> of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/<task-id>.spec. Upstream tasks: <list>.
 
+## Context pack
+<files: 3-6 relevant paths + one-line "what's there" (from the scout/spec — never guessed)>
+<seam: named symbols where the new code plugs in>
+<env: package-manager law, probe discipline, suite runtime, known traps>
+<dead ends: what NOT to try, if any>
+
+Verify: <the literal command line that proves this task in THIS repo>
+
 Implement per contract. First read .workflows/specs/<task-id>.spec
-(the workflow is in your role prompt — follow it).` },
+(the workflow is in your role prompt — follow it; the context pack above
+replaces discovery, not the spec).` },
     { id: "review-<task-id>", agent: "review-<task-id>", prompt: "@role:reviewer",
       tools: ["read","grep","find","ls","bash"], thinking: "high",   // xhigh when tag is 🔴
       needs: ["worker-<task-id>"],
@@ -71,7 +80,11 @@ Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
 the self-report: read .workflows/specs/<task-id>.spec yourself, then run
 in order, stop at first failure: agent-spec lifecycle, guard, tdd-guard
-(if installed), project checks (tests, lint, typecheck, build).
+(if installed), then the spec's verify line verbatim (tests/lint/typecheck/
+build only if no verify line exists — see your Layer 3 rule).
+Re-review rounds (round N>1): the diff to verify is the DELTA
+`git diff <roundN-1>..<roundN>` on top of the verdict file chain
+(.workflows/reviews/<task-id>.md) — do not re-derive the whole surface cold.
 Write tasks: the result carries the child's branch + diffstat — verify
 git diff <base>..<branch> against the spec instead of the shared tree
 (write work lands on the child's branch, leaving the tree clean).
@@ -92,7 +105,8 @@ Notes:
   branch-switching git commands (no checkout/switch to its branch), and the
   extension auto-commits the child's changes at completion.
 - Fix rounds stay follow-up dispatches (per `agents/execution-doctrine.md`);
-  re-reviews run standalone (no `needs`).
+  re-reviews run standalone (no `needs`) and review the fix delta
+  (`git diff <roundN-1>..<roundN>`), not the whole surface cold.
 
 ## Parallel worker wave (one call, graph mode)
 
@@ -152,6 +166,10 @@ Notes:
   before work, children run NO branch-switching git commands, and the
   extension auto-commits each child's changes at completion.
 - Hard limits: ≤16 tasks per call, concurrency ≤8.
+- **Context packs apply per wave task too**: every worker task text carries
+  its own compact `## Context pack` + `Verify:` line (the sequential
+  shape's slot) — in a parallel wave the cold-start cost multiplies by the
+  wave size, so the pack is MORE valuable there, not less.
 - **Verdict gating applies per task** — fix rounds per
   `agents/execution-doctrine.md` for every ok:false before advancing.
 - **Ship/merge step**: once every verdict passes, the orchestrator merges

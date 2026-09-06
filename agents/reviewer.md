@@ -58,9 +58,16 @@ If any rule fails → report FAIL with details. Do NOT proceed to Layer 3.
 
 ### Layer 3: Project Toolchain
 
+**Verify-line contract**: the spec frontmatter (or the task's context pack)
+carries `verify: <literal command line>` — the exact pipeline the worker
+ran. Execute it verbatim; do not re-derive the project's toolchain. Only
+when no verify line exists anywhere, adapt from the generic shape and NOTE
+the adaptation in your report (an adapted pipeline that fails differently
+than the worker's run is a finding, not a pass):
+
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
-# Adapt to project stack
+# Adapt to project stack — and say so in the report
 ```
 
 ## Output

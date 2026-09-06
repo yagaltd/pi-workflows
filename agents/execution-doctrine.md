@@ -34,15 +34,19 @@ Rules:
 - The same loop applies to the judgment stage: a quality-reviewer
   `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
   only after mechanical ok:true.
-- **Quality-reviewer placement — per-task, tag-gated, never per-wave.**
-  Dispatch a quality-reviewer only for tasks whose bottleneck tag is
-  🔴/🟡/🟠, as a standalone follow-up AFTER the mechanical reviewer returns
-  `ok:true` — it cannot be a `needs` node because it is conditional on the
-  verdict. ⚪ tasks skip it (mechanical verdict + `/review` suffice).
-  Never run it per-wave: wave tasks are independent parallel tasks with
-  disjoint boundaries — quality-judging unrelated changes together is the
-  wrong granularity. `/review` stays the whole-plan quality gate, where
-  integration effects are judged.
+- **Quality-reviewer placement — per-task, gated, never per-wave.**
+  Dispatch a quality-reviewer as a standalone follow-up AFTER the
+  mechanical reviewer returns `ok:true` — it cannot be a `needs` node
+  because it is conditional on the verdict. The gate is a DISJUNCTION
+  (2026-09-08 economics doc: the tag alone filtered almost nothing —
+  nearly every code task carries 🟡/🟠/🔴): run a per-task quality pass
+  only when (a) the diff exceeds ~300 lines, OR (b) the task class is
+  security/concurrency/crypto/parsing, OR (c) the mechanical reviewer or
+  worker report flags judgment concerns. Everything else is covered by the
+  whole-plan `/review` — that stays the quality gate where integration
+  effects are judged. Never per-wave: wave tasks are independent parallel
+  tasks with disjoint boundaries — quality-judging unrelated changes
+  together is the wrong granularity.
 - In parallel waves: parse each task's verdict from the reviewer's output;
   run fix rounds for every ok:false before advancing the wave.
 - **Tripwire (verify-landing.sh) runs after every claimed-done write task**
@@ -101,9 +105,13 @@ Rules:
   wake budget ≈ one await per wave; never re-read settled reports.
 - **Runtime ceiling** (engine-native, ≥1.3.43): every task has a hard
   wall-clock cap — 1 h default; `/subagents auto-limit off` RAISES it to
-  6 h (it no longer removes the cap). Long waves set `maxRuntimeMs`
-  explicitly; a killed child's partial output is salvaged onto the task,
-  never silently lost.
+  6 h (it no longer removes the cap). Set `maxRuntimeMs` EXPLICITLY on
+  every code-task dispatch — ceiling ≈ 2× the expected duration; the
+  observed legit range is <35 min, so 35–45 min covers almost all code
+  tasks and the 1 h default remains only the safety net. Raising the
+  ceiling for a child (`auto-limit off`) without a named reason is
+  reckless — see §Stall detection. A killed child's partial output is
+  salvaged onto the task, never silently lost.
 
 ## Verdict artifact format
 
@@ -227,6 +235,13 @@ subagent({
   autoAwait: true,
   task: `Fix round <N> for TASK <T>: <goal>.
 
+## Context pack
+<same pack as the original worker dispatch — files, seam, env, dead ends>
+
+## Salvage (previous worker's final report, verbatim)
+<the prior worker's Files Changed + Notes + deviations — start from this
+map, not from zero; do not re-derive what it already established>
+
 ## Rejection evidence (verbatim from the reviewer)
 <the reviewer's findings + evidence, pasted verbatim>
 Full verdict: .workflows/reviews/<task-id>.md
@@ -240,7 +255,10 @@ Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <projec
 ```
 
 Then re-dispatch the reviewer standalone (round N+1: single-task form,
-no `needs`). Repeat until ok:true or cap.
+no `needs`) — **delta re-review**: it verifies the fix diff
+(`git diff <roundN>..<roundN+1>` on the task branch) on top of the verdict
+file chain, plus a full pipeline re-run only when the fix touched shared
+code. Repeat until ok:true or cap.
 At the cap: mark ❌ FAILED, append the final round, present the verdict
 chain to the human (every finding + what was attempted).
 
@@ -268,11 +286,19 @@ together", "make it work") because ambiguity makes research-documents the
 model's safest completion. Prompt framing does NOT reliably fix this (the
 plan-008 T4 round 3 had every fact pre-inlined and still produced research).
 
-**Routing rule**: open-ended tasks (Tier B 🟡/🔴 with design decisions, any
-"integration" task) go **orchestrator-inline** or to the `strong` slot;
-bounded port/mirror/doc tasks go to workers on the `standard` slot. Salvage
-rule: a class-5 misfire's research output is usually high quality — mine it
-as scout facts for the inline implementation instead of discarding.
+**Routing rule (ROUTE, decided at plan time — not mid-flight)**: the
+planner writes `ROUTE:inline` or `ROUTE:worker` per task using the
+open-endedness checklist — more than one integration seam NOT named in
+Allowed Changes, UI/UX judgment required, or cross-module wiring →
+`ROUTE:inline` (orchestrator-inline, or the `strong` slot with a full
+context pack when the orchestrator context must be protected). Bounded
+port/mirror/doc tasks → `ROUTE:worker` on the `standard` slot. Evidence
+(plan-034 T4, 2026-09-08): the open-ended/bounded rule existed but was a
+mid-flight judgment call — T4 was dispatched to a worker anyway, misfired,
+and the salvaged 90% was finished inline faster than a fix round could
+re-dispatch. Salvage rule: a class-5 misfire's research output is usually
+high quality — mine it as scout facts for the inline implementation
+instead of discarding.
 
 ### Misfire accounting (mechanical, per run)
 
@@ -308,6 +334,41 @@ Unmerged-branch rule: a branch whose only unique commits are misfire
    artifacts (research docs, planning files) is discarded once its content
    is salvaged into `.workflows/scout/` — the worktree ledger entry in
    LOG.md records what was salvaged where.
+
+## Stall detection & ceilings (2026-09-08 economics)
+
+Ledger evidence: six 60-min ceiling kills plus one 141.8-min run with 15
+turns (~9.5 min/turn) ≈ 10.4 h of pure stall across recorded history — two
+classes, both invisible until the ceiling fires: **hangs** (~40 turns:
+wedged probes, dead waits) and **thrash** (~190 turns: high activity, no
+convergence). The worker stuck-protocol cannot catch either (a hung child
+sends no HELP; a thrashing child feels productive).
+
+Doctrine while a write run is in flight:
+
+1. **Explicit ceiling per dispatch** — `maxRuntimeMs` ≈ 2× expected
+   duration (35–45 min covers the observed legit range for code tasks;
+   bounded doc/test tasks 10–20 min). Never ride the 1 h default on
+   purpose; never raise it without a named reason.
+2. **Turn-gap check in the slice loop** — the await-economy slice loop
+   already wakes you periodically; at each wake, check the run's live
+   children for progress (child session JSONL tail, or the dispatch
+   ledger). A child with no new turn in ~10 min gets ONE steer message
+   ("state hypothesis + next step"). A second silent slice → abort +
+   salvage. Plan-034 T4 proved a 90%-done aborted child is recoverable
+   and valuable — aborting late-but-not-too-late is a win, not a loss.
+3. **Salvage before redispatch** — an aborted child's worktree branch +
+   report are the input to the next attempt (escalation-shape salvage,
+   also for stalls); never redispatch from zero.
+4. **Record it** — LOG.md: `T<N> stall-abort at <mm> min (hang|thrash),
+   salvaged <what>`. The hang-vs-thrash split is the evidence that decides
+   whether the next rung is a watchdog extension feature or tighter
+   dispatch shaping.
+
+A formal watchdog extension (turn-gap detection wired into the extension,
+not the orchestrator's slice loop) remains parked as V2 in
+`docs/20260822-improvements-test-first-and-escalation.md` — the doctrine
+above is the manual floor that recovers most of the cost today.
 
 ## Stuck handling & escalation
 

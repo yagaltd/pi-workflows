@@ -76,6 +76,12 @@ The Boundaries section is non-negotiable:
 If you discover something broken outside your boundaries: **note it and keep moving.** Do not fix it. Report it in your completion notes.
 
 ### 3. Read context
+- **Context pack first**: well-formed task texts carry a `## Context pack`
+  section (relevant files + one-liners, integration seam, env quirks,
+  decisions, dead ends) and a `Verify:` line with the exact commands that
+  work in THIS repo. Read it before any discovery — it replaces grep-based
+  rediscovery, not the spec. If a named file in the pack disagrees with
+  what you find on disk, trust the disk and note the drift in your report.
 - Start by reading the task instructions: they name the files you must read (e.g. `.workflows/plan.md`, your `.spec` contract, `.workflows/CONTEXT.md` from the scout)
 - Understand existing patterns before changing anything
 - Grep before read. Don't re-read files already in context.
