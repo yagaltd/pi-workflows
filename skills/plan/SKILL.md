@@ -102,6 +102,15 @@ For significant features, include a docs task:
 
 ### Prototype tasks (for 🟡 RISKY / large Tier B tasks)
 
+**Model-shape spike rule**: when the plan's core is a data/UX MODEL — how
+the thing is SHAPED, not just how it's coded (a deck's boundary syntax, a
+record's wire format, a form's declaration surface) — wave 1 includes a
+throwaway spike the HUMAN LOOKS AT (render one real instance of the model:
+a sample deck, a sample record) BEFORE parallel waves build on it. Approval
+gates read text; humans approve what they can SEE. Evidence: plan-040's
+fence-vs-view-mode mismatch survived a text approval gate and cost three
+waves before the human's first live look killed 2,200 lines.
+
 When a task's approach is unproven (the adversarial pass flagged it 🟡, or
 the integration seam is unmapped), the plan decomposes it as
 `prototype → impl` instead of one open-ended task:
@@ -159,6 +168,16 @@ Assign a testing strategy per task based on code type:
 | Simple CRUD | example-based only | Boilerplate tasks |
 
 ### Domain Memory Rules
+
+- Maintain a **rulings registry**: a `## Rulings` section in
+  `.workflows/CONTEXT.md` holding the human's VERBATIM model decisions for
+  the current feature (their own words for how the thing is shaped).
+  Every spec touching a ruling quotes it verbatim in Decisions; every
+  dispatch quotes it in the pack. A plan whose core model contradicts a
+  recorded ruling is a plan-time failure — evidence: plan-040 built three
+  waves of fence-model machinery on a paraphrased version of "slides = a
+  document with different layout"; the human's own words arrived only at
+  live review and retired 2,200 lines.
 
 - Use glossary terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
 - If user language conflicts with `.workflows/CONTEXT.md`, call it out before planning.
@@ -335,6 +354,17 @@ Wave 3: TASK 5 (docs — optional)
 All tasks in a wave must complete before the next wave starts. `/next` enforces this. Verification runs per task (verdict gating) and once more at `/review` on the integrated whole.
 
 ## Phase 5: GENERATE CONTRACTS
+
+**Spec parse-lint (mechanical, before presenting contracts)**: after
+writing each `.spec`, run `agent-spec lifecycle <spec> --code . --format
+json` ONCE — a PARSE error (unknown section header, malformed frontmatter)
+is fixed immediately, before any dispatch. Scenario-level Uncertain/skip
+verdicts are expected (no AI backend wired) and are NOT parse failures.
+Accepted headers are whatever CONTRACT-FORMAT + the tool agree on today
+(`## Acceptance Criteria`, not `## Completion Criteria`; no free-form
+sections). Evidence: plan-040 shipped eight unparseable specs through two
+full waves before the tooling caught it — every review round paid a
+lifecycle-skip tax.
 
 Once the plan is approved, generate the `.spec` files for every worker task:
 

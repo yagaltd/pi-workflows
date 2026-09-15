@@ -170,6 +170,18 @@ Notes:
   its own compact `## Context pack` + `Verify:` line (the sequential
   shape's slot) — in a parallel wave the cold-start cost multiplies by the
   wave size, so the pack is MORE valuable there, not less.
+- **ADR slices ride the pack**: when a task touches an ADR-governed seam
+  (UI surfaces, agent/extensibility, vendoring…), the pack carries a 2-3
+  line ADR summary naming the ruling — never rely on "read CONTEXT.md" to
+  convey it. Evidence: plan-040 T7 shipped a spec assuming a
+  content/-declared export panel that exists only as an ADR *candidate*;
+  the ADR was never read at spec or dispatch time and the round burned a
+  fix cycle.
+- **Rulings ride the pack verbatim**: the human's model decisions are
+  quoted VERBATIM under a `USER RULINGS` line in the pack — paraphrase
+  drift is how parallel waves build the wrong shape. The durable home is
+  the `.workflows/CONTEXT.md` rulings registry (see /plan's Domain Memory
+  Rules); packs quote from it, never re-summarize it.
 - **Verdict gating applies per task** — fix rounds per
   `agents/execution-doctrine.md` for every ok:false before advancing.
 - **Ship/merge step**: once every verdict passes, the orchestrator merges

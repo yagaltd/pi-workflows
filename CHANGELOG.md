@@ -1,3 +1,19 @@
+## 2026-09-15 — dispatch hygiene: ADR slices, rulings registry, spec parse-lint, model-shape spikes
+
+From the plan-040 post-mortem (six of eight review rounds were
+orchestrator-contract defects; the architecture pivot retired 2,200 lines
+after a text-only approval gate):
+
+- **dispatch-shapes.md**: ADR slices ride context packs (2-3 line summaries
+  for ADR-governed seams — the T7 content/-candidate failure); USER RULINGS
+  quoted verbatim in packs (paraphrase drift = wrong-shaped waves).
+- **plan SKILL.md**: rulings registry discipline (CONTEXT.md `## Rulings`,
+  verbatim human decisions; specs + packs quote, never re-summarize);
+  spec parse-lint as a mechanical Phase 5 check (agent-spec parse before
+  any dispatch — the eight-unparseable-specs tax); model-shape spike rule
+  (data/UX-model cores get a human-looked-at W1 spike before parallel
+  waves — approval gates read text, humans approve what they can SEE).
+
 # Changelog
 
 ## v0.5.8 (2026-08-30)
