@@ -1,3 +1,5 @@
+# Changelog
+
 ## 2026-09-15 — dispatch hygiene: ADR slices, rulings registry, spec parse-lint, model-shape spikes
 
 From the plan-040 post-mortem (six of eight review rounds were
@@ -14,7 +16,28 @@ after a text-only approval gate):
   (data/UX-model cores get a human-looked-at W1 spike before parallel
   waves — approval gates read text, humans approve what they can SEE).
 
-# Changelog
+## 2026-09-08 — subagent economics: context packs, verify lines, fix-round salvage, stall detection
+
+From the session-ledger economics doc (74% of plan-034 child wall-clock was
+two stalls — a 141.8-min hang + 31.6-min take-over; the Sept-1 plan averaged
+~52 min/task with 10-dispatch fix chains). Full numbers and validation hooks:
+`docs/20260908-improvements-subagent-economics.md`. Implemented in role files:
+
+- **dispatch-shapes.md**: context pack slot (files/seam/env/dead ends) +
+  `Verify:` line in worker, fix-round, and wave dispatches; fix rounds
+  prepend the salvage (prior worker report verbatim); delta re-reviews
+  verify `git diff <roundN-1>..<roundN>`, not the whole surface cold.
+- **execution-doctrine.md**: quality-reviewer gate is now a DISJUNCTION
+  (diff >~300 lines OR risk-class OR flagged concerns — the tag alone
+  filtered almost nothing); ROUTE:inline/worker decided at plan time via
+  the open-endedness checklist; new §Stall detection (explicit
+  maxRuntimeMs per task, 10-min turn-gap check, one steer then
+  abort+salvage, hang-vs-thrash logging).
+- **reviewer.md**: verify-line contract — execute the spec's literal
+  `verify:` line, never re-derive the toolchain (kills the npm-in-Deno
+  false-fail trap).
+- **worker.md**: context pack first — it replaces grep-based rediscovery,
+  not the spec; trust the disk over the pack and note the drift.
 
 ## v0.5.8 (2026-08-30)
 

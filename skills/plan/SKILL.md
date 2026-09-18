@@ -366,6 +366,12 @@ sections). Evidence: plan-040 shipped eight unparseable specs through two
 full waves before the tooling caught it — every review round paid a
 lifecycle-skip tax.
 
+Every code-task spec carries `verify:` frontmatter — the literal command
+line that proves the task in THIS repo (documented in CONTRACT-FORMAT;
+parses clean under agent-spec). The worker runs it, the reviewer executes
+it verbatim. Doc-only tasks skip it; the dispatch context pack's `Verify:`
+line is the fallback carrier.
+
 Once the plan is approved, generate the `.spec` files for every worker task:
 
 ```bash

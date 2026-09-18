@@ -97,6 +97,11 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 - Optional frontmatter `max-rounds: N` (default 2) — cap for reviewer-rejection fix
   rounds. Raise for tasks expected to need iteration (UI, integration); the cap
   exists so rejection loops escalate to the human instead of looping forever.
+- Optional frontmatter `verify: <literal command line>` — the exact pipeline
+  that proves this task in THIS repo. The worker runs it; the reviewer executes
+  it verbatim (its Layer 3 rule — never re-derived). Every code-task spec should
+  carry one; when absent, the dispatch context pack's `Verify:` line is the
+  carrier.
 - **Diagrams**: add a `## Diagrams` section with a Mermaid diagram when the flow, architecture, or state machine is non-trivial. This helps the worker understand the expected behavior at a glance.
 
 ### Example contract:
@@ -105,6 +110,7 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 spec: task
 name: "Redis cache module"
 tags: [cache, redis, api]
+verify: "npm test -- cache.test.ts && npm run lint"
 ---
 
 ## Intent
