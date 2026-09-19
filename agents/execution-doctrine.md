@@ -366,8 +366,7 @@ Doctrine while a write run is in flight:
    dispatch shaping.
 
 A formal watchdog extension (turn-gap detection wired into the extension,
-not the orchestrator's slice loop) remains parked as V2 in
-`docs/20260822-improvements-test-first-and-escalation.md` — the doctrine
+not the orchestrator's slice loop) remains parked as V2 — the doctrine
 above is the manual floor that recovers most of the cost today.
 
 ## Stuck handling & escalation
@@ -444,4 +443,4 @@ against a wrong-shaped contract.
 Self-report is not the only channel — the class-5 agent does not know it
 is stuck. While workers can now ask, the orchestrator still watches
 (watch-children pane, dispatch ledger) for the silent case; a watchdog
-formalization is parked in docs/20260822-improvements-test-first-and-escalation.md.
+formization remains parked as V2.

@@ -18,10 +18,9 @@ after a text-only approval gate):
 
 ## 2026-09-08 — subagent economics: context packs, verify lines, fix-round salvage, stall detection
 
-From the session-ledger economics doc (74% of plan-034 child wall-clock was
+From the session-ledger economics review (74% of plan-034 child wall-clock was
 two stalls — a 141.8-min hang + 31.6-min take-over; the Sept-1 plan averaged
-~52 min/task with 10-dispatch fix chains). Full numbers and validation hooks:
-`docs/20260908-improvements-subagent-economics.md`. Implemented in role files:
+~52 min/task with 10-dispatch fix chains). Implemented in role files:
 
 - **dispatch-shapes.md**: context pack slot (files/seam/env/dead ends) +
   `Verify:` line in worker, fix-round, and wave dispatches; fix rounds
