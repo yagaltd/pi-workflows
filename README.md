@@ -234,6 +234,14 @@ Why:
 
 Everything else (coding guidelines, architecture preferences) is a **soft rail** — instructions that guide but can't force.
 
+### Durable rules (code contracts)
+
+A `.spec` answers "is this task done?"; `@cc` code contracts answer "what must stay true forever?". `@cc` directives annotate public seams (exported functions, classes, methods) and feed the root `CONTRACTS` file — the durable rules layer, an **ADD layer** that never replaces the `.spec`'s task-done authority. `cc-check format` is the reviewer's Layer 3 syntax gate (skipped when cc-check or the contracts are absent); `cc-check list` output rides dispatch packs and populates each `.spec`'s `## Applicable contracts` section, matched by the task's Allowed Changes files. Two Jev-based aids are **advisory only, never gating** — the quality-reviewer's compliance step and the extension's supersede watchdog (thresholds untested: carried from the spike with no real-diff evidence, so flags route to you, the human).
+
+- `adr:<n>` on a `@cc` links the contract to the ADR that governs it.
+- The watchdog fires one line when a diff touches an `adr:`-attributed contract's file, or a spec's decisions change with no new ADR.
+- Live example: [`CONTRACTS`](CONTRACTS) at the repo root — these are pi-workflows' own durable rules, dogfooded.
+
 ### Planning
 
 **Task tiers** (decided at plan time, routed via the registry): every task carries
