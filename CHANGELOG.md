@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-09-19 — v0.6.0: code-contracts durable rules layer (@cc + CONTRACTS + advisory Jev)
+
+From the approved proposal `.workflows/20260919-code-contracts-durable-rules.md`
+(scope (b)) — durable rules get a home that outlives every plan, as an ADD
+layer (`.spec` executable gates stay the only task-done authority). The
+standalone Jev-gates proposal is superseded; Jev usage flows through this
+layer, advisory-first:
+
+- **cc-check tooling (pinned 0.2.0)**: `cc-check format` joins the reviewer
+  Layer 3 pipeline (pass/fail/skipped, skip-when-absent); `cc-check list`
+  rides dispatch packs — mechanically exact, replacing the hand-written
+  ADR-slices summary (now fallback-only).
+- **Dogfood**: repo-root `CONTRACTS` (4 doctrine rules: role-substitution,
+  reviewer-no-judgment, verdict-gating, watchdog-remind-once) + `@cc`
+  contracts on extension seams (role-body, hygiene-drift-counting).
+- **Worker rule**: public seams created/changed in Allowed Changes carry
+  `@cc` invariants (doc-comment grammar, `label:`/optional `adr:`
+  attributes); durable invariants only — per-task ephemera stays in `.spec`.
+- **Contract format**: optional `## Applicable contracts` section
+  (machine-generated IDs, references-never-restates; Boundaries stays the
+  only boundary authority) + plan-skill Phase 5 wiring.
+- **Jev trust test (prototype, GO advisory-only)**: 43/43 replay questions,
+  100% agreement, 0 FP/FN, both discriminating cases caught (supersedes
+  0.92 / contradicts 0.99); honest caveats on record (corpus skew,
+  post-hoc-summary circularity, calibration uninformative) — thresholds
+  carried UNTESTED (noul 0.85 / choice 0.90), gating forbidden until
+  real-diff advisory evidence.
+- **Advisory Jev step** in quality-reviewer (batched typesafe_evaluate,
+  skip-when-absent, never gates) + **supersede watchdog** in the extension
+  (mechanical trigger: adr:-attributed file touched / Decisions changed
+  with no new ADR → one advisory line; pure-mechanical, Jev probability
+  stays orchestrator-side).
+- **Also**: registry standard/scout slots alias-pinned to
+  `openrouter/~deepseek/deepseek-flash-latest`; thinking-map precedence
+  fixed (live-observed > vendor data); whole-plan quality gate caught 3
+  cross-merge seam breaks (invalid @cc example form; nonexistent
+  directory concept in skip condition; shell-interpolated filenames →
+  spawnSync arg arrays).
+
 ## 2026-09-15 — dispatch hygiene: ADR slices, rulings registry, spec parse-lint, model-shape spikes
 
 From the plan-040 post-mortem (six of eight review rounds were
