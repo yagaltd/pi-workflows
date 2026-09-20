@@ -170,9 +170,12 @@ Notes:
   its own compact `## Context pack` + `Verify:` line (the sequential
   shape's slot) — in a parallel wave the cold-start cost multiplies by the
   wave size, so the pack is MORE valuable there, not less.
-- **ADR slices ride the pack**: when a task touches an ADR-governed seam
-  (UI surfaces, agent/extensibility, vendoring…), the pack carries a 2-3
-  line ADR summary naming the ruling — never rely on "read CONTEXT.md" to
+- **ADR slices ride the pack**: the pack carries `cc-check list` output for
+  each Allowed-Changes file with contracts (source of truth for
+  ADR-governed seams). Hand-written one-line ADR slices are FALLBACK ONLY —
+  the governing ADR exists, but no `adr:`-attributed contract covers that
+  seam. When `cc-check` is absent or the file has no contracts, existing
+  ADR-slice behavior is unchanged — never rely on "read CONTEXT.md" to
   convey it. Evidence: plan-040 T7 shipped a spec assuming a
   content/-declared export panel that exists only as an ADR *candidate*;
   the ADR was never read at spec or dispatch time and the round burned a
