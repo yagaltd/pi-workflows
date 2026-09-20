@@ -515,6 +515,7 @@ Optional (all degrade gracefully with a note when absent):
   ```bash
   git clone https://github.com/yagaltd/tdd-guard && cd tdd-guard && npm install && npm link
   ```
+- [cc-check](https://github.com/spolu/code-contracts) (`@spolu/cc-check`, pinned 0.2.0) — code-contracts tooling: `cc-check format` (syntax gate, reviewer Layer 3, skipped when absent) + `cc-check list` (contract IDs for dispatch packs and `.spec` `## Applicable contracts` sections). Read-only; never judges compliance. Install: `npm install -g @spolu/cc-check@0.2.0`
 - [bombadil](https://github.com/antithesishq/bombadil) — property-based testing for web and terminal UIs (Antithesis): autonomously explores the running app in a managed browser and validates correctness properties. Assigned to 🟠 VERIFICATION_HEAVY web UI tasks when installed (`bombadil test <origin> --exit-on-violation`). Install: see [the Bombadil Manual](https://antithesishq.github.io/bombadil/browser/2-getting-started.html#installation).
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` mode 3 (unattended loop): `/optimize` prepares `.auto/` session files (measure.sh with METRIC output, checks.sh equivalence oracle as keep-backpressure, prompt.md scope) and hands off; closes with autoresearch-finalize → `/review`
 - [bug-hunter](https://github.com/nicobailon/bug-hunter) skill — adversarial scan at `/next` (code changed) and `/review` (whole diff)
