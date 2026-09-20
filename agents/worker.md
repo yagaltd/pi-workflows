@@ -101,12 +101,21 @@ When you create or CHANGE a public seam (exported function, class, method)
 within Allowed Changes, annotate each durable invariant with a `@cc` directive:
 
 ```
-// @cc label:rate-limit id:max-requests "API rate limit: max 100 req/min per client"
-// @cc label:rate-limit id:cooldown-period, adr:7 "60s cooldown after rate-limit hit"
+/**
+ * @cc [label:rate-limit] max-requests
+ * API rate limit: max 100 requests/min per client.
+ */
+/**
+ * @cc [label:rate-limit,adr:7] cooldown-period
+ * 60s cooldown after a rate-limit hit.
+ */
 ```
 
-One `@cc` per invariant, with stable kebab-case `id:`, area `label:`, and
-**optional** `adr:` attribute naming the governing ADR number when one exists.
+One `@cc` per invariant, as a **doc-comment block** (line comments are
+invisible to cc-check): bracketed metadata — area `label:`, **optional**
+`adr:` naming the governing ADR number — then the stable kebab-case id,
+then the invariant prose on the following lines. Same directive form as
+`CONTRACTS` rules.
 
 **Durable invariants only.** Behavior that expires with this task belongs in
 the `.spec` file's `## Completion Criteria` — never in `@cc`. This division

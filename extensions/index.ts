@@ -30,7 +30,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 
 /**
  * @cc [label:substitution,id:role-body] role-body
@@ -382,6 +382,21 @@ export default function register(pi: any): void {
           return null;
         }
       };
+      /** Argument-array capture (no shell) — filenames are data, never
+       *  interpolated shell syntax (quality review P2: backticks/$ in paths
+       *  survived JSON.stringify's shell quoting). */
+      const runCapture = (cmd: string, args: string[]): string | null => {
+        try {
+          const r = spawnSync(cmd, args, {
+            cwd,
+            encoding: "utf8",
+            timeout: 5000,
+          });
+          return r.status === 0 && typeof r.stdout === "string" ? r.stdout.trim() : null;
+        } catch {
+          return null;
+        }
+      };
       const listDocs = (): string[] => {
         const docsDir = path.join(cwd, "docs");
         if (!fs.existsSync(docsDir)) return [];
@@ -416,7 +431,7 @@ export default function register(pi: any): void {
             const text = fs.readFileSync(abs, "utf8");
             if (!text.includes("@cc")) continue;
             // cc-check list is primary when available; textual scan is fallback.
-            let contracts = parseCcCheckList(exec(`cc-check list ${JSON.stringify(f)}`) || "");
+            let contracts = parseCcCheckList(runCapture("cc-check", ["list", f]) || "");
             if (contracts.length === 0) contracts = parseAdrContracts(text);
             if (contracts.length > 0) adrContractsByFile[f] = contracts;
           }
@@ -424,7 +439,7 @@ export default function register(pi: any): void {
             if (!f.endsWith(".spec")) return false;
             const abs = path.join(cwd, f);
             if (!fs.existsSync(abs)) return false;
-            const head = exec(`git show HEAD:${f}`);
+            const head = runCapture("git", ["show", `HEAD:${f}`]);
             if (head === null) return false;
             return (
               extractDecisionsSection(head) !== extractDecisionsSection(fs.readFileSync(abs, "utf8"))

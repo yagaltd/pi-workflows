@@ -72,14 +72,16 @@ npm test && npm run lint && npm run typecheck && npm run build
 
 #### cc-check format
 
-If the repo contains a `@cc/CONTRACTS` directory and `cc-check` is installed, run:
+If the repo contains any `@cc` contract comments or a `CONTRACTS` file (repo
+root or any directory), and `cc-check` is installed, run:
 
 ```bash
 cc-check format
 ```
 
-This gate checks that all contract files under `@cc/CONTRACTS` are syntactically valid.
-State: pass / fail / skipped (cc-check not installed or no @cc/CONTRACTS directory).
+This gate checks that every `@cc` directive and every `CONTRACTS` file is
+syntactically valid, with no duplicate IDs.
+State: pass / fail / skipped (cc-check not installed, or no @cc comments and no CONTRACTS file).
 The reviewer never judges contract prose — only format validity.
 
 ## Output
@@ -118,7 +120,7 @@ repo: <git toplevel>
 - Lint: pass / fail
 - Types: pass / fail
 - Build: pass / fail
-- Contracts: pass / fail / skipped (cc-check not installed or no @cc/CONTRACTS directory)
+- Contracts: pass / fail / skipped (cc-check not installed, or no @cc comments and no CONTRACTS file)
 
 ### Overall: PASS / FAIL
 ```
