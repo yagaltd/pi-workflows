@@ -45,6 +45,21 @@ flowchart LR
 - <files or areas that must not change>
 - <do not modify existing behavior in X>
 
+## Applicable contracts
+
+Optional. Populated when the repo has contracts covering any of this task's
+Allowed Changes files. Content is machine-generated from `cc-check list`
+output — each entry is a contract ID + one-line prose. This section
+REFERENCES rules from those contracts; it never re-states them. The
+`## Boundaries` section remains the sole authority on what files this task
+may touch.
+
+Each declaration follows these rules:
+- Stable kebab-case ID, unique per declaration
+- `label:` attribute describing what the contract governs
+- Optional `adr:` attribute linking to a decision record
+- Lists invariants (hard constraints), not ephemera (implementation details)
+
 ## Completion Criteria
 
 Scenario: <descriptive name>

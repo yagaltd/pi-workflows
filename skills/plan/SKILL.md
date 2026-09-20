@@ -382,7 +382,9 @@ Read `templates/CONTRACT-FORMAT.md` (pi-workflows package: templates/ two dirs u
 the normative contract template, the writing rules (every scenario has an
 explicit `Test:` selector, boundaries list exact paths, optional
 `max-rounds:` frontmatter), and a complete example contract. Generate one
-`.spec` per worker task following it exactly.
+`.spec` per worker task following it exactly. If the repo has contracts
+for a task's Allowed Changes files, populate the `## Applicable contracts`
+section in its spec from `cc-check list` output.
 
 For plans with **≥2 waves**, the default path is the spec-drafter fan-out from the
 Drafting Pipeline; the fallback is hand-writing the specs.
