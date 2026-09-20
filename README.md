@@ -244,6 +244,14 @@ A `.spec` answers "is this task done?"; `@cc` code contracts answer "what must s
 
 ### Planning
 
+Phase 5 contract generation runs a two-step mechanical gate before the human
+approval gate: `agent-spec parse` (syntax) then `scripts/check-spec-selectors.sh`
+(parse-only `bash -n` + grep-flag sanity on every `Test:` selector — findings are
+fix-or-justify). A Jev-based spec-sanity pre-pass was **trust-tested and rejected**
+(both known-bad selectors false-passed: the defects are repo-dependent, invisible
+from spec text alone — evidence in `.workflows/spikes/spec-sanity/report.md`);
+redesign candidates on file.
+
 **Task tiers** (decided at plan time, routed via the registry): every task carries
 a tier next to it in plan.md — **Tier A** mechanical (small, grep-verifiable:
 `@model:standard` + low thinking, grep-only review or done orchestrator-inline),

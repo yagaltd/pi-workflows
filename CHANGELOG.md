@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-09-20 — v0.6.1: Phase-5 selector lint (Layer A) + spec-sanity trust test NO-GO
+
+From plan 20260920-011 (proposal: spec-sanity pre-pass, approved with
+recommendations; two layers, the Jev layer explicitly trust-gated before wiring):
+
+- **Layer A (shipped)**: `scripts/check-spec-selectors.sh` — parse-only syntax
+  lint for `.spec` `Test:` selectors (`bash -n` + grep-flag sanity; file:line
+  findings; never executes selector text — it describes post-work state).
+  Fixture-tested (good + bad with 3 defect classes); wired into plan Phase 5
+  after `agent-spec parse`, findings fix-or-justify before the approval gate.
+- **Layer B (NO-GO — the trust gate worked)**: Jev spec-sanity pre-pass
+  trust-tested on 19 fragments (T5 pre-amendment negatives, live-verified
+  failing, + 17 shipped-spec positives): `selectors_runnable` scored 21.1%
+  agreement and **false-passed both negatives** — the T5 defect class is
+  repo-dependent (window-vs-content-position, count-vs-occurrences), invisible
+  from spec text alone; Jev's hedging was correct behavior to under-supplied
+  state. Not wired; T3 dropped per the plan's NO-GO path. Useful signal kept
+  on file: `boundaries_specific` 89.5%/0 false-flags (blocked only by
+  parenthetical-annotation ambiguity — writing-rule candidate); prose-selector
+  detection works. Redesign candidates: state enrichment via mechanical
+  harvests (Layer-A script is the seam), boundary-annotation writing rule,
+  false-case corpus before retry.
+- **Also**: spike-artifact recovery chain proven (worktree pruned pre-copy →
+  reconstructed from session JSONL + corpus; negatives rebuilt verbatim and
+  live-verified rc=1); merge.py display bug caught by confusion-table
+  cross-check (table authoritative over summary).
+
 ## 2026-09-19 — v0.6.0: code-contracts durable rules layer (@cc + CONTRACTS + advisory Jev)
 
 From the approved proposal `.workflows/20260919-code-contracts-durable-rules.md`

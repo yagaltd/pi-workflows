@@ -1,6 +1,6 @@
 {
   "name": "pi-workflows",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Contract-driven multi-model workflow system for pi. Plan→approve→contracts flow with pi-core-subagent graph execution (waves via needs edges, per-task model/thinking), /auto-next, /challenge, and .workflows/ isolation.",
   "keywords": ["pi-package"],
   "license": "MIT",
