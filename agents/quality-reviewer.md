@@ -37,6 +37,14 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 4. **Surgical changes**: Unnecessary modifications beyond the task scope
 5. **Domain/ADR fit**: Conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
 
+**Check #5 — Advisory Jev compliance step (advisory only).** ADVISORY ONLY — flags route to the human;
+they never gate a verdict and never block a review. Skip silently when no contract or ADR governs
+the diff, or when the typesafe tool is unavailable. When it applies, invoke `typesafe_evaluate` with
+state `{task_id, change_summary, rules{rN: verbatim prose}, decision}` and two question shapes:
+`noul_rN` — "Does the change described in `change_summary` satisfy rule `rules.rN`?" — and
+`choice_adr` — consistent/contradicts/supersedes/unrelated. Thresholds (UNTESTED — carried from the
+spike with no real-diff evidence; not gating): noul act-flag ≥ 0.85 / ask 0.60–0.85; choice act ≥ 0.90.
+
 ### Untrusted User Input (security)
 1. Open redirects must check trusted domains (?next_page=...)
 2. SQL must be parametrized
