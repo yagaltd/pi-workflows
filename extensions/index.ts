@@ -23,7 +23,12 @@ import * as fs from "fs";
 import * as path from "path";
 import { execSync } from "child_process";
 
-/** Strip the leading "# Role:" header and any HTML dispatch-note comment
+/**
+ * @cc [label:substitution,id:role-body] role-body
+ * Role body extraction is mechanical and verbatim — strips the leading "# Role:"
+ * header and any HTML dispatch-note comment that follows it, returning exact content.
+ *
+ * Strip the leading "# Role:" header and any HTML dispatch-note comment
  *  that follows it (real role files put the note AFTER the heading, not
  *  before — bug-hunter BH-002). Also drops leading blank lines. */
 export function roleBody(content: string): string {
@@ -80,7 +85,13 @@ export function resolveSubagentInput(
   return errors;
 }
 
-/** Hygiene drift between plan.md statuses and the audit trails.
+/**
+ * @cc [label:watchdog,id:hygiene-drift-counting] hygiene-drift-counting
+ * Done-task counts use the status-line pattern ("- **Status**: ✅"), not raw
+ * ✅ emoji — raw emoji also appears in prose and inflates counts. Part of the
+ * once-per-gap watchdog reminder chain.
+ *
+ * Hygiene drift between plan.md statuses and the audit trails.
  *  Done tasks are counted by status-line pattern — NOT raw ✅ emoji,
  *  which also appears in prose (headers, notes) and inflates counts. */
 export function computeHygieneDrift(

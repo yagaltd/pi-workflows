@@ -1,0 +1,20 @@
+@cc [label:substitution,id:role-substitution] role-substitution
+Role substitution via @role: is mechanical and verbatim — the subagent tool
+call receives the file content exactly as written, without interpretation,
+summarisation, or rewriting by the leader. The leader never reads or pastes
+role files.
+
+@cc [label:reviewer,id:reviewer-no-judgment] reviewer-no-judgment
+Reviewer verdicts never contain judgment or opinions — only mechanical
+pass/fail/gate outcomes against the contract criteria. The reviewer is a
+checker, not an editor or a critic.
+
+@cc [label:gating,id:verdict-gating] verdict-gating
+Verdict gating is reviewer-only authority — no subagent, model, or
+orchestrator marks its own work done. Only a reviewer verdict with
+"ok: true" closes a task.
+
+@cc [label:watchdog,id:watchdog-remind-once] watchdog-remind-once
+Watchdogs (hygiene, docs-policy, supersede) remind once per new gap state
+— no spam. Once a drift configuration has been notified, the same
+configuration is not re-reported until the state changes.
