@@ -45,9 +45,13 @@ Rules:
   pre-pass entirely — the child's step self-skips (degradation, not
   failure). The same pre-pass upgrades the extension's supersede advisory
   line: when it fires and typesafe is reachable, run the choice question
-  (supersedes/contradicts probability); ≥0.90 names the human gate
-  (`SUPERSEDE_PROBABILITY_THRESHOLD` semantics in the extension), below
-  stays static — routing only, never a verdict.
+  and route on the THREAT probability = `probabilities.supersedes` +
+  `probabilities.contradicts` (option probabilities summed — exactly one
+  option is true, so the sum is P(supersession-or-contradiction)); NEVER
+  Jev's `confidence` field — confidence measures distribution
+  concentration, not threat (skill: "not permission to act"). ≥0.90
+  names the human gate (`SUPERSEDE_PROBABILITY_THRESHOLD`), below stays
+  static — routing only, never a verdict.
   `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
   only after mechanical ok:true.
 - **Quality-reviewer placement — per-task, gated, never per-wave.**

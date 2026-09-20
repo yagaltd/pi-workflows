@@ -277,9 +277,12 @@ export function extractDecisionsSection(specText: string): string {
  *  gate; below it the advisory stays static. Routing only — never a verdict. */
 export const SUPERSEDE_PROBABILITY_THRESHOLD = 0.90;
 
-/** Build the single advisory line for a gap. `choiceProbability` comes from
- *  the orchestrator's Jev call; `null`/`undefined` (typesafe unavailable)
- *  yields a static line, never a crash. */
+/** Build the single advisory line for a gap. `choiceProbability` is the
+ *  THREAT probability from the orchestrator's Jev call:
+ *  probabilities.supersedes + probabilities.contradicts (one option is
+ *  true, so the sum = P(supersession-or-contradiction)). NOT Jev's
+ *  `confidence` (distribution concentration ≠ threat). `null`/`undefined`
+ *  (typesafe unavailable) yields a static line, never a crash. */
 export function supersedeAdvisoryLine(
   gap: SupersedeGap,
   choiceProbability?: number | null
