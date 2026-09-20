@@ -70,6 +70,18 @@ npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack — and say so in the report
 ```
 
+#### cc-check format
+
+If the repo contains a `@cc/CONTRACTS` directory and `cc-check` is installed, run:
+
+```bash
+cc-check format
+```
+
+This gate checks that all contract files under `@cc/CONTRACTS` are syntactically valid.
+State: pass / fail / skipped (cc-check not installed or no @cc/CONTRACTS directory).
+The reviewer never judges contract prose — only format validity.
+
 ## Output
 
 Your output MUST end with this exact verdict block — the orchestrator
@@ -106,6 +118,7 @@ repo: <git toplevel>
 - Lint: pass / fail
 - Types: pass / fail
 - Build: pass / fail
+- Contracts: pass / fail / skipped (cc-check not installed or no @cc/CONTRACTS directory)
 
 ### Overall: PASS / FAIL
 ```
