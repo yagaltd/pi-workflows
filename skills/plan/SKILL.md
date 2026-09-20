@@ -366,6 +366,16 @@ sections). Evidence: plan-040 shipped eight unparseable specs through two
 full waves before the tooling caught it — every review round paid a
 lifecycle-skip tax.
 
+**Selector syntax lint (mechanical, after the parse-lint)**: once a spec
+parses, run `bash scripts/check-spec-selectors.sh <spec...>` (with no args it
+lints `.workflows/specs/*.spec`; an absent directory is clean). It is
+parse-only — `bash -n` on every `Test:` selector plus grep-flag sanity (-A/-B/-C
+numeric, pattern non-empty, `-f` path present) — and never executes a selector
+(selectors describe post-work state). Each defect prints as
+`file:line: <finding>`; the lint exits 1 on any defect and stays silent when
+clean. Every finding is **fixed or explicitly justified** before the approval
+gate below — never silently ignored.
+
 Every code-task spec carries `verify:` frontmatter — the literal command
 line that proves the task in THIS repo (documented in CONTRACT-FORMAT;
 parses clean under agent-spec). The worker runs it, the reviewer executes
