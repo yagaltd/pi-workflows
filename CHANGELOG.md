@@ -31,7 +31,11 @@ layer, advisory-first:
   skip-when-absent, never gates) + **supersede watchdog** in the extension
   (mechanical trigger: adr:-attributed file touched / Decisions changed
   with no new ADR → one advisory line; pure-mechanical, Jev probability
-  stays orchestrator-side).
+  stays orchestrator-side). Both are **optional**: they need the
+  pi-typesafe extension enabled in the orchestrating session
+  (`/typesafe enable`; headless `PI_TYPESAFE_ENABLED=1` +
+  `TYPESAFE_API_KEY`) — without it the step skips and the watchdog emits
+  its static line; pi-workflows itself has no hard Jev dependency.
 - **Also**: registry standard/scout slots alias-pinned to
   `openrouter/~deepseek/deepseek-flash-latest`; thinking-map precedence
   fixed (live-observed > vendor data); whole-plan quality gate caught 3

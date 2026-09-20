@@ -38,8 +38,11 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 5. **Domain/ADR fit**: Conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
 
 **Check #5 — Advisory Jev compliance step (advisory only).** ADVISORY ONLY — flags route to the human;
-they never gate a verdict and never block a review. Skip silently when no contract or ADR governs
-the diff, or when the typesafe tool is unavailable. When it applies, invoke `typesafe_evaluate` with
+they never gate a verdict and never block a review. Requires the optional pi-typesafe extension
+ENABLED in the orchestrating session (`/typesafe enable`; headless `PI_TYPESAFE_ENABLED=1`) — the
+tool registers disabled until enabled, so "unavailable" is the normal state without it. Skip
+silently when no contract or ADR governs the diff, or when the typesafe tool is unavailable. When
+it applies, invoke `typesafe_evaluate` with
 state `{task_id, change_summary, rules{rN: verbatim prose}, decision}` and two question shapes:
 `noul_rN` — "Does the change described in `change_summary` satisfy rule `rules.rN`?" — and
 `choice_adr` — consistent/contradicts/supersedes/unrelated. Thresholds (UNTESTED — carried from the
