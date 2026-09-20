@@ -95,6 +95,27 @@ If you discover something broken outside your boundaries: **note it and keep mov
 - No dead code, no debug logging, no speculative additions
 - Scope lock: if something outside the task is broken, note it and keep moving
 
+### Annotate public seams with @cc (code contracts)
+
+When you create or CHANGE a public seam (exported function, class, method)
+within Allowed Changes, annotate each durable invariant with a `@cc` directive:
+
+```
+// @cc label:rate-limit id:max-requests "API rate limit: max 100 req/min per client"
+// @cc label:rate-limit id:cooldown-period, adr:7 "60s cooldown after rate-limit hit"
+```
+
+One `@cc` per invariant, with stable kebab-case `id:`, area `label:`, and
+**optional** `adr:` attribute naming the governing ADR number when one exists.
+
+**Durable invariants only.** Behavior that expires with this task belongs in
+the `.spec` file's `## Completion Criteria` — never in `@cc`. This division
+is intentional: `@cc` tracks enduring constraints that outlive the task;
+per-task ephemera stays in the executable spec.
+
+The `## Applicable contracts` section in the task's `.spec` lists the contract
+IDs that govern the seam — read it at dispatch time to know which rules apply.
+
 ### Self-verify as you go
 After each significant change, run the project's verification:
 ```bash
