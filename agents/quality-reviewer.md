@@ -41,8 +41,12 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 they never gate a verdict and never block a review. Requires the optional pi-typesafe extension
 ENABLED in the orchestrating session (`/typesafe enable`; headless `PI_TYPESAFE_ENABLED=1`) — the
 tool registers disabled until enabled, so "unavailable" is the normal state without it. Skip
-silently when no contract or ADR governs the diff, or when the typesafe tool is unavailable. When
-it applies, invoke `typesafe_evaluate` with
+silently when no contract or ADR governs the diff, or when the typesafe tool is unavailable.
+**Input path**: the orchestrator runs the batched `typesafe_evaluate` call as a pre-pass (see
+execution-doctrine) and prepends the flags into your dispatch pack — report them under this check
+with their probabilities; children do not hold the tool. If the pack carries no Jev flags AND you
+lack the tool, the step self-skips. When you DO hold the tool (rare dispatch shape), invoke
+`typesafe_evaluate` directly with
 state `{task_id, change_summary, rules{rN: verbatim prose}, decision}` and two question shapes:
 `noul_rN` — "Does the change described in `change_summary` satisfy rule `rules.rN`?" — and
 `choice_adr` — consistent/contradicts/supersedes/unrelated. Thresholds (UNTESTED — carried from the

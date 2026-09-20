@@ -32,6 +32,22 @@ Rules:
 - **`max-rounds`** comes from the spec frontmatter (`max-rounds: N`,
   default 2). Exhausted rounds = ❌ FAILED, never an infinite loop.
 - The same loop applies to the judgment stage: a quality-reviewer
+  standalone follow-up runs the same
+  worker→(reviewer)→verdict discipline on judgment dimensions. **Jev
+  pre-pass (orchestrator-side, automatic when enabled)**: before
+  dispatching a quality-reviewer for a task whose diff touches `@cc`
+  contracts or ADR-governed seams, the ORCHESTRATOR — the only session
+  holding `typesafe_evaluate` — runs the one batched call (shapes and
+  thresholds in `agents/quality-reviewer.md` Check #5; verify reachability
+  first: an enabled-looking extension with no key silently skips) and
+  prepends the resulting flags into the dispatch pack. The child reports
+  the flags; it never needs the tool. If typesafe is unavailable, skip the
+  pre-pass entirely — the child's step self-skips (degradation, not
+  failure). The same pre-pass upgrades the extension's supersede advisory
+  line: when it fires and typesafe is reachable, run the choice question
+  (supersedes/contradicts probability); ≥0.90 names the human gate
+  (`SUPERSEDE_PROBABILITY_THRESHOLD` semantics in the extension), below
+  stays static — routing only, never a verdict.
   `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
   only after mechanical ok:true.
 - **Quality-reviewer placement — per-task, gated, never per-wave.**
