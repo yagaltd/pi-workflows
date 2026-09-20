@@ -14,14 +14,14 @@
   },
   "roles": {
     "standard": {
-      "id": "deepseek/deepseek-v4-flash",
-      "provider": "deepseek",
+      "id": "~deepseek/deepseek-flash-latest",
+      "provider": "openrouter",
       "seen": {
         "inPerM": 0.14,
         "outPerM": 0.28,
         "ctx": 1310720
       },
-      "source": "deepseek-docs",
+      "source": "user-override:2026-09-19 alias-pin (pricing carried from deepseek-v4-flash, same family)",
       "thinking": {
         "supported": [
           "low",
@@ -69,14 +69,14 @@
       "resolvedAt": "2026-08-24"
     },
     "scout": {
-      "id": "deepseek/deepseek-v4-flash",
-      "provider": "deepseek",
+      "id": "~deepseek/deepseek-flash-latest",
+      "provider": "openrouter",
       "seen": {
         "inPerM": 0.14,
         "outPerM": 0.28,
         "ctx": 1310720
       },
-      "source": "deepseek-docs",
+      "source": "user-override:2026-09-19 alias-pin (pricing carried from deepseek-v4-flash, same family)",
       "thinking": {
         "supported": [
           "low",

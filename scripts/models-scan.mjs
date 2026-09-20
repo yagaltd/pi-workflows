@@ -236,15 +236,18 @@ function resolveFamily(models, family) {
 }
 
 // ── resolve thinking for a resolved model id ─────────────────────────────
-// Priority: (1) AUTHORITATIVE pi-package grep; (2) FALLBACK constants;
-// (3) UNKNOWN → empty + "unknown".
+// Priority: (1) FALLBACK constants (LIVE-OBSERVED truth — vendor data can lag
+// or genericize; observed wins per registry doctrine, e.g. pi 0.85.1's
+// openrouter.json ships off/low/high for deepseek-v4-pro-0813 but the
+// 2026-08-22 live dispatch proved medium unsupported, high|xhigh only);
+// (2) pi-package grep; (3) UNKNOWN → empty + "unknown".
 function resolveThinkingFor(modelId) {
-  const pkg = getPiThinkingIndex().get(modelId);
-  if (pkg) return pkg;
   const bare = modelId.includes('/') ? modelId.slice(modelId.indexOf('/') + 1) : modelId;
   if (THINKING_FALLBACK.has(bare)) {
     return { supported: THINKING_FALLBACK.get(bare), source: 'observed' };
   }
+  const pkg = getPiThinkingIndex().get(modelId);
+  if (pkg) return pkg;
   return { supported: [], source: 'unknown' };
 }
 

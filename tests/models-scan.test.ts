@@ -75,8 +75,8 @@ describe("CC1: Live scan resolves all roles", () => {
       const registry = JSON.parse(readFileSync(REGISTRY, "utf-8"));
       const roleNames = Object.keys(registry.roles);
 
-      expect(roleNames.length).toBe(4);
-      expect(roleNames.sort()).toEqual(["reviewer", "scout", "standard", "strong"]);
+      expect(roleNames.length).toBe(5);
+      expect(roleNames.sort()).toEqual(["reviewer", "scout", "standard", "strong", "vision"]);
 
       for (const name of roleNames) {
         const role = registry.roles[name];

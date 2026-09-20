@@ -73,7 +73,7 @@ orchestrator picks an **explicit legacy id** and prints a WARN line naming
 the role and the fallback — **never silent**:
 
 - `@model:strong` → `` `deepseek/deepseek-v4-pro` `` (fallback constant)
-- `@model:standard`, `@model:reviewer`, `@model:scout` → `` `deepseek/deepseek-v4-flash` ``
+- `@model:standard`, `@model:scout` → `` `openrouter/~deepseek/deepseek-flash-latest` ``
   (fallback constant)
 
 ```
