@@ -6,6 +6,13 @@ import {
   computeHygieneDrift,
   isDocsExempt,
   computeDocsDrift,
+  parseAdrContracts,
+  parseCcCheckList,
+  detectSupersedeGaps,
+  extractDecisionsSection,
+  supersedeAdvisoryLine,
+  makeRemindOnce,
+  SUPERSEDE_PROBABILITY_THRESHOLD,
 } from "../extensions/index";
 
 const WORKER = `# Role: worker
@@ -254,5 +261,122 @@ describe("computeDocsDrift", () => {
     });
     const d = computeDocsDrift(PLAN_ACTIVE, exec, () => [], "ca77c7c");
     expect(d.staleReadmeCount).toBe(2);
+  });
+});
+
+describe("supersede watchdog", () => {
+  test("parseAdrContracts: keeps only adr:-attributed @cc directives", () => {
+    const text = `// @cc [label:watchdog,id:hygiene] no adr here
+// @cc [label:watchdog,id:supersede-once,adr:7] adr attributed`;
+    expect(parseAdrContracts(text)).toEqual([
+      { id: "supersede-once", label: "watchdog", adr: "7" },
+    ]);
+  });
+
+  test("parseCcCheckList: reads adr: from cc-check list blocks", () => {
+    const out = `=> CONTRACTS <=\n\n◆ watchdog-once:1\n  scope:directory · label:watchdog · id:watchdog-once · adr:7\n\n◆ plain:9\n  scope:file · label:x · id:plain`;
+    expect(parseCcCheckList(out)).toEqual([
+      { id: "watchdog-once", label: "watchdog", adr: "7" },
+    ]);
+  });
+
+  test("trigger fires when a changed file carries an adr contract", () => {
+    const gaps = detectSupersedeGaps({
+      changedFiles: ["extensions/index.ts", "src/other.ts"],
+      adrContractsByFile: {
+        "extensions/index.ts": [{ id: "supersede-once", label: "watchdog", adr: "7" }],
+      },
+      changedSpecDecisions: [],
+      newAdrFiles: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].trigger).toBe("adr-contract-file");
+    expect(gaps[0].seam).toContain("extensions/index.ts");
+    expect(gaps[0].adr).toBe("7");
+  });
+
+  test("no fire without an adr contract or a decisions change", () => {
+    const gaps = detectSupersedeGaps({
+      changedFiles: ["src/other.ts"],
+      adrContractsByFile: {},
+      changedSpecDecisions: [],
+      newAdrFiles: [],
+    });
+    expect(gaps).toEqual([]);
+  });
+
+  test("trigger fires when a spec's Decisions changed with no new ADR file", () => {
+    const gaps = detectSupersedeGaps({
+      changedFiles: [],
+      adrContractsByFile: {},
+      changedSpecDecisions: [".workflows/specs/task-x.spec"],
+      newAdrFiles: [],
+    });
+    expect(gaps).toHaveLength(1);
+    expect(gaps[0].trigger).toBe("decisions-changed");
+  });
+
+  test("no fire when a new ADR file accompanies the Decisions change", () => {
+    const gaps = detectSupersedeGaps({
+      changedFiles: ["docs/adr/0007-supersede.md"],
+      adrContractsByFile: {},
+      changedSpecDecisions: [".workflows/specs/task-x.spec"],
+      newAdrFiles: ["docs/adr/0007-supersede.md"],
+    });
+    expect(gaps).toEqual([]);
+  });
+
+  test("extractDecisionsSection reads only the Decisions body", () => {
+    const spec = "## Intent\nstuff\n## Decisions\n- A\n- B\n## Boundaries\nnope";
+    expect(extractDecisionsSection(spec)).toBe("- A\n- B");
+  });
+
+  test("routing: probability >= 0.90 names the human gate", () => {
+    const line = supersedeAdvisoryLine(
+      { seam: "extensions/index.ts (x)", trigger: "adr-contract-file", adr: "7" },
+      0.92
+    );
+    expect(line).toContain("0.90");
+    expect(line).toMatch(/HUMAN GATE/);
+  });
+
+  test("routing: below threshold stays static, seam named, no gate", () => {
+    const line = supersedeAdvisoryLine(
+      { seam: "extensions/index.ts (x)", trigger: "adr-contract-file" },
+      0.5
+    );
+    expect(line).toContain("extensions/index.ts (x)");
+    expect(line).toMatch(/static advisory/i);
+    expect(line).not.toMatch(/HUMAN GATE/);
+  });
+
+  test("unavailable fallback: null probability → static line, no crash", () => {
+    const line = supersedeAdvisoryLine(
+      { seam: "spec.spec (Decisions changed)", trigger: "decisions-changed" },
+      null
+    );
+    expect(line).toMatch(/static advisory/i);
+    expect(line).toMatch(/typesafe unavailable/i);
+    expect(line).toContain("spec.spec (Decisions changed)");
+  });
+
+  test("no-spam: makeRemindOnce emits once per new gap, resets on clear", () => {
+    const remember = makeRemindOnce();
+    expect(remember("gap-a")).toBe(true);
+    expect(remember("gap-a")).toBe(false);
+    expect(remember("")).toBe(false);
+    expect(remember("gap-a")).toBe(true); // new episode after reset
+    expect(remember("gap-b")).toBe(true);
+    expect(remember("gap-b")).toBe(false);
+  });
+
+  test("threshold constant carries the 7p 0.90 routing line", () => {
+    expect(SUPERSEDE_PROBABILITY_THRESHOLD).toBe(0.9);
+  });
+
+  test("never a verdict: advisory lines carry no verdict token", () => {
+    const line = supersedeAdvisoryLine({ seam: "x", trigger: "decisions-changed" }, 0.99);
+    expect(line).not.toMatch(/\bok:\s*true\b/);
+    expect(line).toMatch(/advisory/i);
   });
 });

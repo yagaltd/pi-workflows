@@ -8,10 +8,19 @@
  *    mutable input). The leader never reads or pastes role files.
  *
  * 2. Hygiene watchdog (before_agent_start): when `.workflows/plan.md`
- *    shows ✅ tasks lacking the `context:` marker or a final `ok: true`
+ *    shows ✅ tasks lacking the `context:` marker or a final `ok:true`
  *    verdict on file, inject a one-line reminder — drift surfaces at the
  *    moment it happens, not at /review time. Reminds once per new gap
  *    count (no spam).
+ *
+ * 3. Supersede watchdog (before_agent_start): mechanical trigger — a
+ *    changed file carries an `adr:`-attributed `@cc` contract, or a
+ *    spec's `## Decisions` section changed while no new ADR file exists —
+ *    injects ONE advisory line naming the seam. Advisory only: it never
+ *    edits, gates, or emits a verdict. The exported `supersedeAdvisoryLine`
+ *    hook is the Jev routing seam the orchestrator calls with the choice
+ *    probability (≥0.90 names the human gate); the extension itself never
+ *    calls typesafe. Reminds once per new gap (no spam).
  *
  * Deliberately small: role substitution + drift watchdogs. The
  * watchdogs encode the docs/verdict policy checks (see
@@ -102,7 +111,7 @@ export function computeHygieneDrift(
   // markers appear as bare lines (`context: updated`) or inline bullets
   // (`- **context: updated**`) per the /next closeout step
   const contextMarkers = (planContent.match(/^\s*-?\s*\*{0,2}context: /gm) || []).length;
-  const finalOkTrue = reviewFiles.filter((f) => /\*\*ok: true\*\*/.test(f.content)).length;
+  const finalOkTrue = reviewFiles.filter((f) => /\*\*ok:\s*true\*\*/.test(f.content)).length;
   return {
     missingContextMarkers: Math.max(0, doneTasks - contextMarkers),
     missingFinalVerdicts: Math.max(0, doneTasks - finalOkTrue),
@@ -185,6 +194,127 @@ export function computeDocsDrift(
   return { staleReadmeCount, staleDocsCount, changelogPending };
 }
 
+/* ------------------- supersede watchdog (advisory only) ------------------- */
+
+export interface AdrContract {
+  id: string;
+  label: string;
+  adr: string;
+}
+
+/** Extract `@cc` directives that carry an `adr:` attribute from file text.
+ *  Textual fallback used when `cc-check` is not installed. */
+export function parseAdrContracts(text: string): AdrContract[] {
+  const out: AdrContract[] = [];
+  const re = /@cc\s+\[([^\]]*)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const attrs = m[1];
+    const adr = /(?:^|[,\s])adr:([^,\s\]]+)/.exec(attrs)?.[1];
+    if (!adr) continue;
+    const id = /(?:^|[,\s])id:([^,\s\]]+)/.exec(attrs)?.[1] ?? "?";
+    const label = /(?:^|[,\s])label:([^,\s\]]+)/.exec(attrs)?.[1] ?? "";
+    out.push({ id, label, adr });
+  }
+  return out;
+}
+
+/** Parse `cc-check list` stdout into adr-attributed contracts — the primary
+ *  source when the binary is installed; `parseAdrContracts` is the fallback. */
+export function parseCcCheckList(output: string): AdrContract[] {
+  const out: AdrContract[] = [];
+  for (const block of output.split(/^◆\s*/m).slice(1)) {
+    const adr = /adr:([^\s·]+)/.exec(block)?.[1];
+    if (!adr) continue;
+    const id = /id:([^\s·]+)/.exec(block)?.[1] ?? "?";
+    const label = /label:([^\s·]+)/.exec(block)?.[1] ?? "";
+    out.push({ id, label, adr });
+  }
+  return out;
+}
+
+export interface SupersedeGap {
+  seam: string;
+  trigger: "adr-contract-file" | "decisions-changed";
+  adr?: string;
+}
+
+/** The supersede trigger — pure mechanics, no model. Fires when (a) a changed
+ *  file carries an adr:-attributed contract, or (b) a spec's Decisions section
+ *  changed while no new ADR file exists. Never edits, never blocks. */
+export function detectSupersedeGaps(opts: {
+  changedFiles: string[];
+  adrContractsByFile: Record<string, AdrContract[]>;
+  changedSpecDecisions: string[];
+  newAdrFiles: string[];
+}): SupersedeGap[] {
+  const gaps: SupersedeGap[] = [];
+  for (const file of opts.changedFiles) {
+    for (const c of opts.adrContractsByFile[file] || []) {
+      gaps.push({ seam: `${file} (${c.id})`, trigger: "adr-contract-file", adr: c.adr });
+    }
+  }
+  if (opts.newAdrFiles.length === 0) {
+    for (const spec of opts.changedSpecDecisions) {
+      gaps.push({ seam: `${spec} (Decisions changed)`, trigger: "decisions-changed" });
+    }
+  }
+  return gaps;
+}
+
+/** Extract a spec's `## Decisions` body — the watchdog compares it against HEAD. */
+export function extractDecisionsSection(specText: string): string {
+  const m = /(?:^|\n)## Decisions\b([\s\S]*?)(?=\n## |\s*$)/.exec(specText);
+  return m ? m[1].trim() : "";
+}
+
+/** @cc [label:watchdog,id:supersede-advisory-only] supersede-advisory-only
+ *  The supersede watchdog is advisory-only: it never edits files, never blocks
+ *  dispatch, and never emits a verdict — at most one line per new gap
+ *  (watchdog-remind-once), routing to the human gate only.
+ *
+ * Jev choice/supersedes probability at or above this line names the human
+ *  gate; below it the advisory stays static. Routing only — never a verdict. */
+export const SUPERSEDE_PROBABILITY_THRESHOLD = 0.90;
+
+/** Build the single advisory line for a gap. `choiceProbability` comes from
+ *  the orchestrator's Jev call; `null`/`undefined` (typesafe unavailable)
+ *  yields a static line, never a crash. */
+export function supersedeAdvisoryLine(
+  gap: SupersedeGap,
+  choiceProbability?: number | null
+): string {
+  const base = `[pi-workflows supersede] ${gap.seam} (${gap.trigger}${
+    gap.adr ? `, adr:${gap.adr}` : ""
+  })`;
+  if (choiceProbability == null) {
+    return `${base} — static advisory (typesafe unavailable): possible ADR supersession — raise it at the human gate (advisory only).`;
+  }
+  if (Number.isFinite(choiceProbability) && choiceProbability >= SUPERSEDE_PROBABILITY_THRESHOLD) {
+    return `${base} — Jev choice/supersedes probability ${choiceProbability.toFixed(
+      2
+    )} ≥ 0.90: HUMAN GATE required — confirm the supersede/contradiction with the human before proceeding (advisory only).`;
+  }
+  return `${base} — static advisory (probability ${choiceProbability.toFixed(
+    2
+  )} < 0.90): possible ADR supersession — raise it at the human gate (advisory only).`;
+}
+
+/** Remind-once gate shared by the watchdogs (contract watchdog-remind-once):
+ *  returns true only for a NEW non-empty gap state; an empty key resets. */
+export function makeRemindOnce(): (key: string) => boolean {
+  let last = "";
+  return (key: string): boolean => {
+    if (key === "") {
+      last = "";
+      return false;
+    }
+    if (key === last) return false;
+    last = key;
+    return true;
+  };
+}
+
 /* ---------------------------------- wiring ---------------------------------- */
 
 export default function register(pi: any): void {
@@ -216,6 +346,7 @@ export default function register(pi: any): void {
   //    ({ message: { customType, content, display } }) — verified against
   //    the pi extensions docs (event.injectMessage does NOT exist).
   let lastNotified: string = "";
+  const supersedeRemindOnce = makeRemindOnce();
   pi.on("before_agent_start", async (event: any) => {
     try {
       const cwd = event?.cwd || process.cwd();
@@ -261,6 +392,58 @@ export default function register(pi: any): void {
       };
       const docs = computeDocsDrift(plan, exec, listDocs);
 
+      // Supersede watchdog — mechanical trigger only; the extension never
+      // calls typesafe. The orchestrator may re-render the line through
+      // `supersedeAdvisoryLine(gap, choiceProbability)` when Jev is reachable.
+      const supersedeLine = ((): string | null => {
+        try {
+          const status = exec("git status --porcelain");
+          if (!status) return null;
+          const changedFiles = status
+            .split("\n")
+            .map((l) => l.trim())
+            .filter((l) => l.length > 0)
+            .map((l) => l.replace(/^[A-Z?!]{1,2}\s+/, "").replace(/^.* -> /, ""))
+            .filter((f) => f.length > 0)
+            .slice(0, 15);
+          const newAdrFiles = changedFiles.filter(
+            (f) => /(^|\/)(adr|decisions)(\/|-)/i.test(f) || /(^|\/)adr[-_]/i.test(f)
+          );
+          const adrContractsByFile: Record<string, AdrContract[]> = {};
+          for (const f of changedFiles) {
+            const abs = path.join(cwd, f);
+            if (!fs.existsSync(abs)) continue;
+            const text = fs.readFileSync(abs, "utf8");
+            if (!text.includes("@cc")) continue;
+            // cc-check list is primary when available; textual scan is fallback.
+            let contracts = parseCcCheckList(exec(`cc-check list ${JSON.stringify(f)}`) || "");
+            if (contracts.length === 0) contracts = parseAdrContracts(text);
+            if (contracts.length > 0) adrContractsByFile[f] = contracts;
+          }
+          const changedSpecDecisions = changedFiles.filter((f) => {
+            if (!f.endsWith(".spec")) return false;
+            const abs = path.join(cwd, f);
+            if (!fs.existsSync(abs)) return false;
+            const head = exec(`git show HEAD:${f}`);
+            if (head === null) return false;
+            return (
+              extractDecisionsSection(head) !== extractDecisionsSection(fs.readFileSync(abs, "utf8"))
+            );
+          });
+          const gaps = detectSupersedeGaps({
+            changedFiles,
+            adrContractsByFile,
+            changedSpecDecisions,
+            newAdrFiles,
+          });
+          return gaps.length > 0 ? supersedeAdvisoryLine(gaps[0]) : null;
+        } catch {
+          return null;
+        }
+      })();
+      const supersedeFires = supersedeLine !== null && supersedeRemindOnce(supersedeLine);
+      if (supersedeLine === null) supersedeRemindOnce("");
+
       const parts: string[] = [];
       if (hygiene.missingContextMarkers > 0)
         parts.push(`${hygiene.missingContextMarkers} ✅ task(s) missing a 'context:' marker`);
@@ -287,17 +470,20 @@ export default function register(pi: any): void {
         c: docs.changelogPending,
       });
 
-      if (parts.length === 0) {
-        lastNotified = "";
-        return undefined;
-      }
-      if (key === lastNotified) return undefined;
-      lastNotified = key;
-      const reminder = `[pi-workflows hygiene] ${parts.join("; ")} — run the sweep (see /review Layer 3/4).`;
+      const hygieneFires = parts.length > 0 && key !== lastNotified;
+      if (parts.length === 0) lastNotified = "";
+      else if (hygieneFires) lastNotified = key;
+      if (!hygieneFires && !supersedeFires) return undefined;
+      const hygieneText = `[pi-workflows hygiene] ${parts.join("; ")} — run the sweep (see /review Layer 3/4).`;
+      const content = hygieneFires
+        ? supersedeFires
+          ? `${hygieneText}\n${supersedeLine}`
+          : hygieneText
+        : supersedeLine!;
       return {
         message: {
-          customType: "pi-workflows-hygiene",
-          content: reminder,
+          customType: hygieneFires ? "pi-workflows-hygiene" : "pi-workflows-supersede",
+          content,
           display: true,
         },
       };
