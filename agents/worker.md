@@ -181,6 +181,11 @@ from a post-edit run, never from memory or a pre-edit run.
 
 Run in order. Stop at first failure.
 
+**Test-quality gating (tdd-gate) is not the worker's layer** — build tasks
+defer it to the reviewer pipeline (Layer 2). In the TDD task shape the
+tester's red tests are your inputs: implement until the suite is GREEN, and
+never weaken, skip, or rename them to get there.
+
 ### 1. Contract verification (if .spec file exists)
 ```bash
 agent-spec lifecycle .workflows/specs/<task>.spec --code . --format json
@@ -188,21 +193,13 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If any scenario fails or boundaries violated → report FAIL. Do NOT proceed.
 
-### 2. Test quality verification (if tdd-guard is installed)
-```bash
-# Only if agent-spec passed above
-tdd-guard lint --src src --tests tests --format json
-tdd-guard verify --spec .workflows/specs/<task>.spec --format json
-```
-If tdd-guard is not installed, skip and note it. If any rule fails → report FAIL.
-
-### 3. Project verification
+### 2. Project verification
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
 # or equivalent for the project
 ```
 
-### 4. Self-check against Completion Criteria
+### 3. Self-check against Completion Criteria
 If you have a `.spec` file, manually verify each BDD scenario:
 - Does the test selector you wrote actually exist?
 - Do the Given/When/Then conditions hold?
@@ -262,7 +259,6 @@ What was done.
 
 ## Verification
 - agent-spec lifecycle: ✅ pass / ❌ fail (details)
-- tdd-guard: ✅ pass / ⏭️ skipped (not installed) / ❌ fail (details)
 - Tests: ✅ / ❌
 - Lint: ✅ / ❌
 - Types: ✅ / ❌

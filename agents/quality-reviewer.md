@@ -37,20 +37,12 @@ Exclude findings that are: speculative, style preferences, optional refactors wi
 4. **Surgical changes**: Unnecessary modifications beyond the task scope
 5. **Domain/ADR fit**: Conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
 
-**Check #5 — Advisory Jev compliance step (advisory only).** ADVISORY ONLY — flags route to the human;
-they never gate a verdict and never block a review. Requires the optional pi-typesafe extension
-ENABLED in the orchestrating session (`/typesafe enable`; headless `PI_TYPESAFE_ENABLED=1`) — the
-tool registers disabled until enabled, so "unavailable" is the normal state without it. Skip
-silently when no contract or ADR governs the diff, or when the typesafe tool is unavailable.
-**Input path**: the orchestrator runs the batched `typesafe_evaluate` call as a pre-pass (see
-execution-doctrine) and prepends the flags into your dispatch pack — report them under this check
-with their probabilities; children do not hold the tool. If the pack carries no Jev flags AND you
-lack the tool, the step self-skips. When you DO hold the tool (rare dispatch shape), invoke
-`typesafe_evaluate` directly with
-state `{task_id, change_summary, rules{rN: verbatim prose}, decision}` and two question shapes:
-`noul_rN` — "Does the change described in `change_summary` satisfy rule `rules.rN`?" — and
-`choice_adr` — consistent/contradicts/supersedes/unrelated. Thresholds (UNTESTED — carried from the
-spike with no real-diff evidence; not gating): noul act-flag ≥ 0.85 / ask 0.60–0.85; choice act ≥ 0.90.
+**Check #5 — Contract-relevance check.** Refines the Domain/ADR fit item above: a contract,
+domain, or ADR violation is reportable ONLY when it is tied to the change — (a) changed behavior
+in the diff, (b) a relied-upon assumption the change makes, or (c) a changed contract itself.
+Proximity alone never qualifies: code that merely sits near a governed seam, or predates the
+change, is not a finding. For each candidate violation, name the tie; if you cannot, drop the
+finding.
 
 ### Untrusted User Input (security)
 1. Open redirects must check trusted domains (?next_page=...)
