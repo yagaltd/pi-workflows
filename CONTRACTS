@@ -1,3 +1,5 @@
+Scope: code-local invariants only — never requirements (home: .workflows/specs/*.spec), never narrative (home: docs/, ADRs, .workflows/ decision trace).
+
 @cc [label:substitution,id:role-substitution] role-substitution
 Role substitution via @role: is mechanical and verbatim — the subagent tool
 call receives the file content exactly as written, without interpretation,
