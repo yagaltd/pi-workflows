@@ -79,8 +79,9 @@ replaces discovery, not the spec).` },
 Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
 the self-report: read .workflows/specs/<task-id>.spec yourself, then run
-in order, stop at first failure: agent-spec lifecycle, guard, tdd-guard
-(if installed), then the spec's verify line verbatim (tests/lint/typecheck/
+in order, stop at first failure: agent-spec lifecycle, guard, tdd-gate
+gaming + drift (if installed — your Layer 2 for build tasks, see the TDD
+task shape), then the spec's verify line verbatim (tests/lint/typecheck/
 build only if no verify line exists — see your Layer 3 rule).
 Re-review rounds (round N>1): the diff to verify is the DELTA
 `git diff <roundN-1>..<roundN>` on top of the verdict file chain
@@ -192,6 +193,85 @@ Notes:
   before the ship commit (merged branches + worktree dirs are auto-cleaned).
 - Parallel tasks MUST have disjoint `Allowed Changes` (registry isolation
   policy); overlapping boundaries → resequence with a dependency instead.
+
+## TDD task shape (two-phase: tester wave → coverage gate → worker wave)
+
+Build tasks whose spec scenarios carry `Test:` selectors run in TWO waves
+when tdd-gate is installed. The tester writes the failing tests first, the
+orchestrator gates coverage mechanically, and only then does the code worker
+implement to GREEN — it inherits a red suite as its acceptance criteria, so
+"done" is mechanically checkable.
+
+**Wave A — tester** (single task, write worktree):
+
+```text
+subagent({
+  autoAwait: true,
+  cwd: "<absolute repo path>",
+  tasks: [
+    { id: "tester-<task-id>", agent: "tester-<task-id>", prompt: "@role:tester",
+      write: true, thinking: "medium", allowIntercom: true,
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
+
+TASK <N> of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/<task-id>.spec.
+Upstream tasks: <list>. Test dir: <dir>.
+
+Write ONLY the test files named by the spec's exact Test: selectors, run
+the suite, and report the red list. RED-for-new-selectors is the success
+signal — never write production code, never turn your own tests green.` },
+  ],
+})
+```
+
+**Orchestrator coverage gate** (not a subagent — the orchestrator runs it
+against the tester's worktree/branch):
+
+```bash
+tdd-gate coverage --spec .workflows/specs/<task>.spec --tests <dir> --format json
+```
+
+- **Gaps** → follow-up tester dispatch (fix-round shape: gaps +
+  `tdd-gate blame` output pasted verbatim into the pack); loop until the
+  gate is clean. A tester branch with known gaps is never merged.
+- **Clean** ⇒ merge the tester branch like any write branch:
+  `git merge --no-ff subagents/<run>/tester-<task-id>` — Wave B branches
+  from a tree that already contains the red tests.
+
+**Wave B — worker + reviewer stacked** (one call, graph mode — the
+reviewer's `needs:` edge fires it when the worker settles):
+
+```text
+subagent({
+  autoAwait: true,
+  cwd: "<absolute repo path>",
+  tasks: [
+    { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
+      write: true, thinking: "<from bottleneck tag>", allowIntercom: true,
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
+
+TASK <N> of .workflows/plan.md (plan <id>): <goal>. Contract: .workflows/specs/<task-id>.spec.
+Upstream: the tester's merged red tests (tester-<task-id>) — the Red List
+in its report is your acceptance criteria. Implement until the suite is
+GREEN. Never weaken, skip, or rename the tester's tests.` },
+    { id: "review-<task-id>", agent: "review-<task-id>", prompt: "@role:reviewer",
+      tools: ["read","grep","find","ls","bash"], thinking: "high",
+      needs: ["worker-<task-id>"],
+      task: `Repo: <absolute repo path> (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).
+
+Mechanical verification for TASK <N>: <goal>. Verify against the contract,
+not the self-report. Layer 2 (build task — run on the worker diff):
+  tdd-gate gaming --diff
+  tdd-gate drift --spec .workflows/specs/<task-id>.spec
+gaming fails the diff when tests were weakened to pass; drift fails it when
+the diff contradicts the spec. Then agent-spec lifecycle, guard, and the
+spec's verify line verbatim. End with the Verdict block.` },
+  ],
+})
+```
+
+**Degradation**: tdd-gate not installed ⇒ the legacy single-worker shape
+(sequential worker→reviewer above) with the skip stated LOUDLY in the
+dispatch text — never a silent pass (agents/execution-doctrine.md).
 
 ## Scout dispatch shape
 

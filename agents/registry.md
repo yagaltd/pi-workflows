@@ -20,13 +20,16 @@ execution time; without the extension, the orchestrator reads and pastes
 |---|---|---|---|---|
 | scout | `agents/scout.md` | read-only (`write: false`) | inherit parent | low |
 | worker | `agents/worker.md` | `write: true` | inherit parent | medium |
+| tester | `agents/tester.md` | `write: true`, test-files-only — writes only test files carrying the spec's exact `Test:` selectors (RED-for-new-selectors is the success signal) | `@model:standard` | medium |
 | reviewer | `agents/reviewer.md` | `tools: ["read","grep","find","ls","bash"]` (needs bash to run agent-spec) — **bash non-optional** — dispatching a reviewer without bash is a dispatch bug; the role itself VOIDs mechanical layers without it (see agents/reviewer.md) | inherit parent | high |
 | quality-reviewer | `agents/quality-reviewer.md` | read-only (`write: false`) | inherit parent | medium |
 | spec-drafter | `agents/spec-drafter.md` | `write: true`, contract-limited to `.workflows/specs/**` | `@model:standard` | high |
 
 Never improvise a role not listed here. **Fix rounds dispatch the worker
 role** (with rejection evidence prepended and `thinking: high`) — there is
-no separate fixer role; reusing the worker keeps the role set closed.
+no separate fixer role; reusing the worker keeps the role set closed. (In
+the TDD task shape, test-gap rounds from the coverage gate re-dispatch the
+tester role for the same closed-set reason — see dispatch-shapes.md.)
 Ad-hoc angles (research, security review, performance) get an inline
 `prompt:` written per call — they are not roles and do not get files.
 
