@@ -17,10 +17,10 @@
  *    changed file carries an `adr:`-attributed `@cc` contract, or a
  *    spec's `## Decisions` section changed while no new ADR file exists —
  *    injects ONE advisory line naming the seam. Advisory only: it never
- *    edits, gates, or emits a verdict. The exported `supersedeAdvisoryLine`
- *    hook is the Jev routing seam the orchestrator calls with the choice
- *    probability (≥0.90 names the human gate); the extension itself never
- *    calls typesafe. Reminds once per new gap (no spam).
+ *    edits, gates, or emits a verdict. The line is static text derived
+ *    from the matched `@cc` contract's metadata: `owner:` attributes name
+ *    the sign-off targets; with no `owner:` the generic human-gate line is
+ *    emitted. Reminds once per new gap (no spam).
  *
  * Deliberately small: role substitution + drift watchdogs. The
  * watchdogs encode the docs/verdict policy checks (see
@@ -200,6 +200,7 @@ export interface AdrContract {
   id: string;
   label: string;
   adr: string;
+  owners: string[];
 }
 
 /** Extract `@cc` directives that carry an `adr:` attribute from file text.
@@ -214,7 +215,11 @@ export function parseAdrContracts(text: string): AdrContract[] {
     if (!adr) continue;
     const id = /(?:^|[,\s])id:([^,\s\]]+)/.exec(attrs)?.[1] ?? "?";
     const label = /(?:^|[,\s])label:([^,\s\]]+)/.exec(attrs)?.[1] ?? "";
-    out.push({ id, label, adr });
+    const owners = Array.from(
+      attrs.matchAll(/(?:^|[,\s])owner:([^,\s\]]+)/g),
+      (m) => m[1]
+    );
+    out.push({ id, label, adr, owners });
   }
   return out;
 }
@@ -228,7 +233,8 @@ export function parseCcCheckList(output: string): AdrContract[] {
     if (!adr) continue;
     const id = /id:([^\s·]+)/.exec(block)?.[1] ?? "?";
     const label = /label:([^\s·]+)/.exec(block)?.[1] ?? "";
-    out.push({ id, label, adr });
+    const owners = Array.from(block.matchAll(/owner:([^\s·]+)/g), (m) => m[1]);
+    out.push({ id, label, adr, owners });
   }
   return out;
 }
@@ -237,6 +243,7 @@ export interface SupersedeGap {
   seam: string;
   trigger: "adr-contract-file" | "decisions-changed";
   adr?: string;
+  owners?: string[];
 }
 
 /** The supersede trigger — pure mechanics, no model. Fires when (a) a changed
@@ -251,7 +258,12 @@ export function detectSupersedeGaps(opts: {
   const gaps: SupersedeGap[] = [];
   for (const file of opts.changedFiles) {
     for (const c of opts.adrContractsByFile[file] || []) {
-      gaps.push({ seam: `${file} (${c.id})`, trigger: "adr-contract-file", adr: c.adr });
+      gaps.push({
+        seam: `${file} (${c.id})`,
+        trigger: "adr-contract-file",
+        adr: c.adr,
+        owners: c.owners,
+      });
     }
   }
   if (opts.newAdrFiles.length === 0) {
@@ -273,34 +285,19 @@ export function extractDecisionsSection(specText: string): string {
  *  dispatch, and never emits a verdict — at most one line per new gap
  *  (watchdog-remind-once), routing to the human gate only.
  *
- * Jev choice/supersedes probability at or above this line names the human
- *  gate; below it the advisory stays static. Routing only — never a verdict. */
-export const SUPERSEDE_PROBABILITY_THRESHOLD = 0.90;
-
-/** Build the single advisory line for a gap. `choiceProbability` is the
- *  THREAT probability from the orchestrator's Jev call:
- *  probabilities.supersedes + probabilities.contradicts (one option is
- *  true, so the sum = P(supersession-or-contradiction)). NOT Jev's
- *  `confidence` (distribution concentration ≠ threat). `null`/`undefined`
- *  (typesafe unavailable) yields a static line, never a crash. */
-export function supersedeAdvisoryLine(
-  gap: SupersedeGap,
-  choiceProbability?: number | null
-): string {
+ * The line is static text derived from contract metadata only: `owner:`
+ *  attributes name the sign-off targets; without them the generic human-gate
+ *  line is emitted. Routing only — never a verdict. */
+function supersedeAdvisoryLine(gap: SupersedeGap): string {
   const base = `[pi-workflows supersede] ${gap.seam} (${gap.trigger}${
     gap.adr ? `, adr:${gap.adr}` : ""
   })`;
-  if (choiceProbability == null) {
-    return `${base} — static advisory (typesafe unavailable): possible ADR supersession — raise it at the human gate (advisory only).`;
+  if (gap.owners && gap.owners.length > 0) {
+    return `${base} — possible ADR supersession — sign-off required from ${gap.owners.join(
+      ", "
+    )} at the human gate (advisory only).`;
   }
-  if (Number.isFinite(choiceProbability) && choiceProbability >= SUPERSEDE_PROBABILITY_THRESHOLD) {
-    return `${base} — Jev choice/supersedes probability ${choiceProbability.toFixed(
-      2
-    )} ≥ 0.90: HUMAN GATE required — confirm the supersede/contradiction with the human before proceeding (advisory only).`;
-  }
-  return `${base} — static advisory (probability ${choiceProbability.toFixed(
-    2
-  )} < 0.90): possible ADR supersession — raise it at the human gate (advisory only).`;
+  return `${base} — static advisory: possible ADR supersession — raise it at the human gate (advisory only).`;
 }
 
 /** Remind-once gate shared by the watchdogs (contract watchdog-remind-once):
@@ -410,9 +407,8 @@ export default function register(pi: any): void {
       };
       const docs = computeDocsDrift(plan, exec, listDocs);
 
-      // Supersede watchdog — mechanical trigger only; the extension never
-      // calls typesafe. The orchestrator may re-render the line through
-      // `supersedeAdvisoryLine(gap, choiceProbability)` when Jev is reachable.
+      // Supersede watchdog — mechanical trigger only; the advisory line is
+      // static text derived from contract metadata (owner: sign-off targets).
       const supersedeLine = ((): string | null => {
         try {
           const status = exec("git status --porcelain");

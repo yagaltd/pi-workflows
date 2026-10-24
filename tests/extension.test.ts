@@ -10,9 +10,7 @@ import {
   parseCcCheckList,
   detectSupersedeGaps,
   extractDecisionsSection,
-  supersedeAdvisoryLine,
   makeRemindOnce,
-  SUPERSEDE_PROBABILITY_THRESHOLD,
 } from "../extensions/index";
 
 const WORKER = `# Role: worker
@@ -269,14 +267,14 @@ describe("supersede watchdog", () => {
     const text = `// @cc [label:watchdog,id:hygiene] no adr here
 // @cc [label:watchdog,id:supersede-once,adr:7] adr attributed`;
     expect(parseAdrContracts(text)).toEqual([
-      { id: "supersede-once", label: "watchdog", adr: "7" },
+      { id: "supersede-once", label: "watchdog", adr: "7", owners: [] },
     ]);
   });
 
   test("parseCcCheckList: reads adr: from cc-check list blocks", () => {
     const out = `=> CONTRACTS <=\n\n◆ watchdog-once:1\n  scope:directory · label:watchdog · id:watchdog-once · adr:7\n\n◆ plain:9\n  scope:file · label:x · id:plain`;
     expect(parseCcCheckList(out)).toEqual([
-      { id: "watchdog-once", label: "watchdog", adr: "7" },
+      { id: "watchdog-once", label: "watchdog", adr: "7", owners: [] },
     ]);
   });
 
@@ -284,7 +282,9 @@ describe("supersede watchdog", () => {
     const gaps = detectSupersedeGaps({
       changedFiles: ["extensions/index.ts", "src/other.ts"],
       adrContractsByFile: {
-        "extensions/index.ts": [{ id: "supersede-once", label: "watchdog", adr: "7" }],
+        "extensions/index.ts": [
+          { id: "supersede-once", label: "watchdog", adr: "7", owners: [] },
+        ],
       },
       changedSpecDecisions: [],
       newAdrFiles: [],
@@ -331,33 +331,31 @@ describe("supersede watchdog", () => {
     expect(extractDecisionsSection(spec)).toBe("- A\n- B");
   });
 
-  test("routing: probability >= 0.90 names the human gate", () => {
-    const line = supersedeAdvisoryLine(
-      { seam: "extensions/index.ts (x)", trigger: "adr-contract-file", adr: "7" },
-      0.92
+  test("owner parsing: textual fallback extracts owner attributes", () => {
+    const contracts = parseAdrContracts(
+      "/** @cc [label:watchdog,id:x,owner:alice,adr:7] x\n */"
     );
-    expect(line).toContain("0.90");
-    expect(line).toMatch(/HUMAN GATE/);
+    expect(contracts).toHaveLength(1);
+    expect(contracts[0].owners).toEqual(["alice"]);
   });
 
-  test("routing: below threshold stays static, seam named, no gate", () => {
-    const line = supersedeAdvisoryLine(
-      { seam: "extensions/index.ts (x)", trigger: "adr-contract-file" },
-      0.5
+  test("owner parsing: multiple owners kept in contract order", () => {
+    const contracts = parseAdrContracts(
+      "/** @cc [adr:7,id:x,owner:alice,owner:bob,label:y] x\n */"
     );
-    expect(line).toContain("extensions/index.ts (x)");
-    expect(line).toMatch(/static advisory/i);
-    expect(line).not.toMatch(/HUMAN GATE/);
+    expect(contracts[0].owners).toEqual(["alice", "bob"]);
   });
 
-  test("unavailable fallback: null probability → static line, no crash", () => {
-    const line = supersedeAdvisoryLine(
-      { seam: "spec.spec (Decisions changed)", trigger: "decisions-changed" },
-      null
+  test("owner parsing: cc-check list path extracts owner attributes", () => {
+    const contracts = parseCcCheckList(
+      "◆ x:1\n  scope:file · label:y · id:x · owner:carol · adr:7"
     );
-    expect(line).toMatch(/static advisory/i);
-    expect(line).toMatch(/typesafe unavailable/i);
-    expect(line).toContain("spec.spec (Decisions changed)");
+    expect(contracts[0].owners).toEqual(["carol"]);
+  });
+
+  test("owner parsing: absent owner yields empty list", () => {
+    const contracts = parseAdrContracts("/** @cc [adr:7,id:x] x */");
+    expect(contracts[0].owners).toEqual([]);
   });
 
   test("no-spam: makeRemindOnce emits once per new gap, resets on clear", () => {
@@ -370,13 +368,51 @@ describe("supersede watchdog", () => {
     expect(remember("gap-b")).toBe(false);
   });
 
-  test("threshold constant carries the 7p 0.90 routing line", () => {
-    expect(SUPERSEDE_PROBABILITY_THRESHOLD).toBe(0.9);
+  test("advisory names owner sign-off target", () => {
+    // The line builder is internal (no replacement export, per contract) —
+    // assert the built-line template names owners and carries no probability.
+    const src = require("fs").readFileSync("extensions/index.ts", "utf8");
+    expect(src).toMatch(/sign-off required from \$\{gap\.owners\.join\(/);
+    expect(src).not.toMatch(/choiceProbability|toFixed\(2\)|≥ 0\.90/);
   });
 
-  test("never a verdict: advisory lines carry no verdict token", () => {
-    const line = supersedeAdvisoryLine({ seam: "x", trigger: "decisions-changed" }, 0.99);
-    expect(line).not.toMatch(/\bok:\s*true\b/);
-    expect(line).toMatch(/advisory/i);
+  test("generic human gate line when owner absent", () => {
+    const src = require("fs").readFileSync("extensions/index.ts", "utf8");
+    expect(src).toContain(
+      "— static advisory: possible ADR supersession — raise it at the human gate (advisory only)."
+    );
+  });
+
+  test("supersedeAdvisoryLine export is gone (Jev probability seam removed)", async () => {
+    const mod = await import("../extensions/index");
+    expect("supersedeAdvisoryLine" in mod).toBe(false);
+    expect("SUPERSEDE_PROBABILITY_THRESHOLD" in mod).toBe(false);
+  });
+
+  test("advisory line through the watchdog path contains no probability or threshold text", () => {
+    // The extension module itself must carry no threshold text.
+    const src = require("fs").readFileSync("extensions/index.ts", "utf8");
+    expect(src).not.toMatch(/0\.90|choiceProbability/);
+  });
+
+  test("threshold constant removed", () => {
+    const src = require("fs").readFileSync("extensions/index.ts", "utf8");
+    expect(src).not.toContain("SUPERSEDE_PROBABILITY_THRESHOLD");
+  });
+
+  test("never a verdict: gaps carry owners so the advisory names sign-off targets", () => {
+    const gaps = detectSupersedeGaps({
+      changedFiles: ["src/x.ts"],
+      adrContractsByFile: {
+        "src/x.ts": [{ id: "x", label: "", adr: "7", owners: ["alice", "bob"] }],
+      },
+      changedSpecDecisions: [],
+      newAdrFiles: [],
+    });
+    expect(gaps[0].owners).toEqual(["alice", "bob"]);
+    const serialized = JSON.stringify(gaps);
+    expect(serialized).toContain("alice");
+    expect(serialized).not.toMatch(/probability|threshold|0\.90/i);
+    expect(serialized).not.toMatch(/ok:\s*true/);
   });
 });
