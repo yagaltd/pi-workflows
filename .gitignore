@@ -2,5 +2,10 @@ node_modules/
 .pi/
 *.tgz
 .DS_Store
-.workflows/
+.workflows/*
+!.workflows/LOG.md
+!.workflows/CONTEXT.md
+!.workflows/proposals/
+!.workflows/reviews/
+!.workflows/archive/
 .bug-hunter/
