@@ -28,13 +28,14 @@ import { execSync } from "node:child_process";
 import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 
-const SESSIONS_DIR = join(homedir(), ".pi/agent/sessions");
-const LEDGER = join(homedir(), ".pi/agent/dispatch-ledger.jsonl");
-const OUTCOMES = join(homedir(), ".pi/agent/dispatch-ledger-outcomes.json");
+const sessionsDir = () => process.env.DISPATCH_SESSIONS_DIR || join(homedir(), ".pi/agent/sessions");
+const ledgerPath = () => process.env.DISPATCH_LEDGER || join(homedir(), ".pi/agent/dispatch-ledger.jsonl");
+const outcomesPath = () => process.env.DISPATCH_OUTCOMES || join(homedir(), ".pi/agent/dispatch-ledger-outcomes.json");
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-function loadLedger() {
+export function loadLedger() {
+  const LEDGER = ledgerPath();
   const map = new Map();
   if (!existsSync(LEDGER)) return map;
   for (const line of readFileSync(LEDGER, "utf8").split("\n")) {
@@ -48,17 +49,28 @@ function loadLedger() {
 }
 
 function loadOutcomes() {
+  const OUTCOMES = outcomesPath();
   if (!existsSync(OUTCOMES)) return {};
   try { return JSON.parse(readFileSync(OUTCOMES, "utf8")); } catch { return {}; }
 }
 
-function saveOutcomes(o) { writeFileSync(OUTCOMES, JSON.stringify(o, null, 2)); }
+function saveOutcomes(o) { writeFileSync(outcomesPath(), JSON.stringify(o, null, 2)); }
 
-function summarizeSession(file) {
+// Cache tokens: tolerate camelCase and snake_case provider shapes; null when absent.
+function cacheTokens(u = {}) {
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  return {
+    cacheReadTokens: num(u.cacheReadTokens ?? u.cache_read_tokens ?? u.cacheRead ?? u.cache_read ?? u.cache_read_input_tokens),
+    cacheCreationTokens: num(u.cacheCreationTokens ?? u.cache_creation_tokens ?? u.cacheCreation ?? u.cache_creation ?? u.cache_creation_input_tokens),
+  };
+}
+
+export function summarizeSession(file) {
   let head = null;
   let firstTs = null, lastTs = null;
   const models = new Set();
   let thinking = null, turns = 0, input = 0, output = 0, reasoning = 0, cost = 0;
+  let cacheRead = 0, cacheCreation = 0, cacheSeen = false;
   let lastRole = null, stopReason = null, name = null;
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.trim()) continue;
@@ -80,6 +92,12 @@ function summarizeSession(file) {
         output += u.output ?? 0;
         reasoning += u.reasoning ?? 0;
         cost += u.cost?.total ?? 0;
+        const c = cacheTokens(u);
+        if (c.cacheReadTokens != null || c.cacheCreationTokens != null) {
+          cacheSeen = true;
+          cacheRead += c.cacheReadTokens ?? 0;
+          cacheCreation += c.cacheCreationTokens ?? 0;
+        }
         if (m.stopReason) stopReason = m.stopReason;
       }
       lastRole = m.role;
@@ -98,6 +116,8 @@ function summarizeSession(file) {
     model: [...models].at(-1) ?? null,
     thinking, turns,
     inputTokens: input, outputTokens: output, reasoningTokens: reasoning,
+    cacheReadTokens: cacheSeen ? cacheRead : null,
+    cacheCreationTokens: cacheSeen ? cacheCreation : null,
     cost: Math.round(cost * 10000) / 10000,
     stopReason,
   };
@@ -136,7 +156,7 @@ function cmdScan() {
   const outcomes = loadOutcomes();
   let added = 0, refreshed = 0, skipped = 0;
   const out = [];
-  for (const dir of readdirSync(SESSIONS_DIR)) {
+  for (const dir of readdirSync(sessionsDir())) {
     const full = join(SESSIONS_DIR, dir);
     let st;
     try { st = statSync(full); } catch { continue; }
@@ -155,11 +175,12 @@ function cmdScan() {
       ledger.set(entry.sessionId, entry);
     }
   }
+  const LEDGER = ledgerPath();
   if (out.length) appendFileSync(LEDGER, out.join("\n") + "\n");
   console.log(`scan: ${added} added, ${refreshed} known, ${skipped} unreadable → ${LEDGER}`);
 }
 
-function cmdReport() {
+export function cmdReport() {
   const outcomes = loadOutcomes();
   const ledger = [...loadLedger().values()].map((e) => ({ ...e, outcome: outcomes[e.sessionId] ?? e.outcome }));
   const groups = new Map();
@@ -170,14 +191,18 @@ function cmdReport() {
   }
   const med = (xs) => { const s=[...xs].sort((a,b)=>a-b); return s.length? s[Math.floor(s.length/2)] : 0; };
   console.log(`${ledger.length} dispatches on record\n`);
-  console.log("model / thinking                      n   outcomes                                turns(med)  cost$   dur(med)");
+  console.log("model / thinking                      n   outcomes                                turns(med)  cost$   dur(med)   cache%");
   for (const [key, es] of [...groups].sort((a, b) => b[1].length - a[1].length)) {
     const oc = {};
     for (const e of es) oc[e.outcome] = (oc[e.outcome] ?? 0) + 1;
     const ocS = Object.entries(oc).map(([k, n]) => `${k}:${n}`).join(" ").slice(0, 40);
     const cost = es.reduce((a, e) => a + (e.cost ?? 0), 0);
+    const inSum = es.reduce((a, e) => a + (e.inputTokens ?? 0), 0);
+    const crSum = es.reduce((a, e) => a + (e.cacheReadTokens ?? 0), 0);
+    const hasCache = es.some((e) => e.cacheReadTokens != null);
+    const cachePct = hasCache && inSum > 0 ? `${Math.round((crSum / inSum) * 100)}%` : "n/a";
     console.log(
-      `${key.padEnd(38)} ${String(es.length).padStart(3)} ${ocS.padEnd(40)} ${String(med(es.map(e=>e.turns??0))).padStart(10)}  ${cost.toFixed(2).padStart(6)}  ${Math.round(med(es.map(e=>e.durationSec??0))/60)}m`,
+      `${key.padEnd(38)} ${String(es.length).padStart(3)} ${ocS.padEnd(40)} ${String(med(es.map(e=>e.turns??0))).padStart(10)}  ${cost.toFixed(2).padStart(6)}  ${Math.round(med(es.map(e=>e.durationSec??0))/60)}m  ${cachePct.padStart(7)}`,
     );
   }
   console.log("\noutcome key: ok/misfire:N/rejected/failed = annotated · partial = branch still exists (failed task kept it)");
