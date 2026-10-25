@@ -7,3 +7,7 @@
 
 ## Merge record (appended at archive prep)
 - Merged: `git merge --no-ff subagents/run_mvns49s3_7sitxr/worker-2` → fork main (agent-spec v1.5.0). Post-merge bounded re-run: 843 passed / 0 failed (--skip atlas_, see task-1.md).
+
+## Merge SHAs (appended at gate round 3)
+- Worker commit: b7cc525 (tdd-guard... correction: this is the agent-spec fork) — worker-2 commit on fork branch
+- Fork main merge: c3fcba470787f81fb836ff3ce34b867567c8d277 (merge --no-ff worker-2)
