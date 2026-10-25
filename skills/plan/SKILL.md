@@ -240,10 +240,20 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 | Task | Agent | Goal | Bottleneck | Testing Strategy | Wave | Depends On |
 |------|-------|------|------------|------------------|------|------------|
 | TASK_1 | scout | Survey auth module | ⚪ STANDARD | — | 0 | — |
-| TASK_2 | worker | Add login API | 🔴 BLOCKING | example-based | 1 | TASK_1 |
+| TASK_2 | worker | Add login API `tdd:` | 🔴 BLOCKING | example-based | 1 | TASK_1 |
 | TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | 1 | TASK_1 |
 | TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | 2 | TASK_2 |
 | TASK_5 | worker | Docs: auth architecture | ⚪ STANDARD | — | 3 | TASK_2-4 |
+
+**Task flags** (append to the Goal cell; mirrored in the task's detail block):
+- `tdd:` — build task routes through the two-phase TDD task shape
+  (`agents/dispatch-shapes.md` §TDD task shape) when `/next` dispatches it:
+  tester Wave A writes the failing tests from the spec's exact `Test:`
+  selectors → the orchestrator gates coverage (`tdd-gate coverage`) →
+  Wave B worker + reviewer (reviewer Layer 2: `tdd-gate gaming --diff` +
+  `tdd-gate drift --spec`). Only meaningful on build tasks whose spec
+  scenarios all carry `Test:` selectors. tdd-gate not installed → legacy
+  single worker→reviewer shape, skip stated loudly.
 
 ## Tasks
 
@@ -262,6 +272,8 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 - **Contract**: .workflows/specs/task-<name>.spec
 - **Bottleneck**: 🔴 BLOCKING
 - **Testing strategy**: example-based
+- **Flags**: `tdd:` (optional — routes this build task to the tester
+  two-phase shape at `/next`; see Task flags under Spec Map)
 - **What**: <specific>
 - **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec
 - **Status**: ⬜ PENDING
@@ -297,7 +309,7 @@ The plan is drafted in five phases on evidence, not memory; only the last phase 
      user-visible outcome?" — delete or inline tasks that only serve the design (Tier A
      orchestrator-inline exists precisely for this); a plan that survives this pass is
      minimal, not just decomposed.
-4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped). **Pre-dispatch git-dirty whitelist:** before any spec-drafter subagent dispatches, the orchestrator enumerates a deterministic shared-worktree **whitelist** so a dirty working tree is never a false blocker — sibling spec outputs are never violations by definition; the concrete enumerated whitelist is `M .workflows/LOG.md`, `M .workflows/plan.md`, `?? .workflows/specs/*.spec`. Only changes outside this whitelist count against the gate (e.g. stray edits to `src/` or other tasks' specs).
+4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; **every scenario carries an explicit `Test:` selector** (restated unchanged — the rule stands: selectors are exact, the tester writes Wave A's failing tests from them verbatim, and only selector-complete build tasks can carry the `tdd:` flag); Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped). **Pre-dispatch git-dirty whitelist:** before any spec-drafter subagent dispatches, the orchestrator enumerates a deterministic shared-worktree **whitelist** so a dirty working tree is never a false blocker — sibling spec outputs are never violations by definition; the concrete enumerated whitelist is `M .workflows/LOG.md`, `M .workflows/plan.md`, `?? .workflows/specs/*.spec`. Only changes outside this whitelist count against the gate (e.g. stray edits to `src/` or other tasks' specs).
    **Prototype two-stage rule**: when the plan contains prototype tasks, only
    the prototype specs (and specs of prototype-independent tasks) are drafted
    now. Impls that consume a prototype's findings get their specs drafted
