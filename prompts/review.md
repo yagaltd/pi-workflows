@@ -121,6 +121,7 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```bash
    mkdir -p .workflows/archive/done
    ```
+   Before the move: run `bash scripts/check-archive.sh <archive-target-dir>` — it refuses the archive (non-zero) when a declared Docs impact path is missing or CHANGELOG lacks the Plan ID.
    Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
    - `.workflows/plan.md` (set `Status: DONE` first)
    - `.workflows/specs/`
