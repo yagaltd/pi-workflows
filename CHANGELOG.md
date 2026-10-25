@@ -1,3 +1,24 @@
+## 2026-10-25 — v0.8.0: dispatch + gate mechanics (plan 20261025-015)
+
+- **Dispatcher**: `resolveNext()` — deterministic task selection from `.workflows/plan.md`
+  (statuses, Wave, Depends On, `tdd:` flag, tiers); blocked codes for stale status,
+  unsatisfied deps, missing spec; fixture-asserted in `bun test`. `/next` and `/auto-next`
+  are thin triggers — the model handles exceptions only.
+- **Cache-affinity ordering**: within-wave dispatch sorts by (model, thinking, role);
+  pack layout is prefix-stable (shared GUARD/provenance/env first, per-task divergence last);
+  same-model launches ramp. Correct by construction; measured via the new ledger column.
+- **Ledger cache fields**: `dispatch-ledger.mjs` records `cacheReadTokens`/`cacheCreationTokens`
+  (null-safe, snake/camel tolerant); `report` gains a `cache%` column (`n/a` without data).
+- **Auto-gate hook**: write-time enforcement — edit/write of Allowed-Changes files inside a
+  live plan runs Layer 1 (agent-spec checks: contract, lifecycle, guard) then Layer 2
+  (test-quality checks: tdd-gate gaming/drift); violation blocks the write with the failing
+  layer + command + findings. Skip-only verifier results are an accepted limitation
+  (proceed + note); toolchain absent ⇒ deduped advisory, write proceeds; docs-only `.md`
+  writes are exempt; inert without a live plan.
+  Gate naming: the auto-gate hook runs Layer 1 (agent-spec checks: contract,
+  lifecycle, guard) then Layer 2 (test-quality checks: tdd-gate gaming/drift)
+  at write time.
+
 ## 2026-10-24 — v0.7.0: tdd-gate as the build-task test-quality gate (plan 20260924-013)
 
 From plan 20260924-013 (5 tasks, all verdict-gated; contract files reformatted to the

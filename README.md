@@ -419,6 +419,23 @@ quality-reviewer:             inherit, medium (🔴/🟡/🟠 tasks only)
 
 Cost and duration come from subagent usage stats, logged by the orchestrator to `.workflows/plan.md` after each task. `/status` aggregates from those entries.
 
+### Dispatcher and auto-gate (v0.8.0)
+
+- **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's
+  `resolveNext()` deterministically resolves the next eligible task from
+  `.workflows/plan.md` (statuses, Wave, Depends On, `tdd:` flag, tiers),
+  assembles the context pack (shared prefix first — cache-affinity ordering),
+  and returns the gate command list. The model handles exceptions only:
+  BLOCKED, NEEDS_CONTEXT, parallelism confirmation. Selection rules are
+  fixture-asserted in `bun test`.
+- **Auto-gate hook** — write-time enforcement. Editing a file inside a live
+  plan's Allowed Changes runs Layer 1 (agent-spec checks: contract, lifecycle,
+  guard) then Layer 2 (test-quality checks: tdd-gate gaming/drift) and blocks
+  the write on violation with the failing layer + command + findings.
+  Skip-only verifier results are an accepted limitation (proceed + note —
+  backlog item 11); toolchain absent ⇒ deduped advisory, write proceeds;
+  docs-only `.md` writes are exempt; inert without a live plan.
+
 ## Contract Format
 
 - Doc standards: [docs/canon.md](docs/canon.md) · prose lint: `bash scripts/docs-lint.sh`

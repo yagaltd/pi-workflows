@@ -1205,6 +1205,8 @@ export default function register(pi: any): void {
       const file = toRepoRelative(cwd, filePath);
       if (file === null) return undefined;
       const decision = autoGate({
+        // DEBUG-PW15
+
         file,
         plan,
         stageSpec: (contractPath: string): string | null => {
@@ -1221,6 +1223,11 @@ export default function register(pi: any): void {
         run: (cmd: string, args: string[]) => runGate(cmd, args, cwd),
       });
       if (decision.action === "block") return { block: true, reason: decision.reason };
+      if (decision.action === "allow" && decision.limitations?.length)
+        return {
+          block: false,
+          reason: `auto-gate limitations: ${decision.limitations.join("; ")} (write proceeds)`,
+        };
       if (decision.action === "advisory") {
         let once = advisoryOnce.get(decision.key);
         if (!once) {
