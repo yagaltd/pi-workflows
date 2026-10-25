@@ -30,13 +30,23 @@
  *    the sign-off targets; with no `owner:` the generic human-gate line is
  *    emitted. Reminds once per new gap (no spam).
  *
- * Deliberately small: role substitution + drift watchdogs. The
- * watchdogs encode the docs/verdict policy checks (see
+ * 5. Auto-gate hook (tool_call): edit/write of code files while a live
+ *    `.workflows/plan.md` exists runs the gate chain at write time —
+ *    Layer 1 agent-spec (guard boundary, lifecycle scenarios) then Layer 2
+ *    tdd-gate (gaming/drift on the touched spec) — blocking the write on
+ *    violation with the failing layer + command + first findings line.
+ *    Toolchain absent ⇒ one-line advisory per file (deduped, watchdog
+ *    pattern), write allowed. `*.md` writes outside the spec dirs skip
+ *    silently (docs enforcement is the doc-drift gate's scope).
+ *
+ * Deliberately small: role substitution + drift watchdogs + write-time
+ * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
  * here must stay aligned); everything else stays out.
  */
 
 import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import { execSync, spawnSync } from "child_process";
 
@@ -663,6 +673,304 @@ export function makeRemindOnce(): (key: string) => boolean {
   };
 }
 
+/* ---------------------- auto-gate hook (write time) ---------------------- */
+
+/** Captured gate-command result. `code` is the exit status; `stdout`/`stderr`
+ *  are the raw streams the layer verdict is parsed from (guard prints its
+ *  findings on stderr; lifecycle JSON comes on stdout). */
+export type GateRunResult = { code: number; stdout: string; stderr: string };
+
+/** Injected gate runner. `null` = the command could not run (binary missing,
+ *  timed out) — routes to the advisory path, never to a block (D5). */
+export type GateRunner = (cmd: string, args: string[]) => GateRunResult | null;
+
+/** No-shell gate runner — runCapture's sibling (argument arrays, filenames are
+ *  data, never interpolated shell syntax). Returns exit code + both streams,
+ *  or null when the binary could not run (missing toolchain, timeout) — null
+ *  is the D5 advisory path, never a block. */
+export function runGate(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  timeoutMs = 10000
+): GateRunResult | null {
+  try {
+    const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: timeoutMs });
+    if (r.error) return null;
+    return {
+      code: r.status ?? 1,
+      stdout: typeof r.stdout === "string" ? r.stdout.trim() : "",
+      stderr: typeof r.stderr === "string" ? r.stderr.trim() : "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve a tool-call path against the project root; null when the file is
+ *  outside the repo (never the gate's business). Returns posix separators. */
+export function toRepoRelative(root: string, filePath: string): string | null {
+  try {
+    const abs = path.isAbsolute(filePath) ? filePath : path.resolve(root, filePath);
+    const rel = path.relative(root, abs);
+    if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+    return rel.split(path.sep).join("/");
+  } catch {
+    return null;
+  }
+}
+
+/** Does `file` fall under one Allowed Changes entry? Supported shapes: exact
+ *  path ("extensions/index.ts"), dir glob ("src/**", "docs/*"), and suffix
+ *  glob ("*.spec") — the shapes plans actually declare. */
+export function matchesAllowed(file: string, allowed: string[]): boolean {
+  for (const raw of allowed) {
+    const pat = raw.trim();
+    if (pat === "") continue;
+    if (!pat.includes("*")) {
+      if (file === pat) return true;
+      continue;
+    }
+    const prefix = pat.slice(0, pat.indexOf("*"));
+    const suffix = pat.slice(pat.lastIndexOf("*") + 1);
+    if (
+      file.startsWith(prefix) &&
+      file.endsWith(suffix) &&
+      file.length >= prefix.length + suffix.length
+    )
+      return true;
+  }
+  return false;
+}
+
+/** First human-readable findings line from gate output: a bold scenario
+ *  marker (lifecycle failure_summary names the failing scenario), else a
+ *  "- " bullet (agent-spec guard findings), else the first non-empty line. */
+export function firstFindingsLine(output: string): string {
+  const lines = output
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  return (
+    lines.find((l) => l.startsWith("**") && l.endsWith("**")) ??
+    lines.find((l) => l.startsWith("- ")) ??
+    lines[0] ??
+    "no findings in output"
+  );
+}
+
+/** Parse lifecycle --format json stdout; null when not a JSON object. */
+function parseLifecycleJson(stdout: string): Record<string, any> | null {
+  try {
+    const j = JSON.parse(stdout);
+    return j && typeof j === "object" && !Array.isArray(j) ? j : null;
+  } catch {
+    return null;
+  }
+}
+
+/** First non-passing scenario from lifecycle JSON ("name (verdict x)"),
+ *  falling back to the failure_summary text. */
+function lifecycleFinding(j: Record<string, any>, stdout: string): string {
+  const results = Array.isArray(j.verification?.results) ? j.verification.results : [];
+  const bad = results.find((r: any) => r && typeof r.verdict === "string" && r.verdict !== "pass");
+  if (bad) return `${bad.scenario_name} (verdict ${bad.verdict})`;
+  return firstFindingsLine(typeof j.failure_summary === "string" ? j.failure_summary : stdout);
+}
+
+export interface AutoGateInput {
+  /** repo-relative posix path of the touched file */
+  file: string;
+  /** live plan.md content ("" when absent — hook inert) */
+  plan: string;
+  /** stage the task's spec alone into a per-task spec dir (guard --spec-dir
+   *  scoping, plan-013/014 adjudicated); null = spec missing/unstagable */
+  stageSpec: (contractPath: string) => string | null;
+  /** injected gate runner (spawn-based in the wiring, faked in tests) */
+  run: GateRunner;
+}
+
+export type AutoGateDecision =
+  | { action: "inert" }
+  | { action: "allow" }
+  | { action: "block"; layer: string; command: string; reason: string }
+  | { action: "advisory"; key: string; line: string };
+
+const gateAdvisory = (key: string, line: string): AutoGateDecision => ({
+  action: "advisory",
+  key,
+  line,
+});
+
+const gateBlock = (
+  layer: string,
+  command: string,
+  finding: string,
+  file: string
+): AutoGateDecision => ({
+  action: "block",
+  layer,
+  command,
+  reason: `[pi-workflows auto-gate] ${layer} FAILED for ${file}\ncommand: ${command}\nfirst finding: ${finding}\nfix: resolve the violation (or supersede the spec) before this write.`,
+});
+
+/**
+ * @cc [label:hook,id:auto-gate-write-time] auto-gate-write-time
+ * Write-time gate for code files under a live plan: ordered chain, short-
+ * circuit on first failure — guard (boundary, per-task staged spec dir) →
+ * lifecycle --format json (scenarios) → tdd-gate gaming/drift (test quality).
+ * Block = failing layer + command + first findings line. Toolchain absent or
+ * a layer verdict unreadable ⇒ advisory (write proceeds), never a block —
+ * blocks only land on defined violation classes. Docs-only `*.md` writes
+ * outside the spec dirs are inert. Files no plan task claims are probed with
+ * guard alone: blocked only when EVERY task spec's guard rejects the change
+ * (unanimous exclusion ⇒ outside Allowed Changes); one passing spec means the
+ * plan text is stale and the spec — the boundary authority — allows it.
+ *
+ * The auto-gate decision core. Pure over its inputs (stageSpec/run
+ * injected) — the wiring in register() supplies fs/spawn.
+ * @test blocks a code write that violates contract boundaries
+ * @test blocks when a lifecycle scenario fails
+ * @test advises and allows when the toolchain is absent
+ * @test skips docs only markdown writes
+ * @test advises once per file (watchdog dedupe)
+ */
+export function autoGate(input: AutoGateInput): AutoGateDecision {
+  const file = input.file;
+  // Docs exemption: *.md writes never trigger the chain (the doc-drift gate
+  // owns docs enforcement); .md under the spec dirs stays gated.
+  if (file.endsWith(".md") && !file.startsWith(".workflows/specs/")) return { action: "inert" };
+  const tasks = parsePlan(input.plan);
+  if (tasks.length === 0) return { action: "inert" };
+
+  const guardCommand = (contractPath: string, dir: string): string =>
+    `agent-spec guard --spec-dir ${dir} --code . --change ${file} --change-scope worktree`;
+  const runGuard = (
+    contractPath: string,
+    dir: string
+  ): GateRunResult | null =>
+    input.run("agent-spec", [
+      "guard",
+      "--spec-dir",
+      dir,
+      "--code",
+      ".",
+      "--change",
+      file,
+      "--change-scope",
+      "worktree",
+    ]);
+
+  const matched = tasks.filter((t) => matchesAllowed(file, t.allowed));
+
+  if (matched.length > 0) {
+    // Files inside a task's Allowed Changes: the full ordered chain per
+    // touched task, short-circuit on the first failure/advisory.
+    for (const task of matched) {
+      const dir = input.stageSpec(task.contractPath);
+      if (dir === null) {
+        return gateAdvisory(
+          file,
+          `[pi-workflows auto-gate] ${task.contractPath} missing or unstagable — gate skipped for ${file} (advisory only); restore the contract before merging.`
+        );
+      }
+      // Layer 1a — guard (boundary)
+      const g = runGuard(task.contractPath, dir);
+      if (g === null) return advisoryToolchain(file);
+      if (g.code !== 0)
+        return gateBlock(
+          "Layer 1 boundary (agent-spec guard)",
+          guardCommand(task.contractPath, dir),
+          firstFindingsLine(`${g.stdout}\n${g.stderr}`),
+          file
+        );
+      // Layer 1b — lifecycle (scenarios)
+      const lifecycleCommand = `agent-spec lifecycle ${task.contractPath} --code . --format json`;
+      const l = input.run("agent-spec", [
+        "lifecycle",
+        task.contractPath,
+        "--code",
+        ".",
+        "--format",
+        "json",
+      ]);
+      if (l === null) return advisoryToolchain(file);
+      const j = parseLifecycleJson(l.stdout);
+      if (j === null || typeof j.passed !== "boolean") return advisoryToolchain(file);
+      if (j.passed === false)
+        return gateBlock(
+          "Layer 1 lifecycle (agent-spec)",
+          lifecycleCommand,
+          lifecycleFinding(j, l.stdout),
+          file
+        );
+      // Layer 2 — test quality (tdd-gate); a missing binary advises the
+      // sub-step only — Layer 1 still gated this write (D5).
+      const gamingCommand = "tdd-gate gaming --diff";
+      const gaming = input.run("tdd-gate", ["gaming", "--diff"]);
+      if (gaming === null) return advisoryTddGate(file);
+      if (gaming.code !== 0)
+        return gateBlock(
+          "Layer 2 test-quality (tdd-gate gaming)",
+          gamingCommand,
+          firstFindingsLine(`${gaming.stdout}\n${gaming.stderr}`),
+          file
+        );
+      const driftCommand = `tdd-gate drift --spec ${task.contractPath}`;
+      const drift = input.run("tdd-gate", ["drift", "--spec", task.contractPath]);
+      if (drift === null) return advisoryTddGate(file);
+      if (drift.code !== 0)
+        return gateBlock(
+          "Layer 2 test-quality (tdd-gate drift)",
+          driftCommand,
+          firstFindingsLine(`${drift.stdout}\n${drift.stderr}`),
+          file
+        );
+    }
+    return { action: "allow" };
+  }
+
+  // No plan task claims this file: guard alone adjudicates the boundary —
+  // block only when EVERY probed task spec rejects the change.
+  const failures: { command: string; finding: string }[] = [];
+  let probed = 0;
+  for (const task of tasks) {
+    const dir = input.stageSpec(task.contractPath);
+    if (dir === null) continue; // no spec to probe against
+    probed++;
+    const g = runGuard(task.contractPath, dir);
+    if (g === null) return advisoryToolchain(file);
+    if (g.code !== 0)
+      failures.push({
+        command: guardCommand(task.contractPath, dir),
+        finding: firstFindingsLine(`${g.stdout}\n${g.stderr}`),
+      });
+  }
+  if (probed > 0 && failures.length === probed) {
+    return gateBlock(
+      "Layer 1 boundary (agent-spec guard)",
+      failures[0].command,
+      failures[0].finding,
+      file
+    );
+  }
+  return { action: "allow" };
+}
+
+function advisoryToolchain(file: string): AutoGateDecision {
+  return gateAdvisory(
+    file,
+    `[pi-workflows auto-gate] agent-spec not found on PATH (or its output was unreadable) — write-time gate skipped for ${file} (advisory only); run the Layer 1/2 gate chain manually before merging.`
+  );
+}
+
+function advisoryTddGate(file: string): AutoGateDecision {
+  return gateAdvisory(
+    file,
+    `[pi-workflows auto-gate] tdd-gate not found on PATH — Layer 2 (test-quality) skipped for ${file} (advisory only); Layer 1 still gated this write.`
+  );
+}
+
 /* ---------------------------------- wiring ---------------------------------- */
 
 export default function register(pi: any): void {
@@ -851,6 +1159,57 @@ export default function register(pi: any): void {
       };
     } catch {
       // Watchdog must never break a turn.
+      return undefined;
+    }
+  });
+
+  // 5. Auto-gate hook (plan 20261025-015 D5) — write-time enforcement for
+  //    code files under a live plan. Advisory channel: ctx.ui.notify (the
+  //    example-sanctioned one-line warning), deduped per file via the
+  //    watchdog remind-once pattern. Inert without .workflows/plan.md.
+  const advisoryOnce = new Map<string, (key: string) => boolean>();
+  pi.on("tool_call", async (event: any, ctx: any) => {
+    try {
+      if (event.toolName !== "write" && event.toolName !== "edit") return undefined;
+      const filePath = event?.input?.path;
+      if (typeof filePath !== "string" || filePath === "") return undefined;
+      const cwd = ctx?.cwd || process.cwd();
+      const planPath = path.join(cwd, ".workflows", "plan.md");
+      if (!fs.existsSync(planPath)) return undefined; // hook inert without a live plan
+      const plan = fs.readFileSync(planPath, "utf8");
+      const file = toRepoRelative(cwd, filePath);
+      if (file === null) return undefined;
+      const decision = autoGate({
+        file,
+        plan,
+        stageSpec: (contractPath: string): string | null => {
+          try {
+            const src = path.join(cwd, contractPath);
+            if (!fs.existsSync(src)) return null;
+            const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflows-gate-"));
+            fs.copyFileSync(src, path.join(dir, path.basename(contractPath)));
+            return dir;
+          } catch {
+            return null;
+          }
+        },
+        run: (cmd: string, args: string[]) => runGate(cmd, args, cwd),
+      });
+      if (decision.action === "block") return { block: true, reason: decision.reason };
+      if (decision.action === "advisory") {
+        let once = advisoryOnce.get(decision.key);
+        if (!once) {
+          once = makeRemindOnce();
+          advisoryOnce.set(decision.key, once);
+        }
+        if (once(decision.line) && typeof ctx?.ui?.notify === "function") {
+          ctx.ui.notify(decision.line, "warning");
+        }
+        return { block: false }; // D5: toolchain absent ⇒ write proceeds
+      }
+      return undefined;
+    } catch {
+      // The gate must never break the write path itself.
       return undefined;
     }
   });
