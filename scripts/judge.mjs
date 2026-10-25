@@ -161,6 +161,18 @@ export async function cmdAsk(args, { out = process.stdout, err = process.stderr 
   }
   if (!questionsFile) throw new Error("usage: judge.mjs ask --questions <file.json> [--audit <file>]");
 
+  // NO-JUDGE gate FIRST (plan-017 D2): key absence is the tested default path —
+  // loud skip, exit 0, audit entry — BEFORE any input validation. A key-less
+  // environment must never fail on input shape it will never send.
+  if (!apiKey()) {
+    err.write(`JUDGE SKIPPED (missing TYPEDLLM_API_KEY)\n`);
+    appendAudit(auditFile || auditPath(), {
+      v: 1, ts: new Date().toISOString(), command: "ask", questionCount: 0,
+      status: "skipped", reason: "missing TYPEDLLM_API_KEY",
+    });
+    return 0;
+  }
+
   const questions = loadQuestions(questionsFile);
   if (questions.length > QUESTION_CAP)
     throw new Error(`${questions.length} questions exceeds the ${QUESTION_CAP}-question cap; split the set`);

@@ -137,6 +137,22 @@ describe("judge ask", () => {
     }
   });
 
+  test("skips before input validation when the key is missing", async () => {
+    // Gate-order regression (plan-017 T1 R1 P1): an INVALID questions file must
+    // still hit the skip path when no key is present — the NO-JUDGE gate fires
+    // before loadQuestions, so /dev/null (empty JSON) exits 0, not 1.
+    const r = await runJudge({
+      questionsFile: "/dev/null",
+      auditFile: join(dir, "audit-gate-order.jsonl"),
+      env: { TYPEDLLM_BASE_URL: "http://127.0.0.1:9" }, // no TYPEDLLM_API_KEY
+    });
+    expect(r.code).toBe(0);
+    expect(r.stderr).toContain("JUDGE SKIPPED");
+    const lines = auditLines(join(dir, "audit-gate-order.jsonl"));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.status).toBe("skipped");
+  });
+
   test("skips loudly when the key is missing", async () => {
     const server = await stubServer(() => ({ status: 200, body: {} }));
     try {
