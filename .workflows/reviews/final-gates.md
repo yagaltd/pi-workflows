@@ -38,4 +38,4 @@ cc-check exit=1
 cc-check: CONTRACTS:1:1: error: Expected an @cc directive
 
 ## plan markers (corrected)
-2
+4
