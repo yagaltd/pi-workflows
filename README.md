@@ -161,7 +161,7 @@ Then finish with `/review` → all green? ship it.
 IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
           (cheap)    (architect)   (you)   (generated)  (worker)    (mechanical)  (judgment)        (cheap) (you)
                       bottlenecks   🛑       .spec        /next ×N    agent-spec     + security         /docs
-                      testing        GATE    files        /auto-next  + tdd-guard     + simplicity       auto-check
+                      testing        GATE    files        /auto-next  + tdd-gate     + simplicity       auto-check
                       interview*                        needs graph  + project        + error handling
                                                          executor     checks           + human callouts
                                                                                       (🔴/🟡/🟠 only)
@@ -527,12 +527,13 @@ cargo install --git https://github.com/ZhangHanDong/agent-spec
 
 Optional (all degrade gracefully with a note when absent):
 
-- [tdd-guard](https://github.com/yagaltd/tdd-guard) — test-quality gate: `tdd-guard lint` (static test analysis) + `tdd-guard verify --spec` (tests cover contract decisions/boundaries/selectors). Used in the reviewer pipeline. Install (not on npm):
+- [tdd-gate](https://github.com/ZhangHanDong/tdd-gate) — **the build-task test-quality gate (Layer 2)**: `tdd-gate coverage --spec <task.spec> --tests <dir>` (tester Wave A coverage gate), `tdd-gate gaming --diff` + `tdd-gate drift --spec` (reviewer Layer 2 on the worker diff). Jev-powered (own key); degrades gracefully — without it build tasks run the legacy single-worker shape with a stated skip. Install from your tdd-gate checkout: `npm install && npm link`
+- [tdd-guard](https://github.com/yagaltd/tdd-guard) — brownfield test-quality lint (v0.7.0: demoted from the build pipeline): `tdd-guard lint` only, cited in `/fix` and `/refactor` verification. Install (not on npm):
   ```bash
   git clone https://github.com/yagaltd/tdd-guard && cd tdd-guard && npm install && npm link
   ```
 - [cc-check](https://github.com/spolu/code-contracts) (`@spolu/cc-check`, pinned 0.2.0) — code-contracts tooling: `cc-check format` (syntax gate, reviewer Layer 3, skipped when absent) + `cc-check list` (contract IDs for dispatch packs and `.spec` `## Applicable contracts` sections). Read-only; never judges compliance. Install: `npm install -g @spolu/cc-check@0.2.0`
-- [pi-typesafe](https://github.com/DevMortimer/pi-typesafe) — **optional** Jev (TypeSafe AI) advisory judgments: powers the quality-reviewer's advisory compliance step and the supersede watchdog's probability routing. pi-workflows runs fully without it — the step skips silently and the watchdog falls back to a static advisory line. To activate in the orchestrating session: `pi install npm:pi-typesafe`, then `/typesafe login` once (key persists in `~/.pi/agent/pi-typesafe/auth.json`), then **`/typesafe enable` per session** — the tool is registered but disabled until enabled. Headless: `PI_TYPESAFE_ENABLED=1` + `TYPESAFE_API_KEY` env. Verify with `/typesafe status` (an enabled-looking extension with no usable key silently skips — always check status).
+- ~~[pi-typesafe](https://github.com/DevMortimer/pi-typesafe)~~ — **no longer referenced (removed v0.7.0)**: the Jev advisory compliance step was replaced by a contract-relevance check and the supersede probability-routing seam was removed (static advisory line only). May stay installed at the pi level; pi-workflows simply stops reading it.
 - [bombadil](https://github.com/antithesishq/bombadil) — property-based testing for web and terminal UIs (Antithesis): autonomously explores the running app in a managed browser and validates correctness properties. Assigned to 🟠 VERIFICATION_HEAVY web UI tasks when installed (`bombadil test <origin> --exit-on-violation`). Install: see [the Bombadil Manual](https://antithesishq.github.io/bombadil/browser/2-getting-started.html#installation).
 - [pi-autoresearch](https://github.com/davebcn87/pi-autoresearch) — for `/optimize` mode 3 (unattended loop): `/optimize` prepares `.auto/` session files (measure.sh with METRIC output, checks.sh equivalence oracle as keep-backpressure, prompt.md scope) and hands off; closes with autoresearch-finalize → `/review`
 - [bug-hunter](https://github.com/nicobailon/bug-hunter) skill — adversarial scan at `/next` (code changed) and `/review` (whole diff)

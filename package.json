@@ -1,13 +1,21 @@
 {
   "name": "pi-workflows",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "Contract-driven multi-model workflow system for pi. Plan→approve→contracts flow with pi-core-subagent graph execution (waves via needs edges, per-task model/thinking), /auto-next, /challenge, and .workflows/ isolation.",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "license": "MIT",
   "pi": {
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "extensions": ["./extensions"]
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "extensions": [
+      "./extensions"
+    ]
   },
   "peerDependencies": {
     "@arhen/pi-core-subagent": ">=1.3.49"

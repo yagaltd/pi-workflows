@@ -1,3 +1,26 @@
+## 2026-10-24 — v0.7.0: tdd-gate as the build-task test-quality gate (plan 20260924-013)
+
+From plan 20260924-013 (5 tasks, all verdict-gated; contract files reformatted to the
+agent-spec 1.4 task format — front matter required, no H1):
+
+- **Layer 2 (test-quality) verdict**: `tdd-gate` is the gate for build tasks; `tdd-guard`
+  demoted to brownfield `/fix` + `/refactor` (deterministic pre-filter, never a gate).
+- **Tester role** (`agents/tester.md`, registered): writes only failing tests with exact
+  `Test:` names — RED-for-new-selectors is the success signal.
+- **Two-phase `tdd task` shape** (agents/dispatch-shapes.md): tester Wave A → orchestrator
+  `tdd-gate coverage --spec ... --tests <dir>` gate → merge → Wave B worker + reviewer
+  (Layer 2 = `tdd-gate gaming --diff` + `drift --spec`; blame rides fix rounds).
+- **plan**: `tdd:` task flag routes flagged build tasks to the tester shape; spec-drafter
+  `Test:`-selector rule restated.
+- **Extension**: supersede advisory names `owner:` sign-off targets from `@cc` metadata
+  (generic human-gate line when absent); Jev probability-routing seam removed
+  (`supersedeAdvisoryLine` export + threshold logic deleted); static advisory only.
+- **pi-typesafe de-stacked**: quality-reviewer Check #5 → contract-relevance check;
+  README optional-deps entry marked removed.
+- **Known toolchain limits (backlog item 11)**: agent-spec fork lacks a Node/`.test.ts`
+  lifecycle verifier (lifecycle = accepted skip on bun repos); guard needs per-spec-dir
+  scoping; tdd-guard v0.1.0 lint parser false positives (delta rule applied: base 25 → 22).
+
 # Changelog
 
 ## 2026-09-20 — v0.6.1: Phase-5 selector lint (Layer A) + spec-sanity trust test NO-GO
