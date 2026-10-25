@@ -1,3 +1,22 @@
+## 2026-10-25 — v0.8.2: judge layer — contract pre-flight + verdict compaction (plan 20261025-017)
+
+- **Judge client**: `scripts/judge.mjs` — TypeLLM `/v1/generate` client (fetch, zero deps):
+  JSON-schema question sets, 64-question cap enforced locally, JSONL audit per run,
+  `TYPEDLLM_API_KEY`/`TYPEDLLM_BASE_URL` env config, 30 s timeout.
+- **NO-JUDGE degradation as the tested default**: missing key or unreachable endpoint ⇒
+  exit 0 + `JUDGE SKIPPED (<reason>)` + skipped audit entry — the gate order (key check
+  before input validation) is regression-tested.
+- **Contract pre-flight (item 4)**: after Phase 5 contract generation, one judge call per
+  contract flags `criterion_testable`, `boundary_complete`, `ambiguity`,
+  `missing_scenarios`, `second_path_violation` — findings feed drafter fix rounds before
+  the approval ask. Flag-only: the judge never passes a contract; agent-spec lint stays
+  mechanical authority; the human approval gate is unchanged.
+- **Wave-settle compaction (item 7)**: one judge call per wave settle (≤64 questions,
+  split on overflow) prints a fixed-size verdict table into leader context; failed tasks
+  get triage questions; `JUDGE SKIPPED` ⇒ per-child summaries.
+- **Doctrine**: judges flag and route, never pass or fail; low-confidence verdicts
+  escalate; `JUDGE SKIPPED` is a documented gap, not a pass.
+
 ## 2026-10-25 — v0.8.1: toolchain upgrade — verifier port, guard scoping, lint parser fix (plan 20261025-016)
 
 - **agent-spec 1.5.0 (fork)**: lifecycle now binds Node/`.test.ts` scenarios (bun-preferred

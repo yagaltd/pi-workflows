@@ -419,6 +419,19 @@ quality-reviewer:             inherit, medium (🔴/🟡/🟠 tasks only)
 
 Cost and duration come from subagent usage stats, logged by the orchestrator to `.workflows/plan.md` after each task. `/status` aggregates from those entries.
 
+### Judge (v0.8.2)
+
+- **Judge client** — `scripts/judge.mjs ask --questions <set.json> --audit <file>`:
+  posts typed question sets (JSON-schema answers, 64-question cap) to the TypeLLM
+  `/v1/generate` API. Config: `TYPEDLLM_API_KEY` + `TYPEDLLM_BASE_URL` env.
+- **Semantics** — judges flag and route, never pass or fail. Contract pre-flight runs
+  after Phase 5 contract generation (findings feed drafter fix rounds before the
+  approval ask); wave-settle compaction prints a fixed-size verdict table into leader
+  context. Low-confidence verdicts escalate to the human.
+- **Degradation** — no key or unreachable endpoint ⇒ `JUDGE SKIPPED (<reason>)`,
+  write proceeds, audit records the skip. The NO-JUDGE path is the regression-tested
+  default.
+
 ### Dispatcher and auto-gate (v0.8.0)
 
 - **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's
