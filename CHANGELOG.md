@@ -1,3 +1,14 @@
+## 2026-10-25 — v0.8.1: toolchain upgrade — verifier port, guard scoping, lint parser fix (plan 20261025-016)
+
+- **agent-spec 1.5.0 (fork)**: lifecycle now binds Node/`.test.ts` scenarios (bun-preferred
+  runner, selector binding, Skip-with-reason when no runner) — the Skip-only accepted
+  limitation on TS repos is closed; `guard --spec <file>` single-spec mode added
+  (per-task scoping replaces whole-spec-dir scans).
+- **tdd-guard 0.1.1**: acorn parse failures fall back to `@babel/parser` errorRecovery
+  (pi-workflows corpus: 0 blocks → 97 blocks, 0 findings — non-vacuous); per-class
+  regression fixtures for the 4 false-positive classes.
+- **pi-workflows**: canonical verify invocations carry `--tests <dir>`; install upgraded.
+
 ## 2026-10-25 — v0.8.0: dispatch + gate mechanics (plan 20261025-015)
 
 - **Dispatcher**: `resolveNext()` — deterministic task selection from `.workflows/plan.md`

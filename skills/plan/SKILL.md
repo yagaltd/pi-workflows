@@ -249,7 +249,7 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 - `tdd:` — build task routes through the two-phase TDD task shape
   (`agents/dispatch-shapes.md` §TDD task shape) when `/next` dispatches it:
   tester Wave A writes the failing tests from the spec's exact `Test:`
-  selectors → the orchestrator gates coverage (`tdd-gate coverage`) →
+  selectors → the orchestrator gates coverage (`tdd-gate coverage --spec .workflows/specs/<task>.spec --tests <dir> --format json`) →
   Wave B worker + reviewer (reviewer Layer 2: `tdd-gate gaming --diff` +
   `tdd-gate drift --spec`). Only meaningful on build tasks whose spec
   scenarios all carry `Test:` selectors. tdd-gate not installed → legacy
