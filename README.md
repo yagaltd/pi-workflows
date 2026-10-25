@@ -421,6 +421,8 @@ Cost and duration come from subagent usage stats, logged by the orchestrator to 
 
 ## Contract Format
 
+- Doc standards: [docs/canon.md](docs/canon.md) · prose lint: `bash scripts/docs-lint.sh`
+
 Tasks in `.workflows/plan.md` reference `.spec` files. You review the contract; the worker implements against it.
 
 ```markdown

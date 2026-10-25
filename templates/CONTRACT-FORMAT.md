@@ -2,6 +2,18 @@
 
 Loaded on demand at plan Phase 5 (after plan approval). Normative.
 
+> **FRONT MATTER IS MANDATORY.** Every contract opens with the block below — keys
+> first, then the `---` terminator, then the body. A contract without it fails
+> `agent-spec parse` with `error: invalid front-matter: missing front-matter
+> separator '---'`. No H1 title — the `name:` key is the identity.
+
+```markdown
+spec: task
+name: "kebab-case-contract-name"
+tags: []
+---
+```
+
 ```bash
 mkdir -p .workflows/specs
 ```
