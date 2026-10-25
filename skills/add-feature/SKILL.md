@@ -104,13 +104,37 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If any scenario fails or boundaries violated → go back to Phase 3, fix, re-verify.
 
-### Layer 2: Test quality (tdd-guard, if installed)
+### Layer 2: Test quality (two-phase tdd flow — tdd-gate, if installed)
 
-```bash
-tdd-guard lint --src src --tests tests --format json
-tdd-guard verify --spec <spec> --format json
-```
-If tdd-guard is not installed, skip and note it. If any rule fails → go back to Phase 3.
+Build tasks on this feature run through the TDD task shape from
+`agents/dispatch-shapes.md` ("TDD task shape: tester wave → coverage gate →
+worker wave"):
+
+1. **Wave A — tester**: dispatch the tester (write worktree, `@role:tester`)
+   to write ONLY the failing test files named by the contract's exact
+   `Test:` selectors. RED-for-new-selectors is the success signal — the
+   tester never writes production code.
+2. **Orchestrator coverage gate** (you run it, not a subagent):
+   ```bash
+   tdd-gate coverage --spec <spec> --tests <dir> --format json
+   ```
+   Gaps → follow-up tester dispatch with the `tdd-gate blame` output pasted
+   verbatim into the pack; loop until the gate is clean. Clean ⇒ merge the
+   tester branch (`git merge --no-ff subagents/<run>/tester-<task-id>`) so
+   Wave B branches from a tree that already contains the red tests.
+3. **Wave B — worker + reviewer**: the worker implements to GREEN against
+   the merged red suite (never weakens, skips, or renames the tester's
+   tests); the reviewer's Layer 2 runs tdd-gate on the worker diff:
+   ```bash
+   tdd-gate gaming --diff
+   tdd-gate drift --spec <spec>
+   ```
+   gaming fails the diff when tests were weakened to pass; drift fails it
+   when the diff contradicts the contract.
+
+If tdd-gate is not installed, run the legacy single worker→reviewer shape
+and state the skip LOUDLY (never a silent pass). Any gate failure → go back
+to Phase 3.
 
 ### Layer 3: Project verification
 
@@ -135,7 +159,7 @@ If the feature has a UI component:
 **Verification checklist**:
 - [ ] agent-spec lifecycle passes (all scenarios pass)
 - [ ] agent-spec guard passes (boundaries respected)
-- [ ] tdd-guard passes (test quality verified) or skipped (not installed)
+- [ ] tdd-gate coverage gate clean (two-phase tdd flow: tester Wave A → coverage gate → Wave B worker + reviewer) or legacy shape used with the skip stated loudly
 - [ ] All tests pass (including new ones)
 - [ ] Zero lint warnings
 - [ ] Zero type errors
