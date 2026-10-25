@@ -419,6 +419,15 @@ quality-reviewer:             inherit, medium (🔴/🟡/🟠 tasks only)
 
 Cost and duration come from subagent usage stats, logged by the orchestrator to `.workflows/plan.md` after each task. `/status` aggregates from those entries.
 
+### Doc-drift gate (v0.8.3)
+
+- The doc-drift gate: `scripts/docs-lint.sh` carries two drift sections: stamp
+  enforcement (generated docs declare their generation and freshness stamps;
+  expired stamps fail) and claim-to-gate (imperative claims in the charter and
+  guides must name their gate; missing = finding).
+- Optional pre-push hook: `bash scripts/install-git-hooks.sh` runs the linter
+  before every push. Not wired by default.
+
 ### Judge (v0.8.2)
 
 - **Judge client** — `scripts/judge.mjs ask --questions <set.json> --audit <file>`:

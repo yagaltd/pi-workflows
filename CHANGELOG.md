@@ -1,3 +1,16 @@
+## 2026-10-25 — v0.8.3: docs governance — doc-drift gate + proposal template + archive gate (plan 20261025-018)
+
+- **Doc-drift gate**: docs-lint gains stamp enforcement (generated docs declare
+  `generated_by`/`generated_at`/`stale_after`; expired = finding) and claim-to-gate
+  scanning (imperative claims in AGENTS.md + docs/** must name their gate).
+  First live run caught 3 real canon findings — fixed in this release.
+- **Proposal template**: `templates/PROPOSAL-FORMAT.md` — mandatory Refactor
+  assessment (verdict enum: clean-slate | extend | refactor-first; mid-plan overlap
+  blocks to human) + Docs impact declaration.
+- **Archive gate**: `scripts/check-archive.sh` — SHIP refuses when declared docs are
+  missing or CHANGELOG lacks the plan ID; wired into the SHIP step.
+- **Optional pre-push hook**: `scripts/install-git-hooks.sh`.
+
 ## 2026-10-25 — v0.8.2: judge layer — contract pre-flight + verdict compaction (plan 20261025-017)
 
 - **Judge client**: `scripts/judge.mjs` — TypeLLM `/v1/generate` client (fetch, zero deps):
