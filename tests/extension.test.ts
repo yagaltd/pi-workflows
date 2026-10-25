@@ -1134,6 +1134,8 @@ case "$1" in
   lifecycle)
     if [ "$LIFECYCLE_MODE" = "fail" ]; then
       echo '{"passed": false, "failure_summary": "## Verification Failed\\n\\n### Non-passing Scenarios\\n\\n**honors contract boundaries**\\n- verdict: Fail"}'
+    elif [ "$LIFECYCLE_MODE" = "skip" ]; then
+      echo '{"passed": false, "failure_summary": "no verifier covered this step", "verification": {"results": [{"scenario_name": "honors contract boundaries", "verdict": "skip"}]}}'
     else
       echo '{"passed": true, "verification": {"results": []}}'
     fi
@@ -1256,6 +1258,30 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
         expect(result.reason).toContain("**honors contract boundaries**");
       }
     );
+  });
+
+  test("passes with limitation when lifecycle is skip-only", async () => {
+    const proj = makeProject();
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const h = harness(proj);
+    await withGateEnv(bin, { LIFECYCLE_MODE: "skip" }, async () => {
+      const { result } = await h.call("edit", { path: "src/a.ts", edits: [] });
+      expect(result?.block).toBe(false);
+    });
+  });
+
+  test("blocks on real scenario failure but not skip-only", async () => {
+    const proj = makeProject();
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const h = harness(proj);
+    await withGateEnv(bin, { LIFECYCLE_MODE: "fail" }, async () => {
+      const { result } = await h.call("edit", { path: "src/a.ts", edits: [] });
+      expect(result?.block).toBe(true);
+    });
+    await withGateEnv(bin, { LIFECYCLE_MODE: "skip" }, async () => {
+      const { result } = await h.call("edit", { path: "src/a.ts", edits: [] });
+      expect(result?.block).toBe(false);
+    });
   });
 
   test("advises and allows when the toolchain is absent", async () => {

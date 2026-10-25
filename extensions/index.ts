@@ -792,7 +792,7 @@ export interface AutoGateInput {
 
 export type AutoGateDecision =
   | { action: "inert" }
-  | { action: "allow" }
+  | { action: "allow"; limitations?: string[] }
   | { action: "block"; layer: string; command: string; reason: string }
   | { action: "advisory"; key: string; line: string };
 
@@ -837,6 +837,10 @@ const gateBlock = (
  */
 export function autoGate(input: AutoGateInput): AutoGateDecision {
   const file = input.file;
+  // Plan-013/014 adjudicated env limitations (backlog item 11): Skip-only
+  // verifier results are recorded and tolerated — real FAILed scenarios and
+  // boundary violations still block.
+  const limitations: string[] = [];
   // Docs exemption: *.md writes never trigger the chain (the doc-drift gate
   // owns docs enforcement); .md under the spec dirs stays gated.
   if (file.endsWith(".md") && !file.startsWith(".workflows/specs/")) return { action: "inert" };
@@ -874,16 +878,23 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
           `[pi-workflows auto-gate] ${task.contractPath} missing or unstagable — gate skipped for ${file} (advisory only); restore the contract before merging.`
         );
       }
-      // Layer 1a — guard (boundary)
+      // Layer 1a — guard (boundary). Verify-only failures ("0 failed, N
+      // skipped" — no Node verifier, backlog item 11) are recorded as an
+      // env limitation; boundary violations block.
       const g = runGuard(task.contractPath, dir);
       if (g === null) return advisoryToolchain(file);
-      if (g.code !== 0)
-        return gateBlock(
-          "Layer 1 boundary (agent-spec guard)",
-          guardCommand(task.contractPath, dir),
-          firstFindingsLine(`${g.stdout}\n${g.stderr}`),
-          file
-        );
+      if (g.code !== 0) {
+        const out = `${g.stdout}\n${g.stderr}`;
+        if (/verification not passing: 0 failed/.test(out) && !/outside allowed/i.test(out)) {
+          limitations.push("guard: scenario verify skipped — no Node verifier (backlog item 11)");
+        } else
+          return gateBlock(
+            "Layer 1 boundary (agent-spec guard)",
+            guardCommand(task.contractPath, dir),
+            firstFindingsLine(out),
+            file
+          );
+      }
       // Layer 1b — lifecycle (scenarios)
       const lifecycleCommand = `agent-spec lifecycle ${task.contractPath} --code . --format json`;
       const l = input.run("agent-spec", [
@@ -897,7 +908,13 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
       if (l === null) return advisoryToolchain(file);
       const j = parseLifecycleJson(l.stdout);
       if (j === null || typeof j.passed !== "boolean") return advisoryToolchain(file);
-      if (j.passed === false)
+      const results = Array.isArray(j.verification?.results) ? j.verification.results : [];
+      const failedScenarios = results.filter((r: any) => r && r.verdict !== "skip");
+      if (j.passed === false && results.length > 0 && failedScenarios.length === 0) {
+        limitations.push(
+          `lifecycle: all ${results.length} scenarios skipped — no Node verifier (backlog item 11)`
+        );
+      } else if (j.passed === false)
         return gateBlock(
           "Layer 1 lifecycle (agent-spec)",
           lifecycleCommand,
@@ -927,7 +944,9 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
           file
         );
     }
-    return { action: "allow" };
+    return limitations.length > 0
+      ? { action: "allow", limitations }
+      : { action: "allow" };
   }
 
   // No plan task claims this file: guard alone adjudicates the boundary —
@@ -940,11 +959,17 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
     probed++;
     const g = runGuard(task.contractPath, dir);
     if (g === null) return advisoryToolchain(file);
-    if (g.code !== 0)
-      failures.push({
-        command: guardCommand(task.contractPath, dir),
-        finding: firstFindingsLine(`${g.stdout}\n${g.stderr}`),
-      });
+    if (g.code !== 0) {
+      const out = `${g.stdout}\n${g.stderr}`;
+      if (/verification not passing: 0 failed/.test(out) && !/outside allowed/i.test(out)) {
+        const note = "guard: scenario verify skipped — no Node verifier (backlog item 11)";
+        if (!limitations.includes(note)) limitations.push(note);
+      } else
+        failures.push({
+          command: guardCommand(task.contractPath, dir),
+          finding: firstFindingsLine(out),
+        });
+    }
   }
   if (probed > 0 && failures.length === probed) {
     return gateBlock(
