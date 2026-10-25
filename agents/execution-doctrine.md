@@ -81,6 +81,24 @@ Rules:
   (e.g., `--selftest` mode, tdd-gate coverage selectors + suite green, manual
   grep checks). Never silently treat a lifecycle skip as a pass.
 
+## Judge placement — flags and routes, never gates
+
+LLM judges (`scripts/judge.mjs` call sites: the Phase 5 contract
+pre-flight in `prompts/plan.md`, the wave-settle compaction in `/next`)
+are advisory instruments. A judge FLAGS findings and ROUTES them —
+pre-flight findings go to the spec drafter as fix-round input, remaining
+findings and every `confidence: low` row go to the human at the approval
+ask; compaction rows go to the orchestrator's triage. A judge verdict can
+never pass or fail anything: it cannot flip a task to ✅/❌, cannot clear
+the approval gate, and never substitutes for a reviewer verdict —
+low-confidence output escalates to the human, never resolved silently by
+the orchestrator. The mechanical gates keep authority: agent-spec
+parse/selector lint, lifecycle, guard, and tdd-gate (where installed)
+remain the only non-human pass/fail layers, and the human approval gate
+is unchanged. NO-JUDGE degradation holds here too: `JUDGE SKIPPED` +
+audit entry, stated loudly, then the flow proceeds — a skipped judge is a
+documented gap, not a pass.
+
 ## Plan lifecycle & await economy
 
 - **Status line**: every plan.md opens with
