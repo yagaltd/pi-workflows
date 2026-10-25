@@ -57,6 +57,17 @@ append the `context: <updated | no changes>` marker, docs policy per
 `templates/DOCS-POLICY.md` — then re-run the dispatcher for the next
 task. `ok:false` → the doctrine's bounded fix rounds.
 
+**Wave settle compaction** — when the wave's tasks have all settled
+(verdicts persisted), compact before re-running the dispatcher: build
+ONE question set from the settled children (per task: outcome, blockers,
+deviations, cost bucket; failed tasks get their own triage questions),
+run `node scripts/judge.mjs ask --questions <set.json> --audit .workflows/reviews/judge-<plan-id>.md`,
+and print the fixed-size verdict table into leader context instead of
+re-reading every child narrative. Cap the set at 64 questions — split it
+across sequential calls on overflow (the client enforces the cap per
+call). If the judge prints `JUDGE SKIPPED`, fall back to one-sentence
+per-child summaries.
+
 ## 3. Exceptions — handle only these
 
 - **BLOCKED** (`ok: false`): the dispatcher already decided — surface
