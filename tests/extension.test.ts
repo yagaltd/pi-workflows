@@ -11,6 +11,14 @@ import {
   detectSupersedeGaps,
   extractDecisionsSection,
   makeRemindOnce,
+  parsePlan,
+  parseProvenance,
+  eligibleTasks,
+  orderWave,
+  buildPack,
+  gateCommandsFor,
+  verdictOnFile,
+  resolveNext,
 } from "../extensions/index";
 
 const WORKER = `# Role: worker
@@ -414,5 +422,456 @@ describe("supersede watchdog", () => {
     expect(serialized).toContain("alice");
     expect(serialized).not.toMatch(/probability|threshold|0\.90/i);
     expect(serialized).not.toMatch(/ok:\s*true/);
+  });
+});
+
+/* ------------------------------ dispatcher (resolveNext) ------------------------------ */
+
+const fs = require("fs");
+
+// Fixture plan: three pending tasks across two waves; only the Wave 1 task
+// has satisfied dependencies. House plan shape: statuses, Wave, Depends On,
+// tiers, tdd flag, [PARALLEL-GROUP], env/dead-ends provenance.
+const FIXTURE_THREE = `# Plan: fixture three (099)
+
+> Plan ID: 20260101-099
+> Status: APPROVED 2026-01-01 (owner)
+> env: bun test runner · check-drift CLEAN · no new dependencies
+> dead-ends: no agents/**, no scripts/**
+
+## Tasks
+
+[PARALLEL-GROUP: wave-one]
+
+### TASK 1 (Tier B, 🟡): wave-one task — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier A, ⚪): wave-two dependent — src/b.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 2
+- **Depends On**: TASK 1
+- **tdd**: false
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+
+[PARALLEL-GROUP: wave-two]
+
+### TASK 3 (Tier C, 🔴): wave-two sibling — src/c.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 2
+- **Depends On**: none
+- **tdd**: true
+- **Allowed**: src/c.ts
+- **Verify**: bun test
+`;
+
+const FIXTURE_DEPS = `# Plan: fixture deps (098)
+
+> Plan ID: 20260101-098
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+### TASK 1 (Tier B, 🟡): blocked-by-dep — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: TASK 2
+- **tdd**: false
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier A, ⚪): still open, later wave — src/b.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 2
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+`;
+
+const FIXTURE_STALE = `# Plan: fixture stale (096)
+
+> Plan ID: 20260101-096
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+### TASK 1 (Tier B, 🟡): done without a verdict — src/a.ts
+- **Status**: ✅ DONE
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier A, ⚪): next after the done task — src/b.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: TASK 1
+- **tdd**: false
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+`;
+
+const FIXTURE_TIE = `# Plan: fixture tie (095)
+
+> Plan ID: 20260101-095
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+### TASK 1 (Tier C, 🔴): lower tier, lower id — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier A, ⚪): higher tier — src/b.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+`;
+
+const FIXTURE_MISSING_SPEC = `# Plan: fixture missing spec (094)
+
+> Plan ID: 20260101-094
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+### TASK 9 (Tier B, 🟡): contract never written — src/i.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/i.ts
+- **Verify**: bun test
+`;
+
+const FIXTURE_GROUPED = `# Plan: fixture grouped (093)
+
+> Plan ID: 20260101-093
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+[PARALLEL-GROUP: wave-one]
+
+### TASK 1 (Tier B, 🟡): first — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: true
+- **Allowed**: src/a.ts, tests/a.test.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier B, 🟡): second — src/b.ts
+- **Status**: ✅ DONE
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+
+[PARALLEL-GROUP: wave-two]
+
+### TASK 3 (Tier A, ⚪): third — src/c.ts
+- **Status**: ❌ FAILED
+- **Wave**: 2
+- **Depends On**: TASK 1, TASK 2
+- **tdd**: false
+- **Allowed**: src/c.ts
+- **Verify**: node scripts/dispatch-ledger.mjs report
+`;
+
+const REG: Record<string, { model: string; thinking: string; role: string }> = {
+  "task-1": { model: "standard", thinking: "medium", role: "worker" },
+  "task-2": { model: "standard", thinking: "medium", role: "worker" },
+  "task-3": { model: "strong", thinking: "xhigh", role: "worker" },
+  "task-9": { model: "standard", thinking: "medium", role: "worker" },
+};
+
+// Specs exist for every fixture task except task-9 (missing-spec case).
+const readSpec = (p: string): string | null => (p.endsWith("task-9.spec") ? null : "# spec body");
+
+const NO_REVIEWS: { name: string; content: string }[] = [];
+
+describe("resolveNext (dispatcher)", () => {
+  test("resolves the earliest eligible task", () => {
+    const r = resolveNext({
+      plan: FIXTURE_THREE,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    if (!r.ok) throw new Error(`expected ok, got ${r.blocked}: ${r.reason}`);
+    expect(r.task.id).toBe("task-1");
+    expect(r.task.wave).toBe(1);
+    // shared prefix block first: GUARD line, then plan provenance
+    const lines = r.pack.split("\n");
+    expect(lines[0]).toMatch(/^Repo: \/repo \(GUARD: verify pwd \+ git toplevel/);
+    expect(lines[1]).toContain("20260101-099");
+    expect(lines[1]).toContain("fixture three");
+    // env law and dead ends ride the shared block, before the divergence
+    expect(r.pack.indexOf("Env: bun test runner")).toBeGreaterThan(-1);
+    expect(r.pack.indexOf("Dead ends:")).toBeGreaterThan(-1);
+    expect(r.pack.indexOf("Env:")).toBeLessThan(r.pack.indexOf("\nTASK 1:"));
+    // per-task divergence last
+    expect(r.pack).toContain("TASK 1: wave-one task — src/a.ts. Contract: .workflows/specs/task-1.spec");
+    expect(r.pack).toContain("Allowed paths: src/a.ts");
+    expect(r.pack).toContain("Verify: bun test");
+    // gate command list leads with the contract lifecycle
+    expect(r.gateCommands[0]).toBe("agent-spec lifecycle .workflows/specs/task-1.spec --code .");
+    expect(r.gateCommands).toContain("bun test");
+  });
+
+  test("skips tasks with unsatisfied dependencies", () => {
+    const r = resolveNext({
+      plan: FIXTURE_DEPS,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.blocked).toBe("deps-unsatisfied");
+    expect(r.reason).toContain("TASK 1");
+    expect(r.reason).toContain("TASK 2");
+    expect(r.reason).toContain("⬜ PENDING");
+  });
+
+  test("blocks on stale task status", () => {
+    const r = resolveNext({
+      plan: FIXTURE_STALE,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.blocked).toBe("stale-status");
+    expect(r.reason).toContain("TASK 1");
+    expect(r.reason).toContain("ok:true");
+    // a verdict file for a DIFFERENT task (task-10) does not clear the gap
+    const wrongFile = resolveNext({
+      plan: FIXTURE_STALE,
+      registry: REG,
+      reviewFiles: [{ name: "task-10.md", content: "**ok: true**" }],
+      readSpec,
+      repo: "/repo",
+    });
+    expect(wrongFile.ok).toBe(false);
+    // the right verdict file clears it — TASK 2 becomes dispatchable
+    const cleared = resolveNext({
+      plan: FIXTURE_STALE,
+      registry: REG,
+      reviewFiles: [{ name: "task-1.md", content: "## Round 1\n**ok: true**" }],
+      readSpec,
+      repo: "/repo",
+    });
+    expect(cleared.ok).toBe(true);
+    if (cleared.ok) expect(cleared.task.id).toBe("task-2");
+  });
+
+  test("blocks when the referenced spec is missing (never specless dispatch)", () => {
+    const r = resolveNext({
+      plan: FIXTURE_MISSING_SPEC,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.blocked).toBe("missing-spec");
+    expect(r.reason).toContain(".workflows/specs/task-9.spec");
+  });
+
+  test("breaks ties by tier (A < B < C) then task id", () => {
+    const r = resolveNext({
+      plan: FIXTURE_TIE,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.task.id).toBe("task-2"); // Tier A beats Tier C despite higher id
+  });
+
+  test("blocks on missing registry policy (never guesses model/thinking/role)", () => {
+    const r = resolveNext({
+      plan: FIXTURE_TIE,
+      registry: { "task-1": REG["task-1"] }, // the selected Tier A task-2 has no entry
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.blocked).toBe("no-policy");
+    expect(r.reason).toContain("task-2");
+  });
+
+  test("wave discipline: eligibleTasks returns only the earliest wave", () => {
+    const { eligible, blocked } = eligibleTasks({
+      plan: FIXTURE_THREE,
+      registry: REG,
+      reviewFiles: NO_REVIEWS,
+      readSpec,
+      repo: "/repo",
+    });
+    expect(blocked).toBeNull();
+    expect(eligible.map((t) => t.id)).toEqual(["task-1"]); // wave-2 tasks wait
+  });
+
+  test("blocks no-pending when the plan is complete", () => {
+    const r = resolveNext({
+      plan: FIXTURE_GROUPED.replace(/⬜ PENDING/g, "✅ DONE"),
+      registry: REG,
+      reviewFiles: [{ name: "task-1.md", content: "**ok: true**" }],
+      readSpec,
+      repo: "/repo",
+    });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.blocked).toBe("no-pending");
+  });
+
+  test("orders a wave by model then thinking then role", () => {
+    const wave = [
+      { id: "task-4", model: "standard", thinking: "medium", role: "worker" },
+      { id: "task-1", model: "strong", thinking: "xhigh", role: "worker" },
+      { id: "task-2", model: "strong", thinking: "xhigh", role: "worker" },
+      { id: "task-3", model: "strong", thinking: "high", role: "reviewer" },
+    ];
+    const ordered = orderWave(wave);
+    expect(ordered.map((t) => t.id)).toEqual(["task-4", "task-3", "task-1", "task-2"]);
+    // tasks sharing model and role are adjacent
+    const ids = ordered.map((t) => t.id);
+    expect(Math.abs(ids.indexOf("task-1") - ids.indexOf("task-2"))).toBe(1);
+    // no two consecutive tasks differ in model when a same-model ordering
+    // exists: same-model tasks form contiguous runs (one boundary per
+    // distinct model minus one)
+    const models = ordered.map((t) => t.model);
+    const transitions = models.slice(1).filter((m, i) => m !== models[i]).length;
+    expect(transitions).toBe(new Set(models).size - 1);
+  });
+
+  test("ramps same-model launches as contiguous runs", () => {
+    const mk = (i: number, model: string) => ({
+      id: `task-${i}`,
+      model,
+      thinking: "medium",
+      role: "worker",
+    });
+    const shuffled = [
+      mk(1, "strong"),
+      mk(2, "standard"),
+      mk(3, "strong"),
+      mk(4, "standard"),
+      mk(5, "strong"),
+      mk(6, "standard"),
+    ];
+    const ordered = orderWave(shuffled);
+    const models = ordered.map((t) => t.model);
+    const transitions = models.slice(1).filter((m, i) => m !== models[i]).length;
+    expect(transitions).toBe(1); // all standard, then all strong
+    expect(new Set(models.slice(0, 3))).toEqual(new Set(["standard"]));
+    expect(new Set(models.slice(3))).toEqual(new Set(["strong"]));
+  });
+
+  test("pack prefix is shared across tasks of the same plan (cache affinity)", () => {
+    const prov = parseProvenance(FIXTURE_THREE);
+    const tasks = parsePlan(FIXTURE_THREE);
+    const policy = { model: "standard", thinking: "medium", role: "worker" };
+    const a = buildPack({ ...tasks[0], ...policy }, prov, "/repo");
+    const b = buildPack({ ...tasks[1], ...policy }, prov, "/repo");
+    expect(a.split("\n\n")[0]).toBe(b.split("\n\n")[0]); // shared prefix block
+    expect(a.split("\n\n")[1]).toContain("TASK 1:"); // divergence last
+    expect(b.split("\n\n")[1]).toContain("TASK 2:");
+  });
+
+  test("gateCommandsFor: lifecycle first, tdd-gate lines when flagged, verify last", () => {
+    const tasks = parsePlan(FIXTURE_GROUPED);
+    const policy = { model: "standard", thinking: "medium", role: "worker" };
+    expect(gateCommandsFor({ ...tasks[0], ...policy })).toEqual([
+      "agent-spec lifecycle .workflows/specs/task-1.spec --code .",
+      "tdd-gate gaming --diff",
+      "tdd-gate drift --spec .workflows/specs/task-1.spec",
+      "bun test",
+    ]);
+    expect(gateCommandsFor({ ...tasks[1], ...policy })).toEqual([
+      "agent-spec lifecycle .workflows/specs/task-2.spec --code .",
+      "bun test",
+    ]);
+  });
+
+  test("parsePlan reads statuses, waves, deps, tiers, tags, tdd, parallel groups", () => {
+    const tasks = parsePlan(FIXTURE_GROUPED);
+    expect(tasks).toHaveLength(3);
+    expect(tasks[0]).toMatchObject({
+      id: "task-1",
+      num: "1",
+      tier: "B",
+      tag: "🟡",
+      status: "pending",
+      wave: 1,
+      deps: [],
+      tdd: true,
+      parallelGroup: "wave-one",
+      allowed: ["src/a.ts", "tests/a.test.ts"],
+      verify: "bun test",
+      contractPath: ".workflows/specs/task-1.spec",
+    });
+    expect(tasks[1].status).toBe("done");
+    expect(tasks[2]).toMatchObject({
+      id: "task-3",
+      tier: "A",
+      status: "failed",
+      wave: 2,
+      deps: ["task-1", "task-2"],
+      parallelGroup: "wave-two",
+      verify: "node scripts/dispatch-ledger.mjs report",
+    });
+  });
+
+  test("verdictOnFile matches the task's own review file, not task-10 for task-1", () => {
+    const files = [
+      { name: "task-10.md", content: "**ok: true**" },
+      { name: "task-1.md", content: "no verdict yet" },
+    ];
+    expect(verdictOnFile("task-1", files)).toBe(false);
+    expect(
+      verdictOnFile("task-1", [
+        { name: "task-1.md", content: "round 2\n**ok: true**" },
+      ])
+    ).toBe(true);
+  });
+
+  test("next prompt is a thin trigger", () => {
+    for (const f of ["prompts/next.md", "prompts/auto-next.md"]) {
+      const src = fs.readFileSync(f, "utf8");
+      // selection is delegated to the dispatcher and its result is read
+      // before any dispatch
+      expect(src).toContain("resolveNext");
+      expect(src).toMatch(/before any dispatch/i);
+      expect(src.indexOf("resolveNext")).toBeLessThan(src.indexOf("agents/dispatch-shapes.md"));
+      // no wave-selection or dependency-resolution prose remains
+      expect(src).not.toMatch(/select the task|pick the first|wave discipline|all dependencies/i);
+    }
   });
 });

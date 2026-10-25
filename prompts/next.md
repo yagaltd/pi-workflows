@@ -1,128 +1,81 @@
 ---
-description: "Execute the next pending task from .workflows/plan.md (implements against contract, auto-checks docs)"
+description: "Dispatch the next pending task from .workflows/plan.md — the dispatcher selects, you dispatch and gate"
 ---
 
 You are the orchestrator. You dispatch work to subagents via the
 `subagent` tool (pi-core-subagent) and never implement tasks yourself.
+Which task runs next, its context pack, and its gate commands are decided
+by deterministic code — `resolveNext()` in the pi-workflows extension —
+never by your own reading of the plan.
 
 **Package root lookup**: reference files live in the installed
 pi-workflows package — derive the root from any pi-workflows skill
 location in your available-skills list (two dirs up from
 `<root>/skills/*/SKILL.md`), or run `pi list`.
 
-Read before dispatching (all normative):
-- `agents/registry.md` — roles, toolsets, model/thinking per bottleneck
-  tag, verification-policy tiers, isolation rules
-- `agents/execution-doctrine.md` — the worker→reviewer graph, verdict
-  gating, fix rounds, verdict-file format, quality-reviewer placement
-- `agents/dispatch-shapes.md` — sequential graph, parallel wave, scout,
-  bug-hunter call shapes
+## 1. Run the dispatcher — read the result before any dispatch
+
+Read `.workflows/plan.md` and the verdict files under `.workflows/reviews/`,
+build the registry map (one entry per task id — `model`/`thinking`/`role`
+from `agents/registry.md`: tier + bottleneck tag → policy row; role is
+`worker` for build tasks), then run the resolver and READ the JSON it
+prints before any dispatch:
 
 ```bash
-mkdir -p .workflows
+bun -e 'import("./extensions/index.ts").then((m) => {
+  const fs = require("fs");
+  const plan = fs.readFileSync(".workflows/plan.md", "utf8");
+  const dir = ".workflows/reviews";
+  const reviewFiles = fs.existsSync(dir)
+    ? fs.readdirSync(dir).filter((f) => f.endsWith(".md"))
+        .map((f) => ({ name: f, content: fs.readFileSync(`${dir}/${f}`, "utf8") }))
+    : [];
+  const readSpec = (p) => { try { return fs.readFileSync(p, "utf8"); } catch { return null; } };
+  const registry = {}; // task-id → { model, thinking, role } — fill from agents/registry.md policy
+  console.log(JSON.stringify(m.resolveNext({ plan, registry, reviewFiles, readSpec, repo: process.cwd() }), null, 2));
+});'
 ```
 
-Read `.workflows/plan.md`.
+On `ok: true` the result is binding: `task` is THE next task, `pack` is
+the worker `task:` text (shared prefix + per-task divergence — send it
+verbatim, do not rewrite), `gateCommands` is the ordered gate list. The
+wave members for the parallelism check come from
+`m.eligibleTasks({ plan, registry, reviewFiles, readSpec, repo })`
+(same inputs) — more than one entry means a parallel-eligible wave.
 
-## 1. Select the task (wave discipline)
+## 2. Dispatch per shape
 
-1. Read ALL tasks and statuses. Parallel groups (`[PARALLEL-GROUP: X]`)
-   execute as waves: all tasks in the active wave must reach `✅/❌`
-   before a later wave starts, even if its deps are met.
-2. Pick the first task that is `⬜ PENDING`, all dependencies `✅ DONE`,
-   in the active wave.
-3. If the wave has multiple eligible tasks, ask the human: run all in
-   parallel or one at a time? (Parallel requires disjoint `Allowed
-   Changes` — see registry.)
+Dispatch per `agents/dispatch-shapes.md` — the sequential worker→reviewer
+shape by default, the parallel wave shape when the human confirms
+parallel. Worker task text = the dispatcher's `pack` verbatim; reviewer
+node per the registry verification tier derived from the task's spec.
+Role prompts stay `@role:worker` / `@role:reviewer` (the pi-workflows
+extension substitutes the verbatim bodies). Verdict gating per
+`agents/execution-doctrine.md`: `ok:true` → persist the round to
+`.workflows/reviews/<task-id>.md`, mark ✅ in plan.md with cost/duration,
+append the `context: <updated | no changes>` marker, docs policy per
+`templates/DOCS-POLICY.md` — then re-run the dispatcher for the next
+task. `ok:false` → the doctrine's bounded fix rounds.
 
-## 2. Re-validate the contract
+## 3. Exceptions — handle only these
 
-Read the task's `.spec` + Execution Notes. If completed work made the
-contract stale (boundaries, decisions, patterns): update it, log the
-change in Execution Notes, and present significant changes to the human
-before proceeding.
-
-## 3. Dispatch (shapes and roles)
-
-Every dispatch is one subagent call, `autoAwait: true`. Role prompts
-use `@role:<name>` — the pi-workflows extension substitutes the verbatim
-role body at execution time; if the extension is not loaded, paste
-`agents/<role>.md` yourself.
-
-**Sequential worker task** (default — full shape in
-`agents/dispatch-shapes.md`, "Sequential worker→reviewer"):
-
-```text
-subagent({
-  autoAwait: true,
-  tasks: [
-    { id: "worker-<task-id>", agent: "worker-<task-id>", prompt: "@role:worker",
-      write: true, thinking: "<from bottleneck tag: xhigh | high | medium>",
-      task: `Implement TASK <N>: <goal>.
-First read: .workflows/specs/<task-id>.spec (contract),
-.workflows/plan.md (Execution Notes), .workflows/CONTEXT.md (if present).
-Then follow your role-prompt workflow exactly.
-Verify: agent-spec lifecycle .workflows/specs/<task-id>.spec --code . && <project test cmd>` },
-    { id: "review-<task-id>", agent: "review-<task-id>", prompt: "@role:reviewer",
-      tools: ["read","grep","find","ls","bash"],
-      thinking: "<per registry verification policy — tier from the spec>",
-      needs: ["worker-<task-id>"],
-      task: `Mechanical verification for TASK <N>: <goal>.
-The worker's report is prepended above — verify against the contract,
-not the self-report. End with the Verdict block (ok: true|false + findings).` },
-  ],
-})
-```
-
-The reviewer fires mechanically when the worker settles (needs edge, no
-orchestrator turn between). The task text stays SHORT — the workflow
-lives in the role prompt, never restated (anti-drift rule: one shape,
-one dialect, `@role:` everywhere).
-
-**Parallel wave / scout / bug-hunter shapes**: read
-`agents/dispatch-shapes.md` before building those calls — the shapes
-there are normative.
-
-## 4. Verdict gate (execution-doctrine.md)
-
-Parse the reviewer's verdict per the doctrine: `ok:true` → persist the
-round to `.workflows/reviews/<task-id>.md`, mark ✅, continue below.
-`ok:false` → **read `agents/execution-doctrine.md`** for the fix-round
-dispatch shape and the loop rules (cap: spec `max-rounds`, default 2;
-exhausted → ❌ FAILED + verdict chain to the human). A failed/blocked
-worker auto-aborts the reviewer node — that abort is the failure signal.
-Quality-reviewer: per-task, 🔴/🟡/🟠 tags only, after mechanical ok:true —
-placement rules in the doctrine.
-
-## 5. Blockers
-
-`WORKER_BLOCKER:` in worker output → `invalid_contract`: rewrite and
-retry; `unclear_requirement`: ask the human; `missing_dependency` /
-`missing_secret`: ask the human; `unsafe_request` /
-`inaccessible_resource`: report, skip. For long runs consider
-`allowIntercom: true` so workers can `ask_parent` mid-task.
-
-## 6. After ok:true — per-task closeout
-
-1. **Ground truth**: `git diff --stat` — reconcile against the contract's
-   Allowed Changes before trusting any self-report.
-2. Re-run `agent-spec lifecycle <contract> --code .` + project checks yourself.
-3. **(If code changed)** bug-hunter adversarial scan — shape in
-   `agents/dispatch-shapes.md` (normative — .bug-hunter/ artifacts +
-   joined-summary output).
-4. Mark ✅ in plan.md + log cost/duration (from subagent usage) and
-   learnings to Execution Notes.
-5. **CONTEXT.md — always record an outcome**: read the worker's `## Domain
-   Memory` section; append non-empty Terms/Decisions (ADR if
-   hard-to-reverse + surprising + real tradeoff); in EVERY case append the
-   marker `context: <updated | no changes>` to the task's Execution Notes
-   entry (absence is auditable by `/status` and `/review`).
-6. **Docs (per `templates/DOCS-POLICY.md`)**: README freshness — behavior
-   a README reader would notice changed in this task → README.md updated
-   in the same round; `.workflows/docs/` architectural changes → `/docs`;
-   CHANGELOG.md never (SHIP-gate artifact).
-7. **Validate downstream specs**: update the next 1-2 pending contracts
-   from learnings; present contract changes to the human.
-8. Show what was done and what's next.
+- **BLOCKED** (`ok: false`): the dispatcher already decided — surface
+  `reason` to the human and STOP:
+  - `no-pending` / `no-tasks` → plan complete.
+  - `deps-unsatisfied` → an unfinished dependency gates the wave; human
+    reconciles the plan.
+  - `stale-status` → a ✅ task lacks its `ok:true` verdict on file; human
+    reconciles before anything dispatches.
+  - `missing-spec` → write or restore the contract first.
+  - `no-policy` → add the task's registry entry per `agents/registry.md`.
+- **NEEDS_CONTEXT**: the inputs the dispatcher needs are missing or
+  unreadable (no plan.md, verdict dir inaccessible, registry map
+  unbuildable) — ask the human; never invent plan data.
+- **Parallelism confirmation**: `eligibleTasks()` returns more than one
+  task for the wave — ask the human "all in parallel or one at a time?"
+  Parallel requires disjoint Allowed Changes (`agents/registry.md`
+  isolation policy); otherwise dispatch sequentially. Marked
+  `[PARALLEL-GROUP]` waves are planner-approved parallel — still verify
+  disjointness.
 
 $@
