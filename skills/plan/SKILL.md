@@ -224,6 +224,7 @@ Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — 
 - Plan ID is assigned once at bootstrap: NNN = (entries in `.workflows/archive/done` + `.workflows/archive/superseded`) + 1, zero-padded to 3. Never reuse a Plan ID.
 - `/idea` and `/plan` refuse to overwrite a live plan (DRAFT/APPROVED/IN PROGRESS) — route it to `/review` (ship → `archive/done/`) or `/abort` (abandon → `archive/superseded/`) first.
 - SHIP (`/review`, all tasks ✅) → set Status: DONE and move the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<PlanID>-<slug>/`.
+- SHIP gate: run `bash scripts/check-archive.sh <archive-target-dir>` before the bundle move — a missing declared Docs impact path or a CHANGELOG without the Plan ID refuses the archive (templates/PROPOSAL-FORMAT.md).
 - `/abort` → Status: SUPERSEDED, bundle to `.workflows/archive/superseded/<PlanID>-<slug>/` with reason.
 - `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` are never archived — durable knowledge outlives every plan.
 
