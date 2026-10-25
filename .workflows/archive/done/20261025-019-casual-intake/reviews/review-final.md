@@ -1,0 +1,5 @@
+# Whole-plan final SHIP gate — plan 20261025-019 (casual intake)
+
+## Round 1 — FINAL — ok: TRUE (reviewer pw19-final-reviewer, read-only over committed evidence — first-try)
+- 7/7 layers PASS, zero findings: gate chain (drift CLEAN, bun 115, selectors, docs-lint, cc-check known-finding only) · T1 artifacts (idea.md:9 + brainstorm.md:51 intake steps with --check --out verify + human-approval-only rule, idea.md 11 ≤ 20 lines; tests/intake/README.md format record; sample-intake.md + rendered/ artifacts) · T2 artifacts (CHANGELOG v0.8.4 head + 3 bullets, README Casual intake section, version 0.8.4) · task-1.md evidence chain (R1 ok:false P1 SPEC DEFECT → orchestrator amendment → R2 FINAL ok:TRUE on merged master) · plan markers ×2 · spec amendment coherence · import-safety (both prompt import instructions carry --check; zero check-less executable instructions).
+- SEMANTICS DISCOVERY (on record): fork 1.5.0 `requirements import --check` = drift gate (parse→render→byte-compare vs --out corpus) — NOT parse-only validation. Contract + prompts teach the truthful semantics; the orchestrator amendment (R1) is the canonical precedent for spec-defect escalations.

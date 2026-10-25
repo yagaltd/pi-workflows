@@ -1,3 +1,15 @@
+## 2026-10-25 — v0.8.4: casual intake — typed candidate requirements (plan 20261025-019)
+
+- **Intake emitter**: `/idea` and `/brainstorm` gain one intake step — candidate
+  requirement blocks emitted to `.workflows/intake/<date>-<slug>.md` in the fork's
+  marked-block format (`<!-- agent-spec:requirement id title tags source -->`).
+- **Check-first, human-gated**: verify = `agent-spec requirements import --from <file>
+  --check --out <rendered-dir>` (drift-gate semantics: byte-exact render round-trip).
+  The real import runs ONLY on explicit human approval of specific blocks; rejected
+  blocks stay annotated `rejected: <reason>` in the intake file.
+- **Governance unchanged**: post-import transitions remain the fork's explicit human
+  commands; pi-workflows dogfoods `--out .workflows/requirements/`.
+
 ## 2026-10-25 — v0.8.3: docs governance — doc-drift gate + proposal template + archive gate (plan 20261025-018)
 
 - **Doc-drift gate**: docs-lint gains stamp enforcement (generated docs declare

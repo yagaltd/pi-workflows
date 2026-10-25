@@ -428,6 +428,16 @@ Cost and duration come from subagent usage stats, logged by the orchestrator to 
 - Optional pre-push hook: `bash scripts/install-git-hooks.sh` runs the linter
   before every push. Not wired by default.
 
+### Casual intake (v0.8.4)
+
+- `/idea` and `/brainstorm` emit typed candidate requirement blocks to
+  `.workflows/intake/<date>-<slug>.md` (fork marked-block format), verified with
+  `agent-spec requirements import --from <file> --check --out <rendered-dir>`
+  (drift-gate semantics: byte-exact render round-trip).
+- Import runs ONLY on explicit human approval of specific blocks; rejected blocks
+  stay annotated in the intake file. Governance: post-import transitions are the
+  fork's explicit human commands.
+
 ### Judge (v0.8.2)
 
 - **Judge client** — `scripts/judge.mjs ask --questions <set.json> --audit <file>`:
