@@ -25,4 +25,4 @@ task-1.md
 task-2.md
 
 ## plan markers
-4
+3 (TASK 1–3; plan 020 has three tasks)
