@@ -13,7 +13,15 @@
  *    moment it happens, not at /review time. Reminds once per new gap
  *    count (no spam).
  *
- * 3. Supersede watchdog (before_agent_start): mechanical trigger — a
+ * 3. Dispatcher (resolveNext): deterministic /next selection — task
+ *    selection (pending ∧ deps-ok ∧ earliest wave; ties by tier then id),
+ *    cache-affinity wave ordering (model → thinking → role), context-pack
+ *    assembly (shared prefix first, per-task divergence last), and the
+ *    gate command list. Pure: plan text, registry map, verdict files and
+ *    a spec reader are passed in. /next and /auto-next are thin triggers
+ *    over it.
+ *
+ * 4. Supersede watchdog (before_agent_start): mechanical trigger — a
  *    changed file carries an `adr:`-attributed `@cc` contract, or a
  *    spec's `## Decisions` section changed while no new ADR file exists —
  *    injects ONE advisory line naming the seam. Advisory only: it never
@@ -31,6 +39,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { execSync, spawnSync } from "child_process";
+
 
 /**
  * @cc [label:substitution,id:role-body] role-body
@@ -192,6 +201,345 @@ export function computeDocsDrift(
   }
 
   return { staleReadmeCount, staleDocsCount, changelogPending };
+}
+
+/* ----------------------------- dispatcher (resolveNext) ----------------------------- */
+
+/**
+ * @cc [label:dispatcher,id:resolve-next-pure] resolve-next-pure
+ * resolveNext is a pure selection function: plan text, registry map,
+ * verdict files and a spec reader are passed in — no fs/git access here.
+ * Blocked results are data, never dispatches: stale status (✅ without a
+ * verdict on file) and missing specs must surface as {ok:false} before
+ * any subagent call can be built.
+ */
+
+export type TaskStatus = "pending" | "done" | "failed";
+
+/** One task parsed from a plan.md Tasks section (data only — no policy). */
+export interface PlanTask {
+  /** normalized id, e.g. "task-1" — the contract/review file base name */
+  id: string;
+  /** task number from the "### TASK <num>" header */
+  num: string;
+  goal: string;
+  /** tier letter read verbatim from the header "(Tier B, …)" — A < B < C
+   *  (registry.md: the planner assigns it, the dispatcher reads it verbatim) */
+  tier: string;
+  /** bottleneck-tag remainder of the header meta ("", "🟡", …) */
+  tag: string;
+  status: TaskStatus;
+  wave: number;
+  /** dependency ids, e.g. ["task-1"]; empty when none */
+  deps: string[];
+  /** plan `tdd:` flag — routes the tdd-gate lines into gateCommands */
+  tdd: boolean;
+  /** [PARALLEL-GROUP: name] the task block sits under, null when unmarked */
+  parallelGroup: string | null;
+  allowed: string[];
+  verify: string;
+  contractPath: string;
+}
+
+/** Dispatch policy for one task — from the caller's registry map
+ *  (agents/registry.md policy applied to the plan's tier + bottleneck tag). */
+export interface DispatchPolicy {
+  model: string;
+  thinking: string;
+  role: string;
+}
+
+/** Plan data merged with its registry policy — the dispatcher's unit of work. */
+export interface DispatchTask extends PlanTask, DispatchPolicy {}
+
+/** Plan header provenance — the shared prefix block of every pack. */
+export interface PlanProvenance {
+  planId: string;
+  title: string;
+  status: string;
+  env: string;
+  deadEnds: string;
+}
+
+export interface NextInput {
+  /** plan.md content */
+  plan: string;
+  /** registry map: task id → dispatch policy (model/thinking/role per
+   *  agents/registry.md); a selected task without an entry is blocked,
+ *  never guessed */
+  registry: Record<string, DispatchPolicy>;
+  /** verdict files (.workflows/reviews/*.md) for the staleness check */
+  reviewFiles: { name: string; content: string }[];
+  /** injected spec reader — null means the contract is missing */
+  readSpec: (contractPath: string) => string | null;
+  /** repo root for the GUARD line (pack provenance only) */
+  repo?: string;
+}
+
+export type NextResult =
+  | { ok: true; task: DispatchTask; pack: string; gateCommands: string[] }
+  | { ok: false; blocked: string; reason: string };
+
+const STATUS_MARKS: Record<string, TaskStatus> = {
+  "⬜": "pending",
+  "✅": "done",
+  "❌": "failed",
+};
+
+const TIER_RANK: Record<string, number> = { A: 0, B: 1, C: 2 };
+
+const THINKING_RANK: Record<string, number> = {
+  off: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+};
+
+/** Parse a plan.md Tasks section into data-only tasks. Field bullets are
+ *  optional and default conservatively (status ⬜, wave 1, no deps). */
+export function parsePlan(plan: string): PlanTask[] {
+  const tasks: PlanTask[] = [];
+  const headerRe = /^###\s+TASK\s+(\d+)\s*\(([^)]*)\):\s*(.+)$/gm;
+  const groupRe = /\[PARALLEL-GROUP:\s*([^\]]+)\]/;
+  let prevEnd = 0; // end of the previous header line — segments between
+  let group: string | null = null; // headers carry [PARALLEL-GROUP] markers
+  let m: RegExpExecArray | null;
+  while ((m = headerRe.exec(plan)) !== null) {
+    const g = groupRe.exec(plan.slice(prevEnd, m.index));
+    if (g) group = g[1].trim();
+    const rest = plan.slice(m.index + m[0].length);
+    // block ends at the next task header or the next ## section
+    const nextTask = rest.search(/^###\s+TASK\s+\d+/m);
+    const nextSection = rest.search(/^## /m);
+    const ends = [nextTask, nextSection].filter((i) => i >= 0);
+    const body = rest.slice(0, ends.length ? Math.min(...ends) : rest.length);
+    prevEnd = m.index + m[0].length;
+
+    const bullet = (name: string): string | null => {
+      const b = new RegExp(`^[-*]\\s*\\*\\*${name}\\*\\*:?\\s*(.+)$`, "m").exec(body);
+      return b ? b[1].trim() : null;
+    };
+    const statusMark = /^[-*]\s*\*\*Status\*\*:?\s*(.)/m.exec(body)?.[1];
+    const depsRaw = bullet("Depends On");
+    const waveRaw = bullet("Wave");
+    const allowedRaw = bullet("Allowed");
+    const num = m[1];
+    tasks.push({
+      id: `task-${num}`,
+      num,
+      goal: m[3].trim(),
+      tier: /Tier\s*([A-C])/i.exec(m[2])?.[1]?.toUpperCase() ?? "",
+      tag: m[2].replace(/Tier\s*[A-C]\s*,?\s*/i, "").trim(),
+      status: (statusMark && STATUS_MARKS[statusMark]) || "pending",
+      wave: waveRaw ? parseInt(/\d+/.exec(waveRaw)?.[0] ?? "1", 10) || 1 : 1,
+      deps:
+        depsRaw && !/^none$/i.test(depsRaw)
+          ? Array.from(depsRaw.matchAll(/TASK\s+(\d+)/gi), (d) => `task-${d[1]}`)
+          : [],
+      tdd: /^true$/i.test(bullet("tdd") ?? ""),
+      parallelGroup: group,
+      allowed: allowedRaw
+        ? allowedRaw.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
+      verify: bullet("Verify") ?? "",
+      contractPath: `.workflows/specs/task-${num}.spec`,
+    });
+  }
+  return tasks;
+}
+
+/** Parse the plan header blockquotes — pack provenance. env/dead-ends are
+ *  optional (`> env:` / `> dead-ends:` lines); the rest default empty. */
+export function parseProvenance(plan: string): PlanProvenance {
+  const grab = (label: string): string =>
+    new RegExp(`^>\\s*${label}:\\s*(.+)$`, "m").exec(plan)?.[1].trim() ?? "";
+  return {
+    planId: grab("Plan ID"),
+    title: /^#\s*Plan:\s*(.+)$/m.exec(plan)?.[1].trim() ?? "",
+    status: grab("Status"),
+    env: grab("env"),
+    deadEnds: grab("dead-ends"),
+  };
+}
+
+/** ok:true verdict on file for a task — a reviews file named for the task
+ *  (task-1, not task-10) whose content carries the **ok: true** marker. */
+export function verdictOnFile(
+  taskId: string,
+  reviewFiles: { name: string; content: string }[]
+): boolean {
+  const nameRe = new RegExp(`(^|[^0-9])${taskId}($|[^0-9])`);
+  return reviewFiles.some(
+    (f) => nameRe.test(f.name) && /\*\*ok:\s*true\*\*/.test(f.content)
+  );
+}
+
+/** Cache-affinity wave ordering: sort by (model, thinking, role) so
+ *  same-model/same-role dispatches are adjacent (prompt-cache prefix
+ *  reuse); id breaks ties for determinism. Same-model launches ramp
+ *  sequentially because equal models end up in contiguous runs. */
+export function orderWave<
+  T extends { id: string; model: string; thinking: string; role: string }
+>(tasks: T[]): T[] {
+  return [...tasks].sort((a, b) => {
+    if (a.model !== b.model) return a.model < b.model ? -1 : 1;
+    const ta = THINKING_RANK[a.thinking] ?? 99;
+    const tb = THINKING_RANK[b.thinking] ?? 99;
+    if (ta !== tb) return ta - tb;
+    if (a.role !== b.role) return a.role < b.role ? -1 : 1;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
+/** Selection mechanics shared by resolveNext and the thin prompts: pending
+ *  tasks in the earliest wave with satisfied (and non-stale) dependencies,
+ *  in cache-affinity order — or the blocker that explains the empty wave. */
+export function eligibleTasks(input: NextInput): {
+  eligible: DispatchTask[];
+  blocked: { blocked: string; reason: string } | null;
+} {
+  const tasks: DispatchTask[] = parsePlan(input.plan).map((t) => {
+    const policy = input.registry[t.id];
+    return {
+      ...t,
+      model: policy?.model ?? "",
+      thinking: policy?.thinking ?? "",
+      role: policy?.role ?? "",
+    };
+  });
+  if (tasks.length === 0)
+    return {
+      eligible: [],
+      blocked: {
+        blocked: "no-tasks",
+        reason: "plan.md defines no TASK blocks — nothing to dispatch",
+      },
+    };
+  const pending = tasks.filter((t) => t.status === "pending");
+  if (pending.length === 0)
+    return {
+      eligible: [],
+      blocked: {
+        blocked: "no-pending",
+        reason: "no ⬜ PENDING tasks remain — the plan is complete or failed",
+      },
+    };
+  const minWave = Math.min(...pending.map((t) => t.wave));
+  const waveTasks = pending.filter((t) => t.wave === minWave);
+  // Integrity first: a stale ✅ dependency is a data gap, not a delay.
+  for (const t of waveTasks) {
+    for (const depId of t.deps) {
+      const dep = tasks.find((x) => x.id === depId);
+      if (dep && dep.status === "done" && !verdictOnFile(depId, input.reviewFiles)) {
+        return {
+          eligible: [],
+          blocked: {
+            blocked: "stale-status",
+            reason: `TASK ${dep.num} is marked ✅ DONE but no ok:true verdict is on file (.workflows/reviews/${depId}.md) — reconcile before dispatching TASK ${t.num}`,
+          },
+        };
+      }
+    }
+  }
+  const eligible = waveTasks.filter((t) =>
+    t.deps.every((depId) => tasks.find((x) => x.id === depId)?.status === "done")
+  );
+  if (eligible.length === 0) {
+    const t = waveTasks[0];
+    const depId = t.deps.find(
+      (d) => tasks.find((x) => x.id === d)?.status !== "done"
+    );
+    const dep = depId ? tasks.find((x) => x.id === depId) : undefined;
+    const depName = dep ? `TASK ${dep.num}` : depId ?? "?";
+    const why = !dep
+      ? `${depName} is not defined in the plan`
+      : dep.status === "failed"
+        ? `it is ❌ FAILED (unfinished)`
+        : `it is ⬜ PENDING (unfinished)`;
+    return {
+      eligible: [],
+      blocked: {
+        blocked: "deps-unsatisfied",
+        reason: `TASK ${t.num} depends on ${depName} — ${why}`,
+      },
+    };
+  }
+  return { eligible: orderWave(eligible), blocked: null };
+}
+
+/** Assemble the dispatch pack: shared prefix block first (GUARD line, plan
+ *  provenance, env law, dead ends), per-task divergence last (TASK line,
+ *  goal, Allowed paths, Verify line). The prefix is byte-identical across
+ *  tasks of the same plan — that is the cache-affinity contract. */
+export function buildPack(
+  task: DispatchTask,
+  prov: PlanProvenance,
+  repo: string
+): string {
+  const lines = [
+    `Repo: ${repo} (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).`,
+    `Plan: ${prov.planId} — ${prov.title} (${prov.status})`,
+  ];
+  if (prov.env) lines.push(`Env: ${prov.env}`);
+  if (prov.deadEnds) lines.push(`Dead ends: ${prov.deadEnds}`);
+  lines.push(
+    "",
+    `TASK ${task.num}: ${task.goal}. Contract: ${task.contractPath} (first read — the workflow is in your role prompt).`,
+    `Allowed paths: ${task.allowed.length ? task.allowed.join(", ") : "(none declared)"}`,
+    `Verify: ${task.verify || "(none declared — run the project test suite)"}`
+  );
+  return lines.join("\n");
+}
+
+/** Ordered gate list for a task: contract lifecycle, then the tdd-gate
+ *  test-quality layer when the plan flags it, then the plan's Verify line. */
+export function gateCommandsFor(task: DispatchTask): string[] {
+  const cmds = [`agent-spec lifecycle ${task.contractPath} --code .`];
+  if (task.tdd) {
+    cmds.push(
+      `tdd-gate gaming --diff`,
+      `tdd-gate drift --spec ${task.contractPath}`
+    );
+  }
+  if (task.verify) cmds.push(task.verify);
+  return cmds;
+}
+
+/** Deterministic /next: select the next eligible task (pending ∧ deps-ok ∧
+ *  earliest wave; ties by tier A<B<C then id), assemble its pack and gate
+ *  commands — or return the blocker. Never dispatches, never guesses: a
+ *  selected task without a registry policy or with a missing spec is a
+ *  blocked result, not a specless/policyless dispatch. */
+export function resolveNext(input: NextInput): NextResult {
+  const { eligible, blocked } = eligibleTasks(input);
+  if (blocked) return { ok: false, blocked: blocked.blocked, reason: blocked.reason };
+  const task = [...eligible].sort((a, b) => {
+    const ra = TIER_RANK[a.tier] ?? 9;
+    const rb = TIER_RANK[b.tier] ?? 9;
+    if (ra !== rb) return ra - rb;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  })[0];
+  if (!task.model || !task.thinking || !task.role) {
+    return {
+      ok: false,
+      blocked: "no-policy",
+      reason: `TASK ${task.num} (${task.id}) has no registry entry (model/thinking/role) — add it per agents/registry.md before dispatching`,
+    };
+  }
+  if (input.readSpec(task.contractPath) === null) {
+    return {
+      ok: false,
+      blocked: "missing-spec",
+      reason: `${task.contractPath} not found for TASK ${task.num} — write or restore the contract; never dispatch specless`,
+    };
+  }
+  return {
+    ok: true,
+    task,
+    pack: buildPack(task, parseProvenance(input.plan), input.repo ?? ""),
+    gateCommands: gateCommandsFor(task),
+  };
 }
 
 /* ------------------- supersede watchdog (advisory only) ------------------- */
