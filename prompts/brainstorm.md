@@ -44,4 +44,17 @@ Update the ledger after every meaningful exchange — the ledger is the
 memory, the chat is not. Nothing outside `.workflows/research/<slug>/`
 (+ `knowledge/` at graduation). Render: `npx markmap-cli ledger.md -o ledger.html --offline` (offline flag required — default output CDN-loads and renders blank via file://).
 
+**Intake exit-rail**: when the session converges on concrete, productizable
+requirements (typically at CONVERGE/EXIT), emit them as marked requirement
+blocks — format in `tests/intake/README.md`, worked example in
+`tests/intake/sample-intake.md` — to `.workflows/intake/<date>-<slug>.md`,
+then run `agent-spec requirements import --from <file> --check
+--out .workflows/requirements/` and fix any block errors it reports
+(`drifted` lines only mean not-yet-imported candidates — expected before
+approval). Then stop: the real import runs only on explicit human approval of
+specific blocks (approved blocks go to a clean file first — the import has no
+per-block filter); rejected blocks stay annotated `rejected: <reason>` in the
+intake file. This is the one sanctioned write outside
+`.workflows/research/<slug>/`.
+
 $@
