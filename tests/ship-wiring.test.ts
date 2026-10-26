@@ -18,8 +18,9 @@ describe("ship wiring — eval doctrine (plan 20261025-021)", () => {
   });
 
   test("release recorded", () => {
-    expect(read("CHANGELOG.md")).toContain("plan 20261025-021");
-    expect(read("CHANGELOG.md")).toContain("v0.8.5");
-    expect(JSON.parse(read("package.json")).version).toBe("0.8.5");
+    const changelog = read("CHANGELOG.md");
+    expect(changelog).toContain("plan 20261025-021");
+    const top = /## .*— (v[0-9.]+):/.exec(changelog)[1];
+    expect(JSON.parse(read("package.json")).version).toBe(top.slice(1));
   });
 });

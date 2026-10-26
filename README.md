@@ -528,6 +528,18 @@ Scenario: Cache miss returns None
   Then the result is None
 ```
 
+## Flows
+
+A flow is declarative data — `.workflows/flows/<slug>.json` with steps
+(`task` | `gate` | `transform`), waves, and `depends_on`. Flows validate
+before run (`scripts/flow-validate.mjs`; blocked codes include `cycle`,
+`missing-ref`, `bad-dep-wave`) and execute as input to the dispatcher:
+`node scripts/flow-run.mjs <flow.json>` computes waves, dispatch-decides
+every task through the real `resolveNext`, writes per-task packs for
+`/next`, and runs gate steps (contract | test-quality | review) at wave
+boundaries. SHIP still runs the golden eval gate (Layer 5). See
+`skills/flows/SKILL.md` and the examples in `.workflows/flows/`.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per

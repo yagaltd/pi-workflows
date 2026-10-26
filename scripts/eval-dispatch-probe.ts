@@ -20,7 +20,7 @@ const result = resolveNext({
   repo: f.repo ?? "/repo",
 });
 if (result.ok) {
-  console.log(JSON.stringify({ ok: true, id: result.task.id, wave: result.task.wave }));
+  console.log(JSON.stringify({ ok: true, id: result.task.id, wave: result.task.wave, pack: result.pack }));
 } else {
   console.log(JSON.stringify({ ok: false, blocked: result.blocked, reason: result.reason }));
 }

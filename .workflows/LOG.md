@@ -143,3 +143,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-021 — owner via session ("ok then run plan 021"). Wave 1 dispatched inline (orchestrator-workers).
 2026-10-25 ALL-TASKS-DONE 20261025-021 — 3/3 ✅ first pass; guard 3/3 post selector-binding; 0 flips across 11 golden cases.
 2026-10-25 SHIP 20261025-021 eval-doctrine → v0.8.5: eval-golden.mjs + dispatch probe + 11-case golden set + review Layer 5 + README doctrine. Archived.
+2026-10-25 PLAN 20261025-022 flows-IR promoted from plan-draft-022 (owner, session): 4 tasks / 4 waves (wave order corrected: gates before runner). Layout: scripts/ + tests/ (no src/).
+2026-10-25 APPROVE 20261025-022 — owner via session ("commit and run /plan 022"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-022 — 4/4 ✅; guard 4/4; 149/149 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-022 flows-IR → v0.9.0: flow schema/validator (8 blocked codes), gate resolver (3 named gates, loud skips), flow-run control plane (packs via real resolveNext), 2 examples + flows skill. Archived.

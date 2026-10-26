@@ -72,7 +72,9 @@ describe("dispatcher probe (the real resolveNext)", () => {
     const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", "tests/fixtures/evals/dispatch-wave-order.json"], { encoding: "utf8" });
     expect(s.status).toBe(0);
     const out = JSON.parse(s.stdout.trim().split("\n").pop());
-    expect(out).toEqual({ ok: true, id: "task-1", wave: 1 });
+    expect(out.ok).toBe(true);
+    expect(out.id).toBe("task-1");
+    expect(out.wave).toBe(1);
   });
 });
 

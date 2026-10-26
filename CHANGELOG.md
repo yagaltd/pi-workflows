@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — v0.9.0: flows IR — declarative flows on resolveNext (plan 20261025-022)
+
+- **Format**: `.workflows/flows/<slug>.json` — steps (`task` | `gate` | `transform`), waves, `depends_on`; validated before run with typed blocked codes (`cycle`, `missing-ref`, `bad-dep-wave`, `empty-wave`, `dup-id`, `self-edge`, `unknown-kind`, `schema-invalid`).
+- **Runner (control plane)**: `scripts/flow-run.mjs` compiles flows onto the real `resolveNext` (via the bun probe), writes per-task dispatch packs for `/next`, executes gate steps at wave boundaries; `--dry-run` prints gates without running them.
+- **Gates**: flow gate names resolve to the repo's existing command sets — `contract` (agent-spec guard), `test-quality` (tdd-gate gaming), `review` (check-drift + docs-lint); absent toolchain = loud `skipped`, never a pass.
+- **Docs**: `skills/flows/SKILL.md`; README Flows section (names the validating gate); examples `two-phase-tdd` and `docs-ship`.
+- **Gates at SHIP**: bun test 152/152, guard 4/4, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.8.5: eval doctrine — golden set + flip-watching (plan 20261025-021)
 
 - **Runner**: `scripts/eval-golden.mjs` (zero deps, deterministic — no live model calls) + `scripts/eval-dispatch-probe.ts`: dispatcher cases execute the real `resolveNext` through a bun probe; gate / degradation / archive / docs kinds replay recorded outputs.
