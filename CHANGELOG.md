@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — v0.9.2: budget + journal (plan 20261025-024)
+
+- **Run journal**: `.workflows/journal.jsonl` — append-only `{ts, planId, taskId, event, cost, note}` with events `dispatched | done | failed | blocked | budget-exhausted`; owned by `scripts/run-journal.mjs` (`record` / `check` / `resume`).
+- **Budget**: `.workflows/budget.json` (`{max_tasks, max_cost_usd}`, optional) — `/auto-next` runs `check` before each dispatcher re-run; exhaustion records `budget-exhausted`, prints done-vs-remaining + resume command, and stops (a stop, not a failure). Raising the budget is the owner's edit.
+- **Resume**: mechanical — `resume --plan <id>` reports done / failed / open dispatches with budget headroom from the journal alone.
+- **Wiring**: `/auto-next` Budget + journal protocol block; `/next` record protocol. Engine (`resolveNext`) unchanged.
+- **Gates at SHIP**: bun test 164/164, guard 2/2, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.9.1: decision steps + intent guard (plan 20261025-023)
 
 - **Flow decision steps**: `kind: "decision"` — one calibrated call through `scripts/judge.mjs ask` (the single judge client); typed answers recorded in the run report and flow state; `assert` on `equals` / `in` / `min_confidence`; unavailable judge = loud `skipped`, unmet assert = `fail`.

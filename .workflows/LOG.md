@@ -151,3 +151,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-023 — owner via session ("run 023"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-023 — 3/3 ✅; guard 3/3; 160/160 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-023 decision-steps+intent-guard → v0.9.1: flow decision steps (typed answers + assert), intent-guard CLI (proceed/amend/answer/ask/ask-human, trail provenance), decision-demo example. Archived.
+2026-10-25 PLAN 20261025-024 budget+journal drafted (owner, session): 2 tasks / 2 waves. Verdict-or-budget stop; append-only journal; mechanical resume. Prompt protocol, no engine change.
+2026-10-25 APPROVE 20261025-024 — owner via session ("run 024"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-024 — 2/2 ✅; guard 2/2; 166/166 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-024 budget+journal → v0.9.2: run-journal.mjs (record/check/resume), .workflows/budget.json ceilings, /auto-next BUDGET STOP protocol, /next record protocol, README section. Archived.

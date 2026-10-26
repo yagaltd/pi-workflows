@@ -57,6 +57,12 @@ append the `context: <updated | no changes>` marker, docs policy per
 `templates/DOCS-POLICY.md` — then re-run the dispatcher for the next
 task. `ok:false` → the doctrine's bounded fix rounds.
 
+**Journal record** (plan 20261025-024): after dispatching, record it —
+`node scripts/run-journal.mjs record --plan <plan-id> --task <task-id> --event dispatched` —
+and after the verdict settles, record `done` / `failed` with `--cost` from
+the worker usage. `/auto-next` additionally checks the budget before each
+dispatcher re-run.
+
 **Wave settle compaction** — when the wave's tasks have all settled
 (verdicts persisted), compact before re-running the dispatcher: build
 ONE question set from the settled children (per task: outcome, blockers,

@@ -39,6 +39,28 @@ location in your available-skills list (two dirs up from
    responds). Then print the completion summary: plan goal, totals
    (✅/❌/⏭️), duration, cost.
 
+## Budget + journal (verdict-or-budget, plan 20261025-024)
+
+Every dispatch and verdict records to the run journal
+(`.workflows/journal.jsonl`):
+
+```bash
+node scripts/run-journal.mjs record --plan <plan-id> --task <task-id> --event dispatched
+node scripts/run-journal.mjs record --plan <plan-id> --task <task-id> --event done --cost <usd-from-usage>
+```
+
+Before every dispatcher re-run, run the budget check:
+
+```bash
+node scripts/run-journal.mjs check --plan <plan-id>
+```
+
+Exit 1 ⇒ **BUDGET STOP**: record `--event budget-exhausted`, print done vs
+remaining (`node scripts/run-journal.mjs resume --plan <plan-id>`), and stop
+until the human raises `.workflows/budget.json`. Budget exhaustion is a
+stop, not a failure. Resume after a crash or stop = read the resume report
+and continue from the first open dispatch.
+
 ## Exceptions — the same three as /next
 
 - **BLOCKED** (`ok: false`): surface `reason` and STOP — `no-pending` /

@@ -551,6 +551,19 @@ live plan before dispatch — proceed / amend / answer / ask — and fails open
 to `ask-human`. Both record provenance: decision answers in the run report,
 guard verdicts in `.workflows/intent/trail.jsonl`.
 
+## Run budget + journal
+
+`/auto-next` and `/next` record every dispatch and verdict to the run
+journal (`.workflows/journal.jsonl`) via
+`node scripts/run-journal.mjs record --plan <id> --task <id> --event <event>`.
+A budget file (`.workflows/budget.json`: `{max_tasks, max_cost_usd}`, both
+optional) gives the loop a ceiling: before each dispatch `/auto-next` runs
+`node scripts/run-journal.mjs check --plan <id>` — exhaustion records
+`budget-exhausted` and stops the run (a stop, not a failure). Resume is
+mechanical: `node scripts/run-journal.mjs resume --plan <id>` prints done,
+failed, and open dispatches with budget headroom. Raising the budget is the
+owner's edit.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per
