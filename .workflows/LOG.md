@@ -155,3 +155,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-024 — owner via session ("run 024"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-024 — 2/2 ✅; guard 2/2; 166/166 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-024 budget+journal → v0.9.2: run-journal.mjs (record/check/resume), .workflows/budget.json ceilings, /auto-next BUDGET STOP protocol, /next record protocol, README section. Archived.
+2026-10-25 PLAN 20261025-025 proof-ledger drafted (owner, session): 3 tasks / 3 waves. Proofs are recorded data; collect unifies journal+reviews; judge/intent trails referenced by path.
+2026-10-25 APPROVE 20261025-025 — owner via session ("run 025"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-025 — 3/3 ✅; guard 3/3; 173/173 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-025 proof-ledger → v0.9.3: proofs.jsonl (record/show/verify + drift), collect unified evidence, /next + /auto-next proof records, README section. Archived.

@@ -57,6 +57,11 @@ append the `context: <updated | no changes>` marker, docs policy per
 `templates/DOCS-POLICY.md` — then re-run the dispatcher for the next
 task. `ok:false` → the doctrine's bounded fix rounds.
 
+**Proof record** (plan 20261025-025): after the verdict persists, record the
+proof — `node scripts/proof-ledger.mjs record --plan <plan-id> --task
+<task-id> --verify "<the task's Verify command>" --spec .workflows/specs/<task-id>.spec` —
+a failing verifier still records its proof (exit code is data).
+
 **Journal record** (plan 20261025-024): after dispatching, record it —
 `node scripts/run-journal.mjs record --plan <plan-id> --task <task-id> --event dispatched` —
 and after the verdict settles, record `done` / `failed` with `--cost` from

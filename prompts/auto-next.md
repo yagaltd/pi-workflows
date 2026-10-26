@@ -39,6 +39,18 @@ location in your available-skills list (two dirs up from
    responds). Then print the completion summary: plan goal, totals
    (✅/❌/⏭️), duration, cost.
 
+## Proof record (plan 20261025-025)
+
+After each verdict settles (step 3), record the proof:
+
+```bash
+node scripts/proof-ledger.mjs record --plan <plan-id> --task <task-id> --verify "<Verify command>" --spec .workflows/specs/<task-id>.spec
+```
+
+A failing verifier still records (exit code is data). At SHIP, run
+`node scripts/proof-ledger.mjs collect --plan <plan-id>` — the evidence file
+feeds `/review`; `missing-evidence` tasks are findings.
+
 ## Budget + journal (verdict-or-budget, plan 20261025-024)
 
 Every dispatch and verdict records to the run journal

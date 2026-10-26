@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass (bun test); degradation paths loud (JUDGE SKIPPED-shaped), thresholds from config; judge client imported, never re-implemented.
-Gaming check: stubbed ask injected at the module boundary — production path passes the real ask() from scripts/judge.mjs.
+Evidence: selector-bound scenarios pass (bun test); proofs are recorded data (failing verifier writes then exits with its code); collect is a report, exit 0 always.
+Gaming check: hash drift test mutates output, not the assertion; collect asserts against fixture trails.

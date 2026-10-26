@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — v0.9.3: proof ledger (plan 20261025-025)
+
+- **Proofs**: `.workflows/proofs/proofs.jsonl` — per-task `{command, exit, outputHash, specHash?}` via `scripts/proof-ledger.mjs record`; a failing verifier still records (exit code is data).
+- **Drift check**: `verify --plan --task` re-runs the last recorded command and compares exit + output hash; mismatch exits 1 with both hashes.
+- **Unified evidence**: `collect --plan` merges the run journal, review verdicts (`ok:true` presence), and proof counts into `.workflows/proofs/evidence-<plan>.json`; dispatched tasks with neither `done` nor a proof are flagged `missing-evidence`. Judge audit + intent trail referenced by path.
+- **Wiring**: `/next` + `/auto-next` record proofs after verdict persistence; SHIP reads the evidence file.
+- **Gates at SHIP**: bun test 172/172, guard 3/3, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.9.2: budget + journal (plan 20261025-024)
 
 - **Run journal**: `.workflows/journal.jsonl` — append-only `{ts, planId, taskId, event, cost, note}` with events `dispatched | done | failed | blocked | budget-exhausted`; owned by `scripts/run-journal.mjs` (`record` / `check` / `resume`).

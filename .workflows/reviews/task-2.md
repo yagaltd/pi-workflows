@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass; budget semantics fixture-tested (tasks ceiling, cost ceiling, no-budget = no ceiling); wiring assertions are file-content reads bound as bun tests.
-Gaming check: exhaustion recorded as journal data — the stop is protocol-visible, never a silent break.
+Evidence: selector-bound scenarios pass (bun test); proofs are recorded data (failing verifier writes then exits with its code); collect is a report, exit 0 always.
+Gaming check: hash drift test mutates output, not the assertion; collect asserts against fixture trails.

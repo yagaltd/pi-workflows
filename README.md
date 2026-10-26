@@ -564,6 +564,18 @@ mechanical: `node scripts/run-journal.mjs resume --plan <id>` prints done,
 failed, and open dispatches with budget headroom. Raising the budget is the
 owner's edit.
 
+## Proof ledger
+
+Per-task proofs live in `.workflows/proofs/proofs.jsonl`: the task's Verify
+command, its exit code, and a sha256 of the verifier output. Record one
+after every verdict:
+`node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" --spec <spec>`.
+`verify --plan --task` re-runs the recorded command and flags drift by hash.
+`collect --plan <id>` merges the run journal, review verdicts, and proof
+counts into `.workflows/proofs/evidence-<plan>.json` — the SHIP evidence
+file; `missing-evidence` tasks are findings. Proofs are recorded data: a
+failing verifier still records.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per
