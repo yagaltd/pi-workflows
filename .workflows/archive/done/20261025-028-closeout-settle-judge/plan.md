@@ -69,6 +69,9 @@ chat-rendered artifact. Marker convention (Execution Notes):
 - TASK 1 ✅ context: no changes — gather/render/mermaid + settleJudge (4 verify questions, advisory, loud skip); ask injected from judge.mjs.
 - TASK 2 ✅ context: no changes — review Stage 3 close-out + settle judge steps; README marker convention; v0.10.2.
 - Wave settle (deterministic): 2/2 ok:true; bun test 190/190; golden 11/11, 0 flips.
+- DEVIATION: settle judge crashed on first real use — because judge ask() required auditFile while direct importers pass none, and my first fix patched the wrong layer (closeout, not the client) — implication: judge.mjs now defaults the audit file for every importer; found only because the close-out ran for real.
+- DISCOVERY: judge ask() is import-safe only when the client defaults its own audit path — contract now: importers may omit auditFile.
+- DISCOVERY: the close-out tool caught its own crash on first run — the clarity machinery works on the plan that built it.
 
 ## Docs impact
 
