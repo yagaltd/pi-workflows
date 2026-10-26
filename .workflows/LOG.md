@@ -167,3 +167,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-027 — owner via session ("run 027"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-027 — 2/2 ✅; guard 2/2; 183/183 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-027 decision-index → v0.10.1: DEC records + generated INDEX + adr: resolution + SHIP check; DEC-001..003 seeded. Archived. Borrow-map rows COMPLETE.
+2026-10-25 PLAN 20261025-028 closeout+settle-judge drafted (owner, session): 2 tasks / 2 waves. Marker convention (DEVIATION/DISCOVERY/DEFERRED); chat-rendered close-out; advisory settle judge at the boundary.
+2026-10-25 APPROVE 20261025-028 — owner via session ("i approve"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-028 — 2/2 ✅; guard 2/2; 190/190 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-028 closeout+settle-judge → v0.10.2: closeout.mjs (report/--diagram/judge), marker contract, review Stage 3 chat-render wiring. Archived.

@@ -144,13 +144,23 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    node scripts/lessons.mjs distill --plan-file .workflows/archive/done/<PlanID>-<slug>/plan.md --reviews-dir .workflows/archive/done/<PlanID>-<slug>/reviews --plan-id <PlanID> --ledger .workflows/lessons/lessons.jsonl
    ```
    Idempotent per (planId, taskId); provenance computed from `.workflows/proofs/proofs.jsonl`.
-5. **Decision index check** (plan 20261025-027):
+5. **Close-out + settle judge** (plan 20261025-028): generate and judge the
+   close-out, then render it in the chat — before any next-task move.
+   ```bash
+   node scripts/closeout.mjs report --plan .workflows/plan.md --diagram
+   node scripts/closeout.mjs judge --plan .workflows/plan.md
+   ```
+   Execution Notes carry the marker contract (`DEVIATION:` / `DISCOVERY:` /
+   `DEFERRED:`, each with implication). The settle judge is advisory: findings
+   are named, a skipped judge prints loud. Post the close-out in the chat and
+   wait for the owner's ack before the next task.
+6. **Decision index check** (plan 20261025-027):
    ```bash
    node scripts/decisions.mjs check --plan .workflows/plan.md
    ```
    New standing decisions made by this plan get a `record` entry; every
    `adr:` reference in the live plan must resolve.
-6. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+7. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
 5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive

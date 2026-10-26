@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-25 — v0.10.2: close-out + settle judge (plan 20261025-028)
+
+- **Close-out**: `scripts/closeout.mjs report --plan <file> [--diagram]` — fixed sections Shipped · Deviations · Discoveries · Deferred · Watch, gathered from plan Execution Notes markers (`DEVIATION:` / `DISCOVERY:` / `DEFERRED:`, implications mandatory), run journal, proofs, lessons, golden count. Optional mermaid plan-vs-actual.
+- **Settle judge**: `closeout.mjs judge` — one advisory verify-question call (deviations complete · implications stated · deferrals named · watch present) through `scripts/judge.mjs ask`; skipped judge prints loud; exit 0 always.
+- **Wiring**: `/review` Stage 3 — generate, judge, render in the chat; owner acks before the next task.
+- **Gates at SHIP**: bun test 184/184, guard 2/2, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.10.1: decision index + revisit triggers (plan 20261025-027)
 
 - **Decision records**: `.workflows/decisions/DEC-NNN-<slug>.md` — rule, scope, decided-by plan, revisit-when condition; one binding sentence each, no context essays (the plan link is the context).

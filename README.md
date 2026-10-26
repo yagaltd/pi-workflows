@@ -596,6 +596,23 @@ references in the live plan must resolve to records; the SHIP gate runs
 `node scripts/decisions.mjs check --plan .workflows/plan.md`. Supersede
 with a reason — the successor record is linked.
 
+## Close-out
+
+At SHIP, the close-out renders in the chat — Shipped · Deviations ·
+Discoveries · Deferred · Watch — generated from the plan's Execution Notes
+markers (`DEVIATION:` / `DISCOVERY:` / `DEFERRED:`, each deviation and
+deferral carrying its implication) plus the run journal, proofs, lessons and
+golden count. Commands:
+
+```bash
+node scripts/closeout.mjs report --plan .workflows/plan.md --diagram
+node scripts/closeout.mjs judge --plan .workflows/plan.md
+```
+
+The settle judge is one advisory verify-question call over the report
+(through `scripts/judge.mjs ask` — the single judge client); a skipped judge
+prints loud. The owner acks the close-out before the next task starts.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per
