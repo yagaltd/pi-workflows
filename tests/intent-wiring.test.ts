@@ -12,8 +12,9 @@ describe("intent hook wiring (plan 20261026-030)", () => {
 
   test("queue json drops the shipped c row", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
+    // Structural (031): C never returns; remaining rows keep all columns.
     expect(rows.some((r) => r.option.startsWith("C "))).toBe(false);
-    const d = rows.find((r) => r.option.startsWith("D "));
-    expect(d.recommend).toContain("next");
+    const cols = ["option", "what", "effort", "risk", "unblocks", "recommend"];
+    for (const r of rows) for (const c of cols) expect(typeof r[c]).toBe("string");
   });
 });

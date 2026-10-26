@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass; live CLI verified against the real backend; suggest-only asserted for every route; fail-open asserted for commands, custom messages, empty prompts, missing plan, unwritable trail.
-Gaming check: pure helpers tested without pi runtime; classify stubbed at the ask boundary.
+Evidence: selector-bound scenarios pass; both skills name the command, the citation rule, and the trust filter; queue structural invariant holds.
+Gaming check: docs assertions read the skill files directly; no test mutates the ledger.

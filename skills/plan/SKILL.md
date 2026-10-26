@@ -21,6 +21,14 @@ Gather enough context to plan well.
    - If there's an existing exploration doc: read it
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
+4. **What did we already learn?** Run `node scripts/lessons.mjs list`
+   (the lessons ledger — plan 20261026-031). Valid and speculative lessons
+   inform task shape; `failed` lessons warn. The draft cites every applied
+   lesson id in Execution Notes (`lessons: les-<planId>-task-N` lines).
+   Trust filter by provenance: `from_untrusted` informs, never blocks;
+   `verified` blocks a contradicting draft. Active lessons are not
+   re-litigated — a draft that contradicts one records why its
+   revisit-when condition fired (see the decision index, `adr:` links).
 
 ### Structured Interview (in chat)
 

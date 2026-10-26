@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 — v0.11.2: lessons in /plan + /challenge (plan 20261026-031)
+
+- **/plan Phase 1** reads the lessons ledger (`lessons.mjs list`) before decomposition; the draft cites applied lesson ids in Execution Notes; active lessons are not re-litigated without a recorded revisit-reason.
+- **/challenge Phase 1** adds the contradiction check: a plan contradicting an active lesson without a revisit-reason is a finding.
+- **Provenance trust filter**: from_untrusted informs; verified blocks; failed warns.
+- **Queue hygiene**: D dropped; E (anews pack) remains the explicit-owner-decision row.
+- **Gates at SHIP**: bun test 200/200, guard 2/2, golden 11/11, settle judge live.
+
+# Changelog
+
 ## 2026-10-26 — v0.11.1: intent-guard suggestion hook (plan 20261026-030)
 
 - **classify is systemone-native**: one `kind` choice question; confidence and probabilities ride the choice answer. The number-schema confidence question is gone (the typesafe backend rejects number schemas — live calls would have skipped).

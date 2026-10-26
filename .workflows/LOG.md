@@ -179,3 +179,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-26 APPROVE 20261026-030 — owner via session ("run C then D"). Wave 1 dispatched inline.
 2026-10-26 ALL-TASKS-DONE 20261026-030 — 3/3 ✅; guard 3/3; 198/198 bun test; golden 11/11; settle judge PASS (live).
 2026-10-26 SHIP 20261026-030 intent-guard-hook → v0.11.1: systemone-native classify, suggest-only before_agent_start hook, trail with probabilities, queue C dropped. Archived.
+2026-10-26 PLAN 20261026-031 lessons-in-plan-challenge drafted (owner, session): 2 tasks / 1 wave. Skills read the ledger; citation + trust-filter rules; queue D drops.
+2026-10-26 APPROVE 20261026-031 — owner via session ("run C then D"). Dispatched inline.
+2026-10-26 ALL-TASKS-DONE 20261026-031 — 2/2 ✅; guard 2/2; 200/200 bun test; golden 11/11; settle judge live.
+2026-10-26 SHIP 20261026-031 lessons-in-plan-challenge → v0.11.2: Phase 1 lessons reads in both skills, citation + trust filter, queue D dropped. Archived.

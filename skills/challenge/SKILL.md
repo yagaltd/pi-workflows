@@ -16,6 +16,11 @@ Before asking questions, gather existing knowledge:
 3. Read `.workflows/docs/adr/*.md` if they exist — previous architecture decisions
 4. Check for `.workflows/CONTEXT-MAP.md` for multi-context repos
 5. Use `find`/`grep` to explore relevant source code
+6. Run `node scripts/lessons.mjs list` — the lessons ledger (plan
+   20261026-031). The grill carries one extra check: does the plan
+   contradict an active lesson? A contradiction without a recorded
+   revisit-reason is a finding. Provenance trust filter: `from_untrusted`
+   informs; `verified` blocks; `failed` warns.
 
 ## Phase 2: GRILL — ONE QUESTION AT A TIME
 
