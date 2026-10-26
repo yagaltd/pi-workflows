@@ -175,3 +175,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-029 — owner via session ("A+B now then C+D"). Wave 1 dispatched inline.
 2026-10-26 ALL-TASKS-DONE 20261025-029 — 3/3 ✅; guard 3/3; 192/192 bun test; golden 11/11, 0 flips; settle judge PASS (live, first real run).
 2026-10-26 SHIP 20261025-029 jev-backend+decision-brief → v0.11.0: judge → typesafe systemone (key chain env→auth.json, confidence+probabilities), Next-moves table from queue.json, DEC-004. Archived.
+2026-10-26 PLAN 20261026-030 intent-guard-hook drafted (owner, session): 3 tasks / 2 waves. classify → systemone-native (choice confidence); suggest-only before_agent_start hook; queue hygiene.
+2026-10-26 APPROVE 20261026-030 — owner via session ("run C then D"). Wave 1 dispatched inline.
+2026-10-26 ALL-TASKS-DONE 20261026-030 — 3/3 ✅; guard 3/3; 198/198 bun test; golden 11/11; settle judge PASS (live).
+2026-10-26 SHIP 20261026-030 intent-guard-hook → v0.11.1: systemone-native classify, suggest-only before_agent_start hook, trail with probabilities, queue C dropped. Archived.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 — v0.11.1: intent-guard suggestion hook (plan 20261026-030)
+
+- **classify is systemone-native**: one `kind` choice question; confidence and probabilities ride the choice answer. The number-schema confidence question is gone (the typesafe backend rejects number schemas — live calls would have skipped).
+- **Suggest-only hook**: `before_agent_start` fires on user prompts (not `/commands`) under a live plan with tasks; amend/answer/ask routes inject a routing line, proceed and judge-unavailable stay silent. Never blocks, never rewrites the prompt, fails open.
+- **Trail**: every hook verdict appends to `.workflows/intent/trail.jsonl` with probabilities.
+- **Queue hygiene**: shipped C row dropped; D (lessons consumption) is next.
+- **Gates at SHIP**: bun test 200/200, guard 3/3, golden eval 11/11 (0 flips), drift + docs-lint CLEAN, settle judge live.
+
+# Changelog
+
 ## 2026-10-26 — v0.11.0: judge → typesafe + decision brief (plan 20261025-029)
 
 - **Judge backend**: `scripts/judge.mjs` now speaks typesafe System One (`/v1/systemone`, `jev-latest`). yes/no schemas → noul, option schemas → choice; verdict rows carry `confidence` and `probabilities`. Key chain: `TYPESAFE_API_KEY` env → `~/.pi/agent/auth.json` `.typesafe.key`. typellm endpoint and env are gone. `ask()` signature unchanged — all importers untouched.

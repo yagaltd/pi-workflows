@@ -599,6 +599,22 @@ references in the live plan must resolve to records; the SHIP gate runs
 `node scripts/decisions.mjs check --plan .workflows/plan.md`. Supersede
 with a reason — the successor record is linked.
 
+## Intent-guard hook
+
+User prompts (not `/commands`) under a live plan with tasks get one judge
+classification (`scripts/intent-guard.mjs` via the extension, DEC-001).
+Suggest-only — the routing line is injected into the turn, never auto-executed:
+
+- `amend` → "run /amend before touching tasks"
+- `answer` → unrelated — answer directly, do not start tasks
+- `ask` → ambiguous — one clarifying question first
+- `proceed` / judge unavailable → silent
+
+Every verdict appends to `.workflows/intent/trail.jsonl` (route, kind,
+confidence, threshold, probabilities). Fail-open: import or call failure
+injects nothing. Explicit `/commands` are never overridden — owner routing
+stays final.
+
 ## Close-out
 
 At SHIP, the close-out renders in the chat — Shipped · Deviations ·

@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass; ask() signature held (importer suites untouched); live systemone call verified (noul + choice, auth.json key chain); queue renders only from queue.json.
-Gaming check: judge tests stub fetch at the transport boundary and assert the request body; no test reads its own output.
+Evidence: selector-bound scenarios pass; live CLI verified against the real backend; suggest-only asserted for every route; fail-open asserted for commands, custom messages, empty prompts, missing plan, unwritable trail.
+Gaming check: pure helpers tested without pi runtime; classify stubbed at the ask boundary.

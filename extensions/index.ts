@@ -39,6 +39,13 @@
  *    pattern), write allowed. `*.md` writes outside the spec dirs skip
  *    silently (docs enforcement is the doc-drift gate's scope).
  *
+ * 6. Intent-guard suggestion hook (before_agent_start, plan 20261026-030):
+ *    user prompts (not `/commands`) under a live plan with tasks get one
+ *    judge classification; amend/answer/ask routes inject a suggest-only
+ *    routing line and append `.workflows/intent/trail.jsonl`. Proceed and
+ *    judge-unavailable stay silent. Never blocks, never rewrites the
+ *    prompt, fails open.
+ *
  * Deliberately small: role substitution + drift watchdogs + write-time
  * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
@@ -998,6 +1005,57 @@ function advisoryTddGate(file: string): AutoGateDecision {
 
 /* ---------------------------------- wiring ---------------------------------- */
 
+// ── 6. Intent-guard suggestion hook (plan 20261026-030) ───────────────────
+
+/** Applies when: user message, non-empty prompt, not an explicit /command. */
+export function intentGuardApplies(event: any): boolean {
+  if (!event || event.messageType !== "user") return false;
+  const p = typeof event.prompt === "string" ? event.prompt.trim() : "";
+  return p.length > 0 && !p.startsWith("/");
+}
+
+/** Suggest-only routing line; proceed and ask-human stay silent. */
+export function intentGuardSuggest(c: {
+  route: string;
+  kind: string | null;
+  confidence: number | null;
+}): { message: { customType: string; content: string; display: boolean } } | undefined {
+  const tail = `kind=${c.kind}, confidence=${c.confidence ?? "?"} — suggest-only, never auto-executed.`;
+  if (c.route === "amend")
+    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] this request changes requirements — run /amend before touching tasks (${tail})`, display: true } };
+  if (c.route === "answer")
+    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] unrelated to the live plan — answer directly, do not start tasks (${tail})`, display: true } };
+  if (c.route === "ask")
+    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] ambiguous against the live plan — ask one clarifying question before touching tasks (${tail})`, display: true } };
+  return undefined;
+}
+
+/** Best-effort trail append — same line shape as intent-guard.mjs main(). */
+export function appendIntentTrail(
+  trailPath: string,
+  query: string,
+  c: { route: string; kind: string | null; confidence: number | null; skipped?: boolean; probabilities?: Record<string, number> }
+): void {
+  try {
+    fs.mkdirSync(path.dirname(trailPath), { recursive: true });
+    fs.appendFileSync(
+      trailPath,
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        query,
+        route: c.route,
+        kind: c.kind,
+        confidence: c.confidence,
+        threshold: 0.85,
+        skipped: c.skipped ?? false,
+        ...(c.probabilities ? { probabilities: c.probabilities } : {}),
+      }) + "\n"
+    );
+  } catch {
+    // trail is best-effort; the guard never breaks a turn
+  }
+}
+
 export default function register(pi: any): void {
   const agentsDir = path.join(__dirname, "..", "agents");
   const readFile = (name: string): string | null => {
@@ -1242,6 +1300,28 @@ export default function register(pi: any): void {
       return undefined;
     } catch {
       // The gate must never break the write path itself.
+      return undefined;
+    }
+  });
+
+  // 6. Intent-guard suggestion hook (plan 20261026-030, 023 D5) —
+  //    suggest-only routing for user prompts under a live plan. One judge
+  //    call via the imported module (DEC-001: import for hooks); every
+  //    failure path fails open to no message.
+  pi.on("before_agent_start", async (event: any) => {
+    try {
+      if (!intentGuardApplies(event)) return undefined;
+      const cwd = event?.cwd || process.cwd();
+      const planPath = path.join(cwd, ".workflows", "plan.md");
+      if (!fs.existsSync(planPath)) return undefined;
+      const planText = fs.readFileSync(planPath, "utf8");
+      const guard = await import("../scripts/intent-guard.mjs");
+      if (guard.planTasks(planText).length === 0) return undefined; // no live tasks → inert
+      const c = await guard.classify({ query: event.prompt, planText, threshold: 0.85 });
+      appendIntentTrail(path.join(cwd, ".workflows", "intent", "trail.jsonl"), event.prompt, c);
+      return intentGuardSuggest(c);
+    } catch {
+      // Fail-open: the guard suggests, never blocks.
       return undefined;
     }
   });
