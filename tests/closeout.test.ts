@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { gather, main, mermaid, renderReport, settleJudge } from "../scripts/closeout.mjs";
+import { gather, main, mermaid, renderReport, settleJudge, settleQuestions } from "../scripts/closeout.mjs";
 
 const PLAN = `# Plan: fixture closeout (055)
 
@@ -91,7 +91,7 @@ describe("closeout (plan 20261025-028)", () => {
     expect(skip.status).toBe("skipped");
     expect(skip.reason).toContain("NO-JUDGE");
 
-    const yes = async () => ({ status: 0, verdict: settleQuestionsAllYes() });
+    const yes = async () => ({ status: 0, verdict: settleQuestions.map((q) => ({ id: q.id, verdict: "yes" })) });
     const r3 = await settleJudge("report text", { ask: yes });
     expect(r3.status).toBe("pass");
   });
@@ -109,12 +109,3 @@ describe("closeout (plan 20261025-028)", () => {
     }
   });
 });
-
-function settleQuestionsAllYes() {
-  return [
-    { id: "deviations_complete", verdict: "yes" },
-    { id: "implications_stated", verdict: "yes" },
-    { id: "deferrals_named", verdict: "yes" },
-    { id: "watch_present", verdict: "yes" },
-  ];
-}

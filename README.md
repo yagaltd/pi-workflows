@@ -438,11 +438,14 @@ Cost and duration come from subagent usage stats, logged by the orchestrator to 
   stay annotated in the intake file. Governance: post-import transitions are the
   fork's explicit human commands.
 
-### Judge (v0.8.2)
+### Judge (v0.11.0)
 
 - **Judge client** — `scripts/judge.mjs ask --questions <set.json> --audit <file>`:
-  posts typed question sets (JSON-schema answers, 64-question cap) to the TypeLLM
-  `/v1/generate` API. Config: `TYPEDLLM_API_KEY` + `TYPEDLLM_BASE_URL` env.
+  posts typed question sets to the typesafe System One API (`/v1/systemone`,
+  `jev-latest`; yes/no questions become noul, option questions become choice,
+  answers carry confidence + probabilities; 64-question cap). Key chain:
+  `TYPESAFE_API_KEY` env → `~/.pi/agent/auth.json` `.typesafe.key`. Optional
+  env: `TYPESAFE_BASE_URL`, `TYPESAFE_MODEL`, `TYPESAFE_TIMEOUT_MS`.
 - **Semantics** — judges flag and route, never pass or fail. Contract pre-flight runs
   after Phase 5 contract generation (findings feed drafter fix rounds before the
   approval ask); wave-settle compaction prints a fixed-size verdict table into leader
@@ -612,6 +615,11 @@ node scripts/closeout.mjs judge --plan .workflows/plan.md
 The settle judge is one advisory verify-question call over the report
 (through `scripts/judge.mjs ask` — the single judge client); a skipped judge
 prints loud. The owner acks the close-out before the next task starts.
+
+Next moves render from `.workflows/queue.json` (rows: `option, what, effort,
+risk, unblocks, recommend`) — the orchestrator cannot list options from
+memory; the fifth settle question (`decision_brief_present`) checks the
+table's columns. Update the queue at SHIP: drop shipped rows, add new ones.
 
 ## Eval Doctrine
 

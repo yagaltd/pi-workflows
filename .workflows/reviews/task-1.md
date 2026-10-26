@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass; marker contract renders only declared lines; settle judge advisory with loud skip; wiring asserts chat-render rule.
-Gaming check: judge questions built from the gathered report, stubbed at the ask boundary — production path passes the real ask().
+Evidence: selector-bound scenarios pass; ask() signature held (importer suites untouched); live systemone call verified (noul + choice, auth.json key chain); queue renders only from queue.json.
+Gaming check: judge tests stub fetch at the transport boundary and assert the request body; no test reads its own output.

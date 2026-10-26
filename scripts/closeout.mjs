@@ -20,7 +20,7 @@ import { ask } from "./judge.mjs";
 const SECTIONS = ["Shipped", "Deviations", "Discoveries", "Deferred", "Watch"];
 
 export function parseArgs(argv) {
-  const o = { cmd: null, plan: ".workflows/plan.md", journal: ".workflows/journal.jsonl", proofs: ".workflows/proofs/proofs.jsonl", lessons: ".workflows/lessons/lessons.jsonl", golden: 11, diagram: false, reportFile: null, audit: null };
+  const o = { cmd: null, plan: ".workflows/plan.md", journal: ".workflows/journal.jsonl", proofs: ".workflows/proofs/proofs.jsonl", lessons: ".workflows/lessons/lessons.jsonl", queue: ".workflows/queue.json", golden: 11, diagram: false, reportFile: null, audit: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "report" || a === "judge") o.cmd = a;
@@ -28,6 +28,7 @@ export function parseArgs(argv) {
     else if (a === "--journal") o.journal = argv[++i];
     else if (a === "--proofs") o.proofs = argv[++i];
     else if (a === "--lessons") o.lessons = argv[++i];
+    else if (a === "--queue") o.queue = argv[++i];
     else if (a === "--golden") o.golden = Number(argv[++i]);
     else if (a === "--diagram") o.diagram = true;
     else if (a === "--report-file") o.reportFile = argv[++i];
@@ -45,7 +46,7 @@ const marker = (notes, tag) => notes
   .filter((l) => l.trim().startsWith(`- ${tag}:`))
   .map((l) => l.trim().replace(`- ${tag}:`, "").trim());
 
-export function gather({ plan, journal, proofs, lessons, golden }) {
+export function gather({ plan, journal, proofs, lessons, golden, queue = ".workflows/queue.json" }) {
   const text = fs.readFileSync(plan, "utf8");
   const planId = (/Plan ID: (\S+)/.exec(text) ?? [])[1] ?? "unknown";
   const notesStart = text.indexOf("## Execution Notes");
@@ -70,6 +71,15 @@ export function gather({ plan, journal, proofs, lessons, golden }) {
   const proofRows = jsonLines(proofs).filter((r) => r.planId === planId);
   const lessonRows = jsonLines(lessons);
   const untrusted = lessonRows.filter((l) => l.type === "lesson" && l.provenance === "from_untrusted").length;
+  let queueRows = null;
+  if (fs.existsSync(queue)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(queue, "utf8"));
+      if (Array.isArray(raw)) queueRows = raw.filter((r) => r && typeof r === "object");
+    } catch {
+      queueRows = null;
+    }
+  }
 
   return {
     planId,
@@ -84,6 +94,7 @@ export function gather({ plan, journal, proofs, lessons, golden }) {
       lessonsUntrusted: untrusted,
       goldenCases: golden,
     },
+    queue: queueRows,
   };
 }
 
@@ -112,6 +123,17 @@ export function renderReport(g, { diagram = false } = {}) {
   out.push(`- proofs recorded: ${g.watch.proofsRecorded}`);
   out.push(`- lessons from_untrusted: ${g.watch.lessonsUntrusted}`);
   out.push(`- golden cases: ${g.watch.goldenCases}`);
+  out.push("");
+  out.push(`### Next moves`);
+  if (!g.queue) {
+    out.push("- no queue file — next moves undecided; create .workflows/queue.json");
+  } else if (g.queue.length === 0) {
+    out.push("- queue empty — nothing open");
+  } else {
+    out.push("| Option | What | Effort | Risk | Unblocks | Recommend |");
+    out.push("|---|---|---|---|---|---|");
+    for (const q of g.queue) out.push(`| ${q.option} | ${q.what} | ${q.effort} | ${q.risk} | ${q.unblocks} | ${q.recommend} |`);
+  }
   if (diagram) out.push(mermaid(g));
   return out.join("\n");
 }
@@ -135,6 +157,7 @@ export const settleQuestions = [
   { id: "implications_stated", question: "Does every deviation and deferral state its implication?", schema: { type: "string", enum: ["yes", "no"] } },
   { id: "deferrals_named", question: "Are all deferred items named in the Deferred section?", schema: { type: "string", enum: ["yes", "no"] } },
   { id: "watch_present", question: "Does the Watch section carry open dispatches, proof count, untrusted lesson count and golden case count?", schema: { type: "string", enum: ["yes", "no"] } },
+  { id: "decision_brief_present", question: "Does the Next moves table carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)?", schema: { type: "string", enum: ["yes", "no"] } },
 ];
 
 export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) {

@@ -150,8 +150,10 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    node scripts/closeout.mjs report --plan .workflows/plan.md --diagram
    node scripts/closeout.mjs judge --plan .workflows/plan.md
    ```
-   Execution Notes carry the marker contract (`DEVIATION:` / `DISCOVERY:` /
-   `DEFERRED:`, each with implication). The settle judge is advisory: findings
+   Order matters: write the Execution Notes markers (`DEVIATION:` /
+   `DISCOVERY:` / `DEFERRED:`, each with implication) BEFORE the judge call —
+   the judge reads the report the markers produce. The settle judge is
+   advisory: findings
    are named, a skipped judge prints loud. Post the close-out in the chat and
    wait for the owner's ack before the next task.
 6. **Decision index check** (plan 20261025-027):

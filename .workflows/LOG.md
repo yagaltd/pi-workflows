@@ -171,3 +171,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-028 — owner via session ("i approve"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-028 — 2/2 ✅; guard 2/2; 190/190 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-028 closeout+settle-judge → v0.10.2: closeout.mjs (report/--diagram/judge), marker contract, review Stage 3 chat-render wiring. Archived.
+2026-10-25 PLAN 20261025-029 jev-backend+decision-brief drafted (owner, session): 3 tasks / 2 waves. judge → typesafe systemone (key chain env→auth.json); Next-moves table generated from queue.json; DEC-004.
+2026-10-25 APPROVE 20261025-029 — owner via session ("A+B now then C+D"). Wave 1 dispatched inline.
+2026-10-26 ALL-TASKS-DONE 20261025-029 — 3/3 ✅; guard 3/3; 192/192 bun test; golden 11/11, 0 flips; settle judge PASS (live, first real run).
+2026-10-26 SHIP 20261025-029 jev-backend+decision-brief → v0.11.0: judge → typesafe systemone (key chain env→auth.json, confidence+probabilities), Next-moves table from queue.json, DEC-004. Archived.

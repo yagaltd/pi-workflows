@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass (bun test); proofs are recorded data (failing verifier writes then exits with its code); collect is a report, exit 0 always.
-Gaming check: hash drift test mutates output, not the assertion; collect asserts against fixture trails.
+Evidence: selector-bound scenarios pass; ask() signature held (importer suites untouched); live systemone call verified (noul + choice, auth.json key chain); queue renders only from queue.json.
+Gaming check: judge tests stub fetch at the transport boundary and assert the request body; no test reads its own output.

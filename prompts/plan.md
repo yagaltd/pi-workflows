@@ -54,7 +54,7 @@ a contract, and agent-spec lint stays the mechanical authority.
 
 ### Step 5 — NO-JUDGE degradation
 
-`JUDGE SKIPPED` (missing `TYPEDLLM_API_KEY` or unreachable endpoint) is
+`JUDGE SKIPPED` (missing `TYPESAFE_API_KEY` — env or `~/.pi/agent/auth.json` — or unreachable endpoint) is
 the tested default path: the skip prints loudly and lands in the audit
 file, and you proceed straight to the approval ask. The judge informs the
 human gate; it never is the gate — the approval ask is unchanged.

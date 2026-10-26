@@ -1,40 +1,52 @@
 #!/usr/bin/env node
 /**
- * judge — the repository's single judge client (TypeLLM /v1/generate).
+ * judge — the repository's single judge client (typesafe System One,
+ * plan 20261025-029; origin: typellm until v0.10.x).
  *
- * Posts a typed question set (JSON array of {id, question, schema}) to the
- * TypeLLM generate API and prints the verdict table to stdout. Config is
- * env-only: TYPEDLLM_API_KEY (required to call) + TYPEDLLM_BASE_URL
- * (default https://api.typellm.ai). NO-JUDGE degradation: key missing or
- * endpoint unreachable ⇒ exit 0, `JUDGE SKIPPED (<reason>)` on stderr, and a
- * skipped entry in the audit file. Never blocks, never invents answers.
+ * Posts a typed question set (JSON array of {id, question, schema}) to
+ * typesafe /v1/systemone (jev-latest) and prints verdict rows to stdout.
+ * Key chain: TYPESAFE_API_KEY env → ~/.pi/agent/auth.json .typesafe.key.
+ * NO-JUDGE degradation: key missing or endpoint unreachable ⇒ exit 0,
+ * `JUDGE SKIPPED (<reason>)` on stderr, and a skipped entry in the audit
+ * file. Never blocks, never invents answers.
  *
  * Usage:
  *   node scripts/judge.mjs ask --questions <file.json> [--audit <file>]
  *
- *   questions file: JSON array of {id, question, schema} (schema = per-question
- *                   JSON Schema for the answer). Hard cap: 64 questions —
- *                   larger sets are rejected locally, never sent.
+ *   questions file: JSON array of {id, question, schema}. schema.enum
+ *                   [yes,no] or type boolean → noul; schema.enum N values →
+ *                   choice; anything else is rejected locally, never sent.
+ *                   Hard cap: 64 questions.
  *   audit file:     one JSON line per run (default: env JUDGE_AUDIT, else
- *                   <repoRoot>/.workflows/judge-audit.jsonl) — timestamp,
- *                   question count, question set, verdict summary (+ verdict
- *                   itself, or the skip reason).
+ *                   <repoRoot>/.workflows/judge-audit.jsonl).
  */
 import { readFileSync, appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 export const QUESTION_CAP = 64;
 const DEFAULT_TIMEOUT_MS = 30_000;
+const STATE = "pi-workflows judge question set";
 
 const repoRoot = () => resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const auditPath = () => process.env.JUDGE_AUDIT || join(repoRoot(), ".workflows", "judge-audit.jsonl");
-const baseUrl = () => (process.env.TYPEDLLM_BASE_URL || "https://api.typellm.ai").replace(/\/+$/, "");
-const apiKey = () => process.env.TYPEDLLM_API_KEY || "";
+const baseUrl = () => (process.env.TYPESAFE_BASE_URL || "https://api.typesafe.ai").replace(/\/+$/, "");
+const model = () => process.env.TYPESAFE_MODEL || "jev-latest";
 const timeoutMs = () => {
-  const n = Number(process.env.TYPEDLLM_TIMEOUT_MS);
+  const n = Number(process.env.TYPESAFE_TIMEOUT_MS || process.env.TYPEDLLM_TIMEOUT_MS);
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_TIMEOUT_MS;
 };
+
+function readAuthKey() {
+  try {
+    const auth = JSON.parse(readFileSync(join(homedir(), ".pi", "agent", "auth.json"), "utf8"));
+    return typeof auth?.typesafe?.key === "string" ? auth.typesafe.key : "";
+  } catch {
+    return "";
+  }
+}
+const apiKey = () => process.env.TYPESAFE_API_KEY || readAuthKey();
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +71,44 @@ export function loadQuestions(file) {
   return raw;
 }
 
+/** Translate {id, question, schema} rows into one systemone request body. */
+export function translate(questions) {
+  const out = {};
+  for (const q of questions) {
+    const enumValues = q.schema?.enum;
+    if (Array.isArray(enumValues) && enumValues.length === 2 && enumValues.every((v) => typeof v === "string") &&
+        enumValues.map((v) => v.toLowerCase()).sort().join() === "no,yes") {
+      out[q.id] = { type: "noul", instructions: q.question };
+    } else if (Array.isArray(enumValues) && enumValues.length >= 2 && enumValues.length <= 255 && enumValues.every((v) => typeof v === "string")) {
+      const criteria = {};
+      for (const v of enumValues) criteria[v] = v;
+      out[q.id] = { type: "choice", instructions: q.question, criteria };
+    } else if (q.schema?.type === "boolean") {
+      out[q.id] = { type: "noul", instructions: q.question };
+    } else {
+      throw new Error(`question (${q.id}): unsupported schema for the typesafe backend — use schema.enum (yes/no or N options) or type boolean`);
+    }
+  }
+  return out;
+}
+
+/** Map systemone answers to verdict rows {id, verdict, confidence, probabilities?}. */
+export function mapAnswers(answers) {
+  const rows = [];
+  for (const [id, a] of Object.entries(answers ?? {})) {
+    if (a?.type === "noul") {
+      rows.push({ id, verdict: a.noul >= 0.5 ? "yes" : "no", confidence: Math.max(a.noul, 1 - a.noul), pYes: a.noul });
+    } else if (a?.type === "choice") {
+      rows.push({ id, verdict: a.choice, confidence: a.confidence, probabilities: a.probabilities });
+    } else if (a?.type === "score") {
+      rows.push({ id, verdict: a.score, confidence: a.confidence, probabilities: a.probabilities });
+    } else {
+      rows.push({ id, verdict: null, confidence: 0 });
+    }
+  }
+  return rows;
+}
+
 /** Verdict summary for the audit line: compact, truncated, shape-agnostic. */
 export function summarizeVerdict(verdict) {
   const rows = Array.isArray(verdict) ? `${verdict.length}-row table: ` : "";
@@ -71,7 +121,7 @@ export function appendAudit(file, entry) {
   appendFileSync(file, `${JSON.stringify(entry)}\n`);
 }
 
-function auditEntry(auditFile, { endpoint, questions, status, reason, verdict }) {
+function auditEntry(auditFile, { endpoint, questions, status, reason, verdict, model, usage }) {
   appendAudit(auditFile || auditPath(), {
     v: 1,
     ts: new Date().toISOString(),
@@ -80,6 +130,8 @@ function auditEntry(auditFile, { endpoint, questions, status, reason, verdict })
     questionCount: questions.length,
     questions,
     status,
+    ...(model !== undefined && { model }),
+    ...(usage !== undefined && { usage }),
     ...(reason !== undefined && { reason }),
     ...(verdict !== undefined && { verdict, summary: summarizeVerdict(verdict) }),
   });
@@ -92,15 +144,24 @@ function skip(out, reason) {
 /**
  * Ask the judge. Returns {status, skipped?, verdict?}.
  * Degrades (skipped, status 0) on missing key, unreachable endpoint,
- * HTTP error, or a non-JSON verdict — anything that would otherwise
+ * HTTP error, or a non-JSON response — anything that would otherwise
  * block the pipeline or tempt a fabricated answer.
  */
-export async function ask({ questions, auditFile, fetchImpl = fetch, out = process.stdout, err = process.stderr }) {
-  const endpoint = `${baseUrl()}/v1/generate`;
+export async function ask({ questions, auditFile, fetchImpl = fetch, out = process.stdout, err = process.stderr, key = apiKey() }) {
+  const endpoint = `${baseUrl()}/v1/systemone`;
   const common = { endpoint, questions };
-  if (!apiKey()) {
-    skip(err, "missing TYPEDLLM_API_KEY");
-    auditEntry(auditFile, { ...common, status: "skipped", reason: "missing TYPEDLLM_API_KEY" });
+  if (!key) {
+    skip(err, "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)");
+    auditEntry(auditFile, { ...common, status: "skipped", reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)" });
+    return { status: 0, skipped: true };
+  }
+
+  let bodyText;
+  try {
+    bodyText = JSON.stringify({ model: model(), state: STATE, questions: translate(questions) });
+  } catch (e) {
+    skip(err, e.message);
+    auditEntry(auditFile, { ...common, status: "skipped", reason: e.message });
     return { status: 0, skipped: true };
   }
 
@@ -110,8 +171,8 @@ export async function ask({ questions, auditFile, fetchImpl = fetch, out = proce
   try {
     res = await fetchImpl(endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey()}` },
-      body: JSON.stringify(questions),
+      headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+      body: bodyText,
       signal: ac.signal,
     });
     body = await res.text();
@@ -129,17 +190,23 @@ export async function ask({ questions, auditFile, fetchImpl = fetch, out = proce
     auditEntry(auditFile, { ...common, status: "skipped", reason: `endpoint unreachable (HTTP ${res.status})` });
     return { status: 0, skipped: true };
   }
-  let verdict;
+  let parsed;
   try {
-    verdict = JSON.parse(body);
+    parsed = JSON.parse(body);
   } catch {
-    skip(err, "endpoint returned a non-JSON verdict");
-    auditEntry(auditFile, { ...common, status: "skipped", reason: "endpoint returned a non-JSON verdict" });
+    skip(err, "endpoint returned a non-JSON response");
+    auditEntry(auditFile, { ...common, status: "skipped", reason: "endpoint returned a non-JSON response" });
+    return { status: 0, skipped: true };
+  }
+  if (!parsed || typeof parsed !== "object" || !parsed.answers) {
+    skip(err, "endpoint response missing answers");
+    auditEntry(auditFile, { ...common, status: "skipped", reason: "endpoint response missing answers" });
     return { status: 0, skipped: true };
   }
 
+  const verdict = mapAnswers(parsed.answers);
   out.write(`${JSON.stringify(verdict, null, 2)}\n`);
-  auditEntry(auditFile, { ...common, status: "ok", verdict });
+  auditEntry(auditFile, { ...common, status: "ok", verdict, model: parsed.model, usage: parsed.usage });
   return { status: 0, verdict };
 }
 
@@ -162,13 +229,12 @@ export async function cmdAsk(args, { out = process.stdout, err = process.stderr 
   if (!questionsFile) throw new Error("usage: judge.mjs ask --questions <file.json> [--audit <file>]");
 
   // NO-JUDGE gate FIRST (plan-017 D2): key absence is the tested default path —
-  // loud skip, exit 0, audit entry — BEFORE any input validation. A key-less
-  // environment must never fail on input shape it will never send.
+  // loud skip, exit 0, audit entry — BEFORE any input validation.
   if (!apiKey()) {
-    err.write(`JUDGE SKIPPED (missing TYPEDLLM_API_KEY)\n`);
+    err.write(`JUDGE SKIPPED (missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json))\n`);
     appendAudit(auditFile || auditPath(), {
       v: 1, ts: new Date().toISOString(), command: "ask", questionCount: 0,
-      status: "skipped", reason: "missing TYPEDLLM_API_KEY",
+      status: "skipped", reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)",
     });
     return 0;
   }
@@ -188,12 +254,11 @@ async function main() {
       process.exitCode = await cmdAsk(rest);
       break;
     }
-    default:
-      console.log("usage: judge.mjs ask --questions <file.json> [--audit <file>]");
-      process.exitCode = cmd === undefined ? 0 : 1;
+    default: {
+      console.error("usage: judge.mjs ask --questions <file.json> [--audit <file>]");
+      process.exitCode = 2;
+    }
   }
 }
 
-// ── main ─────────────────────────────────────────────────────────────────────
-const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
-if (isMain) main().catch((e) => { console.error(`judge: ${e.message}`); process.exitCode = 1; });
+if (import.meta.url === `file://${process.argv[1]}`) main();

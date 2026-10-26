@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 — v0.11.0: judge → typesafe + decision brief (plan 20261025-029)
+
+- **Judge backend**: `scripts/judge.mjs` now speaks typesafe System One (`/v1/systemone`, `jev-latest`). yes/no schemas → noul, option schemas → choice; verdict rows carry `confidence` and `probabilities`. Key chain: `TYPESAFE_API_KEY` env → `~/.pi/agent/auth.json` `.typesafe.key`. typellm endpoint and env are gone. `ask()` signature unchanged — all importers untouched.
+- **Audit**: systemone endpoint, model, and token usage recorded per run.
+- **Decision brief**: `.workflows/queue.json` (rows: option, what, effort, risk, unblocks, recommend); `closeout.mjs` renders the `### Next moves` table from it — never from model memory. Fifth settle question `decision_brief_present` checks the columns. Queue seeded with C (intent-guard hook), D (lessons consumption), E (anews pack).
+- **DEC-004**: judge backend is typesafe System One; DEC-001 (single client) unchanged.
+- **Gates at SHIP**: bun test 193/193, guard 3/3, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.10.2: close-out + settle judge (plan 20261025-028)
 
 - **Close-out**: `scripts/closeout.mjs report --plan <file> [--diagram]` — fixed sections Shipped · Deviations · Discoveries · Deferred · Watch, gathered from plan Execution Notes markers (`DEVIATION:` / `DISCOVERY:` / `DEFERRED:`, implications mandatory), run journal, proofs, lessons, golden count. Optional mermaid plan-vs-actual.

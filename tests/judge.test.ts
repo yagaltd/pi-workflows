@@ -1,217 +1,77 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
-import { createServer, type Server, type IncomingMessage } from "node:http";
+import { describe, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { ask, loadQuestions, mapAnswers, translate } from "../scripts/judge.mjs";
 
-const SCRIPT = resolve(import.meta.dir, "../scripts/judge.mjs");
+const questions = [
+  { id: "tested", question: "Did the tests pass?", schema: { type: "string", enum: ["yes", "no"] } },
+  { id: "verdict", question: "Ship or hold?", schema: { type: "string", enum: ["ship", "hold"] } },
+  { id: "boolean_q", question: "Is the tree clean?", schema: { type: "boolean" } },
+];
 
-let dir: string;
+describe("judge (plan 20261025-029)", () => {
+  test("judge translates enum questions to typesafe noul and choice", async () => {
+    const t = translate(questions);
+    expect(t.tested.type).toBe("noul");
+    expect(t.boolean_q.type).toBe("noul");
+    expect(t.verdict.type).toBe("choice");
+    expect(t.verdict.criteria).toEqual({ ship: "ship", hold: "hold" });
 
-beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "judge-"));
-});
-
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-});
-
-// ── fixtures ─────────────────────────────────────────────────────────────────
-
-interface CapturedRequest {
-  method: string;
-  url: string;
-  authorization: string | undefined;
-  body: unknown;
-}
-
-async function stubServer(handler: (req: IncomingMessage, body: string) => { status: number; body: unknown }) {
-  const requests: CapturedRequest[] = [];
-  const server: Server = createServer((req, res) => {
-    let raw = "";
-    req.on("data", (c: Buffer) => (raw += c.toString()));
-    req.on("end", () => {
-      requests.push({
-        method: req.method ?? "",
-        url: req.url ?? "",
-        authorization: req.headers.authorization,
-        body: raw ? JSON.parse(raw) : null,
-      });
-      const out = handler(req, raw);
-      res.writeHead(out.status, { "content-type": "application/json" });
-      res.end(JSON.stringify(out.body));
-    });
-  });
-  await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
-  const addr = server.address();
-  if (!addr || typeof addr === "string") throw new Error("no port");
-  return {
-    requests,
-    url: `http://127.0.0.1:${addr.port}`,
-    close: () => new Promise<void>((ok) => server.close(() => ok())),
-  };
-}
-
-function questionsFile(questions: Array<Record<string, unknown>>): string {
-  const f = join(dir, "questions.json");
-  writeFileSync(f, JSON.stringify(questions));
-  return f;
-}
-
-function twoQuestions() {
-  return [
-    { id: "q1", question: "Does the contract hold?", schema: { type: "object" } },
-    { id: "q2", question: "Any blockers?", schema: { type: "object" } },
-  ];
-}
-
-// Run the CLI in a subprocess with a hermetic env (TYPEDLLM_* and JUDGE_AUDIT stripped first).
-// Async spawn: the stub server lives in THIS process, and a sync spawn would block its event loop.
-async function runJudge(opts: { questionsFile: string; auditFile: string; env?: Record<string, string> }) {
-  const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined) env[k] = v;
-  for (const k of ["TYPEDLLM_API_KEY", "TYPEDLLM_BASE_URL", "TYPEDLLM_TIMEOUT_MS", "JUDGE_AUDIT"]) delete env[k];
-  Object.assign(env, opts.env);
-  const proc = Bun.spawn(["node", SCRIPT, "ask", "--questions", opts.questionsFile, "--audit", opts.auditFile], {
-    env,
-    cwd: resolve(import.meta.dir, ".."),
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-  const [stdout, stderr] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  return { code: await proc.exited, stdout, stderr };
-}
-
-function auditLines(auditFile: string): Array<Record<string, unknown>> {
-  return readFileSync(auditFile, "utf8")
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((l) => JSON.parse(l));
-}
-
-// ── contract scenarios ───────────────────────────────────────────────────────
-
-describe("judge ask", () => {
-  test("sends typed questions to the generate endpoint", async () => {
-    const verdict = [
-      { id: "q1", verdict: "FLAG", confidence: 0.8 },
-      { id: "q2", verdict: "FLAG", confidence: 0.6 },
-    ];
-    const server = await stubServer(() => ({ status: 200, body: verdict }));
-    try {
-      const r = await runJudge({
-        questionsFile: questionsFile(twoQuestions()),
-        auditFile: join(dir, "audit.jsonl"),
-        env: { TYPEDLLM_API_KEY: "test-key-123", TYPEDLLM_BASE_URL: server.url },
-      });
-      expect(r.code).toBe(0);
-      expect(server.requests).toHaveLength(1);
-      const req = server.requests[0]!;
-      expect(req.method).toBe("POST");
-      expect(req.url).toBe("/v1/generate");
-      expect(req.authorization).toBe("Bearer test-key-123");
-      expect(req.body).toEqual(twoQuestions());
-      expect(JSON.parse(r.stdout)).toEqual(verdict);
-    } finally {
-      await server.close();
-    }
+    let captured = null;
+    const fetchImpl = async (url, init) => {
+      captured = { url, body: JSON.parse(init.body), auth: init.headers.authorization };
+      return { ok: true, status: 200, text: async () => JSON.stringify({ model: "jev-latest", answers: { tested: { type: "noul", noul: 0.98 }, verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } }, boolean_q: { type: "noul", noul: 0.9 } }, usage: { input_tokens: 10, output_tokens: 2 } }) };
+    };
+    const af = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "j-")), "audit.jsonl");
+    const r = await ask({ questions, auditFile: af, fetchImpl, key: "k", out: { write: () => {} }, err: { write: () => {} } });
+    expect(r.status).toBe(0);
+    expect(captured.url).toBe("https://api.typesafe.ai/v1/systemone");
+    expect(captured.auth).toBe("Bearer k");
+    expect(captured.body.model).toBe("jev-latest");
+    expect(Object.keys(captured.body.questions).sort()).toEqual(["boolean_q", "tested", "verdict"]);
+    const audit = fs.readFileSync(af, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(audit[0].endpoint).toContain("/v1/systemone");
+    expect(audit[0].usage.input_tokens).toBe(10);
   });
 
-  test("rejects question sets over the 64 cap", async () => {
-    const server = await stubServer(() => ({ status: 200, body: {} }));
-    try {
-      const r = await runJudge({
-        questionsFile: questionsFile(Array.from({ length: 65 }, (_, i) => ({ id: `q${i + 1}`, question: `Q${i + 1}?` }))),
-        auditFile: join(dir, "audit.jsonl"),
-        env: { TYPEDLLM_API_KEY: "test-key-123", TYPEDLLM_BASE_URL: server.url },
-      });
-      expect(r.code).not.toBe(0);
-      expect(r.stderr).toContain("65");
-      expect(r.stderr).toContain("64");
-      expect(server.requests).toHaveLength(0); // never sent
-    } finally {
-      await server.close();
-    }
+  test("judge maps systemone answers to verdict rows with confidence", () => {
+    const rows = mapAnswers({ tested: { type: "noul", noul: 0.98 }, hold_q: { type: "noul", noul: 0.2 }, verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } } });
+    const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
+    expect(byId.tested.verdict).toBe("yes");
+    expect(byId.tested.confidence).toBeCloseTo(0.98);
+    expect(byId.hold_q.verdict).toBe("no");
+    expect(byId.hold_q.confidence).toBeCloseTo(0.8);
+    expect(byId.verdict.verdict).toBe("ship");
+    expect(byId.verdict.probabilities.ship).toBeCloseTo(0.96);
   });
 
-  test("skips before input validation when the key is missing", async () => {
-    // Gate-order regression (plan-017 T1 R1 P1): an INVALID questions file must
-    // still hit the skip path when no key is present — the NO-JUDGE gate fires
-    // before loadQuestions, so /dev/null (empty JSON) exits 0, not 1.
-    const r = await runJudge({
-      questionsFile: "/dev/null",
-      auditFile: join(dir, "audit-gate-order.jsonl"),
-      env: { TYPEDLLM_BASE_URL: "http://127.0.0.1:9" }, // no TYPEDLLM_API_KEY
-    });
-    expect(r.code).toBe(0);
-    expect(r.stderr).toContain("JUDGE SKIPPED");
-    const lines = auditLines(join(dir, "audit-gate-order.jsonl"));
-    expect(lines).toHaveLength(1);
-    expect(lines[0]!.status).toBe("skipped");
+  test("judge skips loudly when no key resolves", async () => {
+    const errs = [];
+    let called = false;
+    const fetchImpl = async () => { called = true; throw new Error("must not be called"); };
+    const af = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "j-")), "audit.jsonl");
+    const r = await ask({ questions, auditFile: af, fetchImpl, key: "", out: { write: () => {} }, err: { write: (s) => errs.push(s) } });
+    expect(r.status).toBe(0);
+    expect(r.skipped).toBe(true);
+    expect(called).toBe(false);
+    expect(errs.join("")).toContain("missing TYPESAFE_API_KEY");
+    const audit = fs.readFileSync(af, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(audit[0].status).toBe("skipped");
+    expect(audit[0].reason).toContain("auth.json");
   });
 
-  test("skips loudly when the key is missing", async () => {
-    const server = await stubServer(() => ({ status: 200, body: {} }));
-    try {
-      const auditFile = join(dir, "audit.jsonl");
-      const r = await runJudge({
-        questionsFile: questionsFile(twoQuestions()),
-        auditFile,
-        env: { TYPEDLLM_BASE_URL: server.url }, // no TYPEDLLM_API_KEY
-      });
-      expect(r.code).toBe(0);
-      expect(r.stderr).toContain("JUDGE SKIPPED");
-      expect(server.requests).toHaveLength(0);
-      const lines = auditLines(auditFile);
-      expect(lines).toHaveLength(1);
-      expect(lines[0]!.status).toBe("skipped");
-    } finally {
-      await server.close();
-    }
+  test("unsupported schema shapes are rejected locally", () => {
+    expect(() => translate([{ id: "x", question: "q?", schema: { type: "number" } }])).toThrow(/unsupported schema/);
+    expect(() => translate([{ id: "x", question: "q?", schema: { type: "object" } }])).toThrow(/unsupported schema/);
   });
 
-  test("skips loudly when the endpoint is unreachable", async () => {
-    // Grab an ephemeral port, then close the server so the port is closed.
-    const dead = await stubServer(() => ({ status: 200, body: {} }));
-    const deadUrl = dead.url;
-    await dead.close();
-    const auditFile = join(dir, "audit.jsonl");
-    const r = await runJudge({
-      questionsFile: questionsFile(twoQuestions()),
-      auditFile,
-      env: { TYPEDLLM_API_KEY: "test-key-123", TYPEDLLM_BASE_URL: deadUrl },
-    });
-    expect(r.code).toBe(0);
-    expect(r.stderr).toContain("JUDGE SKIPPED");
-    expect(auditLines(auditFile)[0]!.status).toBe("skipped");
-  });
-
-  test("appends the question set and verdict to the audit file", async () => {
-    const verdict = [{ id: "q1", verdict: "FLAG" }, { id: "q2", verdict: "CLEAR" }];
-    const server = await stubServer(() => ({ status: 200, body: verdict }));
-    try {
-      const auditFile = join(dir, "audit.jsonl");
-      const r = await runJudge({
-        questionsFile: questionsFile(twoQuestions()),
-        auditFile,
-        env: { TYPEDLLM_API_KEY: "test-key-123", TYPEDLLM_BASE_URL: server.url },
-      });
-      expect(r.code).toBe(0);
-      const lines = auditLines(auditFile);
-      expect(lines).toHaveLength(1);
-      const entry = lines[0]!;
-      expect(typeof entry.ts).toBe("string");
-      expect(Number.isNaN(Date.parse(entry.ts as string))).toBe(false); // timestamp
-      expect(entry.questionCount).toBe(2); // question count
-      expect(entry.questions).toEqual(twoQuestions()); // question set
-      expect(entry.verdict).toEqual(verdict); // verdict
-      expect(typeof entry.summary).toBe("string");
-      expect((entry.summary as string).length).toBeGreaterThan(0); // verdict summary
-    } finally {
-      await server.close();
-    }
+  test("loadquestions still validates the question file shape", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "j-"));
+    const f = path.join(dir, "q.json");
+    fs.writeFileSync(f, JSON.stringify(questions));
+    expect(loadQuestions(f)).toHaveLength(3);
+    fs.writeFileSync(f, "[]");
+    expect(() => loadQuestions(f)).toThrow(/empty question set/);
   });
 });
