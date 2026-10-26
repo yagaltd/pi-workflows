@@ -163,7 +163,7 @@ export async function main(argv, { ask: askFn = ask } = {}) {
   }
   if (opts.cmd === "judge") {
     const reportText = opts.reportFile ? fs.readFileSync(opts.reportFile, "utf8") : renderReport(g);
-    const s = await settleJudge(reportText, { ask: askFn, audit: opts.audit });
+    const s = await settleJudge(reportText, { ask: askFn, ...(opts.audit ? { audit: opts.audit } : {}) });
     console.log(`settle judge: ${s.status}${s.reason ? ` — ${s.reason}` : ""}`);
     for (const f of s.findings) console.log(`FINDING: ${f}`);
     return 0;
