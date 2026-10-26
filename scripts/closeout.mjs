@@ -157,7 +157,7 @@ export const settleQuestions = [
   { id: "implications_stated", question: "Does every deviation and deferral state its implication?", schema: { type: "string", enum: ["yes", "no"] } },
   { id: "deferrals_named", question: "Are all deferred items named in the Deferred section?", schema: { type: "string", enum: ["yes", "no"] } },
   { id: "watch_present", question: "Does the Watch section carry open dispatches, proof count, untrusted lesson count and golden case count?", schema: { type: "string", enum: ["yes", "no"] } },
-  { id: "decision_brief_present", question: "Does the Next moves table carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)?", schema: { type: "string", enum: ["yes", "no"] } },
+  { id: "decision_brief_present", question: "Does the Next moves section carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)? An explicitly empty queue ("queue empty — nothing open") is a valid brief and counts as yes.", schema: { type: "string", enum: ["yes", "no"] } },
 ];
 
 export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) {
