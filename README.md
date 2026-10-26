@@ -576,6 +576,17 @@ counts into `.workflows/proofs/evidence-<plan>.json` — the SHIP evidence
 file; `missing-evidence` tasks are findings. Proofs are recorded data: a
 failing verifier still records.
 
+## Lessons ledger
+
+At SHIP, `/review` Stage 3 distills the archived bundle into
+`.workflows/lessons/lessons.jsonl`:
+`node scripts/lessons.mjs distill --plan-file <archive>/plan.md --reviews-dir <archive>/reviews --plan-id <id>`.
+One lesson per task; `provenance` is computed — `verified` with a recorded
+proof in `proofs.jsonl`, `from_untrusted` without. Statuses change only via
+`node scripts/lessons.mjs set --id <id> --to <status> --reason "<why>"` —
+no reason, no transition, history never rewritten. `/plan` and `/challenge`
+read the ledger before drafting and grilling.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per

@@ -159,3 +159,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-025 — owner via session ("run 025"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-025 — 3/3 ✅; guard 3/3; 173/173 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-025 proof-ledger → v0.9.3: proofs.jsonl (record/show/verify + drift), collect unified evidence, /next + /auto-next proof records, README section. Archived.
+2026-10-25 PLAN 20261025-026 lessons-ledger drafted (owner, session): 2 tasks / 2 waves. Append-only ledger; provenance computed from proofs; transitions need recorded reasons; distill at SHIP.
+2026-10-25 APPROVE 20261025-026 — owner via session ("run 026"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-026 — 2/2 ✅; guard 2/2; 178/178 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-026 lessons-ledger → v0.10.0: lessons.jsonl (distill/set/list), provenance from proofs, review Stage 3 distill wiring, README section. Archived.

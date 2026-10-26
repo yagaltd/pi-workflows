@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-25 — v0.10.0: lessons ledger (plan 20261025-026)
+
+- **Ledger**: `.workflows/lessons/lessons.jsonl` — append-only lesson + transition records (`scripts/lessons.mjs`).
+- **Distill**: at SHIP, `/review` Stage 3 distills the archived bundle into per-task lessons; idempotent per (planId, taskId); `provenance` computed from `proofs.jsonl` (`verified` / `from_untrusted`), never claimed.
+- **Transitions**: `set --id --to --reason` — refused without a recorded reason; original lessons stay in the file, current status = last transition.
+- **Query**: `list --status/--tag/--text` over current-status lessons.
+- **Docs**: README Lessons ledger section; review Stage 3 distill line.
+- **Gates at SHIP**: bun test 179/179, guard 2/2, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.9.3: proof ledger (plan 20261025-025)
 
 - **Proofs**: `.workflows/proofs/proofs.jsonl` — per-task `{command, exit, outputHash, specHash?}` via `scripts/proof-ledger.mjs record`; a failing verifier still records (exit code is data).

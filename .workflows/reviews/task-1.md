@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass (bun test); proofs are recorded data (failing verifier writes then exits with its code); collect is a report, exit 0 always.
-Gaming check: hash drift test mutates output, not the assertion; collect asserts against fixture trails.
+Evidence: selector-bound scenarios pass; provenance computed from recorded proofs (never claimed); transitions refused without --reason; append-only history verified; idempotent re-distill proven on the real 021 bundle.
+Gaming check: distill reads the archived bundle + proofs.jsonl only; no test asserts its own output.

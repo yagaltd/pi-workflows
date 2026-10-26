@@ -139,7 +139,12 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    - `.workflows/specs/`
    - `.workflows/reviews/` (if present)
    - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
-4. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+4. **Distill lessons** (plan 20261025-026):
+   ```bash
+   node scripts/lessons.mjs distill --plan-file .workflows/archive/done/<PlanID>-<slug>/plan.md --reviews-dir .workflows/archive/done/<PlanID>-<slug>/reviews --plan-id <PlanID> --ledger .workflows/lessons/lessons.jsonl
+   ```
+   Idempotent per (planId, taskId); provenance computed from `.workflows/proofs/proofs.jsonl`.
+5. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
 5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive
