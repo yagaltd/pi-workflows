@@ -72,7 +72,7 @@ export function appendAudit(file, entry) {
 }
 
 function auditEntry(auditFile, { endpoint, questions, status, reason, verdict }) {
-  appendAudit(auditFile, {
+  appendAudit(auditFile || auditPath(), {
     v: 1,
     ts: new Date().toISOString(),
     command: "ask",
