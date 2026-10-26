@@ -528,6 +528,22 @@ Scenario: Cache miss returns None
   Then the result is None
 ```
 
+## Eval Doctrine
+
+A golden eval set lives in `.workflows/evals/golden/` — one JSON case per
+file, harvested from shipped evidence: dispatcher selection and blocked
+codes (run through the real `resolveNext` via a bun probe), gate verdict
+replays, degradation honesty (`JUDGE SKIPPED (...)`, advisory mode),
+archive preconditions, docs stamp expiry. Every case runs twice; only
+stable outcomes count (disagreement is `flaky`).
+
+The SHIP gate (prompts/review.md, Stage 1 Layer 5) runs
+`node scripts/eval-golden.mjs --baseline .workflows/evals/baseline.jsonl`:
+a case that passed at baseline and now stably fails is a FLIP and blocks
+SHIP unless the owner annotates it. Add a golden case whenever a gate,
+the dispatcher, or the flow of commands changes — the set is the
+regression memory of the loop.
+
 ## Coding Guidelines (Karpathy)
 
 Workers follow these behavioral rules:

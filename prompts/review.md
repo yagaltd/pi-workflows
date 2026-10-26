@@ -71,6 +71,18 @@ Per `templates/DOCS-POLICY.md` (pi-workflows package):
 - **CHANGELOG.md prepared**: draft the plan's entry (Plan ID, date,
   user-facing changes) — appended in Stage 3, never before.
 
+### Layer 5: Golden evals (flip-watching)
+
+```bash
+node scripts/eval-golden.mjs --baseline .workflows/evals/baseline.jsonl
+```
+
+Replays the golden set (`.workflows/evals/golden/`); every case runs twice
+and only stable outcomes count. A stable pass→fail is a FLIP and blocks
+SHIP unless the owner annotates it (`flip: accepted — <why>`, passed via
+`--accept-flip <id>`). First run on a repo writes the baseline and
+proceeds once. Skipped probes are documented gaps, never passes.
+
 If Stage 1 FAILS → stop here.
 
 ## Stage 2: Adversarial + Quality Review (only if Stage 1 PASSES)

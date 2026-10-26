@@ -1,3 +1,13 @@
+# Changelog
+
+## 2026-10-25 — v0.8.5: eval doctrine — golden set + flip-watching (plan 20261025-021)
+
+- **Runner**: `scripts/eval-golden.mjs` (zero deps, deterministic — no live model calls) + `scripts/eval-dispatch-probe.ts`: dispatcher cases execute the real `resolveNext` through a bun probe; gate / degradation / archive / docs kinds replay recorded outputs.
+- **Run-twice rule**: every case runs twice; only stable outcomes count — disagreement is `flaky`, never a verdict.
+- **Flip-watching, fail-closed**: SHIP Layer 5 (prompts/review.md Stage 1) diffs against `.workflows/evals/baseline.jsonl`; stable pass→fail blocks SHIP unless owner-annotated (`--accept-flip <id>`); fail→pass is recorded as fixed; missing baseline warns, writes, proceeds once.
+- **Golden set v1**: 11 cases from shipped evidence — 4 dispatcher (wave order, deps-unsatisfied, stale-status, missing-spec), 3 gate replays (lifecycle, gaming, drift), 2 degradation (JUDGE SKIPPED marker, advisory mode), 2 archive/docs (plan-id + changelog mention, stamp expiry).
+- **Docs**: README gains the Eval Doctrine section (names the SHIP gate); drift + archive gates stay clean.
+
 ## 2026-10-25 — v0.8.4: casual intake — typed candidate requirements (plan 20261025-019)
 
 - **Intake emitter**: `/idea` and `/brainstorm` gain one intake step — candidate
