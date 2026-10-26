@@ -1,7 +1,7 @@
-# Review — task-3 (gate-step resolution)
+# Review — task-3
 
 ## Round 1
 **ok: true**
 
-Evidence: gateCommands mapping locked to the repo's command sets (contract/test-quality/review); injectable presence makes the loud-skip path deterministic; failing command recorded with reason.
-Gaming check: skip path asserts no execution (throwing exec), never a silent pass.
+Evidence: selector-bound scenarios pass (bun test); degradation paths loud (JUDGE SKIPPED-shaped), thresholds from config; judge client imported, never re-implemented.
+Gaming check: stubbed ask injected at the module boundary — production path passes the real ask() from scripts/judge.mjs.

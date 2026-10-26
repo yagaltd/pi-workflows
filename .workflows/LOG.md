@@ -147,3 +147,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-25 APPROVE 20261025-022 — owner via session ("commit and run /plan 022"). Wave 1 dispatched inline.
 2026-10-25 ALL-TASKS-DONE 20261025-022 — 4/4 ✅; guard 4/4; 149/149 bun test; golden 11/11, 0 flips.
 2026-10-25 SHIP 20261025-022 flows-IR → v0.9.0: flow schema/validator (8 blocked codes), gate resolver (3 named gates, loud skips), flow-run control plane (packs via real resolveNext), 2 examples + flows skill. Archived.
+2026-10-25 PLAN 20261025-023 decision-steps+intent-guard drafted (owner, session): 3 tasks / 2 waves. One judge client (judge.mjs ask); thresholds config-only; extension wiring deferred.
+2026-10-25 APPROVE 20261025-023 — owner via session ("run 023"). Wave 1 dispatched inline.
+2026-10-25 ALL-TASKS-DONE 20261025-023 — 3/3 ✅; guard 3/3; 160/160 bun test; golden 11/11, 0 flips.
+2026-10-25 SHIP 20261025-023 decision-steps+intent-guard → v0.9.1: flow decision steps (typed answers + assert), intent-guard CLI (proceed/amend/answer/ask/ask-human, trail provenance), decision-demo example. Archived.

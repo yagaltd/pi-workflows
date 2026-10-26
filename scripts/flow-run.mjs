@@ -16,6 +16,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { computeWaves, validateFlow } from "./flow-validate.mjs";
 import { gateCommands, runGate } from "./flow-gates.mjs";
+import { runDecisionStep } from "./flow-decision.mjs";
+import { ask as judgeAsk } from "./judge.mjs";
 
 const TIER_RANK = { A: 0, B: 1, C: 2 };
 
@@ -95,6 +97,14 @@ export async function main(argv) {
 
     // gates + transforms of this wave, after its tasks
     for (const s of waveSteps.filter((x) => x.kind !== "task")) {
+      if (s.kind === "decision") {
+        const d = await runDecisionStep(s, { ask: judgeAsk });
+        report.steps.push({ id: s.id, kind: "decision", wave, status: d.status, reason: d.reason ?? null, answers: d.answers ?? null });
+        console.log(`DECISION ${s.id}: ${d.status}${d.reason ? ` — ${d.reason}` : ""}`);
+        if (d.answers) Object.assign(state, { [s.id]: d.answers });
+        if (d.status === "fail") exit = 1; // failed assertion blocks; skipped is a documented gap
+        continue;
+      }
       if (s.kind === "transform") {
         Object.assign(state, s.set ?? {});
         report.steps.push({ id: s.id, kind: "transform", wave, status: "set", fields: Object.keys(s.set ?? {}) });

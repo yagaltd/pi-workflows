@@ -3,7 +3,7 @@
 // Blocked codes (scripts/flow-schema.mjs BLOCKED_CODES): an invalid flow
 // never reaches the dispatcher — loud, per the degradation doctrine.
 
-import { BLOCKED_CODES, GATE_NAMES, STEP_KINDS, TIERS } from "./flow-schema.mjs";
+import { BLOCKED_CODES, GATE_NAMES, QUESTION_KINDS, STEP_KINDS, TIERS } from "./flow-schema.mjs";
 
 const isInt = (n) => Number.isInteger(n) && n >= 1;
 
@@ -30,6 +30,25 @@ function checkStep(flow, s, ids, err) {
   } else if (s.kind === "transform") {
     if (!isInt(s.wave)) err(BLOCKED_CODES.SCHEMA, at, `transform.wave must be an integer >= 1`);
     if (typeof s.set !== "object" || s.set === null || Array.isArray(s.set)) err(BLOCKED_CODES.SCHEMA, at, "transform.set must be an object");
+  } else if (s.kind === "decision") {
+    if (!isInt(s.wave)) err(BLOCKED_CODES.SCHEMA, at, `decision.wave must be an integer >= 1`);
+    if (!Array.isArray(s.questions) || s.questions.length === 0 || s.questions.length > 64) {
+      err(BLOCKED_CODES.SCHEMA, at, "decision.questions must be an array of 1..64");
+    } else {
+      for (const q of s.questions) {
+        if (typeof q.id !== "string" || !q.id) { err(BLOCKED_CODES.SCHEMA, at, "question.id must be a non-empty string"); continue; }
+        if (typeof q.prompt !== "string" || !q.prompt) err(BLOCKED_CODES.SCHEMA, at, `question ${q.id}: prompt must be a non-empty string`);
+        if (!QUESTION_KINDS.includes(q.kind)) err(BLOCKED_CODES.SCHEMA, at, `question ${q.id}: kind must be one of ${QUESTION_KINDS.join("|")}`);
+        if ((q.kind === "choose" || q.kind === "rate") && !(Array.isArray(q.options) && q.options.length > 0) && !(Array.isArray(q.levels) && q.levels.length > 0))
+          err(BLOCKED_CODES.SCHEMA, at, `question ${q.id}: ${q.kind} needs options[] or levels[]`);
+      }
+    }
+    if (s.assert !== undefined) {
+      const a = s.assert;
+      if (typeof a !== "object" || typeof a.question !== "string" || !a.question) err(BLOCKED_CODES.SCHEMA, at, "assert.question must be a non-empty string");
+      const has = ["equals", "in", "min_confidence"].some((k) => a[k] !== undefined);
+      if (!has) err(BLOCKED_CODES.SCHEMA, at, "assert needs equals | in | min_confidence");
+    }
   }
 }
 

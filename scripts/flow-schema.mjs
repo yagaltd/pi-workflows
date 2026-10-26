@@ -2,8 +2,9 @@
 // A flow is declarative input to the dispatcher: steps, waves, gates.
 // Zero dependencies; runs anywhere node runs.
 
-export const STEP_KINDS = ["task", "gate", "transform"];
+export const STEP_KINDS = ["task", "gate", "transform", "decision"];
 export const GATE_NAMES = ["contract", "test-quality", "review"];
+export const QUESTION_KINDS = ["choose", "rate", "verify", "probability"];
 export const TIERS = ["A", "B", "C"];
 
 export const BLOCKED_CODES = {

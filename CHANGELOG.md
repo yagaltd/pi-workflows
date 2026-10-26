@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — v0.9.1: decision steps + intent guard (plan 20261025-023)
+
+- **Flow decision steps**: `kind: "decision"` — one calibrated call through `scripts/judge.mjs ask` (the single judge client); typed answers recorded in the run report and flow state; `assert` on `equals` / `in` / `min_confidence`; unavailable judge = loud `skipped`, unmet assert = `fail`.
+- **Intent guard**: `scripts/intent-guard.mjs --query "..."` classifies a query against the live plan (proceed / amend / answer / ask / ask-human); fail-open; thresholds are config (`--threshold`, default 0.85); every verdict appends to `.workflows/intent/trail.jsonl`.
+- **Docs**: flows skill + README paragraphs (gates named); example `.workflows/flows/decision-demo.json`.
+- **Deferred (D5)**: extension hook (`before_agent_start`) until routing is trusted.
+- **Gates at SHIP**: bun test 156/156, guard 3/3, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.9.0: flows IR — declarative flows on resolveNext (plan 20261025-022)
 
 - **Format**: `.workflows/flows/<slug>.json` — steps (`task` | `gate` | `transform`), waves, `depends_on`; validated before run with typed blocked codes (`cycle`, `missing-ref`, `bad-dep-wave`, `empty-wave`, `dup-id`, `self-edge`, `unknown-kind`, `schema-invalid`).

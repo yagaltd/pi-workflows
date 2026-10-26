@@ -540,6 +540,17 @@ every task through the real `resolveNext`, writes per-task packs for
 boundaries. SHIP still runs the golden eval gate (Layer 5). See
 `skills/flows/SKILL.md` and the examples in `.workflows/flows/`.
 
+## Decision steps + intent guard
+
+Flow `decision` steps make one calibrated judge call
+(`scripts/judge.mjs ask` — the repository's single judge client) and record
+typed answers; `assert` gates on value or confidence, and an unavailable
+judge is a loud skip, never a pass. The intent guard
+(`scripts/intent-guard.mjs --query "..."`) classifies a query against the
+live plan before dispatch — proceed / amend / answer / ask — and fails open
+to `ask-human`. Both record provenance: decision answers in the run report,
+guard verdicts in `.workflows/intent/trail.jsonl`.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per

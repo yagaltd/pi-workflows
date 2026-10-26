@@ -1,7 +1,7 @@
-# Review — task-2 (runner + CLI)
+# Review — task-2
 
 ## Round 1
 **ok: true**
 
-Evidence: wave order via the real resolveNext (tier-then-id inside wave; no-tasks ends the plan); packs carry the dispatcher's own pack text; report.json records steps, gates, transform state; cyclic flow exits 1 writing no packs.
-Gaming check: probe is the shipped eval-dispatch-probe.ts — the runner imports selection, never re-implements it.
+Evidence: selector-bound scenarios pass (bun test); degradation paths loud (JUDGE SKIPPED-shaped), thresholds from config; judge client imported, never re-implemented.
+Gaming check: stubbed ask injected at the module boundary — production path passes the real ask() from scripts/judge.mjs.

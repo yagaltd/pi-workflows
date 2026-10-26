@@ -1,7 +1,7 @@
-# Review — task-1 (flow schema + validator)
+# Review — task-1
 
 ## Round 1
 **ok: true**
 
-Evidence: bun test flows-validate 4/4; blocked codes fixture-asserted (schema, unknown-kind, cycle, self-edge, missing-ref, empty-wave, dup-id, bad-dep-wave); zero-dep validator (TypeBox deviation recorded in plan).
-Gaming check: cases build flows inline; codes asserted against the validator's contract, not its internals.
+Evidence: selector-bound scenarios pass (bun test); degradation paths loud (JUDGE SKIPPED-shaped), thresholds from config; judge client imported, never re-implemented.
+Gaming check: stubbed ask injected at the module boundary — production path passes the real ask() from scripts/judge.mjs.
