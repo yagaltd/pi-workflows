@@ -446,3 +446,17 @@ Or run tasks manually:
 - **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
 - **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.
 - **Parallel groups execute as waves** — all tasks in a wave must finish before the next wave starts. `/next` enforces this. Within a wave, tasks run as one pi-core-subagent call (`tasks[]`, disjoint boundaries required); model and thinking per task come from the bottleneck tag via `agents/registry.md`.
+
+## Standing decisions
+
+Decisions meant to outlive the plan belong in the decision index
+(`.workflows/decisions/`):
+
+```bash
+node scripts/decisions.mjs record --id DEC-00N --title "..." --rule "..." --scope "..." --decided-by <plan-id> --revisit "..."
+```
+
+Reference them from the plan with `adr: DEC-00N` — the SHIP gate
+(`scripts/decisions.mjs check`) fails on unresolved references. Read the
+index before drafting; do not re-litigate an active decision without
+recording why its revisit-when condition fired.

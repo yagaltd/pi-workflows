@@ -587,6 +587,15 @@ proof in `proofs.jsonl`, `from_untrusted` without. Statuses change only via
 no reason, no transition, history never rewritten. `/plan` and `/challenge`
 read the ledger before drafting and grilling.
 
+## Decision index
+
+Standing decisions live in `.workflows/decisions/` — one short record per
+decision: rule, scope, decided-by plan, revisit-when condition. `INDEX.md`
+is generated (`node scripts/decisions.mjs index`); `adr: DEC-NNN`
+references in the live plan must resolve to records; the SHIP gate runs
+`node scripts/decisions.mjs check --plan .workflows/plan.md`. Supersede
+with a reason — the successor record is linked.
+
 ## Eval Doctrine
 
 A golden eval set lives in `.workflows/evals/golden/` — one JSON case per

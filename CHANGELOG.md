@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-25 — v0.10.1: decision index + revisit triggers (plan 20261025-027)
+
+- **Decision records**: `.workflows/decisions/DEC-NNN-<slug>.md` — rule, scope, decided-by plan, revisit-when condition; one binding sentence each, no context essays (the plan link is the context).
+- **INDEX.md generated**: `scripts/decisions.mjs index` regenerates; `check` fails on index drift, malformed records, unresolved `adr: DEC-NNN` references in the live plan, or superseded records pointing at missing successors.
+- **Wiring**: SHIP Stage 3 runs the check; the plan skill documents recording standing decisions; supersede links the successor with a reason.
+- **Seeded**: DEC-001 single judge client · DEC-002 flows compile onto resolveNext · DEC-003 tdd-gate as the test-quality gate.
+- **Gates at SHIP**: bun test 183/183, guard 2/2, golden eval 11/11 (0 flips), drift + docs-lint CLEAN.
+
+# Changelog
+
 ## 2026-10-25 — v0.10.0: lessons ledger (plan 20261025-026)
 
 - **Ledger**: `.workflows/lessons/lessons.jsonl` — append-only lesson + transition records (`scripts/lessons.mjs`).
