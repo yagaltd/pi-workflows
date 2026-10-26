@@ -183,3 +183,8 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-26 APPROVE 20261026-031 — owner via session ("run C then D"). Dispatched inline.
 2026-10-26 ALL-TASKS-DONE 20261026-031 — 2/2 ✅; guard 2/2; 200/200 bun test; golden 11/11; settle judge live.
 2026-10-26 SHIP 20261026-031 lessons-in-plan-challenge → v0.11.2: Phase 1 lessons reads in both skills, citation + trust filter, queue D dropped. Archived.
+2026-10-26 CANCEL E anews pack — owner decision ("cancel E").
+2026-10-26 PLAN 20261026-032 format-chooser drafted (owner, session): 2 tasks / 2 waves. Two advisory questions at four boundaries; markmap retired; DEC-005.
+2026-10-26 APPROVE 20261026-032 — owner via session ("run F"). Wave 1 dispatched inline.
+2026-10-26 ALL-TASKS-DONE 20261026-032 — 2/2 ✅; guard 2/2; 206/206 bun test; golden 12/12; settle judge live.
+2026-10-26 SHIP 20261026-032 format-chooser → v0.12.0: two-question advisory chooser at four boundaries, markmap retired, DEC-005, E cancelled. Archived. Queue EMPTY.

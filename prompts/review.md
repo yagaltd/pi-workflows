@@ -152,8 +152,12 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```
    Order matters: write the Execution Notes markers (`DEVIATION:` /
    `DISCOVERY:` / `DEFERRED:`, each with implication) BEFORE the judge call —
-   the judge reads the report the markers produce. The settle judge is
-   advisory: findings
+   the judge reads the report the markers produce. Then one format-chooser
+   call (plan 20261026-032):
+   `node scripts/format-chooser.mjs choose --for closeout --content-file <report.md>`
+   — a visual pick generates the artifact via the diagram-design doctrine;
+   `none` means prose stands. Overrule needs a stated reason; HTML is a
+   generated view, never a gate. The settle judge is advisory: findings
    are named, a skipped judge prints loud. Post the close-out in the chat and
    wait for the owner's ack before the next task.
 6. **Decision index check** (plan 20261025-027):

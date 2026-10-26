@@ -1,10 +1,10 @@
 ---
-description: "Brainstorm — divergent research mode: think together, evidence branches, markmap ledger, no building"
+description: "Brainstorm — divergent research mode: think together, evidence branches, research ledger, no building"
 argument-hint: "<topic or question | resume>"
 ---
 
 Divergent research mode — build ideas WITH the human, validate/invalidate
-them with evidence, and structure everything into a living markmap ledger.
+them with evidence, and structure everything into a living research ledger.
 No code, no specs, no tasks: this is the phase before `/explore` and `/idea`.
 
 Follow the 'brainstorm' skill workflow — load its SKILL.md with the read
@@ -42,7 +42,8 @@ map + frontier top-3.
 report as text. ✅/❌ branch statuses only on cited evidence ([R#]/[S#]).
 Update the ledger after every meaningful exchange — the ledger is the
 memory, the chat is not. Nothing outside `.workflows/research/<slug>/`
-(+ `knowledge/` at graduation). Render: `npx markmap-cli ledger.md -o ledger.html --offline` (offline flag required — default output CDN-loads and renders blank via file://).
+(+ `knowledge/` at graduation). Visuals at graduation: run the format
+chooser (`node scripts/format-chooser.mjs choose --for brainstorm-graduation --content-file <ledger.md>`); a visual pick generates a concept view via the diagram-design doctrine — HTML is a generated view, never a gate.
 
 **Intake exit-rail**: when the session converges on concrete, productizable
 requirements (typically at CONVERGE/EXIT), emit them as marked requirement

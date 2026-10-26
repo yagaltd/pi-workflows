@@ -1,6 +1,6 @@
 ---
 name: brainstorm
-description: "Divergent thinking mode — build, validate, and invalidate ideas with a living markmap ledger before any productization. Use for brainstorming, market/competitor research, product ideation, 'what should we build', sharing half-formed ideas, or research that opens new questions. No code, no specs, no commitment."
+description: "Divergent thinking mode — build, validate, and invalidate ideas with a living research ledger (markdown) before any productization. Use for brainstorming, market/competitor research, product ideation, 'what should we build', sharing half-formed ideas, or research that opens new questions. No code, no specs, no commitment."
 user-invocable: true
 argument-hint: "<topic, question, or 'resume'>"
 ---
@@ -32,7 +32,7 @@ the topic. Contents over time:
 
 ```
 .workflows/research/<slug>/
-  ledger.md              the living mindmap (markmap-renderable)
+  ledger.md              the living research tree (markdown)
   report-<NN>-<slug>.md  research subagent reports (evidence, numbered R1..)
   brief-<topic>.md       deep-research briefs (scope freezes)
 ```
@@ -40,11 +40,6 @@ the topic. Contents over time:
 ### Ledger template
 
 ```markdown
----
-markmap:
-  initialExpandLevel: 3
-  colorFreezeLevel: 2
----
 # <Central question — one line, ends with ?>
 
 ## 🎯 Scope
@@ -74,20 +69,20 @@ markmap:
 - [R1] report-01-<slug>.md — <angle> · <date>
 ```
 
-### Markmap rules (the ledger MUST stay renderable)
+### Ledger rules (markdown tree, plan 20261026-032)
 
-- Headings = nodes, bullets = children. Keep every label **short** (< 60
+- Headings = branches, bullets = children. Keep every label **short** (< 60
   chars); prose lives in reports, not in the tree.
 - No tables, no code blocks, no long paragraphs inside the tree.
 - Status emoji leads every branch label: ❓ open · ✅ validated · ❌
   invalidated · 💤 parked. A branch changes status ONLY on evidence, never
   on vibes.
-- Render anytime: `npx markmap-cli ledger.md -o ledger.html --offline`.
-  **`--offline` is required** — without it the output is a 4KB shell that
-  loads d3 + markmap from a CDN at open time and renders a blank page
-  offline/`file://`. The offline build embeds all assets (~350KB), opens
-  anywhere. (Verified by browser-render test: default = 0 nodes,
-  offline = full tree.)
+- Markmap tooling is retired. At graduation the format chooser decides the
+  artifact: `node scripts/format-chooser.mjs choose --for brainstorm-graduation --content-file research/<slug>/ledger.md`
+  — a visual pick (html/mermaid) generates a concept view via the
+  diagram-design doctrine (tree/loop/nested fit concept maps); `none` keeps
+  prose. HTML is a generated view — never hand-edited, never a gate,
+  regenerable from the ledger.
 
 ### Update discipline
 

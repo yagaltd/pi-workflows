@@ -15,12 +15,12 @@ describe("typesafe + queue wiring (plan 20261025-029)", () => {
 
   test("queue json carries c d e options with all columns", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
-    // Structural invariant (031): rows carry all columns; shipped rows (C, D)
-    // never come back; at least one open row remains.
-    expect(rows.length).toBeGreaterThanOrEqual(1);
+    // Structural invariant (032): rows carry all columns; shipped/cancelled
+    // rows (C, D, E) never come back; an empty queue is valid.
+    expect(rows.length).toBeGreaterThanOrEqual(0);
     const cols = ["option", "what", "effort", "risk", "unblocks", "recommend"];
     for (const r of rows) for (const c of cols) expect(typeof r[c]).toBe("string");
-    expect(rows.some((r) => r.option.startsWith("C ") || r.option.startsWith("D "))).toBe(false);
+    expect(rows.some((r) => ["C ", "D ", "E "].some((p) => r.option.startsWith(p)))).toBe(false);
     expect(fs.readFileSync("README.md", "utf8")).not.toContain("TYPEDLLM_BASE_URL");
   });
 });

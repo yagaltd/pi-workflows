@@ -101,3 +101,11 @@ If any is missing → skip the ADR. Use `templates/ADR-FORMAT.md` when creating 
 - **.workflows/CONTEXT.md is live.** Update as terms are resolved, not at the end.
 - **ADRs are rare.** Most decisions don't need one.
 - **Challenge assumptions.** If the plan has gaps, call them out.
+
+## Phase 5 addendum — format chooser (plan 20261026-032)
+
+At PRESENT FINAL STATE, one advisory call:
+`node scripts/format-chooser.mjs choose --for challenge --content-file <final-state.md>`
+A visual pick generates the view via the diagram-design doctrine; `none`
+keeps prose. Overrule needs a stated reason. HTML is a generated view —
+never a gate, regenerable from the md source.

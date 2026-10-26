@@ -16,12 +16,10 @@ describe("lessons in plan + challenge (plan 20261026-031)", () => {
 
   test("queue json drops the shipped d row", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
+    // Structural (032): D never returns; queue may be empty; any row keeps all columns.
     expect(rows.some((r) => r.option.startsWith("D "))).toBe(false);
-    const e = rows.find((r) => r.option.startsWith("E "));
-    expect(e).toBeDefined();
-    expect(e.recommend).toContain("later");
-    for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) {
-      expect(typeof e[c]).toBe("string");
+    for (const r of rows) for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) {
+      expect(typeof r[c]).toBe("string");
     }
   });
 });

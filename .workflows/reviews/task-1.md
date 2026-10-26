@@ -3,5 +3,5 @@
 ## Round 1
 **ok: true**
 
-Evidence: selector-bound scenarios pass; both skills name the command, the citation rule, and the trust filter; queue structural invariant holds.
-Gaming check: docs assertions read the skill files directly; no test mutates the ledger.
+Evidence: selector-bound scenarios pass; live chooser verified (advisory, fail-open, none default); markmap fully retired; golden 12/12 with the new advisory case.
+Gaming check: chooser stubs at the ask boundary; wiring tests read files, no self-reference.

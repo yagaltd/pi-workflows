@@ -468,3 +468,12 @@ Reference them from the plan with `adr: DEC-00N` — the SHIP gate
 (`scripts/decisions.mjs check`) fails on unresolved references. Read the
 index before drafting; do not re-litigate an active decision without
 recording why its revisit-when condition fired.
+
+## Phase 4 addendum — format chooser (plan 20261026-032)
+
+Before the approval ask, one advisory call:
+`node scripts/format-chooser.mjs choose --for plan-approval --content-file .workflows/plan.md`
+A visual pick (html/mermaid) generates the decision view via the
+diagram-design doctrine; `none` keeps prose. Overrule needs a stated
+reason. plan.md stays the source of truth; HTML is a generated view —
+never hand-edited, never a gate, regenerable.

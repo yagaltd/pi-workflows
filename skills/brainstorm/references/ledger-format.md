@@ -9,7 +9,7 @@ the topic. Contents over time:
 
 ```
 .workflows/research/<slug>/
-  ledger.md              the living mindmap (markmap-renderable)
+  ledger.md              the living research tree (markdown)
   report-<NN>-<slug>.md  research subagent reports (evidence, numbered R1..)
   brief-<topic>.md       deep-research briefs (scope freezes)
 ```
@@ -17,11 +17,6 @@ the topic. Contents over time:
 ### Ledger template
 
 ```markdown
----
-markmap:
-  initialExpandLevel: 3
-  colorFreezeLevel: 2
----
 # <Central question — one line, ends with ?>
 
 ## 🎯 Scope
@@ -51,7 +46,7 @@ markmap:
 - [R1] report-01-<slug>.md — <angle> · <date>
 ```
 
-### Markmap rules (the ledger MUST stay renderable)
+### Ledger rules (markdown tree)
 
 - Headings = nodes, bullets = children. Keep every label **short** (< 60
   chars); prose lives in reports, not in the tree.
@@ -59,12 +54,7 @@ markmap:
 - Status emoji leads every branch label: ❓ open · ✅ validated · ❌
   invalidated · 💤 parked. A branch changes status ONLY on evidence, never
   on vibes.
-- Render anytime: `npx markmap-cli ledger.md -o ledger.html --offline`.
-  **`--offline` is required** — without it the output is a 4KB shell that
-  loads d3 + markmap from a CDN at open time and renders a blank page
-  offline/`file://`. The offline build embeds all assets (~350KB), opens
-  anywhere. (Verified by browser-render test: default = 0 nodes,
-  offline = full tree.)
+- Markmap tooling retired (plan 20261026-032); visuals generate at graduation via the format chooser + diagram-design.
 
 ### Update discipline
 

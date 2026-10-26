@@ -615,6 +615,25 @@ confidence, threshold, probabilities). Fail-open: import or call failure
 injects nothing. Explicit `/commands` are never overridden — owner routing
 stays final.
 
+## Format chooser
+
+Decision outputs get the artifact a human decision needs — decided, not
+assumed. One advisory judge call (two questions, plan 20261026-032):
+
+```bash
+node scripts/format-chooser.mjs choose --for <closeout|plan-approval|challenge|brainstorm-graduation> --content-file <output.md>
+```
+
+Q1 picks the form — `none` (prose, the correct default) · table · mermaid ·
+html. Q2 names the diagram family (data-flow, flowchart, state-machine,
+tree, loop, quadrant, timeline, architecture, sankey, other → the 45-type
+guide of the diagram-design skill). Boundaries are a closed set; the
+chooser never fires on ordinary replies. Advisory: the agent may overrule
+with a stated reason; skipped judge fails open to prose. HTML artifacts are
+generated views — never hand-edited, never gates, regenerable from the md
+source (DEC-005). /brainstorm's markmap tooling is retired; the research
+ledger stays markdown, visuals generate at graduation.
+
 ## Close-out
 
 At SHIP, the close-out renders in the chat — Shipped · Deviations ·

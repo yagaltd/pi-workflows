@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-26 — v0.12.0: format chooser (plan 20261026-032)
+
+- **Chooser**: `scripts/format-chooser.mjs choose --for <boundary> --content-file <file>` — two advisory questions, one judge call: artifact form (none/table/mermaid/html, none = correct default) and diagram family (semantic-pattern groups → diagram-design 45-type guide). Closed boundary set: closeout · plan-approval · challenge · brainstorm-graduation. Fail-open to prose; verdicts audited; overrule needs a stated reason.
+- **Wiring**: review Stage 3 (close-out), plan Phase 4 (approval ask), challenge Phase 5, brainstorm graduation.
+- **Markmap retired**: the /brainstorm ledger stays markdown; concept views generate at graduation via the chooser + diagram-design. No markmap tooling rules remain.
+- **DEC-005**: prose rung 1 default; artifacts are generated views, never gates; chooser verdicts audited.
+- **Queue**: E (anews pack) cancelled by owner; queue empty — a valid state.
+- **Gates at SHIP**: bun test full green, guard 2/2, golden 12/12 (new advisory-degrade case), settle judge live.
+
+# Changelog
+
 ## 2026-10-26 — v0.11.2: lessons in /plan + /challenge (plan 20261026-031)
 
 - **/plan Phase 1** reads the lessons ledger (`lessons.mjs list`) before decomposition; the draft cites applied lesson ids in Execution Notes; active lessons are not re-litigated without a recorded revisit-reason.
