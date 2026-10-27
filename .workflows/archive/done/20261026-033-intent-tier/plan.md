@@ -72,7 +72,8 @@ questions (System One native, DEC-004).
 - TASK 1 ✅ context: no changes — kind + tier in one call; tierRoute exported.
 - TASK 2 ✅ context: no changes — tier optional in the suggest type; entry command on answer routes.
 - TASK 3 ✅ context: no changes — add.md three bins; plan interview opener; README origin note; v0.12.1.
-- DISCOVERY: live run classifies "we should add caching, redis in middleware" as solution-tier — the exact gap the plan closes: not broad (skip /idea), not surgical; /plan is the right entry.
+- DEVIATION: the first discovery marker claimed the live run returned solution-tier — written before tier printed in stdout; the actual live verdict is problem @0.61 — implication: markers state observed output only, never expectation; corrected post-ship.
+- DISCOVERY: main() stdout initially omitted tier (spec required it) — caught by the live run, fixed before archive.
 
 ## Docs impact
 
