@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/brainstorm — how it works</title>
+<style>
+  :root{
+    --paper:#f5f5f5; --paper-2:#ececec; --ink:#2d3142; --ink-strong:#111111;
+    --muted:#4f5d75; --soft:#5a6580; --rule:rgba(45,49,66,0.12); --rule-solid:#bfc0c0;
+    --accent:#bf4520; --accent-tint:rgba(191,69,32,0.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--paper);color:var(--ink);font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:32px 24px}
+  .wrap{max-width:760px;margin:0 auto}
+  .kicker{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px}
+  .lede{font-size:14px;color:var(--muted);line-height:1.5;max-width:60ch;margin-bottom:24px}
+  .diagram{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:16px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:24px}
+  .card{background:var(--paper);border:1px solid var(--rule);border-radius:6px;padding:16px}
+  .card h3{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);margin-bottom:8px}
+  .card p{font-size:13px;line-height:1.5;color:var(--ink)}
+  footer{margin-top:24px;padding-top:16px;border-top:1px solid var(--rule);font-size:12px;color:var(--soft);line-height:1.6}
+  @media (max-width:640px){.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="kicker">pi-workflows · command flow</div>
+  <h1>/brainstorm — divergent research loop</h1>
+  <p class="lede">Divergent thinking with a living research ledger. Evidence validates or kills branches; the human decides when to graduate. No code, no specs, no commitment.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 760 740" width="100%" role="img" aria-label="/brainstorm flow: question, branches, evidence rounds, ledger, graduation fork">
+    <defs>
+      <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#2d3142"/>
+      </marker>
+    </defs>
+
+    <!-- 1 start -->
+    <ellipse cx="300" cy="64" rx="88" ry="26" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="300" y="60" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3142">Your question</text>
+    <text x="300" y="76" text-anchor="middle" font-size="11" fill="#5a6580">scope fixed</text>
+
+    <!-- 1→2 -->
+    <line x1="300" y1="90" x2="300" y2="130" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+
+    <!-- 2 branches -->
+    <rect x="200" y="134" width="200" height="60" rx="6" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="300" y="158" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3142">Divergent branches</text>
+    <text x="300" y="176" text-anchor="middle" font-size="11" fill="#5a6580">hypotheses open ❓ in the ledger</text>
+
+    <!-- 2→3 -->
+    <line x1="300" y1="194" x2="300" y2="246" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+
+    <!-- 3 research rounds -->
+    <rect x="200" y="250" width="200" height="60" rx="6" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="300" y="274" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3142">Research rounds</text>
+    <text x="300" y="292" text-anchor="middle" font-size="11" fill="#5a6580">subagents fetch evidence per angle</text>
+
+    <!-- 3→4 -->
+    <line x1="300" y1="310" x2="300" y2="362" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+
+    <!-- 4 ledger update -->
+    <rect x="180" y="366" width="240" height="72" rx="6" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="300" y="390" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3142">Ledger update</text>
+    <text x="300" y="408" text-anchor="middle" font-size="11" fill="#5a6580">status on evidence only: ❓→✅ ❌ 💤</text>
+    <text x="300" y="424" text-anchor="middle" font-size="11" fill="#5a6580">frontier questions ranked</text>
+
+    <!-- 4→5 -->
+    <line x1="300" y1="438" x2="300" y2="486" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+
+    <!-- 5 graduate? decision (coral) -->
+    <polygon points="300,490 400,546 300,602 200,546" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.5"/>
+    <text x="300" y="542" text-anchor="middle" font-size="14" font-weight="600" fill="#2d3142">Graduate?</text>
+    <text x="300" y="560" text-anchor="middle" font-size="11" fill="#5a6580">human call</text>
+
+    <!-- no: loop back to research rounds -->
+    <path d="M300,602 L300,648 L112,648 L112,280 L194,280" fill="none" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+    <text x="122" y="470" font-size="12" fill="#4f5d75" transform="rotate(-90 122 470)" text-anchor="middle">no — frontier open · next round</text>
+
+    <!-- yes → merge dot (knowledge/ handoff) -->
+    <line x1="400" y1="546" x2="568" y2="546" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+    <text x="446" y="536" text-anchor="middle" font-size="12" font-weight="600" fill="#bf4520">yes</text>
+
+    <circle cx="576" cy="546" r="4" fill="#2d3142"/>
+    <text x="576" y="524" text-anchor="middle" font-size="11" fill="#5a6580">graduate — knowledge/ handoff</text>
+
+    <!-- merge dot fans to three ends -->
+    <path d="M576,550 L576,584 L180,584 L180,646" fill="none" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+    <path d="M576,550 L576,646" fill="none" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+    <path d="M576,550 L576,584 L620,584 L620,646" fill="none" stroke="#4f5d75" stroke-width="1.5" marker-end="url(#arw)"/>
+
+    <ellipse cx="180" cy="674" rx="92" ry="26" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="180" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3142">/idea — productize</text>
+    <text x="180" y="686" text-anchor="middle" font-size="11" fill="#5a6580">ledger is the context</text>
+
+    <ellipse cx="400" cy="674" rx="92" ry="26" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="400" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3142">/explore — test one</text>
+    <text x="400" y="686" text-anchor="middle" font-size="11" fill="#5a6580">decisive hypothesis</text>
+
+    <ellipse cx="620" cy="674" rx="92" ry="26" fill="#f5f5f5" stroke="#2d3142" stroke-width="1.5"/>
+    <text x="620" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#2d3142">park 💤 / kill ❌</text>
+    <text x="620" y="686" text-anchor="middle" font-size="11" fill="#5a6580">ledger keeps the why</text>
+  </svg>
+  </div>
+
+  <div class="cards">
+    <div class="card"><h3>Evidence only</h3><p>A branch changes status ❓→✅/❌/💤 only on evidence from a research round. Never on opinion.</p></div>
+    <div class="card"><h3>One ledger</h3><p><code>.workflows/research/&lt;slug&gt;/ledger.md</code> is the memory. Markdown tree; the chat is not the record.</p></div>
+    <div class="card"><h3>Human graduates</h3><p>The loop never self-exits. You pick /explore, /idea, park, or kill — reports ride along as context.</p></div>
+  </div>
+
+  <footer>
+    Source of truth: <code>skills/brainstorm/SKILL.md</code> (pi-workflows v0.12.0). Generated view — 2026-10-26, diagram-design flowchart, style defaults. Not a gate; regenerate from the skill file when it changes.
+  </footer>
+</div>
+</body>
+</html>

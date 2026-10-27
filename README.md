@@ -610,8 +610,15 @@ Suggest-only — the routing line is injected into the turn, never auto-executed
 - `ask` → ambiguous — one clarifying question first
 - `proceed` / judge unavailable → silent
 
+**Intent tier** (plan 20261026-033): the same call asks one more choice —
+is the request a **problem** (no solution chosen), a **solution**
+(approach chosen, design open), or a **procedure** (exact steps known)?
+`tierRoute` maps them to `/idea`, `/plan`, `/add`; an `answer` route
+appends the entry-command suggestion. `/add` intake routes the same three
+bins. Origin: why/what/how tiers of thinking (stuwe.dev).
+
 Every verdict appends to `.workflows/intent/trail.jsonl` (route, kind,
-confidence, threshold, probabilities). Fail-open: import or call failure
+tier, confidence, threshold, probabilities). Fail-open: import or call failure
 injects nothing. Explicit `/commands` are never overridden — owner routing
 stays final.
 

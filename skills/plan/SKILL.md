@@ -477,3 +477,11 @@ A visual pick (html/mermaid) generates the decision view via the
 diagram-design doctrine; `none` keeps prose. Overrule needs a stated
 reason. plan.md stays the source of truth; HTML is a generated view —
 never hand-edited, never a gate, regenerable.
+
+## Intake tier question (plan 20261026-033)
+
+Open the interview with one question when intake is ambiguous: **is this
+request a problem, a solution, or a procedure?** problem with no chosen
+solution → hand back to `/idea` (or `/brainstorm`); solution → plan it
+here (the what is given; tasks carry the how); procedure → `/add` with a
+direct contract. Origin: why/what/how tiers of thinking (stuwe.dev).

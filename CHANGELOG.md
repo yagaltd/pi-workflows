@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-10-26 — v0.12.1: intent tier (plan 20261026-033)
+
+- **Tier question**: `classify` asks kind + tier (problem | solution | procedure) in one judge call — parallel System One questions, no extra request. Trail and stdout carry tier + tierConfidence.
+- **tierRoute**: problem → idea, solution → plan, procedure → add. Hook suggestions carry `tier=`; an `answer` route (unrelated to the live plan) appends the entry-command suggestion.
+- **/add three-bin intake**: problem → /idea (divergent → /brainstorm); solution → /plan; procedure → mini-recon + contract. The /plan interview opens with the tier question when intake is ambiguous.
+- **Origin**: why/what/how tiers of thinking (stuwe.dev) — working name: intent tier.
+- **Gates at SHIP**: bun test full green, guard 3/3, golden 12/12, settle judge live.
+
+# Changelog
+
 ## 2026-10-26 — v0.12.0: format chooser (plan 20261026-032)
 
 - **Chooser**: `scripts/format-chooser.mjs choose --for <boundary> --content-file <file>` — two advisory questions, one judge call: artifact form (none/table/mermaid/html, none = correct default) and diagram family (semantic-pattern groups → diagram-design 45-type guide). Closed boundary set: closeout · plan-approval · challenge · brainstorm-graduation. Fail-open to prose; verdicts audited; overrule needs a stated reason.

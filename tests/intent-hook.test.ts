@@ -11,6 +11,21 @@ const PLAN = `# Plan: fixture (062)
 `;
 
 describe("intent-guard hook (plan 20261026-030)", () => {
+  test("hook suggestion carries the tier and entry command for problem-level answers", () => {
+    const problem = intentGuardSuggest({ route: "answer", kind: "unrelated", confidence: 0.88, tier: "problem" });
+    expect(problem?.message.content).toContain("/idea");
+    expect(problem?.message.content).toContain("tier=problem");
+    const solution = intentGuardSuggest({ route: "answer", kind: "unrelated", confidence: 0.9, tier: "solution" });
+    expect(solution?.message.content).toContain("/plan");
+    const procedure = intentGuardSuggest({ route: "answer", kind: "unrelated", confidence: 0.9, tier: "procedure" });
+    expect(procedure?.message.content).toContain("/add");
+    const noTier = intentGuardSuggest({ route: "answer", kind: "unrelated", confidence: 0.9 });
+    expect(noTier?.message.content).not.toContain("consider");
+    const amend = intentGuardSuggest({ route: "amend", kind: "amend_needed", confidence: 0.93, tier: "solution" });
+    expect(amend?.message.content).toContain("tier=solution");
+    expect(intentGuardSuggest({ route: "proceed", kind: "current_spec", confidence: 0.95, tier: "procedure" })).toBeUndefined();
+  });
+
   test("hook builds a suggest-only message for user prompts on a live plan", () => {
     const amend = intentGuardSuggest({ route: "amend", kind: "amend_needed", confidence: 0.93 });
     expect(amend?.message.customType).toBe("pi-workflows-intent-guard");

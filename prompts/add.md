@@ -9,7 +9,10 @@ If a .spec file path is provided as argument, read the contract first:
 agent-spec contract <spec-file>
 ```
 
-If no spec file, only proceed for small surgical requests: mini-recon first, create a contract, ask approval. Broad or ambiguous ideas must route to `/idea`.
+If no spec file, classify the request tier first (plan 20261026-033):
+- **problem** — no solution chosen; broad or ambiguous → route to `/idea` (divergent → `/brainstorm`)
+- **solution** — approach chosen, design open → route to `/plan` for the contract set
+- **procedure** — small surgical request, exact steps known → mini-recon first, create a contract, ask approval here
 
 Implement within approved contract boundaries. Verify with agent-spec lifecycle.
 

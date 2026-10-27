@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { classify, main, planTasks } from "../scripts/intent-guard.mjs";
+import { classify, main, planTasks, tierRoute } from "../scripts/intent-guard.mjs";
 
 const PLAN = `# Plan: fixture (001)
 
@@ -17,21 +17,37 @@ const PLAN = `# Plan: fixture (001)
 - **Wave**: 2
 `;
 
-// systemone-shaped stub (plan 20261026-030): one kind row; confidence and
-// probabilities ride the choice answer.
-const stubAsk = (kind, confidence = 0.9, probabilities = undefined) => async () => (
-  kind === null
-    ? { status: 0, skipped: true }
-    : { status: 0, verdict: [{ id: "kind", verdict: kind, confidence, ...(probabilities ? { probabilities } : {}) }] }
-);
+// systemone-shaped stub (plans 20261026-030 + 033): kind + tier rows; confidence
+// and probabilities ride the choice answers.
+const stubAsk = (kind, confidence = 0.9, probabilities = undefined, tier = "solution", tierConfidence = 0.8) => async ({ questions }) => {
+  if (kind === null) return { status: 0, skipped: true };
+  if (!questions.some((q) => q.id === "kind") || !questions.some((q) => q.id === "tier")) throw new Error("missing kind or tier question");
+  return {
+    status: 0,
+    verdict: [
+      { id: "kind", verdict: kind, confidence, ...(probabilities ? { probabilities } : {}) },
+      { id: "tier", verdict: tier, confidence: tierConfidence },
+    ],
+  };
+};
 
 describe("intent-guard (plans 20261025-023 + 20261026-030)", () => {
-  test("intent-guard classifies queries against the live plan", async () => {
+  test("intent-guard classifies kind and tier in one judge call", async () => {
     expect(planTasks(PLAN).map((t) => t.id)).toEqual(["task-1", "task-2"]);
-    const c = await classify({ query: "finish the flows runner", planText: PLAN, threshold: 0.85, ask: stubAsk("current_spec", 0.92) });
+    const c = await classify({ query: "finish the flows runner", planText: PLAN, threshold: 0.85, ask: stubAsk("current_spec", 0.92, undefined, "procedure") });
     expect(c.route).toBe("proceed");
+    expect(c.tier).toBe("procedure");
+    expect(c.tierConfidence).toBe(0.8);
     const low = await classify({ query: "hmm the runner", planText: PLAN, threshold: 0.85, ask: stubAsk("current_spec", 0.6) });
     expect(low.route).toBe("ask");
+  });
+
+  test("tier route maps problem solution procedure to entry commands", () => {
+    expect(tierRoute("problem")).toBe("idea");
+    expect(tierRoute("solution")).toBe("plan");
+    expect(tierRoute("procedure")).toBe("add");
+    expect(tierRoute(null)).toBe(null);
+    expect(tierRoute("bogus")).toBe(null);
   });
 
   test("intent-guard reads confidence from the choice answer", async () => {
@@ -49,6 +65,7 @@ describe("intent-guard (plans 20261025-023 + 20261026-030)", () => {
     expect(c.route).toBe("ask-human");
     expect(c.skipped).toBe(true);
     expect(c.reason).toContain("judge unavailable");
+    expect(c.tier).toBe(null);
   });
 
   test("intent-guard routes amend-needed and unrelated without dispatch", async () => {
@@ -68,5 +85,6 @@ describe("intent-guard (plans 20261025-023 + 20261026-030)", () => {
     expect(rows[0].route).toBe("ask");
     expect(rows[0].threshold).toBe(0.85);
     expect(rows[0].confidence).toBe(0.4);
+    expect(rows[0].tier).toBe("solution");
   });
 });

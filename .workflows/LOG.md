@@ -188,3 +188,7 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 2026-10-26 APPROVE 20261026-032 — owner via session ("run F"). Wave 1 dispatched inline.
 2026-10-26 ALL-TASKS-DONE 20261026-032 — 2/2 ✅; guard 2/2; 206/206 bun test; golden 12/12; settle judge live.
 2026-10-26 SHIP 20261026-032 format-chooser → v0.12.0: two-question advisory chooser at four boundaries, markmap retired, DEC-005, E cancelled. Archived. Queue EMPTY.
+2026-10-26 PLAN 20261026-033 intent-tier drafted (owner, session): 3 tasks / 2 waves. Tier question beside kind (one call); tierRoute entry commands; /add three bins. Origin: why/what/how tiers (stuwe.dev).
+2026-10-26 APPROVE 20261026-033 — owner via session ("run it"). Wave 1 dispatched inline.
+2026-10-26 ALL-TASKS-DONE 20261026-033 — 3/3 ✅; guard 3/3; 210/210 bun test; golden 12/12; settle judge live.
+2026-10-26 SHIP 20261026-033 intent-tier → v0.12.1: tier question beside kind (one call), tierRoute entry commands, /add three bins. Archived. Queue EMPTY.

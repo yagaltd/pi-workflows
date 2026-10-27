@@ -1014,17 +1014,23 @@ export function intentGuardApplies(event: any): boolean {
   return p.length > 0 && !p.startsWith("/");
 }
 
-/** Suggest-only routing line; proceed and ask-human stay silent. */
+/** Suggest-only routing line; proceed and ask-human stay silent.
+ *  Tier (plan 20261026-033): an answer route appends the entry-command
+ *  suggestion — problem→idea, solution→plan, procedure→add. */
 export function intentGuardSuggest(c: {
   route: string;
   kind: string | null;
   confidence: number | null;
+  tier?: string | null;
 }): { message: { customType: string; content: string; display: boolean } } | undefined {
-  const tail = `kind=${c.kind}, confidence=${c.confidence ?? "?"} — suggest-only, never auto-executed.`;
+  const entry = c.tier === "problem" ? "/idea (or /brainstorm)" : c.tier === "solution" ? "/plan" : c.tier === "procedure" ? "/add" : null;
+  const tail = `kind=${c.kind}, tier=${c.tier ?? "?"}, confidence=${c.confidence ?? "?"} — suggest-only, never auto-executed.`;
   if (c.route === "amend")
     return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] this request changes requirements — run /amend before touching tasks (${tail})`, display: true } };
-  if (c.route === "answer")
-    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] unrelated to the live plan — answer directly, do not start tasks (${tail})`, display: true } };
+  if (c.route === "answer") {
+    const entryLine = entry ? ` If it starts new work, consider ${entry}.` : "";
+    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] unrelated to the live plan — answer directly, do not start tasks${entryLine} (${tail})`, display: true } };
+  }
   if (c.route === "ask")
     return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] ambiguous against the live plan — ask one clarifying question before touching tasks (${tail})`, display: true } };
   return undefined;
