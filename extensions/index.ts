@@ -53,6 +53,18 @@
  *    agents/registry.md, verdict files, ctx.cwd) and returns the binding
  *    resolveNext() result plus the wave's eligible members.
  *
+ * 8. Verdict automation (plan 20261026-036 D2/D3): a FINAL verdict write
+ *    (`.workflows/reviews/<task-id>.md` carrying the `## Verdict` block
+ *    with `**ok: true**`/`**ok: false**`) records the proof (proof-ledger)
+ *    and the journal (run-journal done|failed) once per task:round
+ *    (content-hashed dedupe), and — exactly when the wave's LAST pending
+ *    task settles — runs the judge compaction (scripts/judge.mjs ask,
+ *    64-cap split) and queues a fixed-size verdict table for injection at
+ *    the next before_agent_start; `JUDGE SKIPPED` ⇒ one-sentence per-child
+ *    fallback. Absent scripts ⇒ silent skip (documented degradation — the
+ *    same class as the auto-gate advisory). Record-only: never blocks a
+ *    write, separate registration branch from the auto-gate.
+ *
  * Deliberately small: role substitution + drift watchdogs + write-time
  * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
@@ -62,6 +74,7 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { createHash } from "crypto";
 import { execSync, spawnSync } from "child_process";
 
 
@@ -682,6 +695,185 @@ export function dispatchNext(opts: { cwd: string }): DispatchNextResult {
   const result = resolveNext(input);
   const eligible = result.ok ? eligibleTasks(input).eligible : [];
   return { ...result, eligible };
+}
+
+/* ------------------ verdict automation (plan 20261026-036 D2/D3) ------------------ */
+
+/**
+ * @cc [label:hook,id:verdict-automation] verdict-automation
+ * The verdict branch is record-only: it never blocks a write, never edits
+ * files, never emits a gate verdict — it spawns the record CLIs (proof-ledger,
+ * run-journal) once per task:round and the wave-settle compaction once per
+ * settled wave, then queues a fixed-size injection for the next
+ * before_agent_start. Absent scripts are documented degradation: skip
+ * silently (the same class as the auto-gate advisory — the hooks are
+ * optional tooling).
+ *
+ * Parse a repo-relative write into a FINAL verdict trigger: a
+ * `.workflows/reviews/<task-id>.md` path whose content carries the
+ * `## Verdict` block with a `**ok: true**` / `**ok: false**` marker.
+ * Notes, partial reviews, and other paths are null. */
+export function parseVerdictWrite(
+  file: string,
+  content: string
+): { taskId: string; ok: boolean } | null {
+  const m = /^\.workflows\/reviews\/(task-\d+)\.md$/.exec(file);
+  if (!m) return null;
+  if (!/^##\s*Verdict\b/m.test(content)) return null;
+  const ok = /\*\*ok:\s*(true|false)\*\*/.exec(content);
+  if (!ok) return null;
+  return { taskId: m[1], ok: ok[1] === "true" };
+}
+
+/** A settled wave child — the compaction question set's unit. */
+export interface WaveChild {
+  id: string;
+  goal: string;
+  ok: boolean;
+}
+
+/** The children of `wave`, or null while ANY task of the wave still lacks a
+ *  FINAL verdict on file (the "last pending settles" rule — mechanical,
+ *  independent of the plan's status marks, which may lag the verdict
+ *  write). Single-task waves settle on their own verdict. */
+export function waveSettledChildren(
+  tasks: PlanTask[],
+  wave: number,
+  reviewFiles: { name: string; content: string }[]
+): WaveChild[] | null {
+  const inWave = tasks.filter((t) => t.wave === wave);
+  if (inWave.length === 0) return null;
+  const children: WaveChild[] = [];
+  for (const t of inWave) {
+    const f = reviewFiles.find((r) => r.name === `${t.id}.md`);
+    if (!f) return null;
+    const v = parseVerdictWrite(`.workflows/reviews/${f.name}`, f.content);
+    if (v === null) return null;
+    children.push({ id: t.id, goal: t.goal, ok: v.ok });
+  }
+  return children;
+}
+
+/** A judge question row — {id, question, schema} per scripts/judge.mjs. */
+export interface JudgeQuestion {
+  id: string;
+  question: string;
+  schema: { enum: string[] };
+}
+
+/** Question set for the settled children — outcome, blockers, deviations,
+ *  cost bucket (four rows per child, per D3). The child's mechanical facts
+ *  ride in the question text: the judge compresses, it does not discover. */
+export function buildWaveQuestions(children: WaveChild[]): JudgeQuestion[] {
+  const qs: JudgeQuestion[] = [];
+  for (const c of children) {
+    const fact = `${c.id} (${c.goal}) settled with final verdict ok:${c.ok}`;
+    qs.push({
+      id: `${c.id}-outcome`,
+      question: `${fact}. Was the outcome ok?`,
+      schema: { enum: ["yes", "no"] },
+    });
+    qs.push({
+      id: `${c.id}-blockers`,
+      question: `${fact}. Does it have unresolved blockers?`,
+      schema: { enum: ["yes", "no"] },
+    });
+    qs.push({
+      id: `${c.id}-deviations`,
+      question: `${fact}. Did it deviate from its contract?`,
+      schema: { enum: ["yes", "no"] },
+    });
+    qs.push({
+      id: `${c.id}-cost`,
+      question: `${fact}. Is its cost bucket low, medium, or high?`,
+      schema: { enum: ["low", "medium", "high"] },
+    });
+  }
+  return qs;
+}
+
+/** Honor the judge's 64-question cap per call: ordered chunks, none dropped. */
+export function splitQuestions(qs: JudgeQuestion[], cap = 64): JudgeQuestion[][] {
+  const out: JudgeQuestion[][] = [];
+  for (let i = 0; i < qs.length; i += cap) out.push(qs.slice(i, i + cap));
+  return out;
+}
+
+/** Parse judge ask stdout into verdict rows; null when not a JSON array. */
+export function parseJudgeRows(
+  stdout: string
+): { id: string; verdict: string }[] | null {
+  try {
+    const j = JSON.parse(stdout);
+    if (!Array.isArray(j)) return null;
+    return j.filter((r: any) => r && typeof r.id === "string");
+  } catch {
+    return null;
+  }
+}
+
+/** Fixed-size verdict table: one row per child, four bounded columns — no
+ *  free text, length bounded by the children count. */
+export function verdictTable(
+  wave: number,
+  children: WaveChild[],
+  rows: { id: string; verdict: string }[]
+): string {
+  const byId = new Map(rows.map((r) => [r.id, String(r.verdict)]));
+  const cell = (c: WaveChild, dim: string): string => byId.get(`${c.id}-${dim}`) ?? "?";
+  return [
+    `[pi-workflows wave-settle] wave ${wave} settled (${children.length} child/children) — compaction verdict table:`,
+    "| child | outcome | blockers | deviations | cost |",
+    "| --- | --- | --- | --- | --- |",
+    ...children.map(
+      (c) =>
+        `| ${c.id} | ${cell(c, "outcome")} | ${cell(c, "blockers")} | ${cell(c, "deviations")} | ${cell(c, "cost")} |`
+    ),
+  ].join("\n");
+}
+
+/** JUDGE SKIPPED fallback — one sentence per child, from the mechanical
+ *  facts only. Never silence: the wave settle is always surfaced. */
+export function fallbackNote(wave: number, children: WaveChild[]): string {
+  return [
+    `[pi-workflows wave-settle] wave ${wave} settled (${children.length} child/children) — judge unavailable, per-child summary:`,
+    ...children.map((c) => `- ${c.id} (${c.goal}): final verdict ok:${c.ok}.`),
+  ].join("\n");
+}
+
+/** The record CLIs' argv (pure): proof-ledger record always carries the
+ *  plan id, task id, Verify command and spec path (a failing verifier is
+ *  still recorded data); run-journal records done|failed. Cost is omitted —
+ *  child usage is not available on the write event. */
+export function recordArgvs(opts: {
+  planId: string;
+  taskId: string;
+  verify: string;
+  contractPath: string;
+  ok: boolean;
+}): { proof: string[]; journal: string[] } {
+  return {
+    proof: [
+      "record",
+      "--plan",
+      opts.planId,
+      "--task",
+      opts.taskId,
+      "--verify",
+      opts.verify,
+      "--spec",
+      opts.contractPath,
+    ],
+    journal: [
+      "record",
+      "--plan",
+      opts.planId,
+      "--task",
+      opts.taskId,
+      "--event",
+      opts.ok ? "done" : "failed",
+    ],
+  };
 }
 
 /* ------------------- supersede watchdog (advisory only) ------------------- */
@@ -1488,5 +1680,195 @@ export default function register(pi: any): void {
         details: payload,
       };
     },
+  });
+
+  // 8. Verdict automation (plan 20261026-036 D2/D3) — records + wave-settle
+  //    compaction on FINAL verdict writes. A separate registration branch on
+  //    the same tool_call stream (the auto-gate is inert on review .md — no
+  //    shared state): it matches only .workflows/reviews/<task-id>.md writes,
+  //    never blocks, and skips silently when the record CLIs are absent.
+  const recordedVerdicts = new Set<string>(); // <task-id>:<content hash> — once per task:round
+  const settledWaves = new Set<string>(); // <plan-id>:<wave> — compaction once per wave
+  let waveSettleInjection: string | null = null;
+
+  /** Script resolution for the record CLIs: an explicit override dir (env,
+   *  test seam) wins, then the live repo's scripts/, then the package's own
+   *  (installed-package users record with the shipped CLIs). null = absent =
+   *  documented degradation (skip silently). */
+  const resolveScript = (cwd: string, name: string): string | null => {
+    const override = process.env.PI_WORKFLOWS_SCRIPTS_DIR;
+    const candidates = override
+      ? [path.join(override, name)]
+      : [path.join(cwd, "scripts", name), path.join(__dirname, "..", "scripts", name)];
+    for (const p of candidates) {
+      try {
+        if (fs.existsSync(p)) return p;
+      } catch {
+        // unreadable candidate — keep looking
+      }
+    }
+    return null;
+  };
+
+  /** Argument-array capture (runCapture/runGate's sibling — no shell, data
+   *  never interpolated); null when the process could not run. */
+  const runScript = (
+    script: string,
+    args: string[],
+    cwd: string,
+    timeoutMs: number
+  ): { code: number; stdout: string; stderr: string } | null => {
+    try {
+      const r = spawnSync(process.execPath, [script, ...args], {
+        cwd,
+        encoding: "utf8",
+        timeout: timeoutMs,
+      });
+      if (r.error) return null;
+      return {
+        code: r.status ?? 1,
+        stdout: typeof r.stdout === "string" ? r.stdout : "",
+        stderr: typeof r.stderr === "string" ? r.stderr : "",
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  pi.on("tool_call", async (event: any, ctx: any) => {
+    try {
+      if (event.toolName !== "write" && event.toolName !== "edit") return undefined;
+      const input = event?.input ?? {};
+      // The material the write will land: content for write, the new text of
+      // each hunk for edit (reviews are written wholesale; the edit path is
+      // the safety net for appended verdict blocks).
+      const material =
+        typeof input.content === "string"
+          ? input.content
+          : Array.isArray(input.edits)
+            ? input.edits
+                .map((e: any) => (typeof e?.newText === "string" ? e.newText : ""))
+                .join("\n")
+            : "";
+      if (!material) return undefined;
+      const cwd = ctx?.cwd || process.cwd();
+      const file = toRepoRelative(cwd, typeof input.path === "string" ? input.path : "");
+      if (file === null) return undefined;
+      const verdict = parseVerdictWrite(file, material);
+      if (verdict === null) return undefined;
+      const planPath = path.join(cwd, ".workflows", "plan.md");
+      if (!fs.existsSync(planPath)) return undefined; // inert without a live plan
+      const plan = fs.readFileSync(planPath, "utf8");
+      // Dedupe FIRST (watchdog pattern): the content hash is the round — a
+      // second identical FINAL write is a no-op; a changed verdict is a new
+      // round and records again.
+      const dedupeKey = `${verdict.taskId}:${createHash("sha256")
+        .update(material)
+        .digest("hex")}`;
+      if (recordedVerdicts.has(dedupeKey)) return undefined;
+      recordedVerdicts.add(dedupeKey);
+
+      const planId = parseProvenance(plan).planId;
+      const tasks = parsePlan(plan);
+      const task = tasks.find((t) => t.id === verdict.taskId);
+
+      // Records (D2). An orphan review (task not in the plan, or a plan
+      // without a Plan ID) has no verify command to prove and skips silently.
+      if (planId && task) {
+        const argvs = recordArgvs({
+          planId,
+          taskId: verdict.taskId,
+          verify: task.verify,
+          contractPath: task.contractPath,
+          ok: verdict.ok,
+        });
+        const proof = resolveScript(cwd, "proof-ledger.mjs");
+        // proof-ledger re-runs the Verify suite to hash its output — long
+        // timeout; journal is a plain append — short. Failures are swallowed:
+        // records are post-write side effects, never a block.
+        if (proof && task.verify) runScript(proof, argvs.proof, cwd, 120_000);
+        const journal = resolveScript(cwd, "run-journal.mjs");
+        if (journal) runScript(journal, argvs.journal, cwd, 30_000);
+      }
+
+      // Wave-settle compaction (D3) — exactly when the LAST pending task of
+      // the wave gains its FINAL verdict (all wave tasks settled on file),
+      // once per plan:wave. The current write is overlaid — the hook runs
+      // before the write lands.
+      if (planId && task) {
+        const reviewsDir = path.join(cwd, ".workflows", "reviews");
+        const reviewFiles: { name: string; content: string }[] = fs.existsSync(reviewsDir)
+          ? fs
+              .readdirSync(reviewsDir)
+              .filter((f) => f.endsWith(".md"))
+              .map((f) => ({
+                name: f,
+                content: fs.readFileSync(path.join(reviewsDir, f), "utf8"),
+              }))
+          : [];
+        const withCurrent = [
+          ...reviewFiles.filter((f) => f.name !== `${verdict.taskId}.md`),
+          { name: `${verdict.taskId}.md`, content: material },
+        ];
+        const children = waveSettledChildren(tasks, task.wave, withCurrent);
+        const waveKey = `${planId}:${task.wave}`;
+        if (children !== null && !settledWaves.has(waveKey)) {
+          settledWaves.add(waveKey);
+          const judge = resolveScript(cwd, "judge.mjs");
+          if (judge !== null) {
+            const audit = path.join(cwd, ".workflows", "judge-audit.jsonl");
+            const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflows-wave-"));
+            const qfile = path.join(tmp, "questions.json");
+            const rows: { id: string; verdict: string }[] = [];
+            let skipped = false;
+            for (const chunk of splitQuestions(buildWaveQuestions(children))) {
+              fs.writeFileSync(qfile, JSON.stringify(chunk));
+              const r = runScript(
+                judge,
+                ["ask", "--questions", qfile, "--audit", audit],
+                cwd,
+                60_000
+              );
+              const parsed =
+                r !== null && !/JUDGE SKIPPED/.test(r.stderr)
+                  ? parseJudgeRows(r.stdout)
+                  : null;
+              if (parsed === null) {
+                skipped = true;
+                break;
+              }
+              rows.push(...parsed);
+            }
+            try {
+              fs.rmSync(tmp, { recursive: true, force: true });
+            } catch {
+              // tmp cleanup is best-effort
+            }
+            waveSettleInjection = skipped
+              ? fallbackNote(task.wave, children)
+              : verdictTable(task.wave, children, rows);
+          }
+        }
+      }
+      return undefined; // the verdict branch never blocks the write
+    } catch {
+      // Records/compaction must never break the write path.
+      return undefined;
+    }
+  });
+
+  // Wave-settle injection — the existing before_agent_start pattern: return
+  // the queued compaction once, then clear (one message per settled wave).
+  pi.on("before_agent_start", async () => {
+    if (waveSettleInjection === null) return undefined;
+    const content = waveSettleInjection;
+    waveSettleInjection = null;
+    return {
+      message: {
+        customType: "pi-workflows-wave-settle",
+        content,
+        display: true,
+      },
+    };
   });
 }

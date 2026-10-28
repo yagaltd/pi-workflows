@@ -31,7 +31,16 @@ import {
   matchesAllowed,
   firstFindingsLine,
   autoGate,
+  parseVerdictWrite,
+  waveSettledChildren,
+  buildWaveQuestions,
+  splitQuestions,
+  parseJudgeRows,
+  verdictTable,
+  fallbackNote,
+  recordArgvs,
   type GateRunner,
+  type WaveChild,
 } from "../extensions/index";
 
 const WORKER = `# Role: worker
@@ -1560,5 +1569,405 @@ describe("dispatch_next tool (plan 20261026-036)", () => {
     expect(p.reason).toContain(".workflows/plan.md");
     expect(p.eligible).toEqual([]);
     expect(JSON.parse(res.content[0].text).blocked).toBe("no-plan");
+  });
+});
+
+/* ------------------ verdict automation (plan 20261026-036) ------------------ */
+
+// Fixture plan: a two-task wave-1 — records fire per task; the compaction
+// fires exactly when the SECOND (last) task's FINAL verdict lands.
+const VERDICT_PLAN = `# Plan: verdict fixture (038)
+
+> Plan ID: 20260101-038
+> Status: APPROVED 2026-01-01 (owner)
+
+## Tasks
+
+### TASK 1 (Tier B): records fixture task — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+
+### TASK 2 (Tier B): records fixture task — src/b.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **Allowed**: src/b.ts
+- **Verify**: bun test
+`;
+
+const SINGLE_TASK_PLAN = VERDICT_PLAN.replace(
+  /### TASK 2[\s\S]*$/,
+  ""
+).replace("038", "039");
+
+const verdictDoc = (ok: boolean, extra = ""): string =>
+  `# Review — task\n\n## Verdict\n\n**ok: ${ok}**\n\nEvidence: fixture.${extra}`;
+
+// Stub record CLIs: journal their argv to RECORD_SPY, exit 0 instantly (the
+// real proof-ledger re-runs the Verify suite — the stub must not).
+const PROOF_STUB = `import fs from "node:fs";
+const spy = process.env.RECORD_SPY;
+if (spy) fs.appendFileSync(spy, JSON.stringify({ script: "proof-ledger", argv: process.argv.slice(2) }) + "\\n");
+`;
+
+const JOURNAL_STUB = `import fs from "node:fs";
+const spy = process.env.RECORD_SPY;
+if (spy) fs.appendFileSync(spy, JSON.stringify({ script: "run-journal", argv: process.argv.slice(2) }) + "\\n");
+`;
+
+// Echoes one verdict row per question (first enum value) — the mechanical
+// table the extension then renders.
+const JUDGE_OK_STUB = `import fs from "node:fs";
+const spy = process.env.RECORD_SPY;
+const args = process.argv.slice(2);
+if (spy) fs.appendFileSync(spy, JSON.stringify({ script: "judge", argv: args }) + "\\n");
+const qi = args.indexOf("--questions");
+const qs = JSON.parse(fs.readFileSync(args[qi + 1], "utf8"));
+console.log(JSON.stringify(qs.map((q) => ({ id: q.id, verdict: q.schema.enum[0], confidence: 0.9 }))));
+`;
+
+// The NO-JUDGE path: judge runs, skips (v0.8.2 shape), exit 0.
+const JUDGE_SKIP_STUB = `import fs from "node:fs";
+const spy = process.env.RECORD_SPY;
+if (spy) fs.appendFileSync(spy, JSON.stringify({ script: "judge", argv: process.argv.slice(2) }) + "\\n");
+process.stderr.write("JUDGE SKIPPED (missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json))\\n");
+`;
+
+function makeVerdictProject(plan = VERDICT_PLAN, stubs: Record<string, string> = {}): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t2-verdict-"));
+  fs.mkdirSync(path.join(dir, ".workflows", "reviews"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".workflows", "specs"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".workflows", "plan.md"), plan);
+  fs.writeFileSync(path.join(dir, ".workflows", "specs", "task-1.spec"), "spec: task\nname: t1\n");
+  fs.writeFileSync(path.join(dir, ".workflows", "specs", "task-2.spec"), "spec: task\nname: t2\n");
+  for (const [name, body] of Object.entries(stubs)) {
+    fs.mkdirSync(path.join(dir, "scripts"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "scripts", name), body);
+  }
+  return dir;
+}
+
+function verdictHarness(projDir: string) {
+  const handlers: Record<string, ((ev: any, ctx: any) => Promise<any>)[]> = {};
+  register({
+    on: (ev: string, fn: any) => (handlers[ev] ??= []).push(fn),
+    registerTool: () => undefined,
+  } as any);
+  const notifications: { message: string; level: string }[] = [];
+  const ctx = {
+    cwd: projDir,
+    hasUI: true,
+    ui: { notify: (message: string, level: string) => notifications.push({ message, level }) },
+  };
+  return {
+    notifications,
+    write: async (relPath: string, content: string) => {
+      let result: any;
+      for (const h of handlers.tool_call ?? []) {
+        result = await h(
+          { type: "tool_call", toolCallId: "t", toolName: "write", input: { path: relPath, content } },
+          ctx
+        );
+        if (result) break;
+      }
+      // like the real tool: an unblocked write lands on disk (the next
+      // hook run reads earlier verdicts from the reviews dir)
+      if (!(result && result.block)) {
+        fs.mkdirSync(path.dirname(path.join(projDir, relPath)), { recursive: true });
+        fs.writeFileSync(path.join(projDir, relPath), content);
+      }
+      return result;
+    },
+    inject: async () => {
+      const out: any[] = [];
+      for (const h of handlers.before_agent_start ?? []) {
+        const r = await h({ cwd: projDir }, ctx);
+        if (r) out.push(r);
+      }
+      return out;
+    },
+  };
+}
+
+async function withRecordsEnv(
+  spyFile: string | null,
+  scriptsOverride: string | null,
+  body: () => Promise<void> | void
+): Promise<void> {
+  const savedSpy = process.env.RECORD_SPY;
+  const savedScripts = process.env.PI_WORKFLOWS_SCRIPTS_DIR;
+  if (spyFile === null) delete process.env.RECORD_SPY;
+  else process.env.RECORD_SPY = spyFile;
+  if (scriptsOverride === null) delete process.env.PI_WORKFLOWS_SCRIPTS_DIR;
+  else process.env.PI_WORKFLOWS_SCRIPTS_DIR = scriptsOverride;
+  try {
+    await body();
+  } finally {
+    if (savedSpy === undefined) delete process.env.RECORD_SPY;
+    else process.env.RECORD_SPY = savedSpy;
+    if (savedScripts === undefined) delete process.env.PI_WORKFLOWS_SCRIPTS_DIR;
+    else process.env.PI_WORKFLOWS_SCRIPTS_DIR = savedScripts;
+  }
+}
+
+function readSpy(spyFile: string): { script: string; argv: string[] }[] {
+  return fs
+    .readFileSync(spyFile, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
+}
+
+describe("verdict automation (plan 20261026-036)", () => {
+  test("records proof and journal on a final ok true verdict", async () => {
+    const proj = makeVerdictProject(VERDICT_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      const result = await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      // record-only: the write proceeds, no interception, no advisory
+      expect(result).toBeUndefined();
+      expect(h.notifications).toHaveLength(0);
+      const lines = readSpy(spy);
+      expect(lines).toHaveLength(2); // once each
+      const proof = lines.find((l) => l.script === "proof-ledger")!;
+      expect(proof.argv[0]).toBe("record");
+      expect(proof.argv).toContain("--plan");
+      expect(proof.argv[proof.argv.indexOf("--plan") + 1]).toBe("20260101-038");
+      expect(proof.argv).toContain("--task");
+      expect(proof.argv[proof.argv.indexOf("--task") + 1]).toBe("task-1");
+      expect(proof.argv).toContain("--verify");
+      expect(proof.argv[proof.argv.indexOf("--verify") + 1]).toBe("bun test");
+      expect(proof.argv).toContain("--spec");
+      expect(proof.argv[proof.argv.indexOf("--spec") + 1]).toBe(".workflows/specs/task-1.spec");
+      const journal = lines.find((l) => l.script === "run-journal")!;
+      expect(journal.argv[0]).toBe("record");
+      expect(journal.argv).toContain("--event");
+      expect(journal.argv[journal.argv.indexOf("--event") + 1]).toBe("done");
+      // wave NOT settled (task-2 open) — no compaction injection
+      expect(await h.inject()).toEqual([]);
+    });
+  });
+
+  test("records failed outcome on a final ok false verdict", async () => {
+    const proj = makeVerdictProject(VERDICT_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(false));
+      const lines = readSpy(spy);
+      const journal = lines.find((l) => l.script === "run-journal")!;
+      expect(journal.argv[journal.argv.indexOf("--event") + 1]).toBe("failed");
+      // the proof is still recorded — exit code is data
+      const proof = lines.find((l) => l.script === "proof-ledger")!;
+      expect(proof.argv[proof.argv.indexOf("--task") + 1]).toBe("task-1");
+    });
+  });
+
+  test("dedupes per task and round", async () => {
+    const proj = makeVerdictProject(VERDICT_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      expect(readSpy(spy)).toHaveLength(2);
+      // identical FINAL write — no second record (task:round dedupe)
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      expect(readSpy(spy)).toHaveLength(2);
+      // a CHANGED verdict is a new round — it records again
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true, "\nRound 2 re-verified."));
+      expect(readSpy(spy)).toHaveLength(4);
+    });
+  });
+
+  test("degrades silently when the record scripts are absent", async () => {
+    // no stub scripts in the project; the override dir is empty — neither
+    // the repo's nor the package's CLIs are reachable
+    const proj = makeVerdictProject(VERDICT_PLAN);
+    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), "t2-noscripts-"));
+    const h = verdictHarness(proj);
+    await withRecordsEnv(null, emptyDir, async () => {
+      const result = await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      expect(result).toBeUndefined(); // write proceeds
+      expect(h.notifications).toHaveLength(0); // no advisory spam
+      expect(await h.inject()).toEqual([]); // no compaction either
+    });
+  });
+
+  test("injects the compaction table on the last verdict of a wave", async () => {
+    const proj = makeVerdictProject(VERDICT_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+      "judge.mjs": JUDGE_OK_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      // first task settles — the wave is still open, no injection yet
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      expect((await h.inject()).filter((m: any) => m.message?.customType === "pi-workflows-wave-settle")).toEqual([]);
+      // the LAST task's FINAL verdict settles the wave
+      await h.write(".workflows/reviews/task-2.md", verdictDoc(false));
+      const msgs = (await h.inject()).filter((m: any) => m.message?.customType === "pi-workflows-wave-settle");
+      expect(msgs).toHaveLength(1);
+      const content = msgs[0].message.content as string;
+      // fixed-size verdict table: header + one row per settled child
+      expect(content).toContain("| child | outcome | blockers | deviations | cost |");
+      expect(content).toContain("| task-1 |");
+      expect(content).toContain("| task-2 |");
+      // the judge ran ONCE with the settled-children question set
+      const judgeRuns = readSpy(spy).filter((l) => l.script === "judge");
+      expect(judgeRuns).toHaveLength(1);
+      expect(judgeRuns[0].argv[0]).toBe("ask");
+      expect(judgeRuns[0].argv).toContain("--questions");
+      expect(judgeRuns[0].argv).toContain("--audit");
+      // the injection is consumed — a second turn gets nothing
+      expect((await h.inject()).filter((m: any) => m.message?.customType === "pi-workflows-wave-settle")).toEqual([]);
+      // and an identical re-write of the settled verdict re-fires nothing
+      await h.write(".workflows/reviews/task-2.md", verdictDoc(false));
+      expect(readSpy(spy).filter((l) => l.script === "judge")).toHaveLength(1);
+    });
+  });
+
+  test("injects the fallback note when the judge skips", async () => {
+    const proj = makeVerdictProject(VERDICT_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+      "judge.mjs": JUDGE_SKIP_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      await h.write(".workflows/reviews/task-2.md", verdictDoc(false));
+      const msgs = (await h.inject()).filter((m: any) => m.message?.customType === "pi-workflows-wave-settle");
+      expect(msgs).toHaveLength(1);
+      const content = msgs[0].message.content as string;
+      // one sentence per child, from the mechanical facts — never silence
+      expect(content).toContain("judge unavailable");
+      expect(content).toContain("- task-1 (records fixture task — src/a.ts): final verdict ok:true.");
+      expect(content).toContain("- task-2 (records fixture task — src/b.ts): final verdict ok:false.");
+      expect(content).not.toContain("| child |");
+      // the judge ran and skipped (the skip is the fallback's trigger)
+      expect(readSpy(spy).filter((l) => l.script === "judge")).toHaveLength(1);
+    });
+  });
+
+  test("single-task waves settle on their own verdict", async () => {
+    const proj = makeVerdictProject(SINGLE_TASK_PLAN, {
+      "proof-ledger.mjs": PROOF_STUB,
+      "run-journal.mjs": JOURNAL_STUB,
+      "judge.mjs": JUDGE_OK_STUB,
+    });
+    const spy = path.join(proj, "spy.jsonl");
+    fs.writeFileSync(spy, "");
+    const h = verdictHarness(proj);
+    await withRecordsEnv(spy, null, async () => {
+      await h.write(".workflows/reviews/task-1.md", verdictDoc(true));
+      const msgs = (await h.inject()).filter((m: any) => m.message?.customType === "pi-workflows-wave-settle");
+      expect(msgs).toHaveLength(1); // injected immediately
+      expect(msgs[0].message.content).toContain("| task-1 |");
+    });
+  });
+});
+
+describe("verdict automation units", () => {
+  test("parseVerdictWrite requires the reviews path, the Verdict block, and the bold marker", () => {
+    expect(parseVerdictWrite(".workflows/reviews/task-1.md", "## Verdict\n\n**ok: true**")).toEqual({
+      taskId: "task-1",
+      ok: true,
+    });
+    expect(parseVerdictWrite(".workflows/reviews/task-1.md", "## Verdict\n\n**ok: false**")?.ok).toBe(false);
+    // not FINAL without the block or the marker
+    expect(parseVerdictWrite(".workflows/reviews/task-1.md", "**ok: true** in prose only")).toBeNull();
+    expect(parseVerdictWrite(".workflows/reviews/task-1.md", "## Verdict without a marker")).toBeNull();
+    // only the task's own review file shape
+    expect(parseVerdictWrite("src/notes.md", "## Verdict\n\n**ok: true**")).toBeNull();
+    expect(parseVerdictWrite(".workflows/reviews/other.md", "## Verdict\n\n**ok: true**")).toBeNull();
+  });
+
+  test("splitQuestions honors the 64 cap per call, dropping nothing", () => {
+    const child: WaveChild = { id: "task-1", goal: "g", ok: true };
+    // 3 children × 4 rows = 12 — one call
+    expect(splitQuestions(buildWaveQuestions([child, child, child]))).toHaveLength(1);
+    const big = buildWaveQuestions(
+      Array.from({ length: 17 }, (_, i) => ({ ...child, id: `task-${i + 1}` }))
+    );
+    expect(big).toHaveLength(68);
+    const chunks = splitQuestions(big);
+    expect(chunks.map((c) => c.length)).toEqual([64, 4]);
+    expect(chunks.flat()).toEqual(big);
+  });
+
+  test("verdictTable stays fixed-size; fallbackNote is one sentence per child", () => {
+    const children: WaveChild[] = [
+      { id: "task-1", goal: "a", ok: true },
+      { id: "task-2", goal: "b", ok: false },
+    ];
+    const qs = buildWaveQuestions(children);
+    expect(qs.map((q) => q.id)).toEqual([
+      "task-1-outcome",
+      "task-1-blockers",
+      "task-1-deviations",
+      "task-1-cost",
+      "task-2-outcome",
+      "task-2-blockers",
+      "task-2-deviations",
+      "task-2-cost",
+    ]);
+    const rows = [
+      { id: "task-1-outcome", verdict: "yes" },
+      { id: "task-1-blockers", verdict: "no" },
+      { id: "task-1-deviations", verdict: "no" },
+      { id: "task-1-cost", verdict: "low" },
+      { id: "task-2-outcome", verdict: "no" },
+      { id: "task-2-blockers", verdict: "yes" },
+      { id: "task-2-deviations", verdict: "yes" },
+      { id: "task-2-cost", verdict: "high" },
+    ];
+    const table = verdictTable(1, children, rows);
+    expect(table.split("\n")).toHaveLength(3 + children.length); // header + columns + separator + rows
+    expect(table).toContain("| task-1 | yes | no | no | low |");
+    expect(table).toContain("| task-2 | no | yes | yes | high |");
+    // missing rows degrade to ? — never a crash, never a growing column
+    expect(verdictTable(1, children, []).split("\n")).toHaveLength(5);
+    const note = fallbackNote(1, children);
+    expect(note.split("\n")).toHaveLength(1 + children.length);
+    expect(note).toContain("- task-2 (b): final verdict ok:false.");
+  });
+
+  test("recordArgvs carry the plan id, task id, verify command, and the done|failed event", () => {
+    const argvs = recordArgvs({
+      planId: "20260101-038",
+      taskId: "task-2",
+      verify: "bun test",
+      contractPath: ".workflows/specs/task-2.spec",
+      ok: false,
+    });
+    expect(argvs.proof).toEqual([
+      "record", "--plan", "20260101-038", "--task", "task-2",
+      "--verify", "bun test", "--spec", ".workflows/specs/task-2.spec",
+    ]);
+    expect(argvs.journal).toEqual([
+      "record", "--plan", "20260101-038", "--task", "task-2", "--event", "failed",
+    ]);
+    expect(recordArgvs({ planId: "p", taskId: "t", verify: "v", contractPath: "s", ok: true }).journal).toContain("done");
   });
 });
