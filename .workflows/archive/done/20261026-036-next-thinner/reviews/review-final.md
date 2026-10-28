@@ -1,0 +1,4 @@
+# Whole-plan final SHIP gate — plan 20261026-036 (next-thinner)
+
+## Round 1 — FINAL — ok: TRUE (reviewer pw36-final-reviewer, read-only over committed evidence — first-try)
+- 7/7 layers PASS, zero findings: gate chain (drift CLEAN, bun 225/0, selectors, docs-lint, cc-check known-finding only) · T1+T2 landed (registerTool dispatch_next :1466, parseVerdictWrite :716, recordedVerdicts dedupe, waveSettledChildren, judge.mjs spawn + JUDGE SKIPPED fallback, before_agent_start injection) · T3 thin prompts (45/45 lines, dispatch_next only, zero script/registry/record prose) · T4 (stubs deleted, README rows cleaned, CHANGELOG v0.12.2, version 0.12.2, agents/scout.md role stays) · per-task evidence (T1 R1 with baseline correction, T2 R1, T3 R1 + 2-stale-tests adjudication) · plan markers ×4 · registry adjudication (@cc registry-policy-table: tag-row-wins precedence, :585-591).
