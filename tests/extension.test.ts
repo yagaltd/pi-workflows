@@ -23,6 +23,9 @@ import {
   gateCommandsFor,
   verdictOnFile,
   resolveNext,
+  parseRegistryPolicy,
+  buildRegistry,
+  dispatchNext,
   runGate,
   toRepoRelative,
   matchesAllowed,
@@ -1175,7 +1178,11 @@ function makeBinDir(entries: Record<string, string>): string {
 
 function harness(projDir: string) {
   const handlers: Record<string, ((ev: any, ctx: any) => Promise<any>)[]> = {};
-  register({ on: (ev: string, fn: any) => (handlers[ev] ??= []).push(fn) } as any);
+  const tools: any[] = [];
+  register({
+    on: (ev: string, fn: any) => (handlers[ev] ??= []).push(fn),
+    registerTool: (t: any) => tools.push(t),
+  } as any);
   const notifications: { message: string; level: string }[] = [];
   const call = async (toolName: string, input: any) => {
     const start = notifications.length; // per-call slice — the array is cumulative
@@ -1191,7 +1198,7 @@ function harness(projDir: string) {
     }
     return { result, notifications: notifications.slice(start) };
   };
-  return { call, notifications };
+  return { call, notifications, tools };
 }
 async function withGateEnv(
   binDir: string | null,
@@ -1389,5 +1396,169 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
       expect(notifications).toHaveLength(0);
       expect(fs.readFileSync(env.journal, "utf8")).toBe("");
     });
+  });
+});
+
+/* ---------------------- dispatch_next tool (plan 20261026-036) ---------------------- */
+
+// Fixture plan: one wave-1 task, tagged Tier B 🟡 — the policy the fixture
+// registry below resolves for it. House plan shape (statuses/waves/provenance).
+const TOOL_PLAN = `# Plan: tool fixture (037)
+
+> Plan ID: 20260101-037
+> Status: APPROVED 2026-01-01 (owner)
+> env: bun test runner
+> dead-ends: no prompts/**
+
+## Tasks
+
+[PARALLEL-GROUP: wave-one]
+
+### TASK 1 (Tier B, 🟡): eligible tool task — src/a.ts
+- **Status**: ⬜ PENDING
+- **Wave**: 1
+- **Depends On**: none
+- **tdd**: false
+- **Allowed**: src/a.ts
+- **Verify**: bun test
+`;
+
+// Fixture agents/registry.md: the same table + tier-bullet shapes the real
+// registry uses (policy table rows keyed by emoji, tier-overlay bullets).
+const TOOL_REGISTRY = `# Role registry — fixture
+
+| Bottleneck | Tier | model | thinking | extra |
+|---|---|---|---|---|
+| 🔴 BLOCKING | C or B (per plan) | \`@model:strong\` | xhigh | human review after |
+| 🟡 RISKY | B | \`@model:strong\` | high | consider prototype first |
+| ⚪ STANDARD | A or B (per plan) | \`@model:standard\` | medium | default flow |
+
+Tier refines routing:
+
+- **A** → \`@model:standard\` + thinking low + grep-only review
+- **B** → existing per-tag routing above, unchanged
+- **C** → \`@model:strong\` + thinking high + **serial, never parallel**
+`;
+
+function makeToolProject(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t1-dispatch-"));
+  fs.mkdirSync(path.join(dir, ".workflows", "specs"), { recursive: true });
+  fs.mkdirSync(path.join(dir, ".workflows", "reviews"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "agents"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".workflows", "plan.md"), TOOL_PLAN);
+  fs.writeFileSync(path.join(dir, ".workflows", "specs", "task-1.spec"), "spec: task\nname: tool\n");
+  fs.writeFileSync(path.join(dir, "agents", "registry.md"), TOOL_REGISTRY);
+  return dir;
+}
+
+function snapshotTree(dir: string): string {
+  const out: string[] = [];
+  const walk = (d: string): void => {
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const p = path.join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else out.push(`${p}:${fs.statSync(p).mtimeMs}:${fs.statSync(p).size}`);
+    }
+  };
+  walk(dir);
+  return out.join("\n");
+}
+
+function captureDispatchTool(): any {
+  let tool: any = null;
+  register({
+    on: () => undefined,
+    registerTool: (t: any) => {
+      tool = t;
+    },
+  } as any);
+  return tool;
+}
+
+describe("dispatch_next tool (plan 20261026-036)", () => {
+  test("registers a model callable dispatch next tool", async () => {
+    const tool = captureDispatchTool();
+    expect(tool).not.toBeNull();
+    expect(tool.name).toBe("dispatch_next");
+    expect(typeof tool.description).toBe("string");
+    expect(typeof tool.execute).toBe("function");
+    // zero arguments
+    expect(tool.parameters).toMatchObject({ type: "object" });
+    expect(Object.keys(tool.parameters.properties ?? {})).toEqual([]);
+    // read-only hints (permission extensions read these)
+    expect(tool.annotations?.readOnlyHint).toBe(true);
+    expect(tool.annotations?.destructiveHint).toBe(false);
+    // execute returns model-facing content plus the payload as details
+    const res = await tool.execute("t1", {}, undefined, undefined, { cwd: makeToolProject() });
+    expect(res.content?.[0]?.type).toBe("text");
+    const payload = JSON.parse(res.content[0].text);
+    expect(payload.ok).toBe(true);
+    expect(res.details).toEqual(payload);
+  });
+
+  test("returns the binding dispatcher result", async () => {
+    const tool = captureDispatchTool();
+    const dir = makeToolProject();
+    const before = snapshotTree(dir);
+    const res = await tool.execute("t1", {}, undefined, undefined, { cwd: dir });
+    // read-only: the repo state is untouched by the dispatch
+    expect(snapshotTree(dir)).toBe(before);
+    const p = res.details;
+    expect(p.ok).toBe(true);
+    expect(p.task.id).toBe("task-1");
+    expect(p.task.wave).toBe(1);
+    // pack: shared prefix (GUARD + provenance) before per-task divergence
+    expect(p.pack.startsWith("Repo:")).toBe(true);
+    expect(p.pack).toContain("20260101-037");
+    expect(p.pack.indexOf("20260101-037")).toBeLessThan(p.pack.indexOf("\nTASK 1:"));
+    expect(p.pack).toContain("TASK 1: eligible tool task — src/a.ts. Contract: .workflows/specs/task-1.spec");
+    expect(p.pack).toContain("Allowed paths: src/a.ts");
+    expect(p.pack).toContain("Verify: bun test");
+    // gateCommands lead with the contract lifecycle, then the Verify line
+    expect(p.gateCommands[0]).toBe("agent-spec lifecycle .workflows/specs/task-1.spec --code .");
+    expect(p.gateCommands).toContain("bun test");
+    // the wave's eligible members ride along for the parallelism check
+    expect(p.eligible.map((t: any) => t.id)).toEqual(["task-1"]);
+    // the model-facing JSON carries the same binding payload
+    expect(JSON.parse(res.content[0].text).task.id).toBe("task-1");
+  });
+
+  test("builds the registry map internally", async () => {
+    const tool = captureDispatchTool();
+    const res = await tool.execute("t1", {}, undefined, undefined, { cwd: makeToolProject() });
+    const p = res.details;
+    expect(p.ok).toBe(true);
+    // policy came from the fixture registry.md's 🟡 RISKY row — no caller map exists
+    expect(p.task.model).toBe("@model:strong");
+    expect(p.task.thinking).toBe("high");
+    expect(p.task.role).toBe("worker");
+    // unit view of the same build: tag row wins, role is worker
+    const map = buildRegistry(TOOL_REGISTRY, parsePlan(TOOL_PLAN));
+    expect(map["task-1"]).toEqual({ model: "@model:strong", thinking: "high", role: "worker" });
+    // tier-overlay fallback: an untagged Tier A task resolves from the tier bullet
+    const mapTierA = buildRegistry(TOOL_REGISTRY, parsePlan(TOOL_PLAN.replace("(Tier B, 🟡)", "(Tier A)")));
+    expect(mapTierA["task-1"]).toEqual({ model: "@model:standard", thinking: "low", role: "worker" });
+    // unmatched task → no entry: the dispatcher blocks no-policy, never guesses
+    expect(buildRegistry("no policy tables here", parsePlan(TOOL_PLAN))).toEqual({});
+    // separator and header rows never become policies; the Roles table (no emoji) falls out
+    const parsed = parseRegistryPolicy(TOOL_REGISTRY);
+    expect(Object.keys(parsed.byTag).sort()).toEqual(["⚪", "🔴", "🟡"]);
+    expect(parsed.byTier).toEqual({
+      A: { model: "@model:standard", thinking: "low" },
+      C: { model: "@model:strong", thinking: "high" },
+    });
+  });
+
+  test("is inert without a live plan", async () => {
+    const tool = captureDispatchTool();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t1-empty-"));
+    const res = await tool.execute("t1", {}, undefined, undefined, { cwd: dir });
+    const p = res.details;
+    // structured ok:false — not an error, not a crash
+    expect(p.ok).toBe(false);
+    expect(p.blocked).toBe("no-plan");
+    expect(p.reason).toContain(".workflows/plan.md");
+    expect(p.eligible).toEqual([]);
+    expect(JSON.parse(res.content[0].text).blocked).toBe("no-plan");
   });
 });
