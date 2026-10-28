@@ -46,6 +46,13 @@
  *    judge-unavailable stay silent. Never blocks, never rewrites the
  *    prompt, fails open.
  *
+ * 7. dispatch_next tool (plan 20261026-036 D1): the dispatcher registered
+ *    as a model-callable tool — zero arguments, read-only, inert without a
+ *    live plan (structured ok:false, never an error). The execute gathers
+ *    the inputs itself (plan text, registry map built internally from
+ *    agents/registry.md, verdict files, ctx.cwd) and returns the binding
+ *    resolveNext() result plus the wave's eligible members.
+ *
  * Deliberately small: role substitution + drift watchdogs + write-time
  * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
@@ -557,6 +564,124 @@ export function resolveNext(input: NextInput): NextResult {
     pack: buildPack(task, parseProvenance(input.plan), input.repo ?? ""),
     gateCommands: gateCommandsFor(task),
   };
+}
+
+/* ---------------------- dispatch_next tool (plan 20261026-036) ---------------------- */
+
+/**
+ * @cc [label:dispatcher,id:registry-policy-table] registry-policy-table
+ * The registry map is built from agents/registry.md, never caller-supplied:
+ * the task's bottleneck-tag row (the per-task policy table) wins, else its
+ * tier bullet (the tier overlay); a task matching neither gets NO entry —
+ * the dispatcher blocks it as no-policy rather than guessing model/thinking.
+ */
+export interface PolicyRow {
+  model: string;
+  thinking: string;
+}
+
+/** Parse the dispatch-policy rows of agents/registry.md: per-task tag rows
+ *  from the policy table (e.g. `| 🟡 RISKY | B | ... | high |`) keyed by the
+ *  row's emoji, and tier-overlay bullets (e.g. `- **A** → ... + thinking low`)
+ *  keyed by tier. Markdown-shaped, column-count tolerant; rows without an
+ *  emoji tag or a resolvable model+thinking pair are ignored (the Roles
+ *  table and prose fall out naturally). */
+export function parseRegistryPolicy(text: string): {
+  byTag: Record<string, PolicyRow>;
+  byTier: Record<string, PolicyRow>;
+} {
+  const byTag: Record<string, PolicyRow> = {};
+  const byTier: Record<string, PolicyRow> = {};
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (line.startsWith("|")) {
+      const cells = line
+        .replace(/^\|/, "")
+        .replace(/\|$/, "")
+        .split("|")
+        .map((c) => c.trim());
+      if (cells.length < 4) continue;
+      if (/^:?-{2,}:?$/.test(cells[0]) || /^bottleneck$/i.test(cells[0])) continue;
+      const tag = /\p{Extended_Pictographic}/u.exec(cells[0])?.[0];
+      const model = cells[2].replace(/`/g, "").trim();
+      const thinking = cells[3].replace(/`/g, "").trim().split(/\s+/)[0];
+      if (tag && model && thinking) byTag[tag] = { model, thinking };
+      continue;
+    }
+    const tier = /^[-*]\s*\*\*([A-C])\*\*\s*→/.exec(line)?.[1];
+    if (tier) {
+      const model = /@model:[\w./-]+/.exec(line)?.[0];
+      const thinking = /\bthinking\s+(off|low|medium|high|xhigh)\b/.exec(line)?.[1];
+      if (model && thinking) byTier[tier] = { model, thinking };
+    }
+  }
+  return { byTag, byTier };
+}
+
+/** Registry map for a plan's tasks, built from the agents/registry.md text:
+ *  the task's bottleneck-tag row first, its tier bullet as fallback; role is
+ *  `worker` for build tasks. Tasks with no matching row get no entry —
+ *  resolveNext blocks them as no-policy (never guessed). */
+export function buildRegistry(
+  registryText: string,
+  tasks: PlanTask[],
+  role = "worker"
+): Record<string, DispatchPolicy> {
+  const { byTag, byTier } = parseRegistryPolicy(registryText);
+  const map: Record<string, DispatchPolicy> = {};
+  for (const t of tasks) {
+    const row = (t.tag && byTag[t.tag]) || (t.tier && byTier[t.tier]);
+    if (row) map[t.id] = { model: row.model, thinking: row.thinking, role };
+  }
+  return map;
+}
+
+/** The dispatch_next tool payload: the dispatcher result plus the wave's
+ *  eligible members for the parallelism check ([] when blocked). */
+export type DispatchNextResult = NextResult & { eligible: DispatchTask[] };
+
+/** Gather the dispatcher inputs from the repo at cwd and resolve the next
+ *  task — the tool's execute, fs at the edges only. READ-ONLY: plan,
+ *  registry, verdict files and specs are read, never written. Inert without
+ *  a live plan: a structured ok:false (no-plan), not an error. */
+export function dispatchNext(opts: { cwd: string }): DispatchNextResult {
+  const readText = (p: string): string | null => {
+    try {
+      return fs.readFileSync(p, "utf8");
+    } catch {
+      return null;
+    }
+  };
+  const plan = readText(path.join(opts.cwd, ".workflows", "plan.md"));
+  if (plan === null) {
+    return {
+      ok: false,
+      blocked: "no-plan",
+      reason: ".workflows/plan.md not found — nothing to dispatch (write a plan with /plan first)",
+      eligible: [],
+    };
+  }
+  const registry = buildRegistry(
+    readText(path.join(opts.cwd, "agents", "registry.md")) ?? "",
+    parsePlan(plan)
+  );
+  const reviewsDir = path.join(opts.cwd, ".workflows", "reviews");
+  const reviewFiles: { name: string; content: string }[] = fs.existsSync(reviewsDir)
+    ? fs
+        .readdirSync(reviewsDir)
+        .filter((f) => f.endsWith(".md"))
+        .map((f) => ({ name: f, content: readText(path.join(reviewsDir, f)) ?? "" }))
+    : [];
+  const input: NextInput = {
+    plan,
+    registry,
+    reviewFiles,
+    readSpec: (p: string): string | null => readText(path.join(opts.cwd, p)),
+    repo: opts.cwd,
+  };
+  const result = resolveNext(input);
+  const eligible = result.ok ? eligibleTasks(input).eligible : [];
+  return { ...result, eligible };
 }
 
 /* ------------------- supersede watchdog (advisory only) ------------------- */
@@ -1330,5 +1455,38 @@ export default function register(pi: any): void {
       // Fail-open: the guard suggests, never blocks.
       return undefined;
     }
+  });
+
+  // 7. dispatch_next tool (plan 20261026-036 D1) — the dispatcher as a
+  //    model-callable tool: /next's dispatcher step collapses to one binding
+  //    call. Zero arguments, read-only (annotations carry readOnlyHint),
+  //    inert without a live plan — the payload is a structured ok:false, not
+  //    a thrown error. The registry map is built internally from
+  //    agents/registry.md; the model never hand-builds policy again.
+  pi.registerTool({
+    name: "dispatch_next",
+    label: "Dispatch next task",
+    description:
+      "Deterministic /next dispatcher. Reads .workflows/plan.md, agents/registry.md and .workflows/reviews/*.md, then returns the BINDING next task. ok:true → { task, pack, gateCommands, eligible }: send pack verbatim as the worker's task text, run gateCommands before the verdict, and treat eligible (the earliest wave's members) as parallel-eligible when it has more than one entry. ok:false → { blocked, reason }: surface the reason to the human and stop (no-pending = plan complete). Read-only; without a live plan it returns ok:false with blocked 'no-plan'.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    async execute(
+      _toolCallId: string,
+      _params: Record<string, never>,
+      _signal: AbortSignal | undefined,
+      _onUpdate: unknown,
+      ctx: any
+    ) {
+      const payload = dispatchNext({ cwd: ctx?.cwd || process.cwd() });
+      return {
+        content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+        details: payload,
+      };
+    },
   });
 }
