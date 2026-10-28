@@ -1,3 +1,17 @@
+## 2026-10-26 — v0.12.2: next-thinner — dispatcher as an extension tool (plan 20261026-036)
+
+- **`dispatch_next` tool**: registered, model-callable — the extension reads plan,
+  registry, and reviews itself and returns the binding task/pack/gateCommands.
+  The manual registry-map build and the inline `bun -e` script are gone from the prompts.
+- **Verdict automation**: a FINAL verdict write auto-records proof-ledger + run-journal
+  (deduped per task:round) — the record steps left the prompts.
+- **Wave-settle compaction in-extension**: the wave's last verdict triggers the judge
+  and injects the fixed-size table (64-cap split; `JUDGE SKIPPED` ⇒ per-child fallback).
+- **Thin prompts**: `/next` 103→45 lines, `/auto-next` 89→45; selection/registry/record
+  prose removed; exceptions only.
+- **Stub retirement**: `/scout` and `/integrate` removal stubs deleted; `/plan` skill
+  routes recon to `/explore`; README rows cleaned.
+
 # Changelog
 
 ## 2026-10-26 — v0.12.1: intent tier (plan 20261026-033)

@@ -56,8 +56,8 @@ Then finish with `/review` → all green? ship it.
 
 | Command | What it does |
 |---|---|
-| `/next` | Execute next pending task. Bottleneck-aware: adjusts model/thinking per task. Handles worker blockers. |
-| `/auto-next` | Execute ALL pending tasks autonomously — runs waves in order, parallelizes within waves, stops on blockers, reports completion. |
+| `/next` | Execute next pending task — the extension's `dispatch_next` tool selects deterministically; you dispatch and gate. |
+| `/auto-next` | ALL pending tasks autonomously — dispatcher tool picks each, waves in order, stops on blockers, verdict records + wave compaction automatic. |
 | `/add <feature-or-spec>` | Execute approved contract. Broad ideas route to `/idea`; small surgical requests get mini-recon + contract gate. |
 | `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
 | `/refactor <scope>` | Restructure code within boundaries |
@@ -71,7 +71,6 @@ Then finish with `/review` → all green? ship it.
 | `/review` | Stage 1: mechanical verification (agent-spec + project checks). Stage 2: adversarial review (bug-hunter) + quality review (judgment). |
 | `/challenge <plan>` | Adversarial grill of your plan against domain model. Sharpens terminology, updates .workflows/CONTEXT.md inline. |
 | `/contract [spec]` | Show the contract for a task |
-| `/scout <area>` | Isolated recon. Cheapest, no planning. |
 
 ### Documentation
 
@@ -914,7 +913,6 @@ pi-workflows/
 
 | Command | What it does |
 |---|---|
-| `/scout <area>` | Cheap subagent recon |
 
 ### Flow
 

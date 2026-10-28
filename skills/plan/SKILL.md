@@ -16,7 +16,7 @@ Gather enough context to plan well.
 1. **What's the goal?** Read what the human described. If vague, ask 1-2 clarifying questions max.
 2. **What exists already?**
    - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
-   - If the human pointed at a repo: scout it (`/scout` or read exploration output)
+   - If the human pointed at a repo: read exploration output (`/explore`)
    - If the human pointed at URLs: read them with `bash` (`curl -sL <url> | head -500`)
    - If there's an existing exploration doc: read it
    - If there's an existing codebase: grep/find the relevant areas
@@ -436,7 +436,7 @@ Plan approved. Execute with:
   /abort   → abandon the plan (archives to superseded)
 
 Or run tasks manually:
-  /scout   → TASK 1
+  /explore → TASK 1
   /add     → TASK 2, 3, ... (implements against contract)
   /fix     → fix a bug within contract boundaries
 ```
