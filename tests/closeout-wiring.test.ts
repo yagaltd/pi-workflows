@@ -5,8 +5,8 @@ import { main } from "../scripts/closeout.mjs";
 const read = (p: string) => fs.readFileSync(p, "utf8");
 
 describe("closeout wiring (plan 20261025-028)", () => {
-  test("review prompt carries the close-out and settle judge steps", () => {
-    const review = read("prompts/review.md");
+  test("review skill carries the close-out and settle judge steps", () => {
+    const review = read("skills/review/SKILL.md"); // plan 038: the SKILL is the sole flow authority
     expect(review).toContain("closeout.mjs report");
     expect(review).toContain("closeout.mjs judge");
     expect(review).toContain("wait for the owner");

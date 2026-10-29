@@ -13,8 +13,8 @@ describe("decision index wiring (plan 20261025-027)", () => {
     expect(code).toBe(0);
   });
 
-  test("review and plan prompts carry the decision index gate", () => {
-    const review = fs.readFileSync("prompts/review.md", "utf8");
+  test("review skill and plan prompt carry the decision index gate", () => {
+    const review = fs.readFileSync("skills/review/SKILL.md", "utf8"); // plan 038: the SKILL is the sole flow authority
     expect(review).toContain("decisions.mjs check");
     const plan = fs.readFileSync("skills/plan/SKILL.md", "utf8");
     expect(plan).toContain("decisions.mjs record");

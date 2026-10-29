@@ -3,8 +3,8 @@ import fs from "node:fs";
 import { main } from "../scripts/lessons.mjs";
 
 describe("lessons docs + distill (plan 20261025-026)", () => {
-  test("review prompt and readme document the lessons ledger", () => {
-    const review = fs.readFileSync("prompts/review.md", "utf8");
+  test("review skill and readme document the lessons ledger", () => {
+    const review = fs.readFileSync("skills/review/SKILL.md", "utf8"); // plan 038: the SKILL is the sole flow authority
     expect(review).toContain("lessons.mjs distill");
     const readme = fs.readFileSync("README.md", "utf8");
     expect(readme).toContain("## Lessons ledger");
