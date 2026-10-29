@@ -118,6 +118,11 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 - Criteria against `.workflows/` paths verify via the filesystem
   (`ls` / `test -f`) — never `git status` for untracked state.
 - Decisions are fixed — the worker may not re-open them
+- **@cc placement criterion**: when a Decision states a code-local invariant, the
+  contract adds a criterion that the worker places
+  `@cc [label:<seam>,adr:DEC-xxx] <constraint>` at the implementation point.
+  Placement is an implementation artifact, not a completion criterion. Never
+  per-file, never folder-tree (seam-only discipline — `docs/canon.md` Rules).
 - Completion Criteria define "done" — if all scenarios pass, the task is done
 - Include edge cases: error states, boundary values, empty inputs
 - Include at least one negative scenario (what should fail)

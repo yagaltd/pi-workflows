@@ -1,3 +1,11 @@
+## 2026-10-29 — v0.12.5: cc-contract criterion + seam-only discipline (plan 20261026-039)
+
+- **Placement criterion** in the contract template: a Decision that states a
+  code-local invariant adds a worker criterion — place
+  `@cc [label:<seam>,adr:DEC-xxx]` at the implementation point.
+- **Seam-only discipline** in the docs canon: @cc at new seams at write time +
+  by drift; never per-file or folder-tree sweeps (plan-012 rejection recorded).
+
 ## 2026-10-26 — v0.12.4: review-mirror — /review SKILL extraction (plan 20261026-038)
 
 - **`/review` SKILL extraction**: the 195-line prompt is now a 7-line thin entry;

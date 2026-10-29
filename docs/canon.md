@@ -1,6 +1,6 @@
 generated_by: pi-workflows plan lifecycle
-generated_at: 2026-10-25
-stale_after: 2026-11-24
+generated_at: 2026-10-29
+stale_after: 2026-11-28
 
 # Docs canon
 
@@ -37,3 +37,9 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 5. **Machine truth and human prose live apart.** `.workflows/specs` + `@cc` carry
    machine-checkable truth; `docs/` carries reader-facing prose. Never duplicate
    one in the other.
+6. **@cc is seam-only.** Place an `@cc` contract at a new seam when the code
+   lands, or by drift — a caught invariant earns its contract. An `@cc` states
+   the constraint in code-local terms and references its decision
+   (`adr:DEC-xxx`) (gate: cc-check format, final gate chain). It never restates
+   ADR rationale or spec criteria (gate: plan 20261025-012 record), and never
+   arrives as a folder-tree or per-file sweep (gate: plan 20261026-039 records).
