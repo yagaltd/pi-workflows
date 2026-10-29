@@ -71,7 +71,9 @@ needed and costs nothing otherwise.
 **Budget**: keep the project's AGENTS.md under ~50 lines. If it grows,
 move detail to pointer targets and keep the rules.
 
-**Enforcement**: `scripts/agents-lint.sh` is the AGENTS.md gate —
+**Enforcement**: `scripts/agents-lint.sh` is the AGENTS.md gate
+
+Scaffold kinds live in `.workflows/profile.json`; template files are per-project — no baked languages (profile-lint validates kinds; `scripts/scaffold.sh` renders). —
 check-drift runs it on this repo; `/init` runs it at generation (a lint
 failure blocks the handoff).
 

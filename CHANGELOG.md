@@ -1,3 +1,12 @@
+## 2026-10-29 — v0.12.9: scaffolds — profile-declared generators (plan 20261026-043)
+
+- **`scripts/scaffold.sh <kind> <name>`**: renders profile-declared templates
+  (`{{name}}` sanitized, `{{date}}`, `{{next:N}}` sequence) — refuses unknown
+  kinds, existing targets, invalid names. No hooks, no git ops.
+- **`adr` kind self-adopted**: `scaffold adr <slug>` →
+  `.workflows/decisions/DEC-00N-<slug>.md` from `templates/ADR.md`.
+- **profile-lint validates kinds**: template exists, target carries `{{name}}`.
+
 ## 2026-10-29 — v0.12.8: resume digest — mechanical restart (plan 20261026-042)
 
 - **`scripts/resume-digest.sh`**: read-only 7-section restart digest — plan
