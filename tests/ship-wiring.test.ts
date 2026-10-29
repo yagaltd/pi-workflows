@@ -4,8 +4,8 @@ import fs from "node:fs";
 const read = (p: string) => fs.readFileSync(p, "utf8");
 
 describe("ship wiring — eval doctrine (plan 20261025-021)", () => {
-  test("review prompt carries the golden-eval layer", () => {
-    const s = read("prompts/review.md");
+  test("review skill carries the golden-eval layer", () => {
+    const s = read("skills/review/SKILL.md"); // plan 038: the SKILL is the sole flow authority
     expect(s).toContain("Layer 5: Golden evals (flip-watching)");
     expect(s).toContain("eval-golden.mjs --baseline .workflows/evals/baseline.jsonl");
     expect(s).toContain("blocks");

@@ -5,13 +5,13 @@ const read = (p: string) => fs.readFileSync(p, "utf8");
 
 describe("chooser wiring (plan 20261026-032)", () => {
   test("boundaries carry the chooser step and the view rules", () => {
-    expect(read("prompts/review.md")).toContain("format-chooser.mjs choose --for closeout");
+    expect(read("skills/review/SKILL.md")).toContain("format-chooser.mjs choose --for closeout"); // plan 038: the SKILL is the sole flow authority
     expect(read("skills/plan/SKILL.md")).toContain("format-chooser.mjs choose --for plan-approval");
     expect(read("skills/challenge/SKILL.md")).toContain("format-chooser.mjs choose --for challenge");
     const bs = read("skills/brainstorm/SKILL.md");
     expect(bs).toContain("format-chooser.mjs choose --for brainstorm-graduation");
     expect(bs).toContain("never a gate");
-    expect(read("prompts/review.md")).toContain("Overrule needs a stated reason");
+    expect(read("skills/review/SKILL.md")).toContain("Overrule needs a stated reason");
     expect(read("README.md")).toContain("## Format chooser");
     expect(read("README.md")).toContain("the correct default");
   });
