@@ -91,14 +91,19 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 
 ## Phase 5: WIRE — charter, context, README skeleton, handoff
 
-1. **Charter**: copy `templates/AGENTS.md` (package: two dirs up from
-   this skill) to the project root. Every session — orchestrator and all
-   subagents — auto-loads it from here on. If the project adds its own
-   sections (test commands, conventions), follow the AGENTS.md authoring
-   rules in `templates/DOCS-POLICY.md`: binding rules + one-liner facts
-   + pointers to detail docs (e.g. `Test: npm test` · `Tests detail:
+1. **Charter**: GENERATE the project's AGENTS.md — copy
+   `templates/AGENTS.md` (package: two dirs up from this skill) to the
+   project root, fill the `<placeholder>` pointer slots from the Phase
+   1–4 facts (project overview, test command, architecture/map + ADR
+   targets, conventions doc), and write the project's own binding rules
+   into the PROJECT block. Follow the AGENTS.md authoring rules in
+   `templates/DOCS-POLICY.md`: binding rules + one-liner facts +
+   pointers to detail docs (e.g. `Test: npm test` · `Tests detail:
    tests/README.md`) — never command inventories; nested AGENTS.md files
-   don't auto-load (pi walks up from cwd only).
+   don't auto-load (pi walks up from cwd only). Then RUN
+   `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
+   handoff: fix before presenting. Every session — orchestrator and all
+   subagents — auto-loads it from here on.
 2. **CONTEXT.md**: seed `.workflows/CONTEXT.md` from Phase 1-2 decisions
    (glossary terms + decisions; ADRs already written in Phase 2).
 3. **README skeleton**: create per `templates/DOCS-POLICY.md` — title,
