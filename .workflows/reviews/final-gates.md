@@ -1,33 +1,24 @@
-# Final gate chain — plan 20261026-040 (executor run, full raw output — LANDED state)
-- Executed: 2026-10-29T07:57:06Z · HEAD: 1c7786bab9ffac357df371712a726fbfb7e03c7c
+# Final gate chain — plan 20261026-040 (R2 — corrected evidence, full raw output)
+- Executed: 2026-10-29T08:04:04Z · HEAD: 3bb6b8109de1da6a61c37415aa7a32e6e8867594
+- R1 finding (reviewer pw40-final-reviewer): DOCSLINT_RC=1 hidden by the executor's evidence grep — the migrated AGENTS.md carried bare never-claims. Fix: per-claim gate citations (5 lines).
 
-## T1 artifacts
-  28 AGENTS.md
-  29 templates/AGENTS.md
- 106 scripts/agents-lint.sh
- 163 total
-agents-lint OK
-Start every reply with "Aurel,". No exceptions.
-
-## T2 artifacts
-init WIRE OK
-DOCS-POLICY gate OK
-
-## T3 artifacts
-CHANGELOG OK
-version 0.12.6 OK
-drift wiring OK
-
-## gate chain
+## gate chain (full)
 ok:   AGENTS.md passes the doctrine lint
 
 CLEAN — no drift.
 exit=0
+CLEAN — docs lint passed.
+DOCSLINT_RC=0
  970 expect() calls
-Ran 225 tests across 34 files. [2.73s]
+Ran 225 tests across 34 files. [2.74s]
 SEL_RC=0
-DOCSLINT_RC=1
 CC_EXIT=1
 cc-check: CONTRACTS:1:1: error: Expected an @cc directive
-## plan markers
+
+## artifacts re-verified
+agents-lint OK
+budget OK (28L)
+init WIRE OK
+CHANGELOG OK
+version OK
 3
