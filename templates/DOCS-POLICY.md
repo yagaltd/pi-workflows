@@ -27,6 +27,8 @@ Referenced by `/init` (README skeleton), `/next` (docs auto-check),
 
 ## README freshness gate (the rule with teeth)
 
+**Size + placement bound** (plan 20261026-045): README stays ≤ 200 lines — a 7-section spine (what/install/quick-start/commands/loop/gates/pointers) plus compressed machinery sections that wiring tests pin; architecture narration lives in `docs/architecture.md`; history lives in CHANGELOG. A README change that would exceed the budget extracts to `docs/` in the same task.
+
 A behavior change whose README implications land in a later commit is a
 doc-drift bug. Enforcement points:
 

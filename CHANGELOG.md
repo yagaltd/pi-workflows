@@ -1,3 +1,14 @@
+## 2026-10-29 — v0.13.1: readme-rebuild — shop window only (plan 20261026-045)
+
+- **README 924 → 146 lines**: 7-section spine (what/install/quick-start/
+  commands/loop/gates/pointers) + compressed machinery sections the wiring
+  tests pin. No architecture narration, no version-titled sections.
+- **`docs/architecture.md`** (new, 490 lines): the extracted How-It-Works,
+  updated to the v0.13.0 state (dispatcher tool, verdict automation, profile,
+  agents-lint, scaffolds, metric gates, /resume) — every claim names its gate.
+- **DOCS-POLICY bound**: README ≤ 200 lines; narration → docs/; history →
+  CHANGELOG. The missing bound that let the bloat grow.
+
 ## 2026-10-29 — v0.13.0: metric gates — mechanical quality thresholds (plan 20261026-044)
 
 - **`scripts/metric-gates.sh [--with-mutation]`**: complexity (CRAP < 10),
