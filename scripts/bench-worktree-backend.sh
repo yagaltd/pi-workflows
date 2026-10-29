@@ -178,6 +178,8 @@ else
         export LAYERFS_NATIVE="$LAYERFS_CHECKOUT/api/binding/layerfs.node"
         LAYERFS_CLI="$LAYERFS_CHECKOUT/api/agent/cli/src/layerfs.js"
         mkdir -p "$(dirname "$LAYERFS_STORE_PATH")" "$LAYERFS_HOME"
+        chmod 700 "$LAYERFS_HOME"
+        mkdir -p "$SCRATCH/project-src"
         git archive HEAD | tar -x -C "$SCRATCH/project-src"
         if node "$LAYERFS_CLI" init pw-bench "$SCRATCH/project-src" > "$SCRATCH/init.log" 2>&1 \
            && node "$LAYERFS_CLI" branch fork bench > "$SCRATCH/fork.log" 2>&1; then
