@@ -8,4 +8,4 @@ node_modules/
 !.workflows/proposals/
 !.workflows/reviews/
 !.workflows/archive/
-.bug-hunter/
+.bug-hunter
