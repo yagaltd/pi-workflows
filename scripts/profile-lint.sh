@@ -22,6 +22,9 @@
 #   d) gates: each entry exists as a file under scripts/
 #   e) stamps: stale_after >= generated_at, at most 35 days after it, and not
 #      already past (a profile stale today fails the lint)
+#   f) metrics (optional block): crap_max a number >= 1, duplication_max a
+#      number with 0 < value <= 1, paths a non-empty list of existing repo
+#      paths; an absent metrics block stays legal (consumers apply defaults)
 set -u
 
 FILE="${1:-}"
@@ -185,6 +188,35 @@ for kname in sorted(kinds):
         fail(f"scaffolds.kinds.{kname}.target must be a non-empty repo path")
     elif "{{name}}" not in target:
         fail(f"scaffolds.kinds.{kname}.target: target must contain {{{{name}}}}: {target}")
+
+# (a)+(b)+(f) metrics — optional; when present, numbers in range, paths exist
+metrics = profile.get("metrics")
+if "metrics" in profile and not isinstance(metrics, dict):
+    fail("metrics must be an object when present (crap_max, duplication_max, paths)")
+    metrics = {}
+if isinstance(metrics, dict):
+    crap = metrics.get("crap_max")
+    if crap is not None and (
+        isinstance(crap, bool) or not isinstance(crap, (int, float)) or crap < 1
+    ):
+        fail(f"metrics.crap_max must be a number >= 1 (got {crap!r})")
+    dup = metrics.get("duplication_max")
+    if dup is not None and (
+        isinstance(dup, bool)
+        or not isinstance(dup, (int, float))
+        or not 0 < dup <= 1
+    ):
+        fail(f"metrics.duplication_max must be a number with 0 < value <= 1 (got {dup!r})")
+    mpaths = metrics.get("paths")
+    if mpaths is not None:
+        if not isinstance(mpaths, list) or not mpaths or not all(
+            isinstance(x, str) and x.strip() for x in mpaths
+        ):
+            fail("metrics.paths must be a non-empty list of repo paths")
+        else:
+            for rel in mpaths:
+                if not on_disk(rel):
+                    fail(f"metrics.paths: path does not exist: {rel}")
 
 # (a) + (e) meta stamps — generated_by + ISO dates within budget, not stale
 meta = profile.get("meta")

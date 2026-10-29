@@ -23,6 +23,11 @@
     "scripts/docs-lint.sh",
     "scripts/agents-lint.sh"
   ],
+  "metrics": {
+    "crap_max": 10,
+    "duplication_max": 0.8,
+    "paths": ["extensions", "scripts"]
+  },
   "scaffolds": {
     "kinds": {
       "adr": {
