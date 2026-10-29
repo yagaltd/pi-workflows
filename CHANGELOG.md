@@ -1,3 +1,14 @@
+## 2026-10-29 — v0.12.6: agents-doctrine — AGENTS.md core + pointers + lint (plan 20261026-040)
+
+- **`templates/AGENTS.md` restructured**: CORE (binding behavior — containment,
+  commit discipline, refactor-first, TDD, subtract-before-add, root causes,
+  docs discipline) + POINTERS (greppable one-liners, `<placeholder>` for init)
+  + PROJECT. Budget ≤ 60 lines.
+- **`agents-lint.sh`**: pointers resolve, CORE present, budget, no plan-ID
+  history refs, no nested AGENTS.md pointers, no unfilled placeholders —
+  wired into check-drift and into `/init`'s handoff (a lint failure blocks it).
+- **Repo self-migration**: this repo's AGENTS.md carries the new structure.
+
 ## 2026-10-29 — v0.12.5: cc-contract criterion + seam-only discipline (plan 20261026-039)
 
 - **Placement criterion** in the contract template: a Decision that states a

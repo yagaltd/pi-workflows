@@ -96,6 +96,16 @@ done < <(grep -oE '^\| `\/[a-z-]+`' README.md 2>/dev/null | sed -E 's/\| `//; s/
 ok "README commands resolve to prompt files"
 
 echo
+# 8. agents-lint — AGENTS.md core + pointers + budget (plan 20261026-040)
+echo "== 8. agents-lint — AGENTS.md doctrine (core + pointers + budget) =="
+if bash "$(dirname "$0")/agents-lint.sh" AGENTS.md; then
+  echo "ok:   AGENTS.md passes the doctrine lint"
+else
+  echo "FAIL: AGENTS.md violates the doctrine lint (scripts/agents-lint.sh)" >&2
+  FAIL=$((FAIL + 1))
+fi
+echo
+
 if [ "$FAIL" -eq 0 ]; then
   echo "CLEAN — no drift."
 else
