@@ -106,6 +106,16 @@ else
 fi
 echo
 
+# 9. profile-lint — project profile schema + repo facts (plan 20261026-041)
+echo "== 9. profile-lint — project profile (.workflows/profile.json) =="
+if bash "$(dirname "$0")/profile-lint.sh" .workflows/profile.json; then
+  echo "ok:   .workflows/profile.json passes the profile lint"
+else
+  echo "FAIL: .workflows/profile.json violates the profile lint (scripts/profile-lint.sh)" >&2
+  FAIL=$((FAIL + 1))
+fi
+echo
+
 if [ "$FAIL" -eq 0 ]; then
   echo "CLEAN — no drift."
 else

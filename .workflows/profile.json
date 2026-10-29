@@ -1,0 +1,34 @@
+{
+  "commands": {
+    "test": "bun test",
+    "lint": "bash scripts/docs-lint.sh"
+  },
+  "pointers": {
+    "canon": "docs/canon.md",
+    "docs-policy": "templates/DOCS-POLICY.md",
+    "registry": "agents/registry.md",
+    "adr-index": ".workflows/decisions/INDEX.md",
+    "execution-doctrine": "agents/execution-doctrine.md"
+  },
+  "tree": {
+    "extensions": "extensions",
+    "prompts": "prompts",
+    "skills": "skills",
+    "templates": "templates",
+    "scripts": "scripts",
+    "tests": "tests"
+  },
+  "gates": [
+    "scripts/check-drift.sh",
+    "scripts/docs-lint.sh",
+    "scripts/agents-lint.sh"
+  ],
+  "scaffolds": {
+    "kinds": {}
+  },
+  "meta": {
+    "generated_by": "init --adopt",
+    "generated_at": "2026-10-29",
+    "stale_after": "2026-11-28"
+  }
+}
