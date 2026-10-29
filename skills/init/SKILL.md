@@ -9,15 +9,15 @@ argument-hint: "<project description>"
 
 `/init` is the step BEFORE `/idea`/`/plan`: it designs the structure the
 contracts will later enforce. Nothing here builds features — it produces
-an approved architecture, an approved folder tree, the charter, and doc
-skeletons, then hands off to `/plan`.
+an approved architecture, an approved folder tree, the charter, the
+project profile, and doc skeletons, then hands off to `/plan`.
 
 ```
 Phase 1 DECIDE  → stack/domain decisions (grill protocol)
 Phase 2 DESIGN  → architecture: modules, boundaries, data flow, ADRs
 Phase 3 TREE    → folder tree proposal → approval → architecture.md seeded
 Phase 4 SCAFFOLD→ worker task: dirs + stubs per the approved tree
-Phase 5 WIRE    → charter + CONTEXT.md + README skeleton → /plan
+Phase 5 WIRE    → charter + profile + CONTEXT.md + README skeleton → /plan
 ```
 
 ## Phase 1: DECIDE — evidence first, grill what remains
@@ -89,7 +89,7 @@ Verify: find . -type d -not -path '*/.git*' -not -path '*/.workflows*' | sort
 Reviewer verdict gates it like any task (verdict gating applies — but for
 a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 
-## Phase 5: WIRE — charter, context, README skeleton, handoff
+## Phase 5: WIRE — charter, profile, context, README skeleton, handoff
 
 1. **Charter**: GENERATE the project's AGENTS.md — copy
    `templates/AGENTS.md` (package: two dirs up from this skill) to the
@@ -104,15 +104,32 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
    handoff: fix before presenting. Every session — orchestrator and all
    subagents — auto-loads it from here on.
-2. **CONTEXT.md**: seed `.workflows/CONTEXT.md` from Phase 1-2 decisions
+2. **Profile**: GENERATE `.workflows/profile.json` — the machine truth
+   for project facts: `commands`, `pointers`, `tree`, `gates`,
+   `scaffolds`, `meta` (the schema is what `scripts/profile-lint.sh`
+   checks). Greenfield: fill from the Phase 1–4 facts — test/lint/build
+   commands (Phase 1), the pointer targets the charter cites (canon,
+   docs-policy, registry, ADR index), tree domains from the approved
+   Phase 3 tree, gates in run order (at minimum the charter's
+   `scripts/agents-lint.sh`). Brownfield (`/init --adopt`): there are no
+   interview facts — DERIVE the draft: read the build manifests
+   (`Cargo.toml`, `package.json`, `pyproject.toml`) for test/lint/build
+   commands, list the top-level dirs as tree-domain candidates, pick
+   pointer targets that exist on disk — then PRESENT the draft to the
+   owner for correction BEFORE linting. Then RUN
+   `bash scripts/profile-lint.sh .workflows/profile.json` — a lint
+   failure BLOCKS the handoff: fix before presenting (every pointer and
+   tree path must exist on disk; a fictional path is a bug).
+3. **CONTEXT.md**: seed `.workflows/CONTEXT.md` from Phase 1-2 decisions
    (glossary terms + decisions; ADRs already written in Phase 2).
-3. **README skeleton**: create per `templates/DOCS-POLICY.md` — title,
+4. **README skeleton**: create per `templates/DOCS-POLICY.md` — title,
    one-paragraph description, install/build/test placeholders. (Full docs
    come from `/docs` when there's something real to document.)
-4. Append to `.workflows/LOG.md`: `<date> INIT — architecture + tree approved, scaffolded`
-5. **Hand off**: present the summary and point at `/plan` — its contract
+5. Append to `.workflows/LOG.md`: `<date> INIT — architecture + tree approved, scaffolded, profile linted`
+6. **Hand off**: present the summary and point at `/plan` — its contract
    Boundaries now derive from the documented tree (say so explicitly in
-   the handoff).
+   the handoff). The fresh project now carries its charter, its
+   `.workflows/profile.json`, CONTEXT.md, and the README skeleton.
 
 ## Rules
 
