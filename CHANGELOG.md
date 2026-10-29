@@ -1,3 +1,13 @@
+## 2026-10-29 — v0.12.8: resume digest — mechanical restart (plan 20261026-042)
+
+- **`scripts/resume-digest.sh`**: read-only 7-section restart digest — plan
+  status, dispatcher context, LOG tail, budget, dirty paths, gates snapshot
+  (from `.workflows/profile.json`), recent commits. First profile consumer;
+  missing profile degrades to defaults + a note line.
+- **`/resume`**: 9-line thin trigger — run the digest, act per house rules.
+- **agents-lint no-arg default** (`AGENTS.md`) — profile gates[] stay arg-free;
+  README `/resume` row; `/init` handoff names the restart command.
+
 ## 2026-10-29 — v0.12.7: project profile — machine-readable project facts (plan 20261026-041)
 
 - **`.workflows/profile.json`** (tracked): commands · pointers · tree domains ·

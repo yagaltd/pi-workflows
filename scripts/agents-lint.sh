@@ -17,9 +17,9 @@
 #      by path); always a violation in an instance
 set -u
 
-FILE="${1:-}"
-if [ -z "$FILE" ]; then
-  echo "FAIL: usage: agents-lint.sh <agents-md-file>"
+FILE="${1:-AGENTS.md}"
+if [ ! -f "$FILE" ]; then
+  echo "FAIL: file not found: $FILE"
   exit 1
 fi
 if [ ! -f "$FILE" ]; then
