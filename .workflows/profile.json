@@ -24,7 +24,12 @@
     "scripts/agents-lint.sh"
   ],
   "scaffolds": {
-    "kinds": {}
+    "kinds": {
+      "adr": {
+        "template": "templates/ADR.md",
+        "target": ".workflows/decisions/DEC-{{next:3}}-{{name}}.md"
+      }
+    }
   },
   "meta": {
     "generated_by": "init --adopt",

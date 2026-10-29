@@ -10,8 +10,9 @@
 #   a) schema: commands.test + commands.lint required (build optional, no other
 #      keys); pointers >= 1 (each a repo path); tree >= 1 domain (name -> path);
 #      gates >= 1 (each a path under scripts/); scaffolds an object (may be
-#      empty, e.g. {"kinds":{}}); meta.generated_by/-generated_at/-stale_after
-#      present, the dates ISO (YYYY-MM-DD)
+#      empty) whose scaffolds.kinds entries each carry an existing template
+#      and a target containing {{name}}; meta.generated_by/-generated_at/
+#      -stale_after present, the dates ISO (YYYY-MM-DD)
 #   b) existence: every pointers.* and tree.*.path exists on disk (test -e),
 #      resolved from the repo root (nearest ancestor of the profile containing
 #      .git; else the invoking cwd's toplevel; else the profile's dir). A linked
@@ -159,9 +160,31 @@ for i, gate in enumerate(gates):
     ):
         fail(f"gates[{i}]: gate script does not exist: {gate}")
 
-# (a) scaffolds — an object, may be empty
-if not isinstance(profile.get("scaffolds"), dict):
+# (a) + (b) scaffolds — an object, may be empty; every kind entry must carry
+# an existing template and a target containing {{name}}
+scaffolds = profile.get("scaffolds")
+if not isinstance(scaffolds, dict):
     fail('scaffolds missing or not an object (may be empty, e.g. {"kinds":{}})')
+    scaffolds = {}
+kinds = scaffolds.get("kinds")
+if not isinstance(kinds, dict):
+    fail("scaffolds.kinds missing or not an object (may be empty)")
+    kinds = {}
+for kname in sorted(kinds):
+    kspec = kinds[kname]
+    if not isinstance(kspec, dict):
+        fail(f"scaffolds.kinds.{kname} must be an object (template + target)")
+        continue
+    template = kspec.get("template")
+    target = kspec.get("target")
+    if not isinstance(template, str) or not template.strip():
+        fail(f"scaffolds.kinds.{kname}.template must be a non-empty repo path")
+    elif not on_disk(template):
+        fail(f"scaffolds.kinds.{kname}.template: template does not exist: {template}")
+    if not isinstance(target, str) or not target.strip():
+        fail(f"scaffolds.kinds.{kname}.target must be a non-empty repo path")
+    elif "{{name}}" not in target:
+        fail(f"scaffolds.kinds.{kname}.target: target must contain {{{{name}}}}: {target}")
 
 # (a) + (e) meta stamps — generated_by + ISO dates within budget, not stale
 meta = profile.get("meta")
