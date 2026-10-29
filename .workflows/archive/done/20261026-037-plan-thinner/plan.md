@@ -31,7 +31,7 @@
 ### TASK 2 (Tier A, ⚪): docs + ship — orchestrator-inline
 - CHANGELOG v0.12.3, version bump, full gate chain.
 
-## Adversarial pass (on record) ✅
+## Adversarial pass (on record)
 
 - The move must not lose the prompt-only additions → contract greps pin them IN THE SKILL before the prompt shrinks (move-first, shrink-second order inside T1).
 - SKILL growth (487 → ~500) is accepted — the SKILL is the authority; the prompt is the trigger.
