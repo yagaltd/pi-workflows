@@ -8,9 +8,9 @@ describe("typesafe + queue wiring (plan 20261025-029)", () => {
     expect(readme).toContain("TYPESAFE_API_KEY");
     expect(readme).toContain("auth.json");
     expect(readme).toContain("decision_brief_present");
-    const plan = fs.readFileSync("prompts/plan.md", "utf8");
-    expect(plan).toContain("TYPESAFE_API_KEY");
-    expect(plan).not.toContain("TYPEDLLM_API_KEY");
+    const flow = fs.readFileSync("skills/plan/SKILL.md", "utf8"); // plan 037: the SKILL is the sole flow authority
+    expect(flow).toContain("TYPESAFE_API_KEY");
+    expect(flow).not.toContain("TYPEDLLM_API_KEY");
   });
 
   test("queue json carries c d e options with all columns", () => {
