@@ -62,6 +62,7 @@ Then finish with `/review` → all green? ship it.
 | `/fix <bug>` | Fix a bug within boundaries. Accepts error text, spec files, annotations, screenshots. |
 | `/refactor <scope>` | Restructure code within boundaries |
 | `/optimize <target>` | Three modes: parallel experiments (unknown approach) · contracted deep pass (known target, equivalence proof) · pi-autoresearch loop handoff (known target, many unattended iterations — benchmark + oracle prepared from our contract vocabulary) |
+| `/resume` | Restart context: run the state digest (plan, verdicts, budget, gates, git) via `bash scripts/resume-digest.sh`, then act on it. |
 
 ### Verification
 
