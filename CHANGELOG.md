@@ -1,3 +1,14 @@
+## 2026-10-29 — v0.12.7: project profile — machine-readable project facts (plan 20261026-041)
+
+- **`.workflows/profile.json`** (tracked): commands · pointers · tree domains ·
+  gates · scaffold kinds · meta stamps — the project's facts in machine form.
+- **`profile-lint.sh`**: schema, path existence, command resolvability, gate
+  names, stamp budget — check-drift section 9 enforces it repo-wide.
+- **`/init` generates it**: greenfield fills from the interview; brownfield
+  `--adopt` derives from build manifests, owner-corrected; a lint failure
+  blocks the handoff. Consumers (resume, scaffolds, context packs) migrate
+  in later plans.
+
 ## 2026-10-29 — v0.12.6: agents-doctrine — AGENTS.md core + pointers + lint (plan 20261026-040)
 
 - **`templates/AGENTS.md` restructured**: CORE (binding behavior — containment,
