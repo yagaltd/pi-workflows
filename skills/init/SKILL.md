@@ -129,7 +129,9 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 6. **Hand off**: present the summary and point at `/plan` — its contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter, its
-   `.workflows/profile.json`, CONTEXT.md, and the README skeleton.
+   `.workflows/profile.json`, CONTEXT.md, and the README skeleton — and
+   any later session can `/resume` (it runs `bash scripts/resume-digest.sh`)
+   to rebuild state before continuing.
 
 ## Rules
 
