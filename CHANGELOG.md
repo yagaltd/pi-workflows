@@ -1,3 +1,10 @@
+## 2026-10-26 — v0.12.3: plan-thinner — /plan SKILL as sole flow authority (plan 20261026-037)
+
+- The /plan flow lives in `skills/plan/SKILL.md` only: the judge pre-flight steps
+  and the PROPOSAL-FORMAT pointer moved from the prompt into the SKILL's Phase 5
+  and drafting sections. `prompts/plan.md` is a 7-line thin entry
+  (pointer + load-the-SKILL). No behavior change — steps, order, gates identical.
+
 ## 2026-10-26 — v0.12.2: next-thinner — dispatcher as an extension tool (plan 20261026-036)
 
 - **`dispatch_next` tool**: registered, model-callable — the extension reads plan,
