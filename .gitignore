@@ -8,4 +8,5 @@ node_modules/
 !.workflows/proposals/
 !.workflows/reviews/
 !.workflows/archive/
+!.workflows/profile.json
 .bug-hunter
