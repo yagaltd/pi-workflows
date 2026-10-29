@@ -116,6 +116,17 @@ else
 fi
 echo
 
+# 10. metric-gates — cheap quality tier (plan 20261026-044). Complexity +
+# duplication only: the drift gate never passes --with-mutation (cost).
+echo "== 10. metric-gates — complexity + duplication (no mutation) =="
+if bash "$(dirname "$0")/metric-gates.sh"; then
+  echo "ok:   metric-gates clean (violations absent or tools skipped)"
+else
+  echo "FAIL: metric-gates reported violations (scripts/metric-gates.sh)" >&2
+  FAIL=$((FAIL + 1))
+fi
+echo
+
 if [ "$FAIL" -eq 0 ]; then
   echo "CLEAN — no drift."
 else
