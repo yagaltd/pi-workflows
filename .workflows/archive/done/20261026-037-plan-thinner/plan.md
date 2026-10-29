@@ -25,7 +25,7 @@
 
 ## Tasks
 
-### TASK 1 (Tier B, 🟡): SKILL authority + thin prompt — skills/plan/SKILL.md, prompts/plan.md
+### TASK 1 (Tier B, 🟡): SKILL authority + thin prompt — skills/plan/SKILL.md, prompts/plan.md ✅
 - D1 move + D2 rewrite. Contract greps: the SKILL carries the judge pre-flight (judge.mjs ask, JUDGE SKIPPED, audit location) + the PROPOSAL-FORMAT pointer; the prompt ≤ 25 lines with the pointer and no phase-flow prose; bun/drift unchanged.
 
 ### TASK 2 (Tier A, ⚪): docs + ship — orchestrator-inline
