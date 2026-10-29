@@ -26,7 +26,7 @@ README.md is 924 lines (2026-10-29 audit): ~320 lines of "How It Works" architec
 
 ## Tasks
 
-### TASK 1 (Tier B, 🟡): extraction + rebuild — README.md, docs/architecture.md, CHANGELOG.md
+### TASK 1 (Tier B, 🟡): extraction + rebuild — README.md, docs/architecture.md, CHANGELOG.md ✅
 - D1 rebuild + D2 extraction + D3 dedupe. Contract: README ≤ 200 lines with the 7 sections; commands table rows == prompts count; zero version-titled headings; zero "How It Works" prose in README; docs/architecture.md carries the extracted sections updated to v0.13.0; CHANGELOG verified/patched for the four removed sections.
 
 ### TASK 2 (Tier A, ⚪): doctrine line + ship — orchestrator-inline ✅
