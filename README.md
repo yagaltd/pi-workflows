@@ -64,6 +64,7 @@ Then finish with `/review` → all green? ship it.
 | `/optimize <target>` | Three modes: parallel experiments (unknown approach) · contracted deep pass (known target, equivalence proof) · pi-autoresearch loop handoff (known target, many unattended iterations — benchmark + oracle prepared from our contract vocabulary) |
 | `/resume` | Restart context: run the state digest (plan, verdicts, budget, gates, git) via `bash scripts/resume-digest.sh`, then act on it. |
 - Scaffolds: `bash scripts/scaffold.sh <kind> <name>` generates profile-declared artifacts (ADR entries first; kinds live in `.workflows/profile.json`).
+- Metric gates: `bash scripts/metric-gates.sh [--with-mutation]` — complexity (CRAP < 10), duplication (< 0.8), mutation kill — thresholds in `.workflows/profile.json`; tools absent ⇒ skip (graceful). Install: crapper/dryer/mutator — origin: ub-mode companion tools, adopted under our gate names.
 
 ### Verification
 

@@ -1,3 +1,13 @@
+## 2026-10-29 — v0.13.0: metric gates — mechanical quality thresholds (plan 20261026-044)
+
+- **`scripts/metric-gates.sh [--with-mutation]`**: complexity (CRAP < 10),
+  duplication (< 0.8), mutation kill — thresholds in `.workflows/profile.json`
+  (`metrics` block), paths from the tree. Tools absent ⇒ skip (graceful);
+  violations ⇒ FAIL. Mutation tiered behind the flag — never in the per-commit
+  drift gate. Install: crapper/dryer/mutator (origin: ub-mode companion tools,
+  adopted under our gate names).
+- **check-drift section 10**: cheap tier runs repo-wide; sections 1–9 byte-stable.
+
 ## 2026-10-29 — v0.12.9: scaffolds — profile-declared generators (plan 20261026-043)
 
 - **`scripts/scaffold.sh <kind> <name>`**: renders profile-declared templates
