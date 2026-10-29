@@ -1,4 +1,6 @@
-# ADR-XXXX: <Decision Title>
+# ADR-{{next:3}}: {{name}}
+
+Date: {{date}}
 
 ## Status
 
