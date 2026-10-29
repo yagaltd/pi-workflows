@@ -1,3 +1,11 @@
+## 2026-10-26 — v0.12.4: review-mirror — /review SKILL extraction (plan 20261026-038)
+
+- **`/review` SKILL extraction**: the 195-line prompt is now a 7-line thin entry;
+  the full flow (Stage 0 risk-scoping → Stage 1 mechanical → Stage 2 adversarial +
+  quality → Stage 3 SHIP with the archive gate) lives in `skills/review/SKILL.md`.
+- **Wiring-test re-points**: 5 tests read the SKILL (the surface where the content
+  lives) — plan-037 precedent, amendment A on record.
+
 ## 2026-10-26 — v0.12.3: plan-thinner — /plan SKILL as sole flow authority (plan 20261026-037)
 
 - The /plan flow lives in `skills/plan/SKILL.md` only: the judge pre-flight steps

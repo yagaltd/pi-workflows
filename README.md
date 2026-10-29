@@ -68,7 +68,7 @@ Then finish with `/review` → all green? ship it.
 | Command | What it does |
 |---|---|
 | `/verify` | Full mechanical suite: agent-spec lifecycle + guard + project checks. Short-circuits on fail. |
-| `/review` | Stage 1: mechanical verification (agent-spec + project checks). Stage 2: adversarial review (bug-hunter) + quality review (judgment). |
+| `/review` | Mechanical + adversarial + quality review — flow lives in `skills/review/SKILL.md`. |
 | `/challenge <plan>` | Adversarial grill of your plan against domain model. Sharpens terminology, updates .workflows/CONTEXT.md inline. |
 | `/contract [spec]` | Show the contract for a task |
 
