@@ -1,3 +1,22 @@
+## 2026-10-30 — v0.14.0: just-surface — one command entrypoint (plan 20261030-046)
+
+- **repo-root `justfile`** (new): seven recipes (`ci`, `drift`, `docs`,
+  `agents`, `test`, `flow`, `docs-if-touched`) wrap scripts/ — one command
+  surface for drift checks, gates, and flow runs; bare `just` prints the list.
+- **CI parity via `just ci`**: `.github/workflows/ci.yml` installs `just`
+  (taiki-e/install-action@v2) and runs the same gates as local CI —
+  check-drift, docs-lint, agents-lint, bun test — in one shell job.
+- **pre-push rewired**: `scripts/install-git-hooks.sh` wires pre-push to
+  `just ci` (the full local gate); when `just` is absent it falls back
+  loudly to `scripts/docs-lint.sh` — a named fallback, never a silent pass.
+- **doc-gate guidance**: skills/flows/SKILL.md — task packs touching a doc
+  surface (docs/, prompts/, skills/, agents/, README.md, CHANGELOG.md) set
+  `verify` to include `just docs`; AGENTS.md POINTERS names the justfile as
+  the project command entrypoint.
+- **Origin note**: the agent-ci route (running Actions locally under
+  Docker) was rejected on Docker cost; one shell job calling `just ci`
+  gives local↔CI parity without a container runtime.
+
 ## 2026-10-29 — v0.13.1: readme-rebuild — shop window only (plan 20261026-045)
 
 - **README 924 → 146 lines**: 7-section spine (what/install/quick-start/
