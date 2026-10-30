@@ -11,5 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run drift checker
-        run: ./scripts/check-drift.sh
+      - name: Install just
+        uses: taiki-e/install-action@v2
+        with:
+          tool: just
+      - name: Run CI gates
+        run: just ci
