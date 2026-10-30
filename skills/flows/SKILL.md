@@ -72,5 +72,12 @@ node scripts/flow-run.mjs .workflows/flows/two-phase-tdd.json --dry-run  # gates
 
 Packs land in `.workflows/flows/runs/<slug>/pack-<id>.txt` — dispatch them
 through `/next` as usual. Gates reuse the repo's own command sets; an absent
-toolchain is a loud `skipped`, never a pass. SHIP still runs the golden eval
+toolchain is a loud `skipped`, never a pass.
+
+Doc-gate rule: task packs whose Allowed Changes touch a doc surface —
+docs/, prompts/, skills/, agents/, README.md, CHANGELOG.md — set `verify`
+to include `just docs` alongside the task's own test command, so doc-drift
+is caught in the same verify pass (`scripts/check-drift.sh`).
+
+SHIP still runs the golden eval
 gate (Layer 5 — the golden-evals flip-watching stage of /review Stage 1).

@@ -15,6 +15,7 @@ Start every reply with "Aurel,". No exceptions.
 ## POINTERS
 
 - Agent roles and dispatch policy (orchestrator, worker, reviewer): `agents/registry.md`
+- Project command entrypoint: repo-root justfile wraps scripts/ — `just docs` for doc-drift checks (see also skills/flows/SKILL.md)
 - Docs canon (doc types, doc-drift rules): `docs/canon.md`
 - Docs policy (README/CHANGELOG discipline): `templates/DOCS-POLICY.md`
 - User-facing skills (the /commands): `skills/`
