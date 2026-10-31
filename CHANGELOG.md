@@ -1,3 +1,11 @@
+## 2026-10-31 — v0.14.1: follow-up queue — state-free suite, guard scoping, standards (plan 20261031-047)
+
+- **Suite state-hardening**: 20 test files decoupled from gitignored `.workflows/` live state via a `requireLiveState` helper (fixtures + loud named skips) — fresh clones and worker worktrees run green (214 pass / 11 skip / 0 fail); lived-in checkouts stay 225/0.
+- **Guard per-spec scoping**: `agent-spec guard --spec <file>` at the contract gate + verify prompt — mid-plan multi-spec false-fails gone; reports isolate per spec.
+- **CONTRACTS:1 prose relocated** to docs/architecture.md Durable rules — `cc-check format` exit 0.
+- **Standards**: repo-truth cross-check rule (CONTRACT-FORMAT), repo-faithful reviewer-brief line (review SKILL), FOLLOW-UP-TABLE reporting standard (7 pinned columns, P0–P3 + S/M/L).
+- **tdd-gate disposition**: accepted skip recorded (optional peer dep; loud degradation is the tested default).
+
 ## 2026-10-30 — v0.14.0: just-surface — one command entrypoint (plan 20261030-046)
 
 - **repo-root `justfile`** (new): eight public recipes (`ci`, `ci-lite`,

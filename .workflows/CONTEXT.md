@@ -41,3 +41,9 @@
 - `just` adopted as the single command surface; scripts stay canonical (recipes wrap, never reimplement); agent-ci rejected on Docker cost (one-shell-job CI) — origin note in CHANGELOG.
 - CI runs ci-lite until the suite state-hardening plan ships; `just ci` (full gates incl. suite) stays the local/pre-push gate.
 - The judge (typesafe System One) stays out of just recipes and gate chains — recipes are deterministic exit codes; judge flags/routes only (execution-doctrine).
+
+### Glossary (plan 20261031-047)
+- **requireLiveState** — tests helper: warns `SKIPPED (state absent): <what>` + test.skipIf when gitignored `.workflows/` live state is absent; live-consistency suites route through it. Fresh checkouts: 214/11-skip/0 fail.
+- **guard --spec <file>** — per-spec guard form; multi-spec dir mode counts skip-only lifecycles as failing (upstream quirk — backlog: skip-aware route call).
+- **FOLLOW-UP-TABLE** — reporting standard: # / Item / Problem (plain words) / Impact if unfixed / Risk (P0–P3) / Effort (S/M/L) / Fix shape; ≤7 columns; rows are facts, cite the evidence trail (templates/FOLLOW-UP-TABLE.md).
+- **repo-truth cross-checks / repo-faithful layouts** — authoring standards: content-fact scenarios cite repo checks; reviewer probe briefs mirror real repo layout (templates/CONTRACT-FORMAT.md, skills/review/SKILL.md).
