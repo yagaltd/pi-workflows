@@ -8,6 +8,14 @@ ci:
     ./scripts/agents-lint.sh AGENTS.md
     bun test
 
+# CI runners have no bun and the test suite reads gitignored .workflows
+# state — CI runs the state-free gate subset; `just ci` stays the
+# local/pre-push gate.
+ci-lite:
+    ./scripts/check-drift.sh
+    ./scripts/docs-lint.sh
+    ./scripts/agents-lint.sh AGENTS.md
+
 drift:
     ./scripts/check-drift.sh
 
@@ -22,8 +30,8 @@ test:
     bun test
 
 flow slug:
-    ./scripts/flow-validate.mjs .workflows/flows/{{slug}}.json
-    ./scripts/flow-run.mjs .workflows/flows/{{slug}}.json
+    node scripts/flow-validate.mjs .workflows/flows/{{slug}}.json
+    node scripts/flow-run.mjs .workflows/flows/{{slug}}.json
 
 docs-if-touched:
     #!/usr/bin/env bash

@@ -1,11 +1,15 @@
 ## 2026-10-30 — v0.14.0: just-surface — one command entrypoint (plan 20261030-046)
 
-- **repo-root `justfile`** (new): seven recipes (`ci`, `drift`, `docs`,
-  `agents`, `test`, `flow`, `docs-if-touched`) wrap scripts/ — one command
-  surface for drift checks, gates, and flow runs; bare `just` prints the list.
-- **CI parity via `just ci`**: `.github/workflows/ci.yml` installs `just`
-  (taiki-e/install-action@v2) and runs the same gates as local CI —
-  check-drift, docs-lint, agents-lint, bun test — in one shell job.
+- **repo-root `justfile`** (new): eight public recipes (`ci`, `ci-lite`,
+  `drift`, `docs`, `agents`, `test`, `flow`, `docs-if-touched`) wrap
+  scripts/ — one command surface for drift checks, gates, and flow runs;
+  bare `just` prints the list.
+- **CI via `just ci-lite`**: `.github/workflows/ci.yml` installs `just`
+  (taiki-e/install-action@v2) and runs `ci-lite` — check-drift, docs-lint,
+  agents-lint — in one shell job. CI runners have no bun and the test
+  suite reads gitignored `.workflows/` state, so `ci-lite` is the state-free
+  subset: the full `just ci` suite stays the local/pre-push gate, and the
+  suite's state dependency is hardened in a follow-up plan.
 - **pre-push rewired**: `scripts/install-git-hooks.sh` wires pre-push to
   `just ci` (the full local gate); when `just` is absent it falls back
   loudly to `scripts/docs-lint.sh` — a named fallback, never a silent pass.

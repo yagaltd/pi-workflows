@@ -2,7 +2,12 @@
 // Pure JS, zero deps. Returns { ok, errors: [{code, step, message}] }.
 // Blocked codes (scripts/flow-schema.mjs BLOCKED_CODES): an invalid flow
 // never reaches the dispatcher — loud, per the degradation doctrine.
+//
+// Usage:
+//   node scripts/flow-validate.mjs <flow.json>
+// Exit: 0 valid · 1 validation errors · 2 usage | unreadable flow.
 
+import fs from "node:fs";
 import { BLOCKED_CODES, GATE_NAMES, QUESTION_KINDS, STEP_KINDS, TIERS } from "./flow-schema.mjs";
 
 const isInt = (n) => Number.isInteger(n) && n >= 1;
@@ -110,3 +115,19 @@ export function computeWaves(flow) {
   const waves = new Set((flow.steps ?? []).map((s) => s.wave).filter((w) => Number.isInteger(w) && w >= 1));
   return [...waves].sort((a, b) => a - b);
 }
+
+function main(argv) {
+  const file = argv.find((a) => !a.startsWith("--"));
+  if (!file) { console.error("usage: node scripts/flow-validate.mjs <flow.json>"); return 2; }
+  let flow;
+  try { flow = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { console.error(`flow-validate: unreadable flow: ${e.message}`); return 2; }
+  const v = validateFlow(flow);
+  if (!v.ok) {
+    for (const e of v.errors) console.error(`BLOCKED ${e.code}${e.step ? ` at ${e.step}` : ""}: ${e.message}`);
+    return 1;
+  }
+  console.log(`ok: ${flow.slug} — ${flow.steps.length} step(s), waves ${computeWaves(flow).join(",")}`);
+  return 0;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) process.exit(main(process.argv.slice(2)));
