@@ -109,6 +109,12 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 
 ### Contract writing rules:
 - Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
+- **Content-fact scenarios need repo-truth cross-checks**: when a scenario's
+  Given/When/Then asserts facts about real repo content (file names, paths,
+  counts, commands, recipes), the worker verifies each fact against the repo
+  before writing the scenario. A grep selector that passes does not make the
+  content true — fabricated prose with a passing selector is the defect class
+  this rule kills (origin: plan 046's fabricated CHANGELOG recipes)
 - Boundaries MUST list specific file paths, not vague descriptions
 - **Git-status criteria are task-scoped** to the task's own Allowed files plus
   the pre-dispatch whitelist: judge `git status` / `git diff` only against
