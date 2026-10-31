@@ -1,20 +1,19 @@
-# Review — TASK 3 (plan 20261030-046) — pre-push rewire
+# Review — TASK 3 (plan 20261031-047) — guard per-spec scoping
 
-- Reviewer: pw46-t3-reviewer-2 (run_mvv95wsz_pgmkil/task_1, bash-enabled re-run; first attempt VOIDed — orchestrator dispatch bug, tools override missing)
-- Worker: pw46-t3-worker (branch subagents/run_mvv8plig_bjcs3p/task_2 @ fa10987)
+- Reviewer: pw47-t3-reviewer (run_mvvzsth2_7dt1uu, bash-enabled)
+- Worker: pw47-t3-worker (run_mvvzdynw_fbyvku/task_3 @ branch subagents/run_mvvzdynw_fbyvku/task_3; 3 files: flow-gates.mjs +20, prompts/verify.md 8+/5−, tests/flows-gates.test.ts 8+/1− parent-granted)
 - Contract: .workflows/specs/task-3.spec
+- HELP round: tests/flows-gates.test.ts granted to the worker (assertion-only) after gateCommands behavior change broke the old exact-array assertion.
 
 ## Reviewer findings (executed itself, no borrowed evidence)
 
-- Layer 1 (agent-spec contract verification): lifecycle 0 failed / 5 skipped — documented skip-only shape (no tester wave; shell selectors unbindable by bun matcher). No FAILED scenario. Selector self-runs 5/5 PASS: S1 just ci present; S2 `command -v just` + docs-lint.sh fallback; S3 bash -n; S4 temp-replica hook install (executable, parses, runs just ci, loud docs-lint fallback); S5 no `|| true` / `exit 0` swallow. Guard mechanically failed only on skip-only-≠-passing across all 5 specs; TASK-3-scoped boundary judgment: respected — `git diff --stat master...task_2` = exactly `scripts/install-git-hooks.sh | 11 ++++++++---`, worktree diff identical to fa10987. Sibling transports attributed to T2/T4.
-- Layer 2 (tdd-gate): not installed — skipped loudly; no test files changed.
-- Layer 3 (project toolchain): verify line PASS. Runtime hook scenario PASS — brief's flat `cp` into the temp root breaks because the generator anchors `cd "$(dirname "$0")/.."` (scripts/install-git-hooks.sh:5); under the repo-faithful layout (script under scripts/) all assertions pass: hook executable, parses, runs `just ci`, docs-lint fallback + loud notice. Product defect: none. (Brief-authoring note: orchestrator's temp-scenario snippet needed the repo-faithful layout — reviewer corrected it correctly.) CONTRACTS:1:1 pre-existing, untouched.
-- Side effects cleaned by reviewer: models/registry.json rewritten by bun-test gate runs → restored to HEAD; stray /tmp/.git removed; main checkout verified back to exact 5-file transported state.
+- Layer 1: lifecycle 5/5 skipped, 0 failed (skip-only expected). Self-runs: S1 ec=0 ✓; S2 ec=0 ✓; S3 bash -n fails (ec=2, also on HEAD — superseded per caveat: substituted node --check ec=0 ✓); S4 negative ec=1 ✓; S5 positive ec=1 vs written 0 — superseded per caveat 2: failure is "0 failed, 4 skipped" (skip-counting only, NO boundary flag → the absolute/relative false-positive is confirmed gone). Guard --spec isolation: PASS — report names ONLY task-3.spec despite 19 worktree changes; not a 5-spec blob.
+- Layer 2: tdd-gate not installed — skipped loudly.
+- Layer 3: node --check + module load pass; per-spec greps pass; bun test flows-gates 3/0; test diff assertion-only confirmed (old exact-array expect → per-spec expectations, no assertions deleted); negative probe ec=1 ✓; crafted positive probe (bun-runnable selector) ec=0 ✓. Repo-level note: `just ci-lite` fails at docs/architecture.md:180 (docs-lint claim-to-gate) — that file is a T2/T4 sibling transport, absent from task-3's branch diff; T2/T4 must satisfy docs-lint before aggregate ship. cc-check clean.
+
+## Upstream notes (agent-spec untouched; human-gate backlog)
+(a) guard boundary path does not flag out-of-bounds worktree changes (task-3.spec's Forbidden tests/flows-gates.test.ts went unflagged); (b) guard counts skip-only lifecycles as "verification not passing" — shell-selector specs can never exit 0 under guard.
 
 ## Verdict
 
 **ok: true**
-
-Non-blocking notes for the human gate (SHIP):
-1. CONTRACTS:1:1 pre-existing cc-check format failure (already logged).
-2. Reviewer brief quality: verify-line temp scenarios should specify repo-faithful layouts (script under scripts/) — authoring note for future reviewer packs.
