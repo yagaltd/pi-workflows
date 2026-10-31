@@ -110,6 +110,7 @@ Run `git diff` to see what changed. Apply judgment-based review:
 3. **Error handling**: swallowed errors, silent failures
 4. **Surgical changes**: unnecessary modifications beyond task scope
 5. **Domain/ADR fit**: conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
+6. **Repo-faithful layouts**: reviewer briefs and temp scenarios that mirror repo layout (paths, trees, file lists) must match the real repo — check every layout claim against disk, not against the brief's own prose
 
 High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.
