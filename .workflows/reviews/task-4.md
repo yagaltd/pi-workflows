@@ -1,19 +1,20 @@
-# Review — TASK 4 (plan 20261030-046) — doc-gate guidance
+# Review — TASK 4 (plan 20261031-047) — authoring + reporting standards (fix round)
 
-- Reviewer: pw46-t4-reviewer-2 (run_mvv95wsz_pgmkil/task_2, bash-enabled re-run; first attempt run_mvv8w624_8b1x7m/task_2 VOIDed — orchestrator dispatch bug, tools override missing from the tasks-array entry)
-- Worker: pw46-t4-worker (branch subagents/run_mvv8plig_bjcs3p/task_3 @ e8ba123)
-- Contract: .workflows/specs/task-4.spec
+- Reviewer 1: pw47-t4-reviewer (run_mvvzoy5g_urx8k1) — ok:false, P1 casing (`Repo-faithful` vs contract token `repo-faithful`); anti-fabrication + meaning-vs-evidence PASS on the same content.
+- Pre-review rejection: first diff (run_mvvzdynw_fbyvku/task_4) fabricated the worked-example rows — rejected by orchestrator pre-flight (token greps passed, meaning failed).
+- Fix round: pw47-t4-fixer (run_mvvzi2kp_qu4bwt) — real plan 047 queue facts, evidence-cited.
+- Re-reviewer: pw47-t24-rereviewer (run_mvw0jdz2_0dmxr4, bash-enabled) — **ok:true** on the integrated main state.
+- Worker: pw47-t4-worker / pw47-t4-fixer (branch subagents/run_mvvzi2kp_qu4bwt/task_1)
 
-## Reviewer findings (executed itself, no borrowed evidence)
+## Final findings (re-reviewer, executed itself)
 
-- Layer 1 (agent-spec contract verification): lifecycle 0 failed / 5 skipped — skip-only per the documented structural note (no tester wave; shell selectors). No FAILED scenario. Selector self-runs against the main checkout: S1 `just docs` in flows SKILL PASS; S2 `justfile` in AGENTS.md PASS; S3 agents-lint exit 0 PASS; S4 check-drift CLEAN PASS; S5 negative-budget agents-lint exit 0 PASS. AGENTS.md at 29 lines (≤60 budget). Spec lint 96% quality. Guard raw exit 1 fully attributed to sibling transports (T2 ci.yml, T3 install-git-hooks.sh — other tasks' review state) + a guard tool artifact (absolute-vs-relative boundary paths); TASK-4-scoped boundary judgment: respected — `git diff --stat master...task_3` = exactly `AGENTS.md | 1 +` + `skills/flows/SKILL.md | 9 ++-`.
-- Layer 2 (tdd-gate): not installed — skipped loudly; docs-only diff, no test files changed.
-- Layer 3 (project toolchain): verify line verbatim PASS (agents-lint && check-drift && greps). Contracts: pre-existing CONTRACTS:1:1 prose-preamble failure — repo-level note, out of scope, CONTRACTS untouched by branch.
+- t4-verify-ok: repo-truth rule at templates/CONTRACT-FORMAT.md:112; repo-faithful lowercase at skills/review/SKILL.md:113 item 6 (case fix, meaning unchanged, byte-identical docfix↔integrated); Impact if unfixed in templates/FOLLOW-UP-TABLE.md.
+- Item 6 byte-identical docfix-branch↔integrated; 5 worked-example rows trace to plan.md Decisions 1–5 + plan 046 fix-round.md:16,24.
+- Pinned 7-column header exact at FOLLOW-UP-TABLE.md:16 (contract) and :36 (example); cap enforced ("Pinned set — do not add, drop, or reorder").
+- check-drift CLEAN (exit 0).
 
 ## Verdict
 
 **ok: true**
 
-Non-blocking notes for the human gate (SHIP):
-1. Guard tool artifact: boundary scenario renders absolute paths against relative boundaries — flags even in-scope files "not covered" when run over a multi-spec dir mid-plan. Candidate guard fix task (repo-level, outside plan 046).
-2. CONTRACTS:1:1 pre-existing cc-check format failure (already logged).
+Provenance note: the fix round's worked example cites its evidence trail in-file ("Real queue from plan 20261031-047 (evidence: plan Decisions 1–5, plan 046 reviews/fix-round.md, scout 20261031)") — the anti-fabrication pattern this task standardized, applied to itself.
