@@ -31,3 +31,13 @@
 
 ## Decisions (2026-09-20, proposal round 2)
 - **Spec-sanity pre-pass approved** (20260920-spec-sanity-prepass.md → plan 20260920-011): Layer A mechanical selector lint (bash -n + grep-flag sanity, exit-code bound) + Layer B Jev pre-pass (3 Noul per spec at Phase 5: boundaries_specific/selectors_runnable/verify_literal; flags ride the human approval gate; never auto-block). Workers stay Jev-free. Thresholds from THIS trust replay (T5 pre-amendment selectors = negative corpus; 7 shipped + 001/003 specs = positive) — no carry-over from v0.6.0 shapes. Specs frozen post-approval; pre-pass runs once.
+
+### Glossary (plan 20261030-046)
+- **just-surface** — the repo's single command entrypoint: root justfile wrapping scripts/; `just --unsorted --summary` is the recipe inventory (just 1.59 sorts `--summary` alphabetically; `--unsorted` = source order; `[private]` hides a recipe from the list).
+- **ci-lite** — state-free gate subset (`drift` + `docs` + `agents`); what CI runs because the full suite still needs gitignored `.workflows/` live state (hardening follow-up).
+- **doc-gate rule** — task packs whose Allowed Changes touch a doc surface (docs/, prompts/, skills/, agents/, README.md, CHANGELOG.md) extend `verify` with `just docs`.
+
+### Decisions (20261030-046)
+- `just` adopted as the single command surface; scripts stay canonical (recipes wrap, never reimplement); agent-ci rejected on Docker cost (one-shell-job CI) — origin note in CHANGELOG.
+- CI runs ci-lite until the suite state-hardening plan ships; `just ci` (full gates incl. suite) stays the local/pre-push gate.
+- The judge (typesafe System One) stays out of just recipes and gate chains — recipes are deterministic exit codes; judge flags/routes only (execution-doctrine).
