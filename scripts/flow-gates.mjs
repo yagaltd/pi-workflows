@@ -6,13 +6,31 @@
 // Absent toolchain ⇒ loud `skipped` with the binary named — never a silent pass.
 
 import { spawnSync } from "node:child_process";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 
 export function gateCommands(name) {
   switch (name) {
-    case "contract": return ["agent-spec guard --spec-dir .workflows/specs --code ."];
+    // Per-spec scoping - plan 20261031-047: guard each spec file individually so
+    // in-scope files are not failed by other tasks' skipped lifecycle verdicts.
+    // Any failing spec fails the gate; outputs incl. skip verdicts are kept.
+    case "contract": return listSpecs()
+      .map((f) => `agent-spec guard --spec ${f} --code .`);
     case "test-quality": return ["tdd-gate gaming --diff HEAD"];
     case "review": return ["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"];
     default: return null;
+  }
+}
+
+// Missing spec dir is loud, not silent: guard fails on the nonexistent --spec path.
+function listSpecs() {
+  try {
+    return readdirSync(".workflows/specs")
+      .filter((f) => f.endsWith(".spec"))
+      .sort()
+      .map((f) => join(".workflows/specs", f));
+  } catch {
+    return [".workflows/specs"];
   }
 }
 
