@@ -9,13 +9,11 @@ Run the full verification pipeline across all contracts and the project. Ordered
 1. Check if agent-spec is available: `which agent-spec`
 2. If available, run:
    ```bash
-   # Guard all specs against current changes
-   agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree --format json
-   
-   # Lifecycle on each spec individually
+   # Guard each spec individually (per-spec scoping, plan 20261031-047):
+   # any failing spec fails the gate; skip-only lifecycle verdicts are reported.
    for spec in .workflows/specs/*.spec; do
      echo "=== $spec ==="
-     agent-spec lifecycle "$spec" --code . --format json
+     agent-spec guard --spec "$spec" --code . --change-scope worktree --format json || { echo "FAIL: $spec"; exit 1; }
    done
    ```
 If any scenario fails or boundaries violated → report FAIL, STOP.

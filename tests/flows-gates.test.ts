@@ -3,7 +3,13 @@ import { gateCommands, runGate } from "../scripts/flow-gates.mjs";
 
 describe("flow-gates (plan 20261025-022)", () => {
   test("gate names resolve to the existing layer command sets", () => {
-    expect(gateCommands("contract")).toEqual(["agent-spec guard --spec-dir .workflows/specs --code ."]);
+    // Per-spec scoping (plan 20261031-047): one guard invocation per spec file.
+    const specCmds = gateCommands("contract");
+    expect(specCmds.length).toBeGreaterThan(0);
+    for (const cmd of specCmds) {
+      expect(cmd).toMatch(/^agent-spec guard --spec \.workflows\/specs\/[\w.-]+\.spec --code \.$/);
+    }
+    expect(specCmds.some((c) => c.includes("--spec-dir"))).toBe(false);
     expect(gateCommands("test-quality")).toEqual(["tdd-gate gaming --diff HEAD"]);
     expect(gateCommands("review")).toEqual(["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"]);
     expect(gateCommands("quantum")).toBeNull();
