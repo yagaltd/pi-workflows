@@ -20,6 +20,8 @@
 - **Origin note**: the agent-ci route (running Actions locally under
   Docker) was rejected on Docker cost; one shell job calling `just ci`
   gives local↔CI parity without a container runtime.
+- **Post-ship owner call**: the GitHub Actions workflow was removed — gates are
+  local + pre-push only (`just ci`; `ci-lite` remains available as a recipe).
 
 ## 2026-10-29 — v0.13.1: readme-rebuild — shop window only (plan 20261026-045)
 
