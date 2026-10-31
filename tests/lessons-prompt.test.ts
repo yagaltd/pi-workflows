@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
+import { requireLiveState } from "./state-helpers";
 
 describe("lessons in plan + challenge (plan 20261026-031)", () => {
   test("plan and challenge prompts read the lessons ledger", () => {
@@ -14,7 +15,8 @@ describe("lessons in plan + challenge (plan 20261026-031)", () => {
     expect(challenge).toContain("verified");
   });
 
-  test("queue json drops the shipped d row", () => {
+  const queueLive = requireLiveState(".workflows/queue.json", "live queue: no D-option row remains after shipping, the queue may be empty, and any row keeps all columns as strings");
+  test.skipIf(!queueLive)("queue json drops the shipped d row", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
     // Structural (032): D never returns; queue may be empty; any row keeps all columns.
     expect(rows.some((r) => r.option.startsWith("D "))).toBe(false);
