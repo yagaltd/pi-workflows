@@ -177,6 +177,10 @@ Scenario: Cache miss returns None
 
 ## Durable rules (code contracts)
 
+Scope rule: the `CONTRACTS` file holds code-local invariants only — never
+requirements (home: `.workflows/specs/*.spec`), never narrative (home:
+`docs/`, ADRs, `.workflows/` decision trace).
+
 A `.spec` answers "is this task done?"; `@cc` code contracts answer "what
 must stay true forever?" (gate: `CONTRACTS` at the repo root). `@cc` directives
 annotate public seams (exported functions, classes, methods) and feed the root
