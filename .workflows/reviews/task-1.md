@@ -1,20 +1,18 @@
-# Review — TASK 1 (plan 20261030-046) — justfile adoption
+# Review — TASK 1 (plan 20261031-047) — suite state-hardening (composed fix round)
 
-- Reviewer: pw46-t1-reviewer-2 (run_mvv890cl_lcayjh, bash-capable re-run; first attempt run_mvv850e7_5gqw3e VOIDed — dispatched without bash, VOID rule held correctly)
-- Worker: pw46-t1-worker (run_mvv784dq_d8wucb, branch subagents/run_mvv784dq_d8wucb/task_1 @ 22c1334)
-- Contract: .workflows/specs/task-1.spec (as amended: S1 `just --unsorted --summary`; S2–S4 `just -n … 2>&1`)
+- Reviewer: pw47-t1-reviewer (run_mvw0ne3n_6wj8ri, bash-enabled)
+- Worker: pw47-t1-worker (run_mvvzdynw_fbyvku/task_1 @ c8fe504 — hardening) + pw47-t1-fixer (run_mvvzzc8f_kihchu/task_1 — integration fix: flows-gates.test.ts fixture + chdir)
+- Contract: .workflows/specs/task-1.spec (inline)
 
-## Reviewer report (verbatim findings)
+## Reviewer findings (executed itself, no borrowed evidence)
 
-- Layer 1: lifecycle 0 failed / 8 skipped (skip-only = documented structural note, no tester wave; shell selectors, not bun names). Reviewer executed all 8 shell selectors itself — all pass. Guard: task-1 boundaries respected; guard noise limited to pending sibling specs task-2..5. Cross-check: `git diff --stat master...subagents/run_mvv784dq_d8wucb/task_1` = `justfile | 32 insertions(+)` exactly; main-checkout uncommitted justfile byte-identical to 22c1334.
-- Layer 2: tdd-gate NOT installed — gaming + drift skipped loudly (degraded, never silent).
-- Layer 3: `just --summary && just ci` PASS (runs: 2). Run 1: 11 ENOENT failures — gitignored live-plan state absent in reviewer's isolated worktree (.gitignore:5), not the network-flake shape, not caused by the diff; state restored → Run 2 exit 0, 225 pass / 0 fail, all gates CLEAN. cc-check format FAILS pre-existing at CONTRACTS:1:1 (prose preamble, expected @cc directive) — CONTRACTS untouched by the branch diff → repo-level note, not a task-1 finding.
+- Layer 1: lifecycle 0 failed / 5 skipped (skip-only expected; 0-failed requirement met; S5 selector text crashes bun's --test-name-pattern parser — upstream quirk, judged per caveat). Selector self-runs: S1 integrated fresh-worktree real-exit 0 ✓; S2 live 225/0 ✓; S3 requireLiveState + pinned format ✓; S4 adopters 10 ≥ 8 ✓; S5 all 11 skip lines carry the adjacent pinned warn, 0 unexplained ✓. Composed boundaries respected — 12 changes, all under tests/**.
+- Layer 2: tdd-gate not installed — skipped loudly; MANUAL weakening scan PASS: 10/10 suites byte-identical after removing only gating scaffolding (import, hoisted requireLiveState const, test → test.skipIf); flows-gates.test.ts +50/−1, only deletion is the import line, adds mkdtemp fixture + chdir per the integration fix. No deleted expect()/test bodies.
+- Layer 3: integrated fresh-worktree probe 214 pass / 11 skip / 0 fail, real-exit 0 (11 pinned warns = 11 skips, all explained); live checkout 225 ran / 0 fail; just ci-lite exit 0.
+- Mechanism note: test.skipIf = bun 1.4.3 native skip — compliant with the "routes to test.skip" contract.
 
 ## Verdict
 
 **ok: true**
 
-Non-blocking notes for the human gate (SHIP):
-1. tdd-gate not installed (existing doctrine-documented degradation).
-2. CONTRACTS:1:1 pre-existing cc-check format failure — needs its own fix task (outside plan 046 scope).
-3. Structural (pre-existing, logged in LOG.md): lifecycle bun-selector model vs shell Test lines; bun tests depend on gitignored .workflows live state in fresh worktrees.
+Effect: BUG-2 (suite red on fresh checkouts — the plan 046 Critical) is closed at the suite level; fresh clones and worker worktrees get green gates with loud, explained skips.
