@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
+import { requireLiveState } from "./state-helpers";
 
 const read = (p: string) => fs.readFileSync(p, "utf8");
 
@@ -25,7 +26,8 @@ describe("chooser wiring (plan 20261026-032)", () => {
     expect(surfaces).toContain("ledger");
   });
 
-  test("queue drops the cancelled e row and may be empty", () => {
+  const queueLive = requireLiveState(".workflows/queue.json", "live queue: no E-option row remains, every row carries option what effort risk unblocks recommend as strings, and an empty queue is valid");
+  test.skipIf(!queueLive)("queue drops the cancelled e row and may be empty", () => {
     const rows = JSON.parse(read(".workflows/queue.json"));
     expect(Array.isArray(rows)).toBe(true);
     expect(rows.some((r) => r.option.startsWith("E "))).toBe(false);

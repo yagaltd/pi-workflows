@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import { main } from "../scripts/closeout.mjs";
+import { requireLiveState } from "./state-helpers";
 
 const read = (p: string) => fs.readFileSync(p, "utf8");
 
@@ -12,7 +13,8 @@ describe("closeout wiring (plan 20261025-028)", () => {
     expect(review).toContain("wait for the owner");
   });
 
-  test("closeout runs on the live repo state and emits all sections", async () => {
+  const planLive = requireLiveState(".workflows/plan.md", "closeout runs against the live plan and emits exit 0 with the Shipped Deviations Discoveries Deferred and Watch sections");
+  test.skipIf(!planLive)("closeout runs on the live repo state and emits all sections", async () => {
     const out: string[] = [];
     const orig = console.log;
     console.log = (...a: unknown[]) => out.push(a.map(String).join(" "));

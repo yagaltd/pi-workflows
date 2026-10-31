@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { gather, main, mermaid, renderReport, settleJudge, settleQuestions } from "../scripts/closeout.mjs";
+import { requireLiveState } from "./state-helpers";
 
 const PLAN = `# Plan: fixture closeout (055)
 
@@ -96,7 +97,8 @@ describe("closeout (plan 20261025-028)", () => {
     expect(r3.status).toBe("pass");
   });
 
-  test("main report subcommand emits all section headers on the live repo state", async () => {
+  const planLive = requireLiveState(".workflows/plan.md", "closeout report on the live plan exits 0 and prints the Shipped Deviations Discoveries Deferred and Watch section headers");
+  test.skipIf(!planLive)("main report subcommand emits all section headers on the live repo state", async () => {
     const out = [];
     const orig = console.log;
     console.log = (...a) => out.push(a.join(" "));

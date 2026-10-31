@@ -4,11 +4,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { validateFlow } from "../scripts/flow-validate.mjs";
+import { requireLiveState } from "./state-helpers";
 
 const EXAMPLES = ".workflows/flows";
+const examplesLive = requireLiveState([path.join(EXAMPLES, "two-phase-tdd.json"), path.join(EXAMPLES, "docs-ship.json")], "example flows two-phase-tdd and docs-ship validate clean and dry-run through flow-run.mjs with exit 0");
 
 describe("flows examples (plan 20261025-022)", () => {
-  test("example flows validate and dry-run clean", () => {
+  test.skipIf(!examplesLive)("example flows validate and dry-run clean", () => {
     for (const name of ["two-phase-tdd", "docs-ship"]) {
       const file = path.join(EXAMPLES, `${name}.json`);
       const flow = JSON.parse(fs.readFileSync(file, "utf8"));
