@@ -10,7 +10,7 @@ if command -v just >/dev/null 2>&1; then
   just ci
 else
   echo "pre-push: 'just' not found in PATH — falling back to scripts/docs-lint.sh only (install just for the full gate)" >&2
-  bash "$(dirname "$0")/../scripts/docs-lint.sh"
+  bash "$(dirname "$0")/../../scripts/docs-lint.sh"
 fi
 HOOK
 chmod +x .git/hooks/pre-push

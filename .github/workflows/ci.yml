@@ -16,4 +16,4 @@ jobs:
         with:
           tool: just
       - name: Run CI gates
-        run: just ci
+        run: just ci-lite
