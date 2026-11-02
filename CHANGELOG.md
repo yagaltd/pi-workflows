@@ -1,9 +1,17 @@
-## 2026-11-02 — v0.14.2: evidence-verdict gate — borrowed evidence, computed (plan 20261031-048)
+## 2026-11-02 — v0.14.3: JEV-batched PII advisory pass — values-never-extract guardrail (plan 20261102-049)
+
+- `scripts/pii-scan.mjs` (new): per changed data/doc file, one judge call (judge.mjs ask) whose state is inventory/schema only — values never extracted; name positions (CSV header cells, MD headings, JSON/YAML/TOML key names) pass a deterministic sanitizer (redact ≥8-char mixed runs → `[redacted:N]`, then 24-char bound).
+- Speculative question fan-out ≤64 per file (judge.mjs QUESTION_CAP); no-key → loud JUDGE SKIPPED, exit 0; gitleaks-absent degradation note; `--gitleaks <report>` restores disagreement-first triage; idempotent ruler at `.workflows/pii/reviewed_v1.jsonl` (gitignored, local-only).
+- `skills/review/SKILL.md`: Stage 2 advisory pass line (findings → Watch; JUDGE SKIPPED = documented gap).
+- Guardrail test pins all four leak positions (value, header-cell, heading-text, key-name) — 10 tests / 240 asserts; whole-plan review BUG-1 (over-broad guardrail) fixed at root cause.
+- Owner decision 20261102: the judge replaces gitleaks as the secrets gate (backlog row 7); hardening follow-up queued.
 
 - **Evidence-verdict port** (origin: kwant missions/foundry): proof-ledger rows gain `runner` (worker|reviewer|orchestrator) + `replayable`; pure `exampleVerdict` (unreplayable checks never count as passed) and `evidenceVerdict` (pass requires ≥1 independent replayable-confirmed check; owner-only → not_independent).
 - **Evidence gate**: flow-gates `evidence` gate — flows carry `taskId`, runGate passes it; cross-plan borrowing rejected (planId scoping). Per-spec contract gate is version-tolerant: probes `--spec` support, aggregate `--spec-dir` fallback with loud degradation on 0.2.7.
 - **Recorded-exit replay check restored**: verifyLast requires exit match + hash match; drift → replayable-drifted.
 - **--kind fail-closed**: record validates replayable|not_replayable; unknown → usage error exit 2, no row.
+
+## 2026-11-02 — v0.14.2: evidence-verdict gate — borrowed evidence, computed (plan 20261031-048)
 
 ## 2026-10-31 — v0.14.1: follow-up queue — state-free suite, guard scoping, standards (plan 20261031-047)
 
