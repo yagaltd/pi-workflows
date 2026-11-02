@@ -10,43 +10,70 @@
 //     replayable: rows WITHOUT it read as true.
 //
 // Usage:
-//   node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" [--runner R] [--kind replayable|not_replayable] [--spec <path>] [--ledger FILE]
+//   node scripts/proof-ledger.mjs init [--ledger FILE]
+//   node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" [--runner R] [--reviewer-token T] [--kind replayable|not_replayable] [--spec <path>] [--ledger FILE]
 //   node scripts/proof-ledger.mjs show   --plan <id> [--task <id>] [--ledger FILE]
 //   node scripts/proof-ledger.mjs verify --plan <id> --task <id>  [--ledger FILE]
 //   node scripts/proof-ledger.mjs collect --plan <id> [--journal F] [--reviews DIR] [--ledger F] [--out F]
 // Exit: record = verifier exit (after writing) · verify 0 replayable-confirmed /
-//       1 replayable-drifted, not_replayable, or missing · show/collect 0 · 2 usage.
+//       1 replayable-drifted, not_replayable, or missing · show/collect/init 0 · 2 usage.
+//
+// Reviewer token gating (owner-approved C-lite): `--runner reviewer` records are
+// token-gated — they refuse unless `--reviewer-token` matches
+// .workflows/proofs/.reviewer-token (32-hex, mode 600; created by `init` or
+// lazily by the first worker/orchestrator record). Structural protection
+// against accidental mislabeling, not adversarial-process-proof (single-user
+// machine — documented residual). Old reviewer rows predate the token and
+// verify as "reviewer (self-attested, pre-token)" — forward-only.
 
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const DEFAULT_LEDGER = ".workflows/proofs/proofs.jsonl";
+// Reviewer-token file lives next to the ledger (default:
+// .workflows/proofs/.reviewer-token). Local-only by design — .workflows/* is
+// gitignored, so the token never leaves the machine.
+const REVIEWER_TOKEN_FILE = ".reviewer-token";
+export const reviewerTokenPath = (ledger) => path.join(path.dirname(ledger), REVIEWER_TOKEN_FILE);
+
+// Idempotent: creates the dir and the 32-hex token on demand, never clobbers an
+// existing token (rotation would strand nothing today, but least surprise wins).
+export function initReviewerToken(ledger) {
+  const file = reviewerTokenPath(ledger);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, randomBytes(16).toString("hex") + "\n", { mode: 0o600 });
+    fs.chmodSync(file, 0o600); // deterministic regardless of umask
+  }
+  return file;
+}
 // Valid --kind values (BUG-4 fix): anything else is a usage error BEFORE any
 // execution — a typo like "not-replayable" must never record replayable:true.
 export const PROOF_KINDS = ["replayable", "not_replayable"];
 
 export function parseArgs(argv) {
-  const o = { cmd: null, plan: null, task: null, verify: null, spec: null, runner: null, kind: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
+  const o = { cmd: null, plan: null, task: null, verify: null, spec: null, runner: null, kind: null, reviewerToken: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "record" || a === "show" || a === "verify" || a === "collect") o.cmd = a;
+    if (a === "record" || a === "show" || a === "verify" || a === "collect" || a === "init") o.cmd = a;
     else if (a === "--plan") o.plan = argv[++i];
     else if (a === "--task") o.task = argv[++i];
     else if (a === "--verify") o.verify = argv[++i];
     else if (a === "--spec") o.spec = argv[++i];
     else if (a === "--runner") o.runner = argv[++i];
     else if (a === "--kind") o.kind = argv[++i];
+    else if (a === "--reviewer-token") o.reviewerToken = argv[++i];
     else if (a === "--ledger") o.ledger = argv[++i];
     else if (a === "--journal") o.journal = argv[++i];
     else if (a === "--reviews") o.reviews = argv[++i];
     else if (a === "--out") o.out = argv[++i];
     else return { error: `unknown argument: ${a}` };
   }
-  if (!o.cmd) return { error: "subcommand required: record | show | verify | collect" };
-  if (!o.plan) return { error: "--plan is required" };
+  if (!o.cmd) return { error: "subcommand required: record | show | verify | collect | init" };
+  if (!o.plan && o.cmd !== "init") return { error: "--plan is required" };
   if ((o.cmd === "record") && (!o.task || !o.verify)) return { error: "record needs --task and --verify" };
   if ((o.cmd === "record") && o.kind != null && !PROOF_KINDS.includes(o.kind)) return { error: `--kind must be one of ${PROOF_KINDS.join("|")}` };
   if ((o.cmd === "verify") && !o.task) return { error: "verify needs --task" };
@@ -64,6 +91,27 @@ export function readProofs(file) {
 }
 
 export function record(opts, exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" })) {
+  // Reviewer token gate — fail-closed BEFORE any execution (BUG-4 precedent):
+  // a refused record runs no verifier and writes no row. worker/orchestrator
+  // records are unaffected and lazily provision the token ("lazy first-record").
+  const tokenFile = reviewerTokenPath(opts.ledger);
+  if (opts.runner === "reviewer") {
+    const expected = fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, "utf8").trim() : null;
+    if (expected === null) {
+      console.error(`refusing reviewer record: ${tokenFile} not found — run proof-ledger init first (reviewer packs carry the token path)`);
+      return { refused: true, exit: 2 };
+    }
+    if (!opts.reviewerToken) {
+      console.error(`refusing reviewer record: --reviewer-token required — reviewer packs carry the token path (${tokenFile})`);
+      return { refused: true, exit: 2 };
+    }
+    if (opts.reviewerToken !== expected) {
+      console.error(`refusing reviewer record: --reviewer-token mismatch with ${tokenFile}`);
+      return { refused: true, exit: 2 };
+    }
+  } else {
+    initReviewerToken(opts.ledger);
+  }
   const s = exec(opts.verify);
   const stdout = s.stdout ?? "";
   const stderr = s.stderr ?? "";
@@ -75,6 +123,8 @@ export function record(opts, exec = (cmd) => spawnSync("bash", ["-c", cmd], { en
     exit: s.status ?? 1,
     outputHash: sha256(stdout + stderr),
     ...(opts.runner ? { runner: opts.runner } : {}),
+    // The gate above guarantees this is only set on token-matched reviewer rows.
+    ...(opts.runner === "reviewer" ? { tokenVerified: true } : {}),
     ...(opts.kind ? { replayable: opts.kind !== "not_replayable" } : {}),
     ...(opts.spec && fs.existsSync(opts.spec) ? { specHash: sha256(fs.readFileSync(opts.spec)) } : {}),
   };
@@ -87,8 +137,19 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
   const mine = records.filter((r) => r.planId === opts.plan && r.taskId === opts.task);
   if (mine.length === 0) return { status: "missing", reason: `no proof recorded for ${opts.task}`, exit: 1 };
   const last = mine[mine.length - 1];
+  // Reviewer annotation, forward-only: token-era rows carry tokenVerified:true
+  // (gated at record time); legacy reviewer rows predate the token and read as
+  // self-attested. worker/orchestrator rows get no annotation. Annotation never
+  // changes the exit code — old plans are unaffected (048 precedent).
+  const runnerNote =
+    last.runner === "reviewer"
+      ? last.tokenVerified
+        ? "reviewer (token-verified)"
+        : "reviewer (self-attested, pre-token)"
+      : null;
+  const done = (r) => (runnerNote ? { ...r, runnerNote } : r);
   // Rows lacking `replayable` (historical) read as true — re-run them.
-  if (last.replayable === false) return { status: "not_replayable", exit: 1, command: last.command };
+  if (last.replayable === false) return done({ status: "not_replayable", exit: 1, command: last.command });
   let s;
   try {
     s = exec(last.command);
@@ -102,28 +163,28 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
   // output (BUG-3 fix — the recorded-exit comparison was dropped and let a
   // recorded failure replay to exit 0 on byte-identical output).
   if (nowExit !== last.exit) {
-    return {
+    return done({
       status: "replayable-drifted",
       exit: 1,
       recorded: { exit: last.exit, outputHash: last.outputHash },
       now: { exit: nowExit, outputHash: hash },
       command: last.command,
-    };
+    });
   }
   if (nowExit === 0 && hash === last.outputHash) {
-    return { status: "replayable-confirmed", exit: 0, command: last.command };
+    return done({ status: "replayable-confirmed", exit: 0, command: last.command });
   }
   if (hash !== last.outputHash) {
-    return {
+    return done({
       status: "replayable-drifted",
       exit: 1,
       recorded: { exit: last.exit, outputHash: last.outputHash },
       now: { exit: nowExit, outputHash: hash },
       command: last.command,
-    };
+    });
   }
   // Re-ran identically to a recorded failure — consistent, but no confirmed replay.
-  return { status: "not_replayable", exit: 1, command: last.command };
+  return done({ status: "not_replayable", exit: 1, command: last.command });
 }
 
 // Verdicts (plan 20261031-048, ported from kwant) — PURE: no I/O, no new deps.
@@ -192,6 +253,11 @@ export async function main(argv) {
   const { opts, error } = parseArgs(argv);
   if (error) { console.error(`usage error: ${error}`); return 2; }
 
+  if (opts.cmd === "init") {
+    const file = initReviewerToken(opts.ledger);
+    console.log(`reviewer token ready: ${file}`);
+    return 0;
+  }
   if (opts.cmd === "record") {
     const { proof, exit } = record(opts);
     void proof;

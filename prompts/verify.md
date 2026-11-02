@@ -27,9 +27,14 @@ Run the full verification pipeline across all contracts and the project. Ordered
      agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree || { echo "FAIL: aggregate guard"; exit 1; }
    fi
    ```
-   For each probe the reviewer runs, record it as a proof:
+   For each probe the reviewer runs, record it as a proof. Reviewer records
+   are token-gated: read the token from `.workflows/proofs/.reviewer-token`
+   (run `node scripts/proof-ledger.mjs init` first if it's missing) and pass
+   `--reviewer-token <value>` on every reviewer record — unmatched records
+   refuse:
    ```bash
-   node scripts/proof-ledger.mjs record --plan <id> --task <t> --runner reviewer --kind replayable --verify "<probe>"
+   REVIEWER_TOKEN=$(cat .workflows/proofs/.reviewer-token)
+   node scripts/proof-ledger.mjs record --plan <id> --task <t> --runner reviewer --reviewer-token "$REVIEWER_TOKEN" --kind replayable --verify "<probe>"
    ```
    (use `--kind not_replayable` for prose/one-shot checks).
 If any scenario fails or boundaries violated → report FAIL, STOP.
