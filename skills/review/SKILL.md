@@ -103,12 +103,16 @@ pi-workflows skill location or `pi list`; write toolset, high thinking,
 scan-only, artifacts under `.bug-hunter/`), scoped to the review diff. If
 the bug-hunter skill is not installed, skip with a note.
 
-Optional: a judge PII advisory pass on changed data/doc files —
-`node scripts/pii-scan.mjs --plan <id>`; findings go to the close-out
-Watch section, and `JUDGE SKIPPED` is a documented gap routed to the
-human (data values and literal-bearing names are never sent; name-like
-structure — header cells, headings, key names — passes a truncating,
-high-entropy-redacting sanitizer first; advisory only, no gate semantics).
+Optional: a judge-based PII + secrets advisory pass on changed data/doc
+files — `node scripts/pii-scan.mjs --plan <id>`. The secrets gate is
+judge-based (gitleaks retired — owner decision 2026-11-02): credential-
+shape questions, a per-file likely-credentials verdict, and
+`suspicious-redacted-name` redaction signals all land as findings in the
+close-out Watch section, and `JUDGE SKIPPED` is a documented gap routed
+to the human (data values and literal-bearing names are never sent;
+name-like structure — header cells, headings, key names — passes a
+truncating, high-entropy-redacting sanitizer first; advisory only,
+exit 0, no gate semantics).
 
 ### Step 2: Judgment-based quality review
 
