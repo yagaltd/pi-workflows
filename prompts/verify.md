@@ -16,6 +16,11 @@ Run the full verification pipeline across all contracts and the project. Ordered
      agent-spec guard --spec "$spec" --code . --change-scope worktree --format json || { echo "FAIL: $spec"; exit 1; }
    done
    ```
+   For each probe the reviewer runs, record it as a proof:
+   ```bash
+   node scripts/proof-ledger.mjs record --plan <id> --task <t> --runner reviewer --kind replayable --verify "<probe>"
+   ```
+   (use `--kind not_replayable` for prose/one-shot checks).
 If any scenario fails or boundaries violated → report FAIL, STOP.
 
 ## Layer 2: Project Toolchain
