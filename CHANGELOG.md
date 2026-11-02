@@ -1,3 +1,12 @@
+## 2026-11-02 — v0.14.5: backlog wave — judge-based secrets gate, init probe, env pins (owner-directed "do them all")
+
+- **#7 secrets gate (judge-based, owner decision)**: `scripts/pii-scan.mjs` gains `buildCredentialQuestions` — 24 judgments/file ≤64 cap (10 credential field-name shapes c01–c10, PEM indicator c11, per-file rollup c12); redaction-signal findings — names sanitized to `[redacted:N]` surface as `suspicious-redacted-name` in the report AND ruler rows (same idempotent key scheme, ruled only on judge answer); `skills/review/SKILL.md` wording: judge-based gate, gitleaks retired (owner call 20261102), findings → Watch, advisory exit-0. Verdict reviews/task-secrets-gate.md ok:true (guardrail probe: sentinel count 0, no-weakening clean).
+- **#6 init charter probe**: `skills/init/SKILL.md` step 6 verifies AGENTS.md exists post-scaffold — loud failure + remediation hint, blocks handoff. Verdict ok:true (Tier A).
+- **#9-quick env pins**: `env: process.env` on all 4 remaining spawnSync sites (scripts/flow-gates.mjs ×3, scripts/eval-golden.mjs ×1) — closes the Bun startup-env bug class repo-wide. Verdict ok:true (Tier A; golden 12/12).
+- **#8 README**: Contributing section (bun test green + check-drift CLEAN before PR). Verdict ok:true (Tier A).
+- **#4 docs sweep**: recon clean — zero edits needed, docs current at source; one ambiguity reported (fix SKILL:263, conditioned at Layer 2). Record reviews/task-docs-sweep.md ok:true.
+- Remaining open: #5 (--runner trust gap — owner decision), #9 pii-scan micro-LOWs (token-swallowing, judge-drift signal, basename keying).
+- Suite: 254 pass / 0 fail / 11 pre-existing skips.
 ## 2026-11-02 — v0.14.4: auto-gate env pin — first fully-green suite (owner-directed repair)
 
 - `extensions/index.ts`: `env: process.env` pinned on all three spawnSync sites (runGate, runCapture, runScript) — under Bun 1.3.11 spawnSync resolved against the process-STARTUP env/PATH snapshot, silently ignoring runtime PATH shims and gate-mode env vars; the auto-gate ran the real agent-spec binary instead of PATH shims (root cause of the 14 long-standing suite failures).
