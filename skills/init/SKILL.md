@@ -126,10 +126,17 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    one-paragraph description, install/build/test placeholders. (Full docs
    come from `/docs` when there's something real to document.)
 5. Append to `.workflows/LOG.md`: `<date> INIT — architecture + tree approved, scaffolded, profile linted`
-6. **Hand off**: present the summary and point at `/plan` — its contract
+6. **Charter probe**: VERIFY the scaffold finished — `test -f AGENTS.md` at the
+   project root. If missing, FAIL LOUDLY: name the missing path
+   (`AGENTS.md at <project root>`) and the remediation — run the charter step
+   (Phase 5 step 1: copy `templates/AGENTS.md` and fill the slots), see
+   `templates/DOCS-POLICY.md` / `docs/canon.md`. Do NOT hand off without a
+   charter: downstream roles and lints depend on it.
+7. **Hand off**: present the summary and point at `/plan` — its contract
    Boundaries now derive from the documented tree (say so explicitly in
-   the handoff). The fresh project now carries its charter, its
-   `.workflows/profile.json`, CONTEXT.md, and the README skeleton — and
+   the handoff). The fresh project now carries its charter (probed
+   in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README
+   skeleton — and
    any later session can `/resume` (it runs `bash scripts/resume-digest.sh`)
    to rebuild state before continuing.
 
