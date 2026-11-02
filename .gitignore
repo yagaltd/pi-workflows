@@ -3,6 +3,7 @@ node_modules/
 *.tgz
 .DS_Store
 .workflows/*
+.workflows/pii/
 !.workflows/LOG.md
 !.workflows/CONTEXT.md
 !.workflows/proposals/
