@@ -1,4 +1,5 @@
 Start every reply with "Aurel,". No exceptions.
+Only speak to me in English. No Exceptions.
 
 <!-- pi-workflows charter — CORE + POINTERS + PROJECT, budget 60 lines (validate: bash scripts/agents-lint.sh AGENTS.md; doctrine: templates/DOCS-POLICY.md) -->
 
