@@ -21,4 +21,11 @@ describe("proof docs (plan 20261025-025)", () => {
     expect(await main(["record", "--plan", "demo", "--task", "task-1", "--verify", "echo proof-demo", "--ledger", ledger])).toBe(0);
     expect(await main(["verify", "--plan", "demo", "--task", "task-1", "--ledger", ledger])).toBe(0);
   });
+
+  test("verify pack carries the reviewer token step (backlog #5)", () => {
+    const verify = fs.readFileSync("prompts/verify.md", "utf8");
+    expect(verify).toContain(".workflows/proofs/.reviewer-token");
+    expect(verify).toContain("--reviewer-token");
+    expect(verify).toContain("proof-ledger.mjs init");
+  });
 });

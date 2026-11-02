@@ -62,8 +62,11 @@ describe("flow-run (plan 20261025-022)", () => {
     try {
       fs.mkdirSync(path.join(tmp, ".workflows", "proofs"), { recursive: true });
       const ledger = path.join(tmp, ".workflows", "proofs", "proofs.jsonl");
+      // reviewer-token gating (backlog #5): reviewer records carry the token
+      expect(await proofMain(["init", "--ledger", ledger])).toBe(0);
+      const reviewerToken = fs.readFileSync(path.join(tmp, ".workflows", "proofs", ".reviewer-token"), "utf8").trim();
       // an independent reviewer-run proof under the flow's plan id (flow-<slug>)
-      expect(await proofMain(["record", "--plan", "flow-ev-flow", "--task", "t1", "--verify", "echo independent", "--runner", "reviewer", "--ledger", ledger])).toBe(0);
+      expect(await proofMain(["record", "--plan", "flow-ev-flow", "--task", "t1", "--verify", "echo independent", "--runner", "reviewer", "--reviewer-token", reviewerToken, "--ledger", ledger])).toBe(0);
       const evFlow = { slug: "ev-flow", title: "Evidence flow", steps: [
         task("t1", 1),
         { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
@@ -94,8 +97,11 @@ describe("flow-run (plan 20261025-022)", () => {
     try {
       fs.mkdirSync(path.join(tmp, ".workflows", "proofs"), { recursive: true });
       const ledger = path.join(tmp, ".workflows", "proofs", "proofs.jsonl");
+      // reviewer-token gating (backlog #5): reviewer records carry the token
+      expect(await proofMain(["init", "--ledger", ledger])).toBe(0);
+      const reviewerToken = fs.readFileSync(path.join(tmp, ".workflows", "proofs", ".reviewer-token"), "utf8").trim();
       // probe 1:1 — the ONLY rows in the ledger belong to plan-OLD; flow plan is flow-ev-x
-      expect(await proofMain(["record", "--plan", "plan-OLD", "--task", "t1", "--verify", "echo borrowed", "--runner", "reviewer", "--ledger", ledger])).toBe(0);
+      expect(await proofMain(["record", "--plan", "plan-OLD", "--task", "t1", "--verify", "echo borrowed", "--runner", "reviewer", "--reviewer-token", reviewerToken, "--ledger", ledger])).toBe(0);
       const evFlow = { slug: "ev-x", title: "Evidence cross-plan", steps: [
         task("t1", 1),
         { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },

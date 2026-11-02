@@ -39,10 +39,14 @@ describe("proof-ledger (plan 20261025-025)", () => {
   test("record accepts --runner and --kind and stores them", async () => {
     const dir = tmp();
     const ledger = path.join(dir, "proofs.jsonl");
-    expect(await run(["record", "--plan", "p1", "--task", "task-1", "--verify", "echo ok", "--runner", "reviewer", "--kind", "not_replayable", "--ledger", ledger])).toBe(0);
+    // reviewer-token gating (backlog #5): reviewer records must carry the token
+    await run(["init", "--ledger", ledger]);
+    const token = fs.readFileSync(path.join(path.dirname(ledger), ".reviewer-token"), "utf8").trim();
+    expect(await run(["record", "--plan", "p1", "--task", "task-1", "--verify", "echo ok", "--runner", "reviewer", "--reviewer-token", token, "--kind", "not_replayable", "--ledger", ledger])).toBe(0);
     const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rows[0].runner).toBe("reviewer");
     expect(rows[0].replayable).toBe(false);
+    expect(rows[0].tokenVerified).toBe(true);
   });
 
   test("verify classifies replayable-confirmed, replayable-drifted, and not_replayable", async () => {
@@ -114,5 +118,122 @@ describe("proof-ledger (plan 20261025-025)", () => {
     const rows = JSON.parse(out.join("\n"));
     expect(rows).toHaveLength(1);
     expect(rows[0].planId).toBe("p1");
+  });
+});
+
+describe("reviewer token gating (owner-approved C-lite, backlog #5)", () => {
+  const tokenFileOf = (ledger: string) => path.join(path.dirname(ledger), ".reviewer-token");
+  const captureErr = async (argv: string[]) => {
+    const out: string[] = [];
+    const orig = console.error;
+    console.error = (...a) => out.push(a.join(" "));
+    try {
+      return { code: await run(argv), err: out.join("\n") };
+    } finally {
+      console.error = orig;
+    }
+  };
+  const captureOut = async (argv: string[]) => {
+    const out: string[] = [];
+    const orig = console.log;
+    console.log = (...a) => out.push(a.join(" "));
+    try {
+      return { code: await run(argv), out: JSON.parse(out.join("\n")) };
+    } finally {
+      console.log = orig;
+    }
+  };
+
+  test("init creates a 32-hex token, mode 600, next to the ledger — idempotent", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    expect(await run(["init", "--ledger", ledger])).toBe(0);
+    const tokenFile = tokenFileOf(ledger);
+    expect(fs.existsSync(tokenFile)).toBe(true);
+    const token = fs.readFileSync(tokenFile, "utf8").trim();
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
+    expect(fs.statSync(tokenFile).mode & 0o777).toBe(0o600);
+    expect(await run(["init", "--ledger", ledger])).toBe(0);
+    expect(fs.readFileSync(tokenFile, "utf8").trim()).toBe(token); // never clobbered
+  });
+
+  test("gate: reviewer record with no token file refuses loudly — run proof-ledger init first", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    const { code, err } = await captureErr(["record", "--plan", "p1", "--task", "t1", "--verify", "echo hi", "--runner", "reviewer", "--ledger", ledger]);
+    expect(code).toBe(2);
+    expect(err).toContain(".reviewer-token");
+    expect(err).toContain("run proof-ledger init first");
+    expect(fs.existsSync(ledger)).toBe(false); // refused BEFORE any execution — no row, no verifier run
+  });
+
+  test("gate: reviewer record without --reviewer-token refuses — reviewer packs carry the token path", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    await run(["init", "--ledger", ledger]);
+    const { code, err } = await captureErr(["record", "--plan", "p1", "--task", "t1", "--verify", "echo hi", "--runner", "reviewer", "--ledger", ledger]);
+    expect(code).toBe(2);
+    expect(err).toContain("reviewer packs carry the token path");
+    expect(err).toContain(".reviewer-token");
+    expect(fs.existsSync(ledger)).toBe(false);
+  });
+
+  test("gate: reviewer record with a mismatched token refuses", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    await run(["init", "--ledger", ledger]);
+    const { code, err } = await captureErr(["record", "--plan", "p1", "--task", "t1", "--verify", "echo hi", "--runner", "reviewer", "--reviewer-token", "deadbeef".repeat(4), "--ledger", ledger]);
+    expect(code).toBe(2);
+    expect(err).toContain("mismatch");
+    expect(err).toContain(".reviewer-token");
+    expect(fs.existsSync(ledger)).toBe(false);
+  });
+
+  test("gate: reviewer record with the matching token writes a token-verified row", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    await run(["init", "--ledger", ledger]);
+    const token = fs.readFileSync(tokenFileOf(ledger), "utf8").trim();
+    expect(await run(["record", "--plan", "p1", "--task", "t1", "--verify", "echo ok", "--runner", "reviewer", "--reviewer-token", token, "--ledger", ledger])).toBe(0);
+    const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].runner).toBe("reviewer");
+    expect(rows[0].tokenVerified).toBe(true);
+  });
+
+  test("worker and orchestrator records are unaffected — and the first record lazily provisions the token", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    expect(fs.existsSync(tokenFileOf(ledger))).toBe(false);
+    expect(await run(["record", "--plan", "p1", "--task", "t1", "--verify", "echo w", "--runner", "worker", "--ledger", ledger])).toBe(0);
+    expect(fs.existsSync(tokenFileOf(ledger))).toBe(true); // lazy first-record
+    expect(await run(["record", "--plan", "p1", "--task", "t2", "--verify", "echo o", "--runner", "orchestrator", "--ledger", ledger])).toBe(0);
+    const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rows.map((r) => r.runner)).toEqual(["worker", "orchestrator"]);
+    expect(rows.every((r) => r.tokenVerified === undefined)).toBe(true);
+  });
+
+  test("verify annotates reviewer rows: token-verified era vs self-attested pre-token", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    await run(["init", "--ledger", ledger]);
+    const token = fs.readFileSync(tokenFileOf(ledger), "utf8").trim();
+    await run(["record", "--plan", "p1", "--task", "tok", "--verify", "echo ok", "--runner", "reviewer", "--reviewer-token", token, "--ledger", ledger]);
+    // hand-written legacy row from the pre-token era (048 precedent — forward-only)
+    fs.appendFileSync(ledger, JSON.stringify({ ts: "2026-10-31T00:00:00.000Z", planId: "p1", taskId: "legacy", command: "echo ok", exit: 0, outputHash: createHash("sha256").update("ok\n").digest("hex"), runner: "reviewer" }) + "\n");
+    await run(["record", "--plan", "p1", "--task", "w", "--verify", "echo ok", "--runner", "worker", "--ledger", ledger]);
+
+    const tok = await captureOut(["verify", "--plan", "p1", "--task", "tok", "--ledger", ledger]);
+    expect(tok.code).toBe(0);
+    expect(tok.out.status).toBe("replayable-confirmed");
+    expect(tok.out.runnerNote).toBe("reviewer (token-verified)");
+
+    const legacy = await captureOut(["verify", "--plan", "p1", "--task", "legacy", "--ledger", ledger]);
+    expect(legacy.code).toBe(0);
+    expect(legacy.out.runnerNote).toBe("reviewer (self-attested, pre-token)");
+
+    const w = await captureOut(["verify", "--plan", "p1", "--task", "w", "--ledger", ledger]);
+    expect(w.code).toBe(0);
+    expect(w.out.runnerNote).toBeUndefined(); // worker/orchestrator rows unannotated
   });
 });
