@@ -112,7 +112,7 @@ Flow `decision` steps make one calibrated judge call (`node scripts/judge.mjs as
 
 ## Proof ledger
 
-Per-task proofs live in `.workflows/proofs/proofs.jsonl` — the Verify command, its exit code, and a sha256 of the verifier output: `node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" --spec <spec>`. `verify` re-runs the recorded command and flags drift by hash; `collect --plan <id>` merges the run journal, review verdicts, and proof counts into the SHIP evidence file. Proofs are recorded data: a failing verifier still records.
+Per-task proofs live in `.workflows/proofs/proofs.jsonl` — the Verify command, its exit code, and a sha256 of the verifier output: `node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" --spec <spec>`. `verify` re-runs the recorded command and flags drift by hash; `collect --plan <id>` merges the run journal, review verdicts, and proof counts into the SHIP evidence file. Proofs are recorded data: a failing verifier still records. Reviewer records are token-gated: `record --runner reviewer` requires the session token from `.workflows/proofs/.reviewer-token` (created by `proof-ledger init`); `verify` annotates reviewer rows `token-verified` vs legacy `self-attested, pre-token`.
 
 ## Lessons ledger
 
