@@ -21,6 +21,10 @@
  *     legacy regex triage with disagreement-first ordering.
  *   - binary / unparseable / unsupported-extension files → skipped per
  *     file with a named reason.
+ *   - judge answer drift (verdict:null or missing answers) → those
+ *     questions are treated as UNANSWERED, never silently clean: loud
+ *     report line, excluded from flagged AND clean counts, and no ruler
+ *     rows (so a re-run can still answer them idempotently).
  *
  * GUARDRAIL — values-never-extract (precision-worded): data VALUES never
  * reach state, questions, output, or the ruler; gitleaks Secret/Match
@@ -45,7 +49,7 @@
  */
 
 import { readFileSync, existsSync, mkdirSync, appendFileSync } from "node:fs";
-import { dirname, isAbsolute, join, resolve, basename, extname } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, basename, extname } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { ask, QUESTION_CAP } from "./judge.mjs";
@@ -441,9 +445,19 @@ export function chunkQuestions(questions, cap = QUESTION_CAP) {
 
 // ── gitleaks triage (optional report) ────────────────────────────────────
 
+/** Normalize a triage path for keying: trim + strip leading `./` runs. */
+const normalizeReportPath = (p) => {
+  let k = String(p).trim();
+  while (k.startsWith("./")) k = k.slice(2);
+  return k;
+};
+
 /**
- * Parse a gitleaks JSON report → Map<basename, [{rule, description, line}]>.
+ * Parse a gitleaks JSON report → Map<path-as-given, [{rule, description, line}]>.
  * Secret/Match fields are deliberately DROPPED — values never propagate.
+ * Findings key on the File path AS GIVEN (full relative path, `./`
+ * normalized) — never the basename, so same-named files in different dirs
+ * cannot cross-attribute.
  */
 export function parseGitleaksReport(reportPath) {
   let raw;
@@ -465,7 +479,7 @@ export function parseGitleaksReport(reportPath) {
   for (const f of parsed) {
     const file = String(f?.File || "");
     if (!file) continue;
-    const key = basename(file);
+    const key = normalizeReportPath(file);
     if (!perFile.has(key)) perFile.set(key, []);
     perFile.get(key).push({
       rule: String(f?.RuleID || "unknown"),
@@ -474,6 +488,19 @@ export function parseGitleaksReport(reportPath) {
     });
   }
   return { perFile, note: null };
+}
+
+/** Triage lookup by path-as-given (+ cwd-relative form) — never basename (same-named dirs must not cross-attribute). */
+function gitleaksFindingsFor(perFile, target, cwd) {
+  const keys = new Set([normalizeReportPath(target.given)]);
+  const rel = relative(cwd, target.abs);
+  if (rel && !rel.startsWith("..")) keys.add(normalizeReportPath(rel));
+  const out = [];
+  for (const k of keys) {
+    const hits = perFile.get(k);
+    if (hits) out.push(...hits);
+  }
+  return out;
 }
 
 // ── ruler: idempotent append (key = file + question id) ──────────────────
@@ -525,14 +552,14 @@ export async function runScan({
 } = {}) {
   const notes = [];
 
-  // 1. discovery — --files overrides the merge-base diff
-  let targets;
+  // 1. discovery — --files overrides the merge-base diff (all paths resolve vs cwd)
+  let targets; // [{ given, abs }]
   if (files && files.length) {
-    targets = files.map((f) => (isAbsolute(f) ? f : resolve(cwd, f)));
+    targets = files.map((f) => ({ given: f, abs: isAbsolute(f) ? f : resolve(cwd, f) }));
   } else {
     const discovered = listChangedFiles({ cwd });
     if (discovered.note) notes.push(discovered.note);
-    targets = filterDataDocFiles(discovered.files).map((f) => resolve(cwd, f));
+    targets = filterDataDocFiles(discovered.files).map((f) => ({ given: f, abs: resolve(cwd, f) }));
   }
   if (targets.length === 0) notes.push("no changed data/doc files in scope");
 
@@ -540,7 +567,8 @@ export async function runScan({
   let gl = { perFile: new Map(), note: null };
   let gitleaksAbsent = false;
   if (gitleaksReport) {
-    gl = parseGitleaksReport(gitleaksReport);
+    const reportPath = isAbsolute(gitleaksReport) ? gitleaksReport : resolve(cwd, gitleaksReport);
+    gl = parseGitleaksReport(reportPath);
     if (gl.note) notes.push(gl.note);
   } else {
     gitleaksAbsent = true;
@@ -550,7 +578,8 @@ export async function runScan({
   // 3. per file: build state → questions → chunked asks → ruler
   const summary = [];
   let appended = 0;
-  for (const file of targets) {
+  for (const target of targets) {
+    const file = target.abs;
     const state = buildState(file);
     if (state.skipped) {
       notes.push(`skipped ${basename(file)} (${state.reason})`);
@@ -572,19 +601,25 @@ export async function runScan({
       }
       verdicts.push(...(res.verdict || []));
     }
-    const glFindings = gl.perFile.get(basename(file)) || [];
+    const glFindings = gitleaksFindingsFor(gl.perFile, target, cwd);
     const redactionFindings = state.redactions || [];
     if (judgeSkipped) {
       summary.push({ file, order: "judge-skipped", skipped: false, judge: { skipped: true }, gitleaksFindings: glFindings, redactionFindings });
       continue;
     }
 
-    const flagged = verdicts.filter((v) => v.verdict === "yes").map((v) => v.id);
+    // BUG-4: only usable yes/no answers count. verdict:null / missing answers
+    // are DRIFT — never silently clean, excluded from flagged AND clean
+    // counts, and they get NO ruler rows (a null row would poison idempotency:
+    // the key would swallow the real answer on a re-run).
+    const answered = verdicts.filter((v) => v.verdict === "yes" || v.verdict === "no");
+    const unanswered = questions.length - answered.length;
+    const flagged = answered.filter((v) => v.verdict === "yes").map((v) => v.id);
     appended += appendRuler(
       rulerFile,
       file,
       [
-        ...verdicts.map((v) => ({ plan, questionId: v.id, verdict: v.verdict, confidence: v.confidence })),
+        ...answered.map((v) => ({ plan, questionId: v.id, verdict: v.verdict, confidence: v.confidence })),
         // redaction signals ride the same idempotent key scheme (file + questionId)
         ...redactionFindings.map((f) => ({
           plan,
@@ -597,20 +632,23 @@ export async function runScan({
 
     const judgeFlagged = flagged.length > 0;
     const glFlagged = glFindings.length > 0;
-    const order = gitleaksAbsent
-      ? judgeFlagged
-        ? "judge-flagged"
-        : "clean"
-      : judgeFlagged !== glFlagged
-        ? "disagreement"
-        : glFlagged
-          ? "agree-flagged"
-          : "agree-clean";
-    summary.push({ file, order, skipped: false, judge: { asked: questions.length, flagged }, gitleaksFindings: glFindings, redactionFindings });
+    const order =
+      unanswered > 0
+        ? "judge-drift" // unanswered beats every verdict-based ordering — never reads as clean
+        : gitleaksAbsent
+          ? judgeFlagged
+            ? "judge-flagged"
+            : "clean"
+          : judgeFlagged !== glFlagged
+            ? "disagreement"
+            : glFlagged
+              ? "agree-flagged"
+              : "agree-clean";
+    summary.push({ file, order, skipped: false, judge: { asked: questions.length, unanswered, flagged }, gitleaksFindings: glFindings, redactionFindings });
   }
 
   // 4. disagreement-first ordering + report
-  const rank = { disagreement: 0, "agree-flagged": 1, "judge-flagged": 1, "agree-clean": 2, clean: 2, "judge-skipped": 3, skipped: 3 };
+  const rank = { disagreement: 0, "agree-flagged": 1, "judge-flagged": 1, "agree-clean": 2, clean: 2, "judge-drift": 3, "judge-skipped": 4, skipped: 4 };
   summary.sort((a, b) => rank[a.order] - rank[b.order] || String(a.file).localeCompare(String(b.file)));
 
   out.write(`pii-scan — PII + secrets advisory pass, judge-based gate (plan ${plan})\n`);
@@ -623,7 +661,11 @@ export async function runScan({
     } else {
       const glPart = gitleaksAbsent ? "" : `; gitleaks: ${r.gitleaksFindings.length} finding(s)`;
       const redPart = r.redactionFindings.length ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})` : "";
-      out.write(`  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${r.judge.asked} questions${glPart}${redPart}\n`);
+      const driftPart =
+        r.judge.unanswered > 0 ? `; judge answer drift: ${r.judge.unanswered} questions unanswered — treating as unanswered, not clean` : "";
+      out.write(
+        `  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${r.judge.asked - r.judge.unanswered} questions${glPart}${redPart}${driftPart}\n`,
+      );
     }
   }
   for (const n of notes) err.write(`pii-scan note: ${n}\n`);
@@ -640,26 +682,45 @@ export async function main(argv = process.argv.slice(2)) {
   let plan = null;
   let files = null;
   let gitleaks = null;
+  const VALUE_FLAGS = new Set(["--plan", "--files", "--gitleaks"]);
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    const val = argv[i + 1];
-    if (a === "--plan") plan = val;
-    else if (a === "--files") files = (files ? `${files},` : "") + val;
-    else if (a === "--gitleaks") gitleaks = val;
-    else if (a === "-h" || a === "--help") {
+    if (a === "-h" || a === "--help") {
       process.stdout.write(`${USAGE}\n`);
       return 0;
-    } else {
-      process.stderr.write(`pii-scan: unknown argument ${a}\n${USAGE}\n`);
-      return 2;
     }
-    if (val !== undefined) i++;
+    if (VALUE_FLAGS.has(a)) {
+      const val = argv[i + 1];
+      // fail fast: a flag-like token (or end of argv) in a value slot must
+      // never be silently swallowed as the value (e.g. "--gitleaks --files")
+      if (val === undefined || val.startsWith("--")) {
+        process.stderr.write(
+          `pii-scan: ${a} expects a value${val === undefined ? " (missing)" : ` but got flag-like token "${val}"`} — pass the value as a separate argument\n${USAGE}\n`,
+        );
+        return 2;
+      }
+      if (a === "--plan") plan = val;
+      else if (a === "--files") files = (files ? `${files},` : "") + val;
+      else gitleaks = val;
+      i++;
+      continue;
+    }
+    process.stderr.write(`pii-scan: unknown argument ${a}\n${USAGE}\n`);
+    return 2;
   }
   if (!plan) {
     process.stderr.write(`pii-scan: --plan <id> is required\n${USAGE}\n`);
     return 2;
   }
-  const fileList = files ? files.split(",").map((s) => s.trim()).filter(Boolean) : null;
+  let fileList = null;
+  if (files !== null) {
+    fileList = files.split(",").map((s) => s.trim()).filter(Boolean);
+    if (fileList.length === 0) {
+      // never silently fall back to git discovery when --files was given but empty
+      process.stderr.write(`pii-scan: --files "${files}" produced no usable entries — refusing to fall back to git discovery\n${USAGE}\n`);
+      return 2;
+    }
+  }
   const res = await runScan({ plan, files: fileList, gitleaksReport: gitleaks });
   return res.exitCode;
 }
