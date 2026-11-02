@@ -1011,7 +1011,14 @@ export type GateRunner = (cmd: string, args: string[]) => GateRunResult | null;
 /** No-shell gate runner — runCapture's sibling (argument arrays, filenames are
  *  data, never interpolated shell syntax). Returns exit code + both streams,
  *  or null when the binary could not run (missing toolchain, timeout) — null
- *  is the D5 advisory path, never a block. */
+ *  is the D5 advisory path, never a block.
+ *
+ *  `env: process.env` is pinned explicitly: under Bun, spawnSync resolves the
+ *  executable and the child environment from the process-STARTUP snapshot when
+ *  `env` is omitted, silently ignoring later PATH mutations (PATH-shimmed
+ *  subagent contexts would run a different agent-spec than the one on the
+ *  effective PATH). Pinning the live env restores Node's documented default on
+ *  every runtime. */
 export function runGate(
   cmd: string,
   args: string[],
@@ -1019,7 +1026,12 @@ export function runGate(
   timeoutMs = 10000
 ): GateRunResult | null {
   try {
-    const r = spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: timeoutMs });
+    const r = spawnSync(cmd, args, {
+      cwd,
+      encoding: "utf8",
+      timeout: timeoutMs,
+      env: process.env,
+    });
     if (r.error) return null;
     return {
       code: r.status ?? 1,
@@ -1453,6 +1465,7 @@ export default function register(pi: any): void {
             cwd,
             encoding: "utf8",
             timeout: 5000,
+            env: process.env, // live PATH/env — see runGate's Bun note
           });
           return r.status === 0 && typeof r.stdout === "string" ? r.stdout.trim() : null;
         } catch {
@@ -1711,7 +1724,9 @@ export default function register(pi: any): void {
   };
 
   /** Argument-array capture (runCapture/runGate's sibling — no shell, data
-   *  never interpolated); null when the process could not run. */
+   *  never interpolated); null when the process could not run. `env` is
+   *  pinned live — see runGate's Bun note (record CLIs read RECORD_SPY etc.
+   *  from the spawn-time environment). */
   const runScript = (
     script: string,
     args: string[],
@@ -1723,6 +1738,7 @@ export default function register(pi: any): void {
         cwd,
         encoding: "utf8",
         timeout: timeoutMs,
+        env: process.env,
       });
       if (r.error) return null;
       return {
