@@ -72,6 +72,13 @@ Each declaration follows these rules:
 - Optional `adr:` attribute linking to a decision record
 - Lists invariants (hard constraints), not ephemera (implementation details)
 
+## Budget
+
+Optional. When present, it is human-readable prose in the contract (e.g.
+"Budget: 60 tool calls; max 5 judge calls") telling the worker what the
+orchestrator assigned for this task. It is explicitly NOT an agent-spec
+parser key — never put it in front matter; the parser ignores body prose.
+
 ## Completion Criteria
 
 Scenario: <descriptive name>

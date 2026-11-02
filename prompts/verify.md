@@ -37,6 +37,8 @@ Run the full verification pipeline across all contracts and the project. Ordered
    node scripts/proof-ledger.mjs record --plan <id> --task <t> --runner reviewer --reviewer-token "$REVIEWER_TOKEN" --kind replayable --verify "<probe>"
    ```
    (use `--kind not_replayable` for prose/one-shot checks).
+  Cite-check: spot-check that factual claims in doc-producing tasks carry
+  file:line/URL citations; uncited claims are findings.
 If any scenario fails or boundaries violated → report FAIL, STOP.
 
 ## Layer 2: Project Toolchain
