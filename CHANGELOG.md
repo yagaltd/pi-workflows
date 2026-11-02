@@ -1,3 +1,10 @@
+## 2026-11-02 — v0.14.7: prompt doctrine — budgets, done-when, cite-or-open-questions (plan 20261102-050; stolen from DSH/Bise harnesses)
+
+- **Call budgets**: worker + reviewer role files carry a budget line (≤60 tool calls default; judge/API caps per contract; spent → report and stop, naming the line item); registry makes budget assignment an orchestrator duty.
+- **Done-when**: worker packs carry an acceptance checklist derived from the contract's verify + completion criteria; the final report asserts each line (execution-doctrine report rule).
+- **Cite-or-open-questions**: doc/claim-producing tasks — every factual claim cites file:line/URL or lands in Open questions (worker + reviewer + verify.md cite-check); uncited, unflagged claims are defects.
+- templates/CONTRACT-FORMAT.md: optional `## Budget` section (prose, not an agent-spec parser key).
+- Doctrine pinned by tests/prompt-doctrine.test.ts (8 pins); all edits purely additive (+107/−0 across 7 files). Verdict reviews/plan-050.md ok:true.
 ## 2026-11-02 — v0.14.6: backlog complete — reviewer token gating + pii-scan polish (owner-directed "do them all")
 
 - **#5 C-lite (owner-approved design)**: `scripts/proof-ledger.mjs` reviewer records are token-gated — `record --runner reviewer` fail-closed (exit 2) without a matching session token (`.workflows/proofs/.reviewer-token`, 0600, created by `proof-ledger init`); `verify` annotates `reviewer (token-verified)` vs legacy `self-attested, pre-token` (forward-only). Residual documented: accidental-mislabeling protection, not adversarial-process-proof (single-user). Verdict reviews/task-reviewer-token.md ok:true.
