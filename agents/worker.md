@@ -137,6 +137,12 @@ npm run build     # or: cargo build, etc.
 
 Fix failures immediately. Don't accumulate broken state.
 
+### Task discipline: budget, done-when, citations
+
+- Budget: at most 60 tool calls on standard tasks; judge/API-call caps are set per contract — when any budget is spent, report and stop, naming the spent line item.
+- Every pack carries a 'Done when:' acceptance checklist derived from the contract's verify command and completion criteria; the final report asserts each line individually.
+- Doc- or claim-producing tasks: every factual claim cites file:line or a URL, or lands in an 'Open questions' section of the final report. An uncited, unflagged claim is a defect.
+
 ### Stuck protocol (help before thrash)
 
 Stuck is a state, not a failure — reporting it is correct behavior. Any ONE
