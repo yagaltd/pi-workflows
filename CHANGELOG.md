@@ -1,3 +1,9 @@
+## 2026-11-02 — v0.14.6: backlog complete — reviewer token gating + pii-scan polish (owner-directed "do them all")
+
+- **#5 C-lite (owner-approved design)**: `scripts/proof-ledger.mjs` reviewer records are token-gated — `record --runner reviewer` fail-closed (exit 2) without a matching session token (`.workflows/proofs/.reviewer-token`, 0600, created by `proof-ledger init`); `verify` annotates `reviewer (token-verified)` vs legacy `self-attested, pre-token` (forward-only). Residual documented: accidental-mislabeling protection, not adversarial-process-proof (single-user). Verdict reviews/task-reviewer-token.md ok:true.
+- **#9 pii-scan micro-polish**: 4 LOW fixes TDD — --gitleaks path consistency, CLI parser fail-fast (flag-like tokens, empty --files), judge answer-drift as first-class state (loud line, excluded from flagged/clean, no ruler rows — re-run heals), gitleaks triage keyed by full path. Verdict reviews/task-pii-polish.md ok:true.
+- **#4 docs sweep**: recon clean — zero edits needed (docs current at source). **#6** init charter probe, **#7** judge-based secrets gate, **#8** README contributing: shipped in v0.14.5.
+- Backlog 11/11 processed. Suite: 267 pass / 0 fail / 11 pre-existing skips.
 ## 2026-11-02 — v0.14.5: backlog wave — judge-based secrets gate, init probe, env pins (owner-directed "do them all")
 
 - **#7 secrets gate (judge-based, owner decision)**: `scripts/pii-scan.mjs` gains `buildCredentialQuestions` — 24 judgments/file ≤64 cap (10 credential field-name shapes c01–c10, PEM indicator c11, per-file rollup c12); redaction-signal findings — names sanitized to `[redacted:N]` surface as `suspicious-redacted-name` in the report AND ruler rows (same idempotent key scheme, ruled only on judge answer); `skills/review/SKILL.md` wording: judge-based gate, gitleaks retired (owner call 20261102), findings → Watch, advisory exit-0. Verdict reviews/task-secrets-gate.md ok:true (guardrail probe: sentinel count 0, no-weakening clean).
