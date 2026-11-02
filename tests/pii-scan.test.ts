@@ -52,6 +52,17 @@ const EMAIL = "jane.doe@example.com";
 const SECRET = "SECRETVALUE42";
 const SENTINELS = [EMAIL, SECRET];
 
+// backlog #7 contract: every file's question set = SPECULATIVE_PII_SET + 12
+// secret-hunting judgments (10 credential field-name shapes + the PEM
+// private-key indicator + a per-file likely-credentials rollup). Distinct
+// `c`-prefixed ids never collide with historical `q` ruler keys.
+const CRED_IDS = [
+  "c01-cred-api-key", "c02-cred-token", "c03-cred-secret", "c04-cred-password",
+  "c05-cred-private-key", "c06-cred-credential", "c07-cred-auth", "c08-cred-oauth",
+  "c09-cred-session", "c10-cred-cookie", "c11-pem-private-key", "c12-likely-credentials",
+];
+const TOTAL_QUESTIONS = SPECULATIVE_PII_SET.length + CRED_IDS.length;
+
 function assertNoSentinels(...blobs: string[]) {
   const joined = blobs.join("\n---\n");
   for (const s of SENTINELS) {
@@ -241,10 +252,10 @@ describe("scenario 3: question fan-out", () => {
 
       // one question per speculative PII category, capped by judge's QUESTION_CAP
       const qs = buildQuestions("contacts.csv", buildState(fx.csv));
-      expect(qs.length).toBe(SPECULATIVE_PII_SET.length);
+      expect(qs.length).toBe(TOTAL_QUESTIONS); // PII categories + secret-hunting judgments (backlog #7)
       expect(qs.length).toBeLessThanOrEqual(QUESTION_CAP);
       for (const q of qs) {
-        expect(String(q.id)).toMatch(/^q\d+-/);
+        expect(String(q.id)).toMatch(/^[qc]\d+-/); // q = PII category, c = credential judgment (backlog #7)
         expect(q.schema).toEqual({ enum: ["yes", "no"] });
         expect(String(q.question)).toContain('File "contacts.csv"');
       }
@@ -337,7 +348,9 @@ describe("scenario 5: gitleaks triage", () => {
       const eA = sink();
       const resA = await runScan({ plan: "P", files: [fx.csv, fx.json], askImpl, cwd: dir, out: oA, err: eA, rulerFile });
       expect(resA.exitCode).toBe(0);
-      expect(oA.text + eA.text).toContain("gitleaks absent");
+      expect(oA.text + eA.text).toContain("judge-based"); // secrets verdict source (backlog #7)
+      expect(oA.text + eA.text).toContain("gitleaks retired");
+      expect(oA.text + eA.text).toContain("20261102");
 
       // (b) --gitleaks restores triage; disagreement-first ordering
       const report = path.join(dir, "gl.json");
@@ -395,8 +408,8 @@ describe("scenario 6: ruler (reviewed_v1.jsonl)", () => {
       expect(fs.existsSync(rulerFile)).toBe(true); // dir created on demand
       const lines1 = fs.readFileSync(rulerFile, "utf-8").trim().split("\n");
       const rows1 = lines1.map((l) => JSON.parse(l));
-      expect(res1.appended).toBe(2 * SPECULATIVE_PII_SET.length);
-      expect(rows1.length).toBe(2 * SPECULATIVE_PII_SET.length);
+      expect(res1.appended).toBe(2 * TOTAL_QUESTIONS);
+      expect(rows1.length).toBe(2 * TOTAL_QUESTIONS);
 
       const keys = rows1.map((r: any) => JSON.stringify([r.file, r.questionId]));
       expect(new Set(keys).size).toBe(rows1.length); // key = file + question id, unique
@@ -438,7 +451,7 @@ describe("guardrail: values-never-extract", () => {
       const r = spawnSync("node", [SCRIPT, "--plan", "smoke-guard", "--files", fx.txt], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
       expect(r.status).toBe(0);
       assertNoSentinels(r.stdout ?? "", r.stderr ?? "");
-      expect(r.stdout + r.stderr).toContain("gitleaks absent");
+      expect(r.stdout + r.stderr).toContain("gitleaks retired"); // judge-based gate note (backlog #7)
 
       // usage error: --plan is required
       const r2 = spawnSync("node", [SCRIPT], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
@@ -529,6 +542,199 @@ describe("guardrail: name-position sentinels (header cells / heading text / key 
       }
       blobs.push(JSON.stringify(calls), JSON.stringify(res.summary), fs.readFileSync(rulerFile, "utf-8"));
       assertNoSentinels(...blobs);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── backlog #7: judge-based secrets gate ─────────────────────────────────
+
+/**
+ * Owner decision 20261102 (LOG): gitleaks RETIRED — the judge is the
+ * secrets gate. Three additions, all values-never-extract safe:
+ *  1. secret-hunting question categories (credential field-name shapes,
+ *     PEM private-key indicator, per-file likely-credentials rollup) in
+ *     EVERY file's question set;
+ *  2. `suspicious-redacted-name` findings — names sanitizeName rewrote to
+ *     `[redacted:N]` surface in the report AND as ruler rows on the same
+ *     idempotent (file + questionId) key scheme;
+ *  3. the report names the secrets verdict source judge-based.
+ */
+describe("backlog #7: judge-based secrets gate", () => {
+  test("credential/secret question categories present in every file's question set; cap + per-file chunking intact", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-cred-"));
+    try {
+      const fx = makeFixtures(dir);
+      for (const p of [fx.csv, fx.json, fx.md]) {
+        const st = buildState(p);
+        const qs = buildQuestions(path.basename(p), st);
+        expect(qs.length).toBe(TOTAL_QUESTIONS); // PII categories + secret-hunting judgments
+        expect(qs.length).toBeLessThanOrEqual(QUESTION_CAP); // cap intact
+        const ids = qs.map((q: any) => q.id);
+        for (const id of CRED_IDS) expect(ids).toContain(id); // every credential judgment present
+
+        // per-file likely-credentials rollup is an enum question
+        const rollup = qs.find((q: any) => q.id === "c12-likely-credentials");
+        expect(rollup?.schema).toEqual({ enum: ["yes", "no"] });
+        expect(String(rollup?.question)).toMatch(/likely to contain credentials/i);
+
+        // PEM private-key indicator question names the indicator shape
+        const pem = qs.find((q: any) => q.id === "c11-pem-private-key");
+        expect(String(pem?.question)).toContain("-----BEGIN");
+
+        // shape questions name their credential pattern (+ plural/suffixed variants)
+        const shape = qs.find((q: any) => q.id === "c01-cred-api-key");
+        expect(String(shape?.question)).toContain("api_key");
+
+        // GUARDRAIL: the new categories carry no fixture values
+        assertNoSentinels(JSON.stringify(qs), structureDigest(st));
+      }
+
+      // per-file chunking intact: one ask per file, each ≤ cap, never mixed
+      const { askImpl, calls } = fakeAsk();
+      const res = await runScan({
+        plan: "cred7",
+        files: [fx.csv, fx.json],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile: path.join(dir, "ruler.jsonl"),
+      });
+      expect(res.exitCode).toBe(0);
+      expect(calls.length).toBe(2);
+      for (const c of calls) {
+        expect(c.questions.length).toBeLessThanOrEqual(QUESTION_CAP);
+        expect(new Set(c.questions.map((q: any) => String(q.question).match(/File "([^"]+)"/)?.[1])).size).toBe(1);
+      }
+      assertNoSentinels(JSON.stringify(calls));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("redaction-signal findings: [redacted:N] names surface per position (header/heading/key) with original length; original names never carried", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-redact-"));
+    try {
+      const fx = makeNameFixtures(dir);
+      expect(buildState(fx.csvHeader).redactions).toEqual([{ position: "header", name: "[redacted:13]", originalLength: 13 }]);
+      expect(buildState(fx.mdHeading).redactions).toEqual([{ position: "heading", name: "[redacted:13] rotation n", originalLength: 28 }]);
+      expect(buildState(fx.jsonKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
+      expect(buildState(fx.yamlKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
+      expect(buildState(fx.tomlKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
+
+      // innocuous names produce zero signals (skipped states have none either)
+      const plain = makeFixtures(dir);
+      for (const p of Object.values(plain)) expect(buildState(p).redactions ?? []).toEqual([]);
+
+      // values guardrail: findings carry only the redacted marker + length
+      const allFindings = [fx.csvHeader, fx.mdHeading, fx.jsonKey, fx.yamlKey, fx.tomlKey].map((p) => buildState(p).redactions);
+      assertNoSentinels(JSON.stringify(allFindings));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("runScan: findings land in report + ruler rows (same idempotent key scheme); second run appends nothing", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-redact2-"));
+    try {
+      const fx = makeNameFixtures(dir);
+      const rulerFile = path.join(dir, "r", "reviewed_v1.jsonl");
+      const { askImpl } = fakeAsk();
+
+      const res = await runScan({
+        plan: "R7",
+        files: [fx.csvHeader, fx.mdHeading, fx.yamlKey],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
+      expect(res.exitCode).toBe(0);
+
+      // report: summary carries the finding class per file
+      const csvRow = res.summary.find((r: any) => String(r.file).endsWith("header-secret.csv"));
+      expect(csvRow.redactionFindings).toEqual([{ position: "header", name: "[redacted:13]", originalLength: 13 }]);
+
+      // ruler: finding rows share the verdict-row key scheme (file + questionId)
+      const rows = fs.readFileSync(rulerFile, "utf-8").trim().split("\n").map((l) => JSON.parse(l));
+      const findingRows = rows.filter((r: any) => r.verdict === "suspicious-redacted-name");
+      expect(findingRows.length).toBe(3); // header + heading + key
+      for (const r of findingRows) {
+        expect(String(r.questionId)).toMatch(/^suspicious-redacted-name:(header|heading|key):/); // class:position:redacted-name
+        expect(String(r.questionId)).toContain("[redacted:");
+        expect(r.v).toBe(1);
+        expect(r.plan).toBe("R7");
+      }
+      expect(new Set(rows.map((r: any) => JSON.stringify([r.file, r.questionId]))).size).toBe(rows.length);
+
+      // idempotency: identical re-run appends nothing
+      const before = rows.length;
+      const res2 = await runScan({
+        plan: "R7",
+        files: [fx.csvHeader, fx.mdHeading, fx.yamlKey],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
+      expect(res2.appended).toBe(0);
+      expect(fs.readFileSync(rulerFile, "utf-8").trim().split("\n").length).toBe(before);
+
+      // guardrail: zero sentinels in summary + ruler
+      assertNoSentinels(JSON.stringify(res.summary), fs.readFileSync(rulerFile, "utf-8"));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("report marks the secrets verdict source judge-based (gitleaks retired — owner call 20261102); advisory exit 0", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-word-"));
+    try {
+      const fx = makeFixtures(dir);
+      const { askImpl } = fakeAsk();
+      const o = sink();
+      const e = sink();
+      const res = await runScan({ plan: "W", files: [fx.csv], askImpl, cwd: dir, out: o, err: e, rulerFile: path.join(dir, "ruler.jsonl") });
+      expect(res.exitCode).toBe(0);
+      const both = o.text + e.text;
+      expect(both).toContain("judge-based");
+      expect(both).toContain("gitleaks retired");
+      expect(both).toContain("20261102");
+      expect(both).toMatch(/ADVISORY ONLY/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("probe: header-cell sentinel SECRETVALUE42,email → suspicious-redacted-name finding for the header position; sentinel ZERO in state/questions/digest/output", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-probe7-"));
+    try {
+      const p = path.join(dir, "probe.csv");
+      fs.writeFileSync(p, `${SECRET},email\nJane,jane@x.invalid\n`);
+      const { askImpl } = fakeAsk();
+      const rulerFile = path.join(dir, "r", "reviewed_v1.jsonl");
+      const o = sink();
+      const e = sink();
+      const res = await runScan({ plan: "PROBE7", files: [p], askImpl, cwd: dir, out: o, err: e, rulerFile });
+      expect(res.exitCode).toBe(0);
+      const row = res.summary.find((r: any) => String(r.file).endsWith("probe.csv"));
+      expect(row.redactionFindings).toEqual([{ position: "header", name: "[redacted:13]", originalLength: 13 }]);
+      expect(o.text).toContain("suspicious-redacted-name");
+
+      // sentinel never reaches state, questions, digest, output, or ruler
+      const st = buildState(p);
+      assertNoSentinels(
+        JSON.stringify(st),
+        structureDigest(st),
+        JSON.stringify(buildQuestions("probe.csv", st)),
+        o.text,
+        e.text,
+        fs.readFileSync(rulerFile, "utf-8"),
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

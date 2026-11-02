@@ -16,9 +16,9 @@
  *   - judge key missing / endpoint down → judge.ask returns
  *     {status: 0, skipped: true} after printing `JUDGE SKIPPED (...)`;
  *     surfaced loudly here, exit 0, NO ruler rows for that file.
- *   - gitleaks report not provided → judge-only report with a loud
- *     `gitleaks absent` note (gitleaks owner-removed; --gitleaks <report>
- *     restores triage with disagreement-first ordering).
+ *   - secrets gate is judge-based by default (gitleaks RETIRED — owner
+ *     decision 20261102, backlog #7); --gitleaks <report> still adds
+ *     legacy regex triage with disagreement-first ordering.
  *   - binary / unparseable / unsupported-extension files → skipped per
  *     file with a named reason.
  *
@@ -31,6 +31,12 @@
  * survive (a column named `email` stays `email`); literal-bearing names die
  * (`SECRETVALUE42` → `[redacted:13]`). Data values and literal-bearing
  * names never leave the machine verbatim.
+ *
+ * Redaction signals (backlog #7): names sanitizeName rewrote to
+ * `[redacted:N]` double as a free secret-signal finding class —
+ * `suspicious-redacted-name` rows in the report AND the ruler (same
+ * idempotent key scheme). Secret-shaped VALUE strings still never
+ * appear anywhere.
  *
  * Usage:
  *   node scripts/pii-scan.mjs --plan <id> [--files f1,f2] [--gitleaks <report.json>]
@@ -64,6 +70,28 @@ export const SPECULATIVE_PII_SET = [
   "health or medical data",
 ];
 
+/** Finding class for sanitizer redactions — a free secret signal (backlog #7). */
+export const REDACTED_NAME_CLASS = "suspicious-redacted-name";
+
+/**
+ * Credential field-name shapes hunted in EVERY file's question set (backlog
+ * #7: the judge REPLACES gitleaks as the secrets gate — owner decision
+ * 20261102). Plural and suffixed spellings are named inline so the judge
+ * judges shape, not regex.
+ */
+const CREDENTIAL_SHAPE_PATTERNS = [
+  "api_key (api_key, apikey, api-key, api_keys)",
+  "token (token, tokens, access_token, auth_token, refresh_token)",
+  "secret (secret, secrets, client_secret, secret_key)",
+  "password (password, passwords, passwd, password_hash)",
+  "private_key (private_key, privatekey, private_keys)",
+  "credential (credential, credentials)",
+  "auth (auth, authorization, authenticate, auth_header)",
+  "oauth (oauth, oauth2, oauth_client, oauth_token)",
+  "session (session, sessions, session_id, session_key)",
+  "cookie (cookie, cookies, session_cookie)",
+];
+
 const repoRoot = () => resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RULER_PATH = () => join(repoRoot(), ".workflows", "pii", "reviewed_v1.jsonl");
 const MAX_KEY_PATHS = 2000;
@@ -88,6 +116,24 @@ export function sanitizeName(name) {
     run.length >= 8 && /[A-Za-z]/.test(run) && /\d/.test(run) ? `[redacted:${run.length}]` : run,
   );
   return redacted.slice(0, NAME_BOUND).trim();
+}
+
+const REDACTED_IN_NAME = /\[redacted:\d+\]/;
+
+/**
+ * Redaction signals: raw NAME positions whose sanitized form carries
+ * `[redacted:N]` become findings {position, name, originalLength} — the
+ * original name itself is never carried (values guardrail). Position is
+ * the name's structural kind: "header" (CSV header cell), "heading"
+ * (MD heading text), or "key" (JSON/YAML/TOML key, incl. TOML tables).
+ */
+function redactionSignals(rawNames, position) {
+  const out = [];
+  for (const raw of rawNames) {
+    const name = sanitizeName(raw);
+    if (REDACTED_IN_NAME.test(name)) out.push({ position, name, originalLength: String(raw).length });
+  }
+  return out;
 }
 
 // ── changed-file discovery ───────────────────────────────────────────────
@@ -191,17 +237,25 @@ function splitCsvLine(line) {
   return out;
 }
 
-/** CSV → header row ONLY, sanitized (data rows counted, never read). */
+/** CSV → header row ONLY, sanitized (data rows counted, never read); redacted header cells become signals. */
 function csvState(file, text) {
   const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
-  if (lines.length === 0) return { file, type: "csv", headers: [], dataRows: 0 };
-  return { file, type: "csv", headers: splitCsvLine(lines[0]).map(sanitizeName), dataRows: Math.max(lines.length - 1, 0) };
+  if (lines.length === 0) return { file, type: "csv", headers: [], dataRows: 0, redactions: [] };
+  const cells = splitCsvLine(lines[0]);
+  return {
+    file,
+    type: "csv",
+    headers: cells.map(sanitizeName),
+    dataRows: Math.max(lines.length - 1, 0),
+    redactions: redactionSignals(cells, "header"),
+  };
 }
 
 /** JSON → key paths (dotted; `x[]` for array-element object keys). */
 function jsonState(file, text) {
   const parsed = JSON.parse(text); // throws → caught upstream: unparseable JSON
   const keyPaths = [];
+  const rawKeys = [];
   let truncated = false;
   const push = (p) => {
     if (keyPaths.length >= MAX_KEY_PATHS) {
@@ -220,6 +274,7 @@ function jsonState(file, text) {
       }
     } else {
       for (const [k, v] of Object.entries(node)) {
+        rawKeys.push(k);
         const p = prefix ? `${prefix}.${sanitizeName(k)}` : sanitizeName(k);
         if (!push(p)) return;
         walk(v, p);
@@ -227,12 +282,13 @@ function jsonState(file, text) {
     }
   };
   walk(parsed, "");
-  return { file, type: "json", keyPaths, ...(truncated && { truncated: true }) };
+  return { file, type: "json", keyPaths, redactions: redactionSignals(rawKeys, "key"), ...(truncated && { truncated: true }) };
 }
 
 /** YAML → key paths via indentation-aware line scan (values after `:` never read; keys sanitized). */
 function lineKeyState(file, text, type) {
   const keyPaths = [];
+  const rawKeys = [];
   let truncated = false;
   const stack = []; // { indent, key }
   for (const raw of text.split(/\r?\n/)) {
@@ -241,7 +297,9 @@ function lineKeyState(file, text, type) {
     const m = raw.match(/^(\s*)(?:-\s+)?([^\s:#][^:]*):(\s|$)/);
     if (!m) continue;
     const indent = m[1].replace(/\t/g, "  ").length;
-    const key = sanitizeName(m[2].trim().replace(/^["']|["']$/g, ""));
+    const rawName = m[2].trim().replace(/^["']|["']$/g, "");
+    rawKeys.push(rawName);
+    const key = sanitizeName(rawName);
     while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
     stack.push({ indent, key });
     if (keyPaths.length >= MAX_KEY_PATHS) {
@@ -250,12 +308,13 @@ function lineKeyState(file, text, type) {
     }
     keyPaths.push(stack.map((s) => s.key).join("."));
   }
-  return { file, type, keyPaths, ...(truncated && { truncated: true }) };
+  return { file, type, keyPaths, redactions: redactionSignals(rawKeys, "key"), ...(truncated && { truncated: true }) };
 }
 
-/** TOML → key paths from [table] headers + bare `key =` lines (names sanitized). */
+/** TOML → key paths from [table] headers + bare `key =` lines (names sanitized; redactions are key signals). */
 function tomlState(file, text) {
   const keyPaths = [];
+  const rawNames = [];
   let truncated = false;
   let table = "";
   for (const raw of text.split(/\r?\n/)) {
@@ -263,6 +322,7 @@ function tomlState(file, text) {
     if (!line || line.startsWith("#")) continue;
     const t = line.match(/^\[\[?([^\]]+)\]?\]$/);
     if (t) {
+      rawNames.push(t[1].trim());
       table = sanitizeName(t[1].trim());
       continue;
     }
@@ -272,15 +332,17 @@ function tomlState(file, text) {
         truncated = true;
         break;
       }
+      rawNames.push(kv[1] || kv[2]);
       keyPaths.push(table ? `${table}.${sanitizeName(kv[1] || kv[2])}` : sanitizeName(kv[1] || kv[2]));
     }
   }
-  return { file, type: "toml", keyPaths, ...(truncated && { truncated: true }) };
+  return { file, type: "toml", keyPaths, redactions: redactionSignals(rawNames, "key"), ...(truncated && { truncated: true }) };
 }
 
-/** MD → heading inventory (sanitized) + free-text flag (fenced content never read). */
+/** MD → heading inventory (sanitized) + free-text flag (fenced content never read); redacted headings become signals. */
 function mdState(file, text) {
   const headings = [];
+  const rawHeadings = [];
   let freeText = false;
   let inFence = false;
   for (const raw of text.split(/\r?\n/)) {
@@ -290,10 +352,13 @@ function mdState(file, text) {
     }
     if (inFence) continue; // fenced code may hold values — structure only
     const h = raw.match(/^ {0,3}(#{1,6})\s+(.*)$/);
-    if (h) headings.push(sanitizeName(h[2].trim().replace(/#+\s*$/, "").trim()));
-    else if (raw.trim()) freeText = true;
+    if (h) {
+      const rawHeading = h[2].trim().replace(/#+\s*$/, "").trim();
+      rawHeadings.push(rawHeading);
+      headings.push(sanitizeName(rawHeading));
+    } else if (raw.trim()) freeText = true;
   }
-  return { file, type: "md", headings, freeText };
+  return { file, type: "md", headings, freeText, redactions: redactionSignals(rawHeadings, "heading") };
 }
 
 // ── structural digest + question builder ─────────────────────────────────
@@ -320,7 +385,7 @@ export function structureDigest(state) {
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 /** One question per speculative PII category, grounded in the structural digest only. */
-export function buildQuestions(file, state) {
+function buildPiiQuestions(file, state) {
   if (state.skipped) return [];
   const base = basename(file);
   const digest = structureDigest(state);
@@ -329,6 +394,42 @@ export function buildQuestions(file, state) {
     question: `File "${base}" (${digest}). You see only this structural description, never file values. Could this file plausibly contain ${category}?`,
     schema: { enum: ["yes", "no"] },
   }));
+}
+
+/**
+ * Secret-hunting judgments appended to every file's question set (backlog
+ * #7: the judge REPLACES gitleaks as the secrets gate — owner decision
+ * 20261102): one question per credential field-name shape, the PEM
+ * private-key indicator, and a per-file likely-credentials rollup — all
+ * grounded in the structural digest only.
+ */
+export function buildCredentialQuestions(file, state) {
+  if (state.skipped) return [];
+  const base = basename(file);
+  const digest = structureDigest(state);
+  const q = (id, question) => ({ id, question, schema: { enum: ["yes", "no"] } });
+  return [
+    ...CREDENTIAL_SHAPE_PATTERNS.map((pattern, i) =>
+      q(
+        `c${String(i + 1).padStart(2, "0")}-cred-${slug(pattern.replace(/ \(.*\)$/, ""))}`,
+        `File "${base}" (${digest}). You see only this structural description, never file values. Does it name any field matching credential shape "${pattern}"?`,
+      ),
+    ),
+    q(
+      "c11-pem-private-key",
+      `File "${base}" (${digest}). Could this file plausibly carry a PEM private-key indicator (a "-----BEGIN ... PRIVATE KEY-----" block) or reference key material (a .pem/.key path or private-key field)?`,
+    ),
+    q(
+      "c12-likely-credentials",
+      `File "${base}" (${digest}). Given only this structure, is this file likely to contain credentials or secrets (credential-shaped field names, key material, or auth storage)?`,
+    ),
+  ];
+}
+
+/** Every file's questions: speculative PII categories + secret-hunting judgments. */
+export function buildQuestions(file, state) {
+  if (state.skipped) return [];
+  return [...buildPiiQuestions(file, state), ...buildCredentialQuestions(file, state)];
 }
 
 /** ≤ cap questions per call, chunked per file. */
@@ -443,7 +544,7 @@ export async function runScan({
     if (gl.note) notes.push(gl.note);
   } else {
     gitleaksAbsent = true;
-    notes.push("gitleaks absent — judge-only advisory report (triage degraded; pass --gitleaks <report> to restore)");
+    notes.push("secrets gate: judge-based (gitleaks retired — owner decision 20261102); pass --gitleaks <report> to add legacy regex triage");
   }
 
   // 3. per file: build state → questions → chunked asks → ruler
@@ -453,7 +554,7 @@ export async function runScan({
     const state = buildState(file);
     if (state.skipped) {
       notes.push(`skipped ${basename(file)} (${state.reason})`);
-      summary.push({ file, order: "skipped", skipped: true, reason: state.reason, judge: null, gitleaksFindings: [] });
+      summary.push({ file, order: "skipped", skipped: true, reason: state.reason, judge: null, gitleaksFindings: [], redactionFindings: [] });
       continue;
     }
 
@@ -472,8 +573,9 @@ export async function runScan({
       verdicts.push(...(res.verdict || []));
     }
     const glFindings = gl.perFile.get(basename(file)) || [];
+    const redactionFindings = state.redactions || [];
     if (judgeSkipped) {
-      summary.push({ file, order: "judge-skipped", skipped: false, judge: { skipped: true }, gitleaksFindings: glFindings });
+      summary.push({ file, order: "judge-skipped", skipped: false, judge: { skipped: true }, gitleaksFindings: glFindings, redactionFindings });
       continue;
     }
 
@@ -481,7 +583,16 @@ export async function runScan({
     appended += appendRuler(
       rulerFile,
       file,
-      verdicts.map((v) => ({ plan, questionId: v.id, verdict: v.verdict, confidence: v.confidence })),
+      [
+        ...verdicts.map((v) => ({ plan, questionId: v.id, verdict: v.verdict, confidence: v.confidence })),
+        // redaction signals ride the same idempotent key scheme (file + questionId)
+        ...redactionFindings.map((f) => ({
+          plan,
+          questionId: `${REDACTED_NAME_CLASS}:${f.position}:${f.name}`,
+          verdict: REDACTED_NAME_CLASS,
+          confidence: 1,
+        })),
+      ],
     );
 
     const judgeFlagged = flagged.length > 0;
@@ -495,22 +606,24 @@ export async function runScan({
         : glFlagged
           ? "agree-flagged"
           : "agree-clean";
-    summary.push({ file, order, skipped: false, judge: { asked: questions.length, flagged }, gitleaksFindings: glFindings });
+    summary.push({ file, order, skipped: false, judge: { asked: questions.length, flagged }, gitleaksFindings: glFindings, redactionFindings });
   }
 
   // 4. disagreement-first ordering + report
   const rank = { disagreement: 0, "agree-flagged": 1, "judge-flagged": 1, "agree-clean": 2, clean: 2, "judge-skipped": 3, skipped: 3 };
   summary.sort((a, b) => rank[a.order] - rank[b.order] || String(a.file).localeCompare(String(b.file)));
 
-  out.write(`pii-scan — PII advisory pass (plan ${plan})\n`);
+  out.write(`pii-scan — PII + secrets advisory pass, judge-based gate (plan ${plan})\n`);
   for (const r of summary) {
     if (r.skipped) {
       out.write(`  [skipped] ${basename(r.file)} — ${r.reason}\n`);
     } else if (r.judge?.skipped) {
-      out.write(`  [judge-skipped] ${basename(r.file)} — no verdicts (judge unavailable)\n`);
+      const redPart = r.redactionFindings.length ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})` : "";
+      out.write(`  [judge-skipped] ${basename(r.file)} — no verdicts (judge unavailable)${redPart}\n`);
     } else {
       const glPart = gitleaksAbsent ? "" : `; gitleaks: ${r.gitleaksFindings.length} finding(s)`;
-      out.write(`  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${r.judge.asked} speculative categories${glPart}\n`);
+      const redPart = r.redactionFindings.length ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})` : "";
+      out.write(`  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${r.judge.asked} questions${glPart}${redPart}\n`);
     }
   }
   for (const n of notes) err.write(`pii-scan note: ${n}\n`);
