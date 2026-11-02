@@ -22,6 +22,10 @@ worker → reviewer in ONE graph call (`needs` edge) → verdict
 ```
 
 Rules:
+- **Done-when assertion duty**: the worker's final report asserts each
+  Done-when line individually — every line in the contract's Completion
+  Criteria gets its own assertion plus the evidence that satisfies it. A
+  report that claims done without per-line assertions is untrusted.
 - **Fix rounds are follow-up dispatches, never pre-declared graph nodes** —
   they exist only when a verdict rejects.
 - **Failed worker auto-aborts the reviewer node** — broken work must not

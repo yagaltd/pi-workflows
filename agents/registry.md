@@ -9,6 +9,10 @@ is the dispatch policy: toolset, model, thinking, verification tiers. If
 this table and a prompt disagree, this file wins and the prompt must be
 fixed.
 
+**Budget assignment**: The orchestrator assigns each task's budget in the
+pack (default 60 tool calls from role doctrine; judge/API-call caps explicit
+when the task touches judge/API surfaces).
+
 ## Roles
 
 Roles are referenced as `@role:<name>` in dispatch shapes — the pi-workflows
