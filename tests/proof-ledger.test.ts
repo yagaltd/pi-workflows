@@ -35,6 +35,40 @@ describe("proof-ledger (plan 20261025-025)", () => {
     expect(await run(["verify", "--plan", "p1", "--task", "task-9", "--ledger", ledger])).toBe(1); // no record
   });
 
+  test("record accepts --runner and --kind and stores them", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    expect(await run(["record", "--plan", "p1", "--task", "task-1", "--verify", "echo ok", "--runner", "reviewer", "--kind", "not_replayable", "--ledger", ledger])).toBe(0);
+    const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rows[0].runner).toBe("reviewer");
+    expect(rows[0].replayable).toBe(false);
+  });
+
+  test("verify classifies replayable-confirmed, replayable-drifted, and not_replayable", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    const marker = path.join(dir, "marker.txt");
+    fs.writeFileSync(marker, "v1");
+    await run(["record", "--plan", "p1", "--task", "replay", "--verify", `cat ${marker}`, "--ledger", ledger]); // no --kind → row lacks replayable → reads true
+    await run(["record", "--plan", "p1", "--task", "recorded-nr", "--verify", `cat ${marker}`, "--kind", "not_replayable", "--ledger", ledger]);
+    await run(["record", "--plan", "p1", "--task", "fails", "--verify", "exit 5", "--ledger", ledger]);
+    const statuses = async (task: string) => {
+      const out: string[] = [];
+      const orig = console.log;
+      console.log = (...a) => out.push(a.join(" "));
+      const code = await run(["verify", "--plan", "p1", "--task", task, "--ledger", ledger]);
+      console.log = orig;
+      return { code, status: JSON.parse(out.join("\n")).status };
+    };
+    fs.writeFileSync(marker, "v2"); // hash differs on re-run
+    expect(await statuses("replay")).toEqual({ code: 1, status: "replayable-drifted" });
+    fs.writeFileSync(marker, "v1");
+    expect(await statuses("replay")).toEqual({ code: 0, status: "replayable-confirmed" });
+    expect(await statuses("recorded-nr")).toEqual({ code: 1, status: "not_replayable" }); // recorded not_replayable → no confirmed replay
+    expect(await statuses("fails")).toEqual({ code: 1, status: "not_replayable" }); // re-run exit ≠ 0 is not a confirmed replay
+    expect(await statuses("task-9")).toEqual({ code: 1, status: "missing" });
+  });
+
   test("proof show reads the ledger by plan and task", async () => {
     const dir = tmp();
     const ledger = path.join(dir, "proofs.jsonl");
