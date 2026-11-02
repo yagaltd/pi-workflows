@@ -141,6 +141,10 @@ A golden eval set lives in `.workflows/evals/golden/` — one JSON case per file
 - [docs/architecture.md](docs/architecture.md) — the machinery: flow, gates, extension, dispatcher
 - [CHANGELOG.md](CHANGELOG.md) — shipped history, one entry per plan
 
+## Contributing
+
+PRs are welcome — before opening one, run `bun test` (suite green) and `bash scripts/check-drift.sh` (CLEAN), and respect the contract boundaries in [AGENTS.md](AGENTS.md).
+
 ## License
 
 MIT.
