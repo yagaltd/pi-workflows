@@ -106,7 +106,9 @@ the bug-hunter skill is not installed, skip with a note.
 Optional: a judge PII advisory pass on changed data/doc files —
 `node scripts/pii-scan.mjs --plan <id>`; findings go to the close-out
 Watch section, and `JUDGE SKIPPED` is a documented gap routed to the
-human (values are never sent — advisory only, no gate semantics).
+human (data values and literal-bearing names are never sent; name-like
+structure — header cells, headings, key names — passes a truncating,
+high-entropy-redacting sanitizer first; advisory only, no gate semantics).
 
 ### Step 2: Judgment-based quality review
 

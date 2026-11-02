@@ -22,9 +22,15 @@
  *   - binary / unparseable / unsupported-extension files → skipped per
  *     file with a named reason.
  *
- * GUARDRAIL — values-never-extract: state builders read structure only.
- * File values are never read into state, questions, output, or the ruler;
- * gitleaks Secret/Match fields are dropped at parse time.
+ * GUARDRAIL — values-never-extract (precision-worded): data VALUES never
+ * reach state, questions, output, or the ruler; gitleaks Secret/Match
+ * fields are dropped at parse time. Field NAMES (CSV header cells, MD
+ * heading text, JSON/YAML/TOML key names) DO pass through — but only via
+ * sanitizeName(): truncated to 24 chars, with any ≥8-char alphanumeric run
+ * mixing letters and digits replaced by `[redacted:<len>]`. Field semantics
+ * survive (a column named `email` stays `email`); literal-bearing names die
+ * (`SECRETVALUE42` → `[redacted:13]`). Data values and literal-bearing
+ * names never leave the machine verbatim.
  *
  * Usage:
  *   node scripts/pii-scan.mjs --plan <id> [--files f1,f2] [--gitleaks <report.json>]
@@ -62,6 +68,28 @@ const repoRoot = () => resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RULER_PATH = () => join(repoRoot(), ".workflows", "pii", "reviewed_v1.jsonl");
 const MAX_KEY_PATHS = 2000;
 
+// ── name sanitizer (GUARDRAIL: names pass through, literals die) ─────────
+
+/** Length bound for name-like pass-throughs (header cells, key names, heading text). */
+export const NAME_BOUND = 24;
+
+/**
+ * Deterministic sanitize for NAME-like structure that reaches the judge:
+ * replace any alphanumeric run of ≥ 8 chars mixing letters and digits with
+ * `[redacted:<len>]` (redact BEFORE truncating so markers carry the original
+ * run length and no partial runs survive the cut), then bound the result.
+ * Field semantics survive: `email` stays `email`, `user_email_2024` keeps
+ * its words; literal secrets embedded in names die: `SECRETVALUE42` →
+ * `[redacted:13]`. Idempotent (the `[redacted:N]` marker re-sanitizes to
+ * itself). Unit-tested in tests/pii-scan.test.ts.
+ */
+export function sanitizeName(name) {
+  const redacted = String(name).replace(/[A-Za-z0-9]+/g, (run) =>
+    run.length >= 8 && /[A-Za-z]/.test(run) && /\d/.test(run) ? `[redacted:${run.length}]` : run,
+  );
+  return redacted.slice(0, NAME_BOUND).trim();
+}
+
 // ── changed-file discovery ───────────────────────────────────────────────
 
 export function filterDataDocFiles(paths) {
@@ -96,7 +124,7 @@ export function listChangedFiles({ cwd = repoRoot(), base = process.env.PII_SCAN
   return { files: out.split("\n").filter(Boolean) };
 }
 
-// ── per-file state builder (GUARDRAIL: structure only, never values) ─────
+// ── per-file state builder (GUARDRAIL: structure only; names sanitized, values never read) ──
 
 function looksBinary(buf) {
   if (buf.includes(0)) return "binary file (NUL byte)";
@@ -163,11 +191,11 @@ function splitCsvLine(line) {
   return out;
 }
 
-/** CSV → header row ONLY (data rows counted, never read). */
+/** CSV → header row ONLY, sanitized (data rows counted, never read). */
 function csvState(file, text) {
   const lines = text.split(/\r?\n/).filter((l) => l.length > 0);
   if (lines.length === 0) return { file, type: "csv", headers: [], dataRows: 0 };
-  return { file, type: "csv", headers: splitCsvLine(lines[0]), dataRows: Math.max(lines.length - 1, 0) };
+  return { file, type: "csv", headers: splitCsvLine(lines[0]).map(sanitizeName), dataRows: Math.max(lines.length - 1, 0) };
 }
 
 /** JSON → key paths (dotted; `x[]` for array-element object keys). */
@@ -192,7 +220,7 @@ function jsonState(file, text) {
       }
     } else {
       for (const [k, v] of Object.entries(node)) {
-        const p = prefix ? `${prefix}.${k}` : k;
+        const p = prefix ? `${prefix}.${sanitizeName(k)}` : sanitizeName(k);
         if (!push(p)) return;
         walk(v, p);
       }
@@ -202,7 +230,7 @@ function jsonState(file, text) {
   return { file, type: "json", keyPaths, ...(truncated && { truncated: true }) };
 }
 
-/** YAML → key paths via indentation-aware line scan (values after `:` never read). */
+/** YAML → key paths via indentation-aware line scan (values after `:` never read; keys sanitized). */
 function lineKeyState(file, text, type) {
   const keyPaths = [];
   let truncated = false;
@@ -213,7 +241,7 @@ function lineKeyState(file, text, type) {
     const m = raw.match(/^(\s*)(?:-\s+)?([^\s:#][^:]*):(\s|$)/);
     if (!m) continue;
     const indent = m[1].replace(/\t/g, "  ").length;
-    const key = m[2].trim().replace(/^["']|["']$/g, "");
+    const key = sanitizeName(m[2].trim().replace(/^["']|["']$/g, ""));
     while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
     stack.push({ indent, key });
     if (keyPaths.length >= MAX_KEY_PATHS) {
@@ -225,7 +253,7 @@ function lineKeyState(file, text, type) {
   return { file, type, keyPaths, ...(truncated && { truncated: true }) };
 }
 
-/** TOML → key paths from [table] headers + bare `key =` lines. */
+/** TOML → key paths from [table] headers + bare `key =` lines (names sanitized). */
 function tomlState(file, text) {
   const keyPaths = [];
   let truncated = false;
@@ -235,7 +263,7 @@ function tomlState(file, text) {
     if (!line || line.startsWith("#")) continue;
     const t = line.match(/^\[\[?([^\]]+)\]?\]$/);
     if (t) {
-      table = t[1].trim();
+      table = sanitizeName(t[1].trim());
       continue;
     }
     const kv = line.match(/^(?:"([^"]+)"|([A-Za-z0-9_.$-]+))\s*=[^=]/);
@@ -244,13 +272,13 @@ function tomlState(file, text) {
         truncated = true;
         break;
       }
-      keyPaths.push(table ? `${table}.${kv[1] || kv[2]}` : (kv[1] || kv[2]));
+      keyPaths.push(table ? `${table}.${sanitizeName(kv[1] || kv[2])}` : sanitizeName(kv[1] || kv[2]));
     }
   }
   return { file, type: "toml", keyPaths, ...(truncated && { truncated: true }) };
 }
 
-/** MD → heading inventory + free-text flag (fenced content never read). */
+/** MD → heading inventory (sanitized) + free-text flag (fenced content never read). */
 function mdState(file, text) {
   const headings = [];
   let freeText = false;
@@ -262,7 +290,7 @@ function mdState(file, text) {
     }
     if (inFence) continue; // fenced code may hold values — structure only
     const h = raw.match(/^ {0,3}(#{1,6})\s+(.*)$/);
-    if (h) headings.push(h[2].trim().replace(/#+\s*$/, "").trim());
+    if (h) headings.push(sanitizeName(h[2].trim().replace(/#+\s*$/, "").trim()));
     else if (raw.trim()) freeText = true;
   }
   return { file, type: "md", headings, freeText };

@@ -9,12 +9,14 @@
  * no key needed (auth.json on this machine may hold a real key; we never
  * let the real ask run in tests).
  *
- * GUARDRAIL — values-never-extract: fixtures embed the sentinel values
- * jane.doe@example.com and SECRETVALUE42 in file VALUES only (CSV data
- * rows, JSON/YAML/TOML values, MD body text, gitleaks Secret/Match fields,
- * binary blob). No scenario places a sentinel in a header row, key,
- * heading, or file name. Every scenario re-asserts ZERO sentinel
- * occurrences in any built state, question set, scan output, or ruler row.
+ * GUARDRAIL — values-never-extract: data VALUES (CSV data rows, JSON/YAML/
+ * TOML value strings, MD body text, gitleaks Secret/Match fields, binary
+ * blob) are never extracted. NAME positions (CSV header cells, MD heading
+ * text, JSON/YAML/TOML key names) pass through sanitizeName() — bounded +
+ * high-entropy-redacted — and the name-position fixtures in
+ * "guardrail: name-position sentinels" prove literals die there too. Every
+ * scenario re-asserts ZERO sentinel occurrences in any built state,
+ * question set, scan output, or ruler row.
  */
 
 import { describe, expect, test } from "bun:test";
@@ -36,6 +38,8 @@ import {
   parseGitleaksReport,
   runScan,
   main,
+  sanitizeName,
+  NAME_BOUND,
 } from "../scripts/pii-scan.mjs";
 import { QUESTION_CAP } from "../scripts/judge.mjs";
 
@@ -440,6 +444,91 @@ describe("guardrail: values-never-extract", () => {
       const r2 = spawnSync("node", [SCRIPT], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
       expect(r2.status).toBe(2);
       expect(r2.stderr).toContain("--plan");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ── guardrail: name-position sentinels (BUG-1 regression) ─────────────────
+
+/**
+ * Sentinels in NAME positions: CSV header cells, MD heading text, and
+ * JSON/YAML/TOML key names flow into state verbatim unless the state
+ * builder sanitizes them. Values in the same fixtures stay innocuous-free
+ * (EMAIL lives only in a CSV data row) so every leak below is a NAME leak.
+ */
+function makeNameFixtures(dir: string): Record<string, string> {
+  const f = (name: string, content: string) => {
+    const p = path.join(dir, name);
+    fs.writeFileSync(p, content);
+    return p;
+  };
+  return {
+    // HEADER-CELL position: sentinel as a CSV header cell (data row present)
+    csvHeader: f("header-secret.csv", `${SECRET},email\nJane Doe,${EMAIL}\n`),
+    // HEADING-TEXT position: sentinel as MD heading text
+    mdHeading: f("heading-secret.md", `# ${SECRET} rotation notes\n\nplain body\n`),
+    // KEY-NAME positions: sentinel as key / table name (values innocuous)
+    jsonKey: f("key-secret.json", JSON.stringify({ [SECRET]: { email: "ok@ok.invalid" } }, null, 2)),
+    yamlKey: f("key-secret.yaml", `${SECRET}:\n  sub_key: ok\n`),
+    tomlKey: f("key-secret.toml", `[${SECRET}]\nplain_key = "ok"\n`),
+  };
+}
+
+describe("guardrail: name-position sentinels (header cells / heading text / key names)", () => {
+  test("sanitizeName: semantics survive, high-entropy literals die, bounded length, idempotent", () => {
+    expect(sanitizeName("email")).toBe("email"); // short name keeps semantics
+    expect(sanitizeName("user_email_2024")).toBe("user_email_2024"); // short runs keep words
+    expect(sanitizeName("SECRETVALUE42")).toBe("[redacted:13]"); // mixed literal dies, length preserved
+    expect(sanitizeName(`${SECRET} rotation`)).toBe("[redacted:13] rotation"); // topic word survives
+    expect(sanitizeName("api_KEY_Xk29fQa7")).toBe("api_KEY_[redacted:8]"); // only the literal run dies
+    expect(sanitizeName("a".repeat(100))).toHaveLength(NAME_BOUND); // bounded
+    expect(sanitizeName(sanitizeName("SECRETVALUE42"))).toBe("[redacted:13]"); // idempotent
+  });
+
+  test("sentinels in HEADER-CELL / HEADING-TEXT / KEY-NAME positions never reach state, digest, questions, judge calls, or ruler", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-guard2-"));
+    try {
+      const fx = makeNameFixtures(dir);
+
+      // structure survives, literal dies — per position
+      const csv = buildState(fx.csvHeader);
+      expect(csv.headers).toEqual(expect.arrayContaining(["email"])); // semantics survive
+      expect(JSON.stringify(csv)).not.toContain(SECRET); // header-cell literal dies
+      expect(JSON.stringify(csv)).not.toContain(EMAIL); // data-row values still never extracted
+
+      const md = buildState(fx.mdHeading);
+      expect(md.headings.length).toBe(1); // heading structure survives
+      expect(JSON.stringify(md)).not.toContain(SECRET); // heading-text literal dies
+
+      for (const p of [fx.jsonKey, fx.yamlKey, fx.tomlKey]) {
+        const st = buildState(p);
+        expect(st.keyPaths.length).toBeGreaterThan(0); // key structure survives
+        expect(JSON.stringify(st)).not.toContain(SECRET); // key-name literal dies
+      }
+
+      // digest + question set + judge calls + CLI summary + ruler: zero sentinels anywhere
+      const { askImpl, calls } = fakeAsk();
+      const rulerFile = path.join(dir, "r", "reviewed_v1.jsonl");
+      const res = await runScan({
+        plan: "guard2",
+        files: Object.values(fx),
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
+      expect(res.exitCode).toBe(0);
+      const blobs: string[] = [];
+      for (const p of Object.values(fx)) {
+        const st = buildState(p);
+        blobs.push(JSON.stringify(st), structureDigest(st));
+        if (!st.skipped) blobs.push(JSON.stringify(buildQuestions(path.basename(p), st)));
+      }
+      blobs.push(JSON.stringify(calls), JSON.stringify(res.summary), fs.readFileSync(rulerFile, "utf-8"));
+      assertNoSentinels(...blobs);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
