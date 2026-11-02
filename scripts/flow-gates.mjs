@@ -62,7 +62,11 @@ const SPEC_GUARD_DEGRADED =
 let specFlagSupport; // memo: "supported" | "unsupported" | "absent"
 function specGuardSupport() {
   if (specFlagSupport) return specFlagSupport;
-  const help = spawnSync("bash", ["-c", "agent-spec guard --help 2>&1"], { encoding: "utf8" });
+  const help = spawnSync("bash", ["-c", "agent-spec guard --help 2>&1"], {
+    encoding: "utf8",
+    // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
+    env: process.env,
+  });
   const text = help.stdout ?? "";
   // `--spec ` (trailing space) won't match `--spec-dir`; a failed help means the
   // binary itself is absent/broken → caller keeps the loud toolchain-absent skip.
@@ -113,13 +117,17 @@ function listSpecs() {
 
 const firstToken = (cmd) => cmd.split(/\s+/)[0];
 
-export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" }), present, taskId, task, ledger, planId } = {}) {
+export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], {
+      encoding: "utf8",
+      // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
+      env: process.env,
+    }), present, taskId, task, ledger, planId } = {}) {
   if (name === "evidence") return evidenceGate(taskId ?? task, { ledger, planId });
   const commands = gateCommands(name);
   if (!commands) return { status: "fail", reason: `unknown gate: ${name}`, results: [] };
 
   const bin = firstToken(commands[0]);
-  const here = present ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`]).status === 0);
+  const here = present ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`], { env: process.env }).status === 0);
   if (!here(bin)) {
     return { status: "skipped", reason: `toolchain absent: ${bin}`, results: [] };
   }
