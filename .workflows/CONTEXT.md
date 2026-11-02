@@ -47,3 +47,8 @@
 - **guard --spec <file>** — per-spec guard form; multi-spec dir mode counts skip-only lifecycles as failing (upstream quirk — backlog: skip-aware route call).
 - **FOLLOW-UP-TABLE** — reporting standard: # / Item / Problem (plain words) / Impact if unfixed / Risk (P0–P3) / Effort (S/M/L) / Fix shape; ≤7 columns; rows are facts, cite the evidence trail (templates/FOLLOW-UP-TABLE.md).
 - **repo-truth cross-checks / repo-faithful layouts** — authoring standards: content-fact scenarios cite repo checks; reviewer probe briefs mirror real repo layout (templates/CONTRACT-FORMAT.md, skills/review/SKILL.md).
+
+### Glossary (plan 20261031-048)
+- **evidenceVerdict / exampleVerdict** — pure functions (proof-ledger.mjs): pass requires ≥1 independent (runner ≠ owner) replayable-confirmed check; unreplayable never counts as passed (origin: kwant missions/mod.rs:359, foundry.rs:636).
+- **runner taxonomy** — worker | reviewer | orchestrator; recorded via --runner; historical rows read as worker (not independent).
+- **specGuardSupport probe** — contract gate probes agent-spec --spec support once per process; 0.2.7 lacks it → aggregate --spec-dir form + loud degradation.

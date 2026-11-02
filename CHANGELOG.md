@@ -1,3 +1,10 @@
+## 2026-11-02 — v0.14.2: evidence-verdict gate — borrowed evidence, computed (plan 20261031-048)
+
+- **Evidence-verdict port** (origin: kwant missions/foundry): proof-ledger rows gain `runner` (worker|reviewer|orchestrator) + `replayable`; pure `exampleVerdict` (unreplayable checks never count as passed) and `evidenceVerdict` (pass requires ≥1 independent replayable-confirmed check; owner-only → not_independent).
+- **Evidence gate**: flow-gates `evidence` gate — flows carry `taskId`, runGate passes it; cross-plan borrowing rejected (planId scoping). Per-spec contract gate is version-tolerant: probes `--spec` support, aggregate `--spec-dir` fallback with loud degradation on 0.2.7.
+- **Recorded-exit replay check restored**: verifyLast requires exit match + hash match; drift → replayable-drifted.
+- **--kind fail-closed**: record validates replayable|not_replayable; unknown → usage error exit 2, no row.
+
 ## 2026-10-31 — v0.14.1: follow-up queue — state-free suite, guard scoping, standards (plan 20261031-047)
 
 - **Suite state-hardening**: 20 test files decoupled from gitignored `.workflows/` live state via a `requireLiveState` helper (fixtures + loud named skips) — fresh clones and worker worktrees run green (214 pass / 11 skip / 0 fail); lived-in checkouts stay 225/0.

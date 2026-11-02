@@ -24,7 +24,7 @@ compiled onto the dispatcher (`resolveNext`). One format — JSON; one runner �
 }
 ```
 
-- Kinds: `task` (dispatched worker), `gate` (contract | test-quality | review),
+- Kinds: `task` (dispatched worker), `gate` (contract | test-quality | review | evidence),
   `transform` (records deterministic `set` fields into the run report),
   `decision` (one calibrated judge call; answers recorded; `assert` on
   `equals` / `in` / `min_confidence` — unmet assert fails the step, an
