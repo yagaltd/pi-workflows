@@ -26,6 +26,8 @@ violations; only this pass sees the whole change set.
 
 ## Stage 1: Mechanical Verification
 
+The evidence verdict is computed from recorded proofs — reviewer probes must be recorded proofs (`node scripts/proof-ledger.mjs record ...`), not prose claims.
+
 First, run the full verification suite (same as `/verify`):
 
 ### Layer 1: Contract Verification (agent-spec)

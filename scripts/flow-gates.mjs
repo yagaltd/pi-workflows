@@ -3,11 +3,48 @@
 //   contract     → agent-spec guard   (the agent-spec mechanical checks)
 //   test-quality → tdd-gate gaming    (the test-quality checks over the diff)
 //   review       → check-drift + docs-lint (the repo-wide guards /review runs)
+//   evidence     → proof-ledger verdict (independence + replayable-kind rules
+//                  ported from kwant: src/server/missions/mod.rs:359, foundry.rs:636 —
+//                  the verdict functions themselves live in T1's proof-ledger.mjs,
+//                  imported here, never re-implemented)
 // Absent toolchain ⇒ loud `skipped` with the binary named — never a silent pass.
+// No matching proofs for the evidence gate ⇒ loud fail ("not_checked").
 
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { readProofs, evidenceVerdict } from "./proof-ledger.mjs";
+
+const PROOF_LEDGER = ".workflows/proofs/proofs.jsonl";
+
+// evidence gate (plan 20261031-048): reads the task's recorded proof rows and
+// computes the verdict via proof-ledger's pure evidenceVerdict("worker", ...).
+// Owner is "worker" — the dispatcher-recorded author. Empty/missing rows fail
+// loudly with "not_checked": never a silent pass.
+export function evidenceGate(taskId, { ledger = PROOF_LEDGER } = {}) {
+  if (!taskId) {
+    return { status: "fail", reason: "evidence: not_checked — no taskId given for the evidence gate", results: [] };
+  }
+  const rows = readProofs(ledger).filter((r) => r.taskId === taskId);
+  if (rows.length === 0) {
+    return { status: "fail", reason: `evidence: not_checked — no proofs recorded for task ${taskId}`, results: [] };
+  }
+  const checks = rows.map((row) => ({
+    runner: row.runner ?? "worker",
+    status: row.exit === 0 ? "passed" : "failed",
+    replayable: row.replayable !== false,
+  }));
+  const verdict = evidenceVerdict("worker", checks);
+  if (verdict === "passed") return { status: "pass", reason: null, results: checks };
+  if (verdict === "not_independent") {
+    return { status: "fail", reason: `evidence: not_independent — task ${taskId} has no independent replayable proof (owner-run only)`, results: checks };
+  }
+  if (verdict === "not_checked") {
+    return { status: "fail", reason: `evidence: not_checked — task ${taskId} has no counted proofs`, results: checks };
+  }
+  const bad = rows.find((row, i) => checks[i].status !== "passed" || checks[i].replayable === false);
+  return { status: "fail", reason: `evidence: failed — task ${taskId} failing proof: ${bad?.command ?? "(unknown)"}`, results: checks };
+}
 
 export function gateCommands(name) {
   switch (name) {
@@ -18,6 +55,7 @@ export function gateCommands(name) {
       .map((f) => `agent-spec guard --spec ${f} --code .`);
     case "test-quality": return ["tdd-gate gaming --diff HEAD"];
     case "review": return ["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"];
+    case "evidence": return []; // handled by evidenceGate in runGate — no shell commands
     default: return null;
   }
 }
@@ -36,7 +74,8 @@ function listSpecs() {
 
 const firstToken = (cmd) => cmd.split(/\s+/)[0];
 
-export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" }), present } = {}) {
+export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" }), present, taskId, task, ledger } = {}) {
+  if (name === "evidence") return evidenceGate(taskId ?? task, { ledger });
   const commands = gateCommands(name);
   if (!commands) return { status: "fail", reason: `unknown gate: ${name}`, results: [] };
 
