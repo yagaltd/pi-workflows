@@ -4,15 +4,18 @@
 // records its proof. Zero dependencies.
 //
 // Ledger: .workflows/proofs/proofs.jsonl
-//   record: { ts, planId, taskId, command, exit, outputHash, specHash? }
+//   record: { ts, planId, taskId, command, exit, outputHash, runner?, replayable?, specHash? }
+//     runner: who ran the verifier (worker | reviewer | orchestrator); rows WITHOUT
+//     a runner — historical — read as runner "worker".
+//     replayable: rows WITHOUT it read as true.
 //
 // Usage:
-//   node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" [--spec <path>] [--ledger FILE]
+//   node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" [--runner R] [--kind replayable|not_replayable] [--spec <path>] [--ledger FILE]
 //   node scripts/proof-ledger.mjs show   --plan <id> [--task <id>] [--ledger FILE]
 //   node scripts/proof-ledger.mjs verify --plan <id> --task <id>  [--ledger FILE]
 //   node scripts/proof-ledger.mjs collect --plan <id> [--journal F] [--reviews DIR] [--ledger F] [--out F]
-// Exit: record = verifier exit (after writing) · verify 0 match / 1 drift-or-missing
-//       show/collect 0 · 2 usage.
+// Exit: record = verifier exit (after writing) · verify 0 replayable-confirmed /
+//       1 replayable-drifted, not_replayable, or missing · show/collect 0 · 2 usage.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -23,7 +26,7 @@ const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const DEFAULT_LEDGER = ".workflows/proofs/proofs.jsonl";
 
 export function parseArgs(argv) {
-  const o = { cmd: null, plan: null, task: null, verify: null, spec: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
+  const o = { cmd: null, plan: null, task: null, verify: null, spec: null, runner: null, kind: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "record" || a === "show" || a === "verify" || a === "collect") o.cmd = a;
@@ -31,6 +34,8 @@ export function parseArgs(argv) {
     else if (a === "--task") o.task = argv[++i];
     else if (a === "--verify") o.verify = argv[++i];
     else if (a === "--spec") o.spec = argv[++i];
+    else if (a === "--runner") o.runner = argv[++i];
+    else if (a === "--kind") o.kind = argv[++i];
     else if (a === "--ledger") o.ledger = argv[++i];
     else if (a === "--journal") o.journal = argv[++i];
     else if (a === "--reviews") o.reviews = argv[++i];
@@ -65,6 +70,8 @@ export function record(opts, exec = (cmd) => spawnSync("bash", ["-c", cmd], { en
     command: opts.verify,
     exit: s.status ?? 1,
     outputHash: sha256(stdout + stderr),
+    ...(opts.runner ? { runner: opts.runner } : {}),
+    ...(opts.kind ? { replayable: opts.kind !== "not_replayable" } : {}),
     ...(opts.spec && fs.existsSync(opts.spec) ? { specHash: sha256(fs.readFileSync(opts.spec)) } : {}),
   };
   appendProof(opts.ledger, proof);
@@ -76,15 +83,57 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
   const mine = records.filter((r) => r.planId === opts.plan && r.taskId === opts.task);
   if (mine.length === 0) return { status: "missing", reason: `no proof recorded for ${opts.task}`, exit: 1 };
   const last = mine[mine.length - 1];
-  const s = exec(last.command);
+  // Rows lacking `replayable` (historical) read as true — re-run them.
+  if (last.replayable === false) return { status: "not_replayable", exit: 1, command: last.command };
+  let s;
+  try {
+    s = exec(last.command);
+  } catch {
+    return { status: "not_replayable", exit: 1, command: last.command };
+  }
+  if (s?.error) return { status: "not_replayable", exit: 1, command: last.command };
   const hash = sha256((s.stdout ?? "") + (s.stderr ?? ""));
-  const same = (s.status ?? 1) === last.exit && hash === last.outputHash;
-  return {
-    status: same ? "match" : "drift",
-    exit: 1,
-    ...(same ? {} : { recorded: { exit: last.exit, outputHash: last.outputHash }, now: { exit: s.status ?? 1, outputHash: hash } }),
-    command: last.command,
-  };
+  if ((s.status ?? 1) === 0 && hash === last.outputHash) {
+    return { status: "replayable-confirmed", exit: 0, command: last.command };
+  }
+  if (hash !== last.outputHash) {
+    return {
+      status: "replayable-drifted",
+      exit: 1,
+      recorded: { exit: last.exit, outputHash: last.outputHash },
+      now: { exit: s.status ?? 1, outputHash: hash },
+      command: last.command,
+    };
+  }
+  // Re-ran, same output, but exit ≠ 0 — no confirmed replay.
+  return { status: "not_replayable", exit: 1, command: last.command };
+}
+
+// Verdicts (plan 20261031-048, ported from kwant) — PURE: no I/O, no new deps.
+// Checks shape: { runner?, owner?, status: "passed"|"failed"|"not_replayable", replayable: boolean }
+
+// kwant foundry.rs:636 1:1 — only non-`not_replayable` statuses count; none
+// counted → "not_checked"; all counted "passed" → "passed"; else "failed".
+export function exampleVerdict(checks) {
+  const counted = checks.filter((c) => c.status !== "not_replayable");
+  if (counted.length === 0) return "not_checked";
+  return counted.every((c) => c.status === "passed") ? "passed" : "failed";
+}
+
+// kwant missions/mod.rs:359-381 adapted — any failure (status "failed",
+// "not_replayable", or a claimed pass with replayable false) → "failed"; else
+// no independent (explicit runner ≠ owner) replayable-confirmed pass →
+// "not_independent" (kwant "Waiting"; nothing waits in our batch flow); else
+// "passed". A missing runner reads as owner-run — self-attested never passes.
+export function evidenceVerdict(owner, checks) {
+  const failed = checks.some(
+    (c) => c.status === "failed" || c.status === "not_replayable" || (c.status === "passed" && c.replayable === false),
+  );
+  if (failed) return "failed";
+  const independent = checks.some(
+    (c) => c.runner !== undefined && c.runner !== owner && c.status === "passed" && c.replayable !== false,
+  );
+  return independent ? "passed" : "not_independent";
 }
 
 export function collectEvidence({ planId, journalFile, reviewsDir, ledgerFile, now = new Date().toISOString() }) {
@@ -139,7 +188,7 @@ export async function main(argv) {
   if (opts.cmd === "verify") {
     const r = verifyLast(readProofs(opts.ledger), opts);
     console.log(JSON.stringify(r, null, 2));
-    return r.status === "match" ? 0 : 1;
+    return r.status === "replayable-confirmed" ? 0 : 1;
   }
   if (opts.cmd === "collect") {
     const evidence = collectEvidence({ planId: opts.plan, journalFile: opts.journal, reviewsDir: opts.reviews, ledgerFile: opts.ledger });
