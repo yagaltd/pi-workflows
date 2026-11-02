@@ -1,3 +1,8 @@
+## 2026-11-02 — v0.14.4: auto-gate env pin — first fully-green suite (owner-directed repair)
+
+- `extensions/index.ts`: `env: process.env` pinned on all three spawnSync sites (runGate, runCapture, runScript) — under Bun 1.3.11 spawnSync resolved against the process-STARTUP env/PATH snapshot, silently ignoring runtime PATH shims and gate-mode env vars; the auto-gate ran the real agent-spec binary instead of PATH shims (root cause of the 14 long-standing suite failures).
+- Suite: 249 tests / 238 pass / 0 fail / 11 pre-existing skips — first fully-green suite since the toolchain drift. Verdict reviews/fix-round-gate-env.md ok:true (root cause reproduced live).
+- Toolchain: agent-spec rebuilt from local main b2462a5 (lib split + NodeTestVerifier + --adversarial/--layers); backlog #1/#2/#3 closed; latent spawnSync pattern in scripts/flow-gates.mjs + eval-golden.mjs queued (row 9).
 ## 2026-11-02 — v0.14.3: JEV-batched PII advisory pass — values-never-extract guardrail (plan 20261102-049)
 
 - `scripts/pii-scan.mjs` (new): per changed data/doc file, one judge call (judge.mjs ask) whose state is inventory/schema only — values never extracted; name positions (CSV header cells, MD headings, JSON/YAML/TOML key names) pass a deterministic sanitizer (redact ≥8-char mixed runs → `[redacted:N]`, then 24-char bound).
