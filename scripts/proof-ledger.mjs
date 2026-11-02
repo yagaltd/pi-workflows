@@ -24,6 +24,9 @@ import { createHash } from "node:crypto";
 
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const DEFAULT_LEDGER = ".workflows/proofs/proofs.jsonl";
+// Valid --kind values (BUG-4 fix): anything else is a usage error BEFORE any
+// execution — a typo like "not-replayable" must never record replayable:true.
+export const PROOF_KINDS = ["replayable", "not_replayable"];
 
 export function parseArgs(argv) {
   const o = { cmd: null, plan: null, task: null, verify: null, spec: null, runner: null, kind: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
@@ -45,6 +48,7 @@ export function parseArgs(argv) {
   if (!o.cmd) return { error: "subcommand required: record | show | verify | collect" };
   if (!o.plan) return { error: "--plan is required" };
   if ((o.cmd === "record") && (!o.task || !o.verify)) return { error: "record needs --task and --verify" };
+  if ((o.cmd === "record") && o.kind != null && !PROOF_KINDS.includes(o.kind)) return { error: `--kind must be one of ${PROOF_KINDS.join("|")}` };
   if ((o.cmd === "verify") && !o.task) return { error: "verify needs --task" };
   return { opts: o };
 }
@@ -92,8 +96,21 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
     return { status: "not_replayable", exit: 1, command: last.command };
   }
   if (s?.error) return { status: "not_replayable", exit: 1, command: last.command };
+  const nowExit = s.status ?? 1;
   const hash = sha256((s.stdout ?? "") + (s.stderr ?? ""));
-  if ((s.status ?? 1) === 0 && hash === last.outputHash) {
+  // A confirmed replay reproduces the recorded outcome: same exit AND same
+  // output (BUG-3 fix — the recorded-exit comparison was dropped and let a
+  // recorded failure replay to exit 0 on byte-identical output).
+  if (nowExit !== last.exit) {
+    return {
+      status: "replayable-drifted",
+      exit: 1,
+      recorded: { exit: last.exit, outputHash: last.outputHash },
+      now: { exit: nowExit, outputHash: hash },
+      command: last.command,
+    };
+  }
+  if (nowExit === 0 && hash === last.outputHash) {
     return { status: "replayable-confirmed", exit: 0, command: last.command };
   }
   if (hash !== last.outputHash) {
@@ -101,11 +118,11 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
       status: "replayable-drifted",
       exit: 1,
       recorded: { exit: last.exit, outputHash: last.outputHash },
-      now: { exit: s.status ?? 1, outputHash: hash },
+      now: { exit: nowExit, outputHash: hash },
       command: last.command,
     };
   }
-  // Re-ran, same output, but exit ≠ 0 — no confirmed replay.
+  // Re-ran identically to a recorded failure — consistent, but no confirmed replay.
   return { status: "not_replayable", exit: 1, command: last.command };
 }
 

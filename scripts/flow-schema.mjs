@@ -3,7 +3,7 @@
 // Zero dependencies; runs anywhere node runs.
 
 export const STEP_KINDS = ["task", "gate", "transform", "decision"];
-export const GATE_NAMES = ["contract", "test-quality", "review"];
+export const GATE_NAMES = ["contract", "test-quality", "review", "evidence"];
 export const QUESTION_KINDS = ["choose", "rate", "verify", "probability"];
 export const TIERS = ["A", "B", "C"];
 
