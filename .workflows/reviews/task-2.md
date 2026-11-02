@@ -18,4 +18,4 @@ Intent-satisfied-with-named-deviation: all-not_replayable never passes (both exi
 
 **ok: true**
 
-Repo-level notes (unrelated to T2): `D node_modules` deleted uncommitted self-symlink on main (env damage — restored at merge); `just` and `cc-check` binaries absent in the reviewer sandbox (drift CLEAN); full bun test at HEAD shows the known 14 pre-existing failures (extension.test.ts auto-gate + verdict automation — P1 repair queued from plan 047 review).
+Repo-level notes (unrelated to T2): `D node_modules` deleted uncommitted self-symlink on main (env damage); `just` and `cc-check` binaries absent in the reviewer sandbox (drift CLEAN); full bun test at HEAD shows the known 14 pre-existing failures (extension.test.ts auto-gate + verdict automation — P1 repair queued from plan 047 review).
