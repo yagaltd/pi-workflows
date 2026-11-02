@@ -96,7 +96,12 @@ export function checkDocs(c) {
 
 export function runOnce(c) {
   if (c.kind === "dispatcher") {
-    const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", c._caseFile ?? ""], { encoding: "utf8", timeout: 30000 });
+    const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", c._caseFile ?? ""], {
+      encoding: "utf8",
+      timeout: 30000,
+      // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
+      env: process.env,
+    });
     if (s.error || s.status !== 0) return { ok: false, note: `probe failed: ${s.error?.message ?? s.stderr?.slice(0, 200)}` };
     let out;
     try { out = JSON.parse(s.stdout.trim().split("\n").pop()); } catch { return { ok: false, note: "probe printed no JSON" }; }
