@@ -31,6 +31,7 @@ function checkStep(flow, s, ids, err) {
     if (typeof s.tdd !== "boolean") err(BLOCKED_CODES.SCHEMA, at, "task.tdd must be boolean");
   } else if (s.kind === "gate") {
     if (!GATE_NAMES.includes(s.gate)) err(BLOCKED_CODES.SCHEMA, at, `gate must be one of ${GATE_NAMES.join("|")}`);
+    if (s.taskId !== undefined && (typeof s.taskId !== "string" || !s.taskId)) err(BLOCKED_CODES.SCHEMA, at, "gate.taskId must be a non-empty string");
     if (!isInt(s.wave)) err(BLOCKED_CODES.SCHEMA, at, `gate.wave must be an integer >= 1`);
   } else if (s.kind === "transform") {
     if (!isInt(s.wave)) err(BLOCKED_CODES.SCHEMA, at, `transform.wave must be an integer >= 1`);

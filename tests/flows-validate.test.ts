@@ -50,4 +50,20 @@ describe("flow-validate (plan 20261025-022)", () => {
   test("computeWaves orders distinct waves ascending", () => {
     expect(computeWaves({ steps: [task("a", 2), gate("g", 1)] })).toEqual([1, 2]);
   });
+
+  test("evidence gate-steps validate with or without taskId; unknown gates still blocked (plan 20261031-048 BUG-1)", () => {
+    // evidence reached the gate vocabulary — a flow step may name it
+    const base = [task("t1", 1)];
+    const withTask = { slug: "ev1", title: "ev1", steps: [...base, { id: "g1", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" }] };
+    expect(validateFlow(withTask)).toEqual({ ok: true, errors: [] });
+    // taskId stays optional at the schema level
+    const noTask = { slug: "ev2", title: "ev2", steps: [...base, { id: "g1", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"] }] };
+    expect(validateFlow(noTask)).toEqual({ ok: true, errors: [] });
+    // but a present taskId must be a non-empty string
+    const emptyTaskId = { slug: "ev3", title: "ev3", steps: [...base, { id: "g1", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "" }] };
+    expect(validateFlow(emptyTaskId).errors[0].code).toBe(BLOCKED_CODES.SCHEMA);
+    // existing behavior preserved: unknown gate names are rejected
+    const unknown = { slug: "ev4", title: "ev4", steps: [...base, gate("g1", 2, ["t1"], "quantum")] };
+    expect(validateFlow(unknown).errors[0].code).toBe(BLOCKED_CODES.SCHEMA);
+  });
 });

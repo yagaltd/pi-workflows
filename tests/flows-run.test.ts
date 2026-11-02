@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { main } from "../scripts/flow-run.mjs";
+import { main as proofMain } from "../scripts/proof-ledger.mjs";
 
 const flow = {
   slug: "test-flow",
@@ -52,6 +53,63 @@ describe("flow-run (plan 20261025-022)", () => {
     const code = await main([file, "--runs-dir", runs]);
     expect(code).toBe(1);
     expect(fs.existsSync(path.join(runs, "pack-a.txt"))).toBe(false);
+  });
+
+  test("evidence gate is reachable via a flow step — runs with taskId against flow planId (plan 20261031-048 BUG-1)", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flowrun-ev-"));
+    const repoCwd = process.cwd();
+    process.chdir(tmp);
+    try {
+      fs.mkdirSync(path.join(tmp, ".workflows", "proofs"), { recursive: true });
+      const ledger = path.join(tmp, ".workflows", "proofs", "proofs.jsonl");
+      // an independent reviewer-run proof under the flow's plan id (flow-<slug>)
+      expect(await proofMain(["record", "--plan", "flow-ev-flow", "--task", "t1", "--verify", "echo independent", "--runner", "reviewer", "--ledger", ledger])).toBe(0);
+      const evFlow = { slug: "ev-flow", title: "Evidence flow", steps: [
+        task("t1", 1),
+        { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
+      ] };
+      const file = writeFlow(tmp, evFlow);
+      const code = await main([file, "--runs-dir", path.join(tmp, "runs")]);
+      expect(code).toBe(0);
+      const report = JSON.parse(fs.readFileSync(path.join(tmp, "runs", "report.json"), "utf8"));
+      expect(report.gates).toEqual([{ id: "ev", gate: "evidence", status: "pass", reason: null }]);
+      // fail-closed: an evidence step WITHOUT taskId runs loud, not silent
+      const noTask = { ...evFlow, slug: "ev-notask", steps: [task("t1", 1), { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"] }] };
+      const file2 = writeFlow(tmp, noTask);
+      const code2 = await main([file2, "--runs-dir", path.join(tmp, "runs2")]);
+      expect(code2).toBe(1);
+      const report2 = JSON.parse(fs.readFileSync(path.join(tmp, "runs2", "report.json"), "utf8"));
+      expect(report2.gates[0].status).toBe("fail");
+      expect(report2.gates[0].reason).toContain("no taskId");
+    } finally {
+      process.chdir(repoCwd);
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test("evidence gate is planId-scoped — a task never borrows another plan's proofs (plan 20261031-048 BUG-2)", async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "flowrun-evx-"));
+    const repoCwd = process.cwd();
+    process.chdir(tmp);
+    try {
+      fs.mkdirSync(path.join(tmp, ".workflows", "proofs"), { recursive: true });
+      const ledger = path.join(tmp, ".workflows", "proofs", "proofs.jsonl");
+      // probe 1:1 — the ONLY rows in the ledger belong to plan-OLD; flow plan is flow-ev-x
+      expect(await proofMain(["record", "--plan", "plan-OLD", "--task", "t1", "--verify", "echo borrowed", "--runner", "reviewer", "--ledger", ledger])).toBe(0);
+      const evFlow = { slug: "ev-x", title: "Evidence cross-plan", steps: [
+        task("t1", 1),
+        { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
+      ] };
+      const file = writeFlow(tmp, evFlow);
+      const code = await main([file, "--runs-dir", path.join(tmp, "runs")]);
+      expect(code).toBe(1); // plan-NEW sees NO rows of its own — loud not_checked fail, never a borrowed pass
+      const report = JSON.parse(fs.readFileSync(path.join(tmp, "runs", "report.json"), "utf8"));
+      expect(report.gates[0].status).toBe("fail");
+      expect(report.gates[0].reason).toContain("not_checked");
+    } finally {
+      process.chdir(repoCwd);
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 

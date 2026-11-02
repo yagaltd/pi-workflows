@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { main } from "../scripts/proof-ledger.mjs";
+import { main, verifyLast } from "../scripts/proof-ledger.mjs";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "proof-"));
 const run = (argv) => main(argv);
@@ -67,6 +68,37 @@ describe("proof-ledger (plan 20261025-025)", () => {
     expect(await statuses("recorded-nr")).toEqual({ code: 1, status: "not_replayable" }); // recorded not_replayable → no confirmed replay
     expect(await statuses("fails")).toEqual({ code: 1, status: "not_replayable" }); // re-run exit ≠ 0 is not a confirmed replay
     expect(await statuses("task-9")).toEqual({ code: 1, status: "missing" });
+  });
+
+  test("replay with exit mismatch is not replayable-confirmed even when output is byte-identical (plan 20261031-048 BUG-3)", () => {
+    const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+    const out = "grep-style output\n";
+    // probe 1:1 — a recorded-FAILING proof (exit 1) re-run to exit 0 with identical output
+    const recordedFail = [{ planId: "p1", taskId: "t1", command: "grep -q needle file", exit: 1, outputHash: sha256(out) }];
+    const drifted = verifyLast(recordedFail, { plan: "p1", task: "t1" }, () => ({ status: 0, stdout: out, stderr: "" }));
+    expect(drifted.status).toBe("replayable-drifted");
+    expect(drifted.exit).toBe(1);
+    // reversed mismatch drifts too: recorded pass re-runs to failure
+    const recordedPass = [{ planId: "p1", taskId: "t2", command: "c", exit: 0, outputHash: sha256(out) }];
+    expect(verifyLast(recordedPass, { plan: "p1", task: "t2" }, () => ({ status: 1, stdout: out, stderr: "" })).status).toBe("replayable-drifted");
+    // a consistent replay of a recorded failure is still no confirmed replay
+    expect(verifyLast(recordedFail, { plan: "p1", task: "t1" }, () => ({ status: 1, stdout: out, stderr: "" })).status).toBe("not_replayable");
+  });
+
+  test("record --kind rejects unknown kinds fail-closed — usage exit 2, no row written (plan 20261031-048 BUG-4)", async () => {
+    const dir = tmp();
+    const ledger = path.join(dir, "proofs.jsonl");
+    // probe 1:1 — the typo silently recorded replayable:true before the fix
+    expect(await run(["record", "--plan", "p1", "--task", "t1", "--verify", "true", "--kind", "not-replayable", "--ledger", ledger])).toBe(2);
+    expect(await run(["record", "--plan", "p1", "--task", "t1", "--verify", "true", "--kind", "bogus", "--ledger", ledger])).toBe(2);
+    expect(fs.existsSync(ledger)).toBe(false);
+    // valid kinds still work
+    expect(await run(["record", "--plan", "p1", "--task", "t1", "--verify", "true", "--kind", "replayable", "--ledger", ledger])).toBe(0);
+    expect(await run(["record", "--plan", "p1", "--task", "t2", "--verify", "true", "--kind", "not_replayable", "--ledger", ledger])).toBe(0);
+    const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    expect(rows).toHaveLength(2);
+    expect(rows[0].replayable).toBe(true);
+    expect(rows[1].replayable).toBe(false);
   });
 
   test("proof show reads the ledger by plan and task", async () => {

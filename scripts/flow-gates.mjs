@@ -19,15 +19,17 @@ const PROOF_LEDGER = ".workflows/proofs/proofs.jsonl";
 
 // evidence gate (plan 20261031-048): reads the task's recorded proof rows and
 // computes the verdict via proof-ledger's pure evidenceVerdict("worker", ...).
-// Owner is "worker" — the dispatcher-recorded author. Empty/missing rows fail
-// loudly with "not_checked": never a silent pass.
-export function evidenceGate(taskId, { ledger = PROOF_LEDGER } = {}) {
+// Owner is "worker" — the dispatcher-recorded author. Rows are scoped to the
+// task's plan AND id (BUG-2 fix): a plan-NEW task never borrows plan-OLD rows
+// from the shared ledger. Empty/missing rows fail loudly with "not_checked":
+// never a silent pass.
+export function evidenceGate(taskId, { ledger = PROOF_LEDGER, planId } = {}) {
   if (!taskId) {
     return { status: "fail", reason: "evidence: not_checked — no taskId given for the evidence gate", results: [] };
   }
-  const rows = readProofs(ledger).filter((r) => r.taskId === taskId);
+  const rows = readProofs(ledger).filter((r) => r.taskId === taskId && r.planId === planId);
   if (rows.length === 0) {
-    return { status: "fail", reason: `evidence: not_checked — no proofs recorded for task ${taskId}`, results: [] };
+    return { status: "fail", reason: `evidence: not_checked — no proofs recorded for task ${taskId}${planId ? ` under plan ${planId}` : ""}`, results: [] };
   }
   const checks = rows.map((row) => ({
     runner: row.runner ?? "worker",
@@ -111,8 +113,8 @@ function listSpecs() {
 
 const firstToken = (cmd) => cmd.split(/\s+/)[0];
 
-export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" }), present, taskId, task, ledger } = {}) {
-  if (name === "evidence") return evidenceGate(taskId ?? task, { ledger });
+export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], { encoding: "utf8" }), present, taskId, task, ledger, planId } = {}) {
+  if (name === "evidence") return evidenceGate(taskId ?? task, { ledger, planId });
   const commands = gateCommands(name);
   if (!commands) return { status: "fail", reason: `unknown gate: ${name}`, results: [] };
 

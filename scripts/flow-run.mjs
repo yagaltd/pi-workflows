@@ -14,6 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { computeWaves, validateFlow } from "./flow-validate.mjs";
 import { gateCommands, runGate } from "./flow-gates.mjs";
 import { runDecisionStep } from "./flow-decision.mjs";
@@ -38,7 +39,9 @@ export function renderPlan(flow, statuses) {
 
 function probe(caseObj, tmpFile) {
   fs.writeFileSync(tmpFile, JSON.stringify(caseObj));
-  const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", tmpFile], { encoding: "utf8", timeout: 60000 });
+  // absolute: flow-run is cwd-independent (tests chdir into fixture dirs)
+  const probeScript = fileURLToPath(new URL("./eval-dispatch-probe.ts", import.meta.url));
+  const s = spawnSync("bun", [probeScript, tmpFile], { encoding: "utf8", timeout: 60000 });
   if (s.error || s.status !== 0) return { error: `probe failed: ${(s.stderr ?? s.error?.message ?? "").slice(0, 200)}` };
   try { return JSON.parse(s.stdout.trim().split("\n").pop()); } catch { return { error: "probe printed no JSON" }; }
 }
@@ -115,7 +118,11 @@ export async function main(argv) {
         console.log(`DRY-RUN gate ${s.id} (${s.gate}): ${(gateCommands(s.gate) ?? []).join(" && ")}`);
         continue;
       }
-      const g = runGate(s.gate);
+      // evidence is not a shell gate: it reads the proof ledger for THIS task
+      // under THIS flow's plan id (flow-<slug>, BUG-1 + BUG-2 wiring)
+      const g = s.gate === "evidence"
+        ? runGate("evidence", { taskId: s.taskId, planId: `flow-${flow.slug}` })
+        : runGate(s.gate);
       report.gates.push({ id: s.id, gate: s.gate, status: g.status, reason: g.reason ?? null });
       console.log(`GATE ${s.id} (${s.gate}): ${g.status}${g.reason ? ` — ${g.reason}` : ""}`);
       if (g.status === "fail") { exit = 1; }
