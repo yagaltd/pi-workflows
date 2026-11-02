@@ -740,3 +740,153 @@ describe("backlog #7: judge-based secrets gate", () => {
     }
   });
 });
+
+// ── plan-049 whole-plan review polish (BUG-2..BUG-5, LOW) ────────────────
+
+describe("plan-049 review polish (BUG-2..BUG-5)", () => {
+  test("BUG-2: --gitleaks <relative> resolves vs cwd exactly like --files (was: process.cwd())", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-bug2-"));
+    try {
+      const fx = makeFixtures(dir);
+      fs.writeFileSync(path.join(dir, "gl.json"), JSON.stringify([{ RuleID: "email-address", Description: "email", File: "contacts.csv", StartLine: 2 }]));
+      const { askImpl } = fakeAsk();
+      const res = await runScan({
+        plan: "BUG2",
+        files: [fx.csv],
+        gitleaksReport: "gl.json", // relative — must resolve vs cwd=dir, never process.cwd()
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile: path.join(dir, "ruler.jsonl"),
+      });
+      expect(res.exitCode).toBe(0);
+      expect(res.notes.join("\n")).not.toMatch(/unreadable/); // report was found via cwd
+      expect(res.summary[0].gitleaksFindings).toHaveLength(1); // triage actually applied
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("BUG-3a: value slot swallowing a flag (--gitleaks --files) fails fast with a usage error naming the flag", async () => {
+    // direct: --files swallowing "--gitleaks" silently scanned a bogus target (old code exit 0, no error)
+    expect(await main(["--plan", "x", "--files", "--gitleaks", "r.json"])).toBe(2);
+    expect(await main(["--gitleaks", "r.json", "--plan"])).toBe(2); // missing value at end
+    // spawn probes: the usage error NAMES the flag it choked on; parse fails before any scan/judge work
+    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--gitleaks", "--files", "a.json"], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("--gitleaks expects a value");
+    expect(r.stderr).toContain("--files");
+    expect(r.stderr).toContain("usage:");
+    const r2 = spawnSync("node", [SCRIPT, "--gitleaks", "r.json", "--plan"], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    expect(r2.status).toBe(2);
+    expect(r2.stderr).toContain("--plan expects a value");
+  });
+
+  test("BUG-3b: --files with only empty entries (\",\") errors loudly — never silently falls back to git discovery", async () => {
+    expect(await main(["--plan", "x", "--files", ","])).toBe(2);
+    expect(await main(["--plan", "x", "--files", "  "])).toBe(2);
+    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--files", ","], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    expect(r.status).toBe(2);
+    expect(r.stderr).toContain("--files");
+    expect(r.stderr.toLowerCase()).toContain("no usable entries");
+  });
+
+  test("BUG-4: judge answer drift (verdict:null / missing ids) → loud report line, excluded from flagged AND clean; ruler only carries answered verdicts", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-bug4-"));
+    try {
+      const fx = makeFixtures(dir);
+      // judge drifts on the first question (verdict:null) and drops the second entirely
+      const driftAsk = async ({ questions }: { questions: any[] }) => ({
+        status: 0,
+        verdict: [
+          { id: questions[0].id, verdict: null, confidence: null },
+          ...questions.slice(2).map((q: any) => ({ id: q.id, verdict: "no", confidence: 0.9 })),
+        ],
+      });
+      const rulerFile = path.join(dir, "ruler.jsonl");
+      const o = sink();
+      const e = sink();
+      const res = await runScan({ plan: "BUG4", files: [fx.csv], askImpl: driftAsk, cwd: dir, out: o, err: e, rulerFile });
+      expect(res.exitCode).toBe(0);
+
+      // excluded from clean: order is NOT clean/judge-flagged, it names the drift
+      expect(res.summary[0].order).toBe("judge-drift");
+      expect(res.summary[0].judge.unanswered).toBe(2);
+      expect(res.summary[0].judge.flagged).toEqual([]);
+
+      // LOUD report line with the drift count
+      const outText = o.text + e.text;
+      expect(outText).toContain("judge answer drift: 2 questions unanswered — treating as unanswered, not clean");
+
+      // ruler: ONLY answered verdicts landed — drifted ids must stay free for a re-run
+      const rows = fs.readFileSync(rulerFile, "utf-8").trim().split("\n").map((l) => JSON.parse(l));
+      const verdictRows = rows.filter((r: any) => r.verdict === "yes" || r.verdict === "no");
+      expect(verdictRows.length).toBe(TOTAL_QUESTIONS - 2);
+      const driftedIds = ["q01-email-addresses", "q02-phone-numbers"];
+      for (const id of driftedIds) expect(verdictRows.map((r: any) => r.questionId)).not.toContain(id);
+
+      // idempotency unpoisoned: a follow-up run with a GOOD judge fills the drifted ids in
+      const { askImpl } = fakeAsk(() => "yes");
+      const res2 = await runScan({ plan: "BUG4", files: [fx.csv], askImpl, cwd: dir, out: sink(), err: sink(), rulerFile });
+      expect(res2.appended).toBe(2); // exactly the two previously-unanswered questions
+      const rows2 = fs.readFileSync(rulerFile, "utf-8").trim().split("\n").map((l) => JSON.parse(l));
+      for (const id of driftedIds) expect(rows2.map((r: any) => r.questionId)).toContain(id);
+
+      // control: a fully-answered file stays clean — no drift line, order clean
+      const o3 = sink();
+      const { askImpl: goodAsk } = fakeAsk();
+      const res3 = await runScan({ plan: "BUG4", files: [fx.json], askImpl: goodAsk, cwd: dir, out: o3, err: sink(), rulerFile: path.join(dir, "r3.jsonl") });
+      expect(res3.summary[0].order).toBe("clean");
+      expect(o3.text).not.toContain("judge answer drift");
+      assertNoSentinels(o.text, e.text, JSON.stringify(res.summary));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("BUG-5: gitleaks triage keys by path-as-given — same-named files in different dirs never cross-attribute", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-bug5-"));
+    try {
+      fs.mkdirSync(path.join(dir, "dir1"), { recursive: true });
+      fs.mkdirSync(path.join(dir, "dir2"), { recursive: true });
+      const f1 = path.join(dir, "dir1", "same.json");
+      const f2 = path.join(dir, "dir2", "same.json");
+      fs.writeFileSync(f1, "{}\n");
+      fs.writeFileSync(f2, "{}\n");
+      const report = path.join(dir, "gl.json");
+      fs.writeFileSync(
+        report,
+        JSON.stringify([
+          { RuleID: "rule-one", Description: "d1", File: "dir1/same.json", StartLine: 1 },
+          { RuleID: "rule-two", Description: "d2", File: "dir2/same.json", StartLine: 1 },
+        ]),
+      );
+
+      // parser keys by the path as given (full relative path), not basename
+      const parsed = parseGitleaksReport(report);
+      expect(parsed.perFile.get("dir1/same.json")?.map((f: any) => f.rule)).toEqual(["rule-one"]);
+      expect(parsed.perFile.get("dir2/same.json")?.map((f: any) => f.rule)).toEqual(["rule-two"]);
+      expect(parsed.perFile.has("same.json")).toBe(false); // basename keying is gone
+
+      // scan: each target gets exactly its own findings
+      const { askImpl } = fakeAsk();
+      const res = await runScan({
+        plan: "BUG5",
+        files: [f1, f2],
+        gitleaksReport: report,
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile: path.join(dir, "ruler.jsonl"),
+      });
+      const s1 = res.summary.find((r: any) => r.file === f1);
+      const s2 = res.summary.find((r: any) => r.file === f2);
+      expect(s1.gitleaksFindings.map((f: any) => f.rule)).toEqual(["rule-one"]);
+      expect(s2.gitleaksFindings.map((f: any) => f.rule)).toEqual(["rule-two"]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
