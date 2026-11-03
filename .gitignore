@@ -12,3 +12,4 @@ node_modules/
 !.workflows/profile.json
 !.workflows/evals/
 .bug-hunter
+package-lock.json
