@@ -1,0 +1,16 @@
+{
+  "kind": "degradation",
+  "tags": [
+    "chooser",
+    "degradation",
+    "advisory"
+  ],
+  "recorded": {
+    "mode": "advisory"
+  },
+  "expected": {
+    "proceed": true,
+    "documented_gap": true
+  },
+  "id": "chooser-001-advisory-degrade"
+}

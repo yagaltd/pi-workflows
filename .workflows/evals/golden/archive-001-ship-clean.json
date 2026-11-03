@@ -1,0 +1,15 @@
+{
+  "kind": "archive",
+  "tags": [
+    "ship",
+    "archive-gate"
+  ],
+  "recorded": {
+    "planId": "20261025-017",
+    "changelogMentions": true
+  },
+  "expected": {
+    "ship": "pass"
+  },
+  "id": "archive-001-ship-clean"
+}

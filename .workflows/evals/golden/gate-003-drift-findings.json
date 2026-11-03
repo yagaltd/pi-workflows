@@ -1,0 +1,18 @@
+{
+  "kind": "gate",
+  "tags": [
+    "tdd-gate",
+    "drift"
+  ],
+  "recorded": {
+    "tool": "tdd-gate drift --spec task-2.spec",
+    "exit": 1,
+    "findings": [
+      "task-2.spec:12 drifted from diff"
+    ]
+  },
+  "expected": {
+    "verdict": "FAIL"
+  },
+  "id": "gate-003-drift-findings"
+}

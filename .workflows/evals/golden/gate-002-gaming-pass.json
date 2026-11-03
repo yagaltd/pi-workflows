@@ -1,0 +1,15 @@
+{
+  "kind": "gate",
+  "tags": [
+    "tdd-gate",
+    "gaming"
+  ],
+  "recorded": {
+    "tool": "tdd-gate gaming --diff",
+    "exit": 0
+  },
+  "expected": {
+    "verdict": "PASS"
+  },
+  "id": "gate-002-gaming-pass"
+}

@@ -1,0 +1,27 @@
+{
+  "kind": "dispatcher",
+  "tags": [
+    "resolveNext",
+    "blocked-codes"
+  ],
+  "input": {
+    "plan": "# Plan: fixture (099)\n\n> Plan ID: 20260101-099\n> Status: APPROVED 2026-01-01 (owner)\n\n## Tasks\n\n### TASK 1 (Tier B, 🟡): done without a verdict — src/a.ts\n- **Status**: ✅ DONE\n- **Wave**: 1\n- **Depends On**: none\n- **tdd**: false\n- **Allowed**: src/a.ts\n- **Verify**: bun test\n\n### TASK 2 (Tier A, ⚪): next after the done task — src/b.ts\n- **Status**: ⬜ PENDING\n- **Wave**: 1\n- **Depends On**: TASK 1\n- **tdd**: false\n- **Allowed**: src/b.ts\n- **Verify**: bun test\n\n",
+    "registry": {
+      "task-1": {
+        "model": "standard",
+        "thinking": "medium",
+        "role": "worker"
+      },
+      "task-2": {
+        "model": "standard",
+        "thinking": "medium",
+        "role": "worker"
+      }
+    }
+  },
+  "expected": {
+    "ok": false,
+    "blocked": "stale-status"
+  },
+  "id": "dispatch-003-stale-status"
+}

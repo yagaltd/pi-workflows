@@ -1,0 +1,18 @@
+{
+  "kind": "gate",
+  "tags": [
+    "agent-spec",
+    "lifecycle"
+  ],
+  "recorded": {
+    "tool": "agent-spec lifecycle task-1.spec --code .",
+    "exit": 1,
+    "findings": [
+      "Scenario: red list reported — not satisfied"
+    ]
+  },
+  "expected": {
+    "verdict": "FAIL"
+  },
+  "id": "gate-001-lifecycle-fail"
+}

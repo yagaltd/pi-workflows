@@ -1,0 +1,12 @@
+{"id":"archive-001-ship-clean","outcome":"pass"}
+{"id":"chooser-001-advisory-degrade","outcome":"pass"}
+{"id":"deg-001-judge-skipped","outcome":"pass"}
+{"id":"deg-002-guard-advisory","outcome":"pass"}
+{"id":"dispatch-001-wave-order","outcome":"pass"}
+{"id":"dispatch-002-deps-unsatisfied","outcome":"pass"}
+{"id":"dispatch-003-stale-status","outcome":"pass"}
+{"id":"dispatch-004-missing-spec","outcome":"pass"}
+{"id":"docs-001-stamp-expired","outcome":"pass"}
+{"id":"gate-001-lifecycle-fail","outcome":"pass"}
+{"id":"gate-002-gaming-pass","outcome":"pass"}
+{"id":"gate-003-drift-findings","outcome":"pass"}

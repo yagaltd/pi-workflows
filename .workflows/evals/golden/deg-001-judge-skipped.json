@@ -1,0 +1,15 @@
+{
+  "kind": "degradation",
+  "tags": [
+    "judge",
+    "degradation"
+  ],
+  "recorded": {
+    "marker": "JUDGE SKIPPED (missing TYPEDLLM_API_KEY)"
+  },
+  "expected": {
+    "proceed": true,
+    "documented_gap": true
+  },
+  "id": "deg-001-judge-skipped"
+}

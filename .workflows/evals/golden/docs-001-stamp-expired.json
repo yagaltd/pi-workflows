@@ -1,0 +1,16 @@
+{
+  "kind": "docs",
+  "tags": [
+    "docs-lint",
+    "stamps"
+  ],
+  "recorded": {
+    "generated_at": "2026-09-01T00:00:00Z",
+    "stale_after_days": 7,
+    "now": "2026-10-25T00:00:00Z"
+  },
+  "expected": {
+    "finding": "stamp-expired"
+  },
+  "id": "docs-001-stamp-expired"
+}

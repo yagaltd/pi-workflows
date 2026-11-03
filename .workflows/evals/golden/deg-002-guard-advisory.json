@@ -1,0 +1,16 @@
+{
+  "kind": "degradation",
+  "tags": [
+    "auto-gate",
+    "degradation"
+  ],
+  "recorded": {
+    "toolchain": "tdd-gate",
+    "mode": "advisory"
+  },
+  "expected": {
+    "proceed": true,
+    "documented_gap": true
+  },
+  "id": "deg-002-guard-advisory"
+}
