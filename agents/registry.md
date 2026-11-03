@@ -72,12 +72,17 @@ verdicts: **every tier still requires a verdict for ✅** (doctrine #7).
 
 ## Model resolution
 
-The orchestrator resolves `@model:<role>` from `models/registry.json` at
-dispatch time. The registry maps each role to a concrete model id with
-provenance (provider, pricing, context window). If the role is unresolvable
-(e.g., missing from registry, registry absent, parsing failure) the
-orchestrator picks an **explicit legacy id** and prints a WARN line naming
-the role and the fallback — **never silent**:
+The orchestrator resolves `@model:<role>` in this order:
+
+1. **Live pi catalog** (native-preferred) — query the live pi model
+   catalog (capability metadata only, never key files or key contents) and
+   pick a native-provider model that fits the role's tier.
+2. **`models/registry.json`** — the registry maps each role to a concrete
+   model id with provenance (provider, pricing, context window).
+3. **Legacy constants** — only when the role is unresolvable (missing from
+   catalog AND registry, registry absent, parsing failure), the
+   orchestrator picks an **explicit legacy id** and prints a WARN line
+   naming the role and the fallback — **never silent**:
 
 - `@model:strong` → `` `deepseek/deepseek-v4-pro` `` (fallback constant)
 - `@model:standard`, `@model:scout` → `` `openrouter/~deepseek/deepseek-flash-latest` ``
