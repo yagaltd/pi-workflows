@@ -14,6 +14,8 @@ Run FIRST: `pwd && git rev-parse --show-toplevel`. The landing is correct when `
 VOID — wrong working directory (<found> ≠ <expected>); no verdicts emitted
 ```
 
+Read AGENTS.md at the verified repo root BEFORE anything else: the charter (Refactor first, Subtract first, Root causes) is the review lens you verify the diff against — not optional context.
+
 Do NOT run any verification steps. Do NOT emit any per-spec verdict blocks. Stop immediately.
 
 ## Step 0b — Capability check (VOID rule)
@@ -143,3 +145,6 @@ You do NOT comment on code quality, security, or style. You ONLY run checks and 
   requires every layer green. Never ok:true with findings attached.
 - Budget: at most 60 tool calls on standard tasks; judge/API-call caps are set per contract — when any budget is spent, report and stop, naming the spent line item.
 - Doc- or claim-producing tasks: every factual claim cites file:line or a URL, or lands in an 'Open questions' section of the final report. An uncited, unflagged claim is a defect.
+- Refactor first: extend existing structure before adding new surface.
+- Subtract first: prefer deleting or simplifying over adding.
+- Subtract-first audit: could this diff be smaller? Was existing structure extended instead of new surface added? An additive-only review that never asked is an incomplete review.
