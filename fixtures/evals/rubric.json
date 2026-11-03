@@ -1,0 +1,76 @@
+{
+  "dimensions": {
+    "boundaries": [
+      {
+        "id": "allowed-changes",
+        "question": "Does the dispatch prompt below include an explicit scope statement of what the agent may change — an Allowed changes list naming files or directories, or an explicit read-only/no-writes scope for recon roles? 5-point anchor, collapsed to yes/no: yes = a named Allowed list or explicit no-writes scope is present; no = the pack never states what the agent may touch."
+      },
+      {
+        "id": "forbidden",
+        "question": "Does the dispatch prompt below make out-of-scope changes forbidden — an ONLY qualifier on the allowed paths, a named forbidden file/surface, or an explicit no-writes rule? yes = restriction is stated; no = the pack allows anything by silence."
+      },
+      {
+        "id": "scope-in-tree",
+        "question": "Does the dispatch prompt below keep its allowed paths inside the named repository tree — repo-relative paths or paths explicitly under the repo the task names, with no instruction to edit files outside that repo? yes = all mutable paths resolve inside the repo; no = the pack points the agent at paths outside the repo or omits location entirely."
+      }
+    ],
+    "budget": [
+      {
+        "id": "budget-stated",
+        "question": "Does the dispatch prompt below state a budget for the task — a cap on tool calls, judge/API calls, or cost? yes = any budget line is present; no = the pack assigns no budget at all."
+      },
+      {
+        "id": "budget-number",
+        "question": "Does the dispatch prompt below give the budget as a concrete number (e.g. '60 tool calls', '1 ask, <=64 questions') rather than vague wording like 'be efficient'? yes = a number is present; no = vague or missing."
+      }
+    ],
+    "done-when": [
+      {
+        "id": "done-when-criteria",
+        "question": "Does the dispatch prompt below define when the task is done — completion criteria, expected outputs, or a named artifact that proves completion? yes = done-when is stated; no = the task ends in open-ended 'implement' with no completion definition."
+      },
+      {
+        "id": "done-when-verify",
+        "question": "Does the dispatch prompt below include a literal Verify command line whose output proves the task in this repo (a runnable command with its expected result, not a description)? yes = a concrete verify command is present; no = verification is left unspecified."
+      }
+    ],
+    "citations": [
+      {
+        "id": "file-citations",
+        "question": "Does the dispatch prompt below cite concrete file paths for its context (specific paths like scripts/foo.mjs or tests/bar.test.ts with a note on what lives there), rather than only vague pointers like 'the docs' or 'the tests'? yes = at least one concrete path is cited with context; no = context is vague or absent."
+      }
+    ],
+    "tdd": [
+      {
+        "id": "tdd-red-first",
+        "question": "Does the dispatch prompt below instruct failing-test-first — write the failing test (RED) before implementing — for any code change the task involves, or explicitly state that the task writes no code? yes = RED-first instruction or explicit no-code scope is present; no = the pack tells the agent to implement with no test-first instruction."
+      },
+      {
+        "id": "tdd-green-suite",
+        "question": "Does the dispatch prompt below require the test suite to be green as part of completion (e.g. 'bun test → 0 fail overall', 'tests stay green')? yes = a green-suite requirement is present; no = no suite-green requirement."
+      }
+    ],
+    "secrets": [
+      {
+        "id": "no-key-instructions",
+        "question": "Does the dispatch prompt below avoid instructing the agent to read, print, echo, or paste secret key files or API keys (auth files, credential env dumps, token files)? yes = no such instruction is present; no = the pack directs the agent at secrets."
+      }
+    ],
+    "guard": [
+      {
+        "id": "guard-step",
+        "question": "Does the dispatch prompt below include a GUARD / landing-verification step — verify pwd and git toplevel against the named repo path (or its .git/subagents worktree prefix) before any work, with a blocker on mismatch? yes = the GUARD step is present; no = the pack never asks the agent to verify its landing."
+      }
+    ],
+    "report": [
+      {
+        "id": "report-sections",
+        "question": "Does the dispatch prompt below specify the format of the final report with named sections (e.g. Completed / Files Changed / Verification / Issues)? yes = a sectioned report format is present; no = no report format is specified."
+      },
+      {
+        "id": "report-evidence",
+        "question": "Does the dispatch prompt below require per-line evidence in the report — file:line citations or literal command outputs for every claim, not bare assertions? yes = an evidence requirement is stated; no = the report may be bare claims."
+      }
+    ]
+  }
+}

@@ -10,4 +10,5 @@ node_modules/
 !.workflows/reviews/
 !.workflows/archive/
 !.workflows/profile.json
+!.workflows/evals/
 .bug-hunter
