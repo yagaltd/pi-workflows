@@ -132,15 +132,32 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    (Phase 5 step 1: copy `templates/AGENTS.md` and fill the slots), see
    `templates/DOCS-POLICY.md` / `docs/canon.md`. Do NOT hand off without a
    charter: downstream roles and lints depend on it.
-7. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
+7. **Dev environment (mise)**: DETECT the stack from build markers
+   (`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`,
+   `*.csproj`) and existing version files (`.nvmrc`, `.python-version`,
+   `.tool-versions`, `mise.toml`). Greenfield: GENERATE a `mise.toml`
+   draft — a `[tools]` block pinned from the detected markers, versions
+   confirmed with `mise current` — then 🛑 GATE: the OWNER approves the
+   draft before anything is written. Brownfield: mise already reads
+   `.nvmrc` / `.python-version` / `.tool-versions` natively as-is —
+   REPORT the native pinning and OFFER consolidation into `mise.toml`
+   (never forced). On approval: run `mise install`, then verify each
+   runtime resolves with `mise exec -- <runtime> --version`. Boundaries:
+   NEVER delete existing version files; NEVER upgrade runtimes just to
+   enable mise; NEVER silently replace another tool manager. mise
+   missing → suggest `curl https://mise.run | sh`, SKIP LOUDLY, and
+   continue — init never blocks on mise.
+8. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
    surface — capability metadata only) and build the per-tier shortlist
    (strong/standard/scout/vision), preferring native provider models and
    noting provenance for each pick. 🛑 GATE: present the shortlist to the
    OWNER and record their pick, then write `models/registry.json` with
    provenance `pi-catalog`. The catalog is CAPABILITY truth: NEVER read
    key files or key contents (API keys) — the catalog needs no secrets.
-8. **Hand off**: present the summary (including the model-policy outcome:
-   the owner's registry picks and their provenance) and point at `/plan` — its contract
+9. **Hand off**: present the summary — including BOTH the model-policy
+   outcome (the owner's registry picks and their provenance) AND the
+   dev-environment outcome (mise.toml written and verified, native
+   pinning reported, or the loud mise-absent skip) — and point at `/plan` — its contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter (probed
    in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README

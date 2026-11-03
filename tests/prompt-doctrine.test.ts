@@ -86,7 +86,7 @@ const readT3 = (p: string) => fs.readFileSync(p, "utf8");
 const normT3 = (s: string) => s.replace(/\s+/g, " ");
 
 describe("prompt doctrine — /init model policy + catalog-first resolution (T3, plan 20261102-051)", () => {
-  test("init skill has a Model policy step 7 between the Charter probe and the handoff (renumbered 8)", () => {
+  test("init skill has a Model policy step 8 between the Dev environment step and the handoff (renumbered 9)", () => {
     const skill = readT3("skills/init/SKILL.md");
     const probe = skill.indexOf("**Charter probe**");
     const model = skill.indexOf("**Model policy**");
@@ -94,8 +94,8 @@ describe("prompt doctrine — /init model policy + catalog-first resolution (T3,
     expect(probe).toBeGreaterThan(-1);
     expect(model).toBeGreaterThan(probe);
     expect(handoff).toBeGreaterThan(model);
-    expect(skill).toMatch(/7\. \*\*Model policy\*\*/);
-    expect(skill).toMatch(/8\. \*\*Hand off\*\*/);
+    expect(skill).toMatch(/8\. \*\*Model policy\*\*/);
+    expect(skill).toMatch(/9\. \*\*Hand off\*\*/);
   });
 
   test("model policy step queries the live pi catalog, presents the tier shortlist at a human gate, and writes models/registry.json with pi-catalog provenance", () => {
@@ -185,5 +185,85 @@ describe("eval wiring + doctrine (T5, plan 20261102-052)", () => {
     expect(slice).toContain("measurement autonomous");
     expect(slice).toContain("human approval");
     expect(slice).toContain("committed data");
+  });
+});
+
+// --- T6: /init step 7 "Dev environment (mise)" (plan 20261102-053) ---
+// Pins the mise wiring: stack-marker + version-file detection, greenfield
+// mise.toml generation vs brownfield native-report + opt-in consolidation,
+// the 🛑 gate, install+verify, the three boundaries, the loud mise-absent
+// skip, and the mechanical renumber (Model policy → 8, handoff → 9).
+
+const readT6 = (p: string) => fs.readFileSync(p, "utf8");
+const normT6 = (s: string) => s.replace(/\s+/g, " ");
+
+describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 20261102-053)", () => {
+  const devSlice = () => {
+    const skill = normT6(readT6("skills/init/SKILL.md"));
+    const m = skill.indexOf("Dev environment (mise)");
+    return skill.slice(m, skill.indexOf("Model policy", m));
+  };
+
+  test("init skill has a Dev environment (mise) step 7 between the Charter probe and Model policy (Model policy renumbered 8, handoff 9)", () => {
+    const skill = readT6("skills/init/SKILL.md");
+    const probe = skill.indexOf("**Charter probe**");
+    const dev = skill.indexOf("**Dev environment (mise)**");
+    const model = skill.indexOf("**Model policy**");
+    const handoff = skill.indexOf("**Hand off**");
+    expect(probe).toBeGreaterThan(-1);
+    expect(dev).toBeGreaterThan(probe);
+    expect(model).toBeGreaterThan(dev);
+    expect(handoff).toBeGreaterThan(model);
+    expect(skill).toMatch(/7\. \*\*Dev environment \(mise\)\*\*/);
+    expect(skill).toMatch(/8\. \*\*Model policy\*\*/);
+    expect(skill).toMatch(/9\. \*\*Hand off\*\*/);
+  });
+
+  test("step 7 detects stack markers and the version files mise already reads natively as-is", () => {
+    const slice = devSlice();
+    expect(slice).toContain(
+      "`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`, `*.csproj`"
+    );
+    expect(slice).toContain("`.nvmrc`, `.python-version`, `.tool-versions`, `mise.toml`");
+  });
+
+  test("greenfield: generate mise.toml [tools] pinned from markers + mise current; brownfield: report native pinning, OFFER consolidation (never forced)", () => {
+    const slice = devSlice();
+    expect(slice).toContain("mise.toml");
+    expect(slice).toContain("[tools]");
+    expect(slice).toContain("mise current");
+    expect(slice).toContain("natively as-is");
+    expect(slice).toContain("OFFER");
+    expect(slice).toContain("never forced");
+  });
+
+  test("the mise.toml write is gated behind a 🛑 human gate; verify = mise install + mise exec -- <runtime> --version", () => {
+    const slice = devSlice();
+    expect(slice).toContain("🛑");
+    expect(slice).toContain("mise install");
+    expect(slice).toContain("mise exec -- <runtime> --version");
+  });
+
+  test("three boundaries: never delete existing version files, never upgrade runtimes just to enable it, never silently replace another tool manager", () => {
+    const slice = devSlice();
+    expect(slice).toContain("NEVER delete existing version files");
+    expect(slice).toContain("NEVER upgrade runtimes just to enable mise");
+    expect(slice).toContain("NEVER silently replace another tool manager");
+  });
+
+  test("mise absent: suggest curl https://mise.run | sh, skip loudly, init never blocks on mise", () => {
+    const slice = devSlice();
+    expect(slice).toContain("curl https://mise.run | sh");
+    expect(slice).toContain("SKIP LOUDLY");
+    expect(slice).toContain("init never blocks on mise");
+  });
+
+  test("handoff step 9 reports BOTH outcomes: model-policy AND dev-environment", () => {
+    const skill = normT6(readT6("skills/init/SKILL.md"));
+    const m = skill.indexOf("9. **Hand off**");
+    expect(m).toBeGreaterThan(-1);
+    const slice = skill.slice(m);
+    expect(slice).toContain("model-policy outcome");
+    expect(slice).toContain("dev-environment outcome");
   });
 });
