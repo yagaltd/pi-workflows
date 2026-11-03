@@ -1,3 +1,10 @@
+## 2026-11-03 — v0.14.8: catalog-driven model policy + /init Model policy step (plan 20261102-051)
+
+- **Model resolution is catalog-first**: live pi catalog (native-preferred: same family reachable natively beats aggregator ids — id-resolution stability, no proxy ToS surprises) → `models/registry.json` → legacy constants (deepseek, loud WARN, unchanged).
+- **tests/models-scan.test.ts**: pure `resolveModelPolicy(piCatalog, openrouterModels)` — fixture-in/policy-out, native-first family collapse (glm-5.3 ↔ z-ai/glm-5.3), strong = highest-context reasoning-capable, standard/scout pair to strong's provider, vision falls to legacy path when absent, OR meta-routers/`~` aliases/negative pricing excluded. 24 tests / 604 expects.
+- **fixtures/pi-catalog.json**: 82-entry capability snapshot of pi's model catalog (credential-free by design — catalog = capability, keys = secrets; never scanned).
+- **skills/init/SKILL.md Phase 5 step 7 "Model policy"**: queries the live catalog, presents the tier shortlist at a 🛑 human gate, writes the owner's pick to models/registry.json (provenance `pi-catalog`); handoff reports the outcome. /init SUGGESTS — the human picks.
+- Full-run policy from the real snapshot: strong=openai/gpt-daybreak-blue-latest (1.05M ctx), standard=gpt-5-nano, scout=gpt-4.1-nano, vision=strong id — all `pi-catalog` provenance. Suite 290 pass / 0 fail.
 ## 2026-11-02 — v0.14.7: prompt doctrine — budgets, done-when, cite-or-open-questions (plan 20261102-050; stolen from DSH/Bise harnesses)
 
 - **Call budgets**: worker + reviewer role files carry a budget line (≤60 tool calls default; judge/API caps per contract; spent → report and stop, naming the line item); registry makes budget assignment an orchestrator duty.
