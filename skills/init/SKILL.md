@@ -132,7 +132,15 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    (Phase 5 step 1: copy `templates/AGENTS.md` and fill the slots), see
    `templates/DOCS-POLICY.md` / `docs/canon.md`. Do NOT hand off without a
    charter: downstream roles and lints depend on it.
-7. **Hand off**: present the summary and point at `/plan` — its contract
+7. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
+   surface — capability metadata only) and build the per-tier shortlist
+   (strong/standard/scout/vision), preferring native provider models and
+   noting provenance for each pick. 🛑 GATE: present the shortlist to the
+   OWNER and record their pick, then write `models/registry.json` with
+   provenance `pi-catalog`. The catalog is CAPABILITY truth: NEVER read
+   key files or key contents (API keys) — the catalog needs no secrets.
+8. **Hand off**: present the summary (including the model-policy outcome:
+   the owner's registry picks and their provenance) and point at `/plan` and point at `/plan` — its contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter (probed
    in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README
