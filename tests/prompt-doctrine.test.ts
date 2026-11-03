@@ -267,3 +267,36 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
     expect(slice).toContain("dev-environment outcome");
   });
 });
+
+// --- T7: reviewer doctrine hardening (plan 20261103-055 T1) ---
+describe("prompt doctrine — reviewer Read-AGENTS.md mandate + charter lines (T7, plan 20261103-055)", () => {
+  const REFACTOR_FIRST =
+    "Refactor first: extend existing structure before adding new surface.";
+  const SUBTRACT_FIRST =
+    "Subtract first: prefer deleting or simplifying over adding.";
+
+  test("reviewer.md carries a Read AGENTS.md mandate phrased as the review lens", () => {
+    expect(REVIEWER).toContain("Read AGENTS.md");
+    expect(REVIEWER).toContain("the charter");
+    expect(REVIEWER).toContain("review lens");
+  });
+
+  test("reviewer.md carries both charter lines verbatim", () => {
+    expect(REVIEWER).toContain(REFACTOR_FIRST);
+    expect(REVIEWER).toContain(SUBTRACT_FIRST);
+  });
+
+  test("reviewer.md carries the subtract-first audit item", () => {
+    expect(REVIEWER).toContain("could this diff be smaller");
+    expect(REVIEWER).toContain("Subtract-first audit");
+  });
+
+  test("charter lines and audit item sit in the reviewer ## Rules section", () => {
+    const rulesIdx = REVIEWER.indexOf("## Rules");
+    expect(rulesIdx).toBeGreaterThan(-1);
+    const rules = REVIEWER.slice(rulesIdx);
+    expect(rules).toContain(REFACTOR_FIRST);
+    expect(rules).toContain(SUBTRACT_FIRST);
+    expect(rules).toContain("Subtract-first audit");
+  });
+});
