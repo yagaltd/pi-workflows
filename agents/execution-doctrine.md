@@ -474,3 +474,18 @@ Self-report is not the only channel — the class-5 agent does not know it
 is stuck. While workers can now ask, the orchestrator still watches
 (watch-children pane, dispatch ledger) for the silent case; a watchdog
 formization remains parked as V2.
+
+## Eval kaizen triggers
+
+Prompt-eval runs (`.workflows/evals/`) trigger kaizen by two modes:
+
+- **daily-kaizen**: a single-dimension isolated breach (one eval dimension
+  drops below its floor while the rest holds) → immediate small fix in the
+  next run, no plan.
+- **kaizen-event**: two consecutive breaches of the same dimension, a
+  multi-dimension drop, or an overall drop >10% → corrective plan before
+  any change.
+
+Autonomy boundary: measurement autonomous — the eval loop runs and
+records scores without asking. Triggered corrective plans need human approval before execution. Scores are committed data (`!.workflows/evals/`
+is whitelisted in .gitignore); never discard or rewrite recorded history.
