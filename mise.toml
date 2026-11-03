@@ -1,0 +1,4 @@
+# pi-workflows toolchain — pinned; `mise install` reproduces it
+[tools]
+bun = "1.3.11"
+node = "25.8.0"
