@@ -1,3 +1,9 @@
+## 2026-11-03 — v0.14.9: Jev-powered orchestration evals — kaizen measurement (plan 20261102-052)
+
+- **`scripts/eval-orchestration.mjs`** (new, `just eval`): batched TypeSafe Jev typed judgment (judge.mjs `ask()`, 8 dimensions / 14 questions per pack ≤64 cap) over 5 representative dispatch-pack fixtures — including two deliberately defective packs the judge must catch (judge-sanity by construction). Per-dimension scores stored per git commit in `.workflows/evals/orchestration/history.jsonl` (whitelisted, committed data).
+- **Kaizen triggers** (autonomous measurement, human approves triggered plans): daily-kaizen = single-dimension isolated breach → immediate small fix; kaizen-event = 2-consecutive breach / multi-dimension / >10% overall drop → corrective plan (eval evidence slots into the plan's evidence block). Advisory always: exit 0 on measurement outcomes, loud `JUDGE SKIPPED` degrade, never in the ci recipe.
+- **agents/execution-doctrine.md**: "Eval kaizen triggers" section — the two modes, threshold rules, autonomy boundary.
+- First committed baseline: overall 0.95, all dimensions ≥ floor, trigger stable. Pattern adapted from evalkit (git-native evals, scores per version) with TypeSafe typed judgment replacing free-text scoring; rubric phrasing anchored on evalkit judges. Verdict reviews/plan-052.md ok:true.
 ## 2026-11-03 — v0.14.8: catalog-driven model policy + /init Model policy step (plan 20261102-051)
 
 - **Model resolution is catalog-first**: live pi catalog (native-preferred: same family reachable natively beats aggregator ids — id-resolution stability, no proxy ToS surprises) → `models/registry.json` → legacy constants (deepseek, loud WARN, unchanged).
