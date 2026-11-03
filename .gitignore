@@ -13,3 +13,4 @@ node_modules/
 !.workflows/evals/
 .bug-hunter
 package-lock.json
+.seecode/
