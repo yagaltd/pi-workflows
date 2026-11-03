@@ -142,3 +142,48 @@ describe("prompt doctrine — /init model policy + catalog-first resolution (T3,
     expect(registry).toContain("fallback");
   });
 });
+
+// T5 — plan 20261102-052: eval orchestration wiring + doctrine.
+// Pins the justfile eval recipe, the .workflows/evals whitelist, and the
+// Eval kaizen triggers section in agents/execution-doctrine.md.
+
+const JUSTFILE = fs.readFileSync("justfile", "utf8");
+const GITIGNORE = fs.readFileSync(".gitignore", "utf8");
+const DOCTRINE = fs.readFileSync("agents/execution-doctrine.md", "utf8");
+
+describe("eval wiring + doctrine (T5, plan 20261102-052)", () => {
+  test("justfile has a standalone eval recipe running eval-orchestration.mjs", () => {
+    const m = JUSTFILE.indexOf("eval:");
+    expect(m).toBeGreaterThan(-1);
+    const slice = JUSTFILE.slice(m, m + 200);
+    expect(slice).toContain("node scripts/eval-orchestration.mjs");
+  });
+
+  test("eval recipe is NOT part of the ci recipe (judge costs stay out of CI)", () => {
+    const ci = JUSTFILE.slice(JUSTFILE.indexOf("ci:"), JUSTFILE.indexOf("ci-lite:"));
+    expect(ci).toContain("./scripts/check-drift.sh");
+    expect(ci).not.toContain("eval-orchestration");
+  });
+
+  test(".gitignore whitelists .workflows/evals/ right after the .workflows/* block", () => {
+    expect(GITIGNORE).toContain("!.workflows/evals/");
+    const ignoreLine = GITIGNORE.indexOf(".workflows/*");
+    const whitelist = GITIGNORE.indexOf("!.workflows/evals/");
+    expect(whitelist).toBeGreaterThan(ignoreLine);
+    expect(GITIGNORE.slice(ignoreLine, whitelist)).not.toContain(".workflows/evals/");
+  });
+
+  test("execution-doctrine.md pins Eval kaizen triggers: both modes + autonomy boundary", () => {
+    const m = DOCTRINE.indexOf("Eval kaizen triggers");
+    expect(m).toBeGreaterThan(-1);
+    const slice = DOCTRINE.slice(m, m + 1500).toLowerCase();
+    expect(slice).toContain("daily-kaizen");
+    expect(slice).toContain("single-dimension");
+    expect(slice).toContain("kaizen-event");
+    expect(slice).toContain("consecutive");
+    expect(slice).toContain("10%");
+    expect(slice).toContain("measurement autonomous");
+    expect(slice).toContain("human approval");
+    expect(slice).toContain("committed data");
+  });
+});

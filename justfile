@@ -16,6 +16,11 @@ ci-lite:
     ./scripts/docs-lint.sh
     ./scripts/agents-lint.sh AGENTS.md
 
+# Eval orchestration (advisory, standalone): judge calls cost money and are
+# never part of `just ci` — run explicitly.
+eval:
+    node scripts/eval-orchestration.mjs
+
 drift:
     ./scripts/check-drift.sh
 
