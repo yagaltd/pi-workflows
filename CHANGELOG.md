@@ -1,3 +1,8 @@
+## 2026-11-04 — v0.14.12: idea ledger + TypeLLM triage (plan 20261104-056)
+
+- **Triage step** in /plan and /idea: when `.workflows/ideas.md` has untriaged lines, ONE typellm_judge call extracts (1-2-sentence summary), classifies (now / explore / nice-to-have / reject / ask-owner), refines (when-gated value/effort levels), and scores batch `stacking_risk` — the plan cites the verdict table and a Stuffed flag goes back to the owner before contracts are written. NO-JUDGE = visible skip, work proceeds.
+- `.workflows/ideas.md` ledger lands tracked (append-only, agent single-writer, triage appends `→ <category>` in place), seeded with 4 live ideas; whitelisted in .gitignore like LOG.md.
+- Pinned by 5 T8 tests; judge.mjs untouched (single-client doctrine holds). Suite 336 pass / 0 fail. Verdict reviews/plan-056.md ok:true (Tier A inline).
 ## 2026-11-03 — v0.14.11: reviewer doctrine hardening (plan 20261103-055)
 
 - **agents/reviewer.md** closes the verified charter gap: reviewers now read AGENTS.md at the verified root (the charter — Refactor first, Subtract first, Root causes — is the review lens, not optional context), carry both anti-over-engineering charter lines verbatim, and run a **subtract-first audit** on every review: "could this diff be smaller? Was existing structure extended instead of new surface added? An additive-only review that never asked is an incomplete review."
