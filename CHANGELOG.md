@@ -1,3 +1,8 @@
+## 2026-11-04 — v0.14.14: Ultimate surfaces (plan 20261104-058)
+
+- pi-workflows now ships a committed `.ultimate/` package for [Ultimate](https://github.com/HazAT/ultimate) (pi in a web UI): **editchat** — hover ✎ on any stored message, edit with live LCS diff preview, send as correction (durable submit) or fork-at-entry carrying the edit; **piwboard** — dragology board (vendored, MIT) rendering `scripts/plan-diagram.mjs` output, drag/edit nodes, send the structured board-state diff to the agent; **piw** — orchestration action scaffold.
+- Project extensions load after the one-time owner consent in Ultimate's Extensions panel (ProjectTrustStore — by design; never bypassed).
+- Trial patches in the Ultimate clone: chat width 60rem, taller tool cards. Upstream PRs follow-up. Suite 352 pass / 0 fail; verdict reviews/plan-058.md ok:true.
 ## 2026-11-04 — v0.14.13: mechanical diagram generators (plan 20261104-057)
 
 - **scripts/plan-diagram.mjs**: .workflows/plan.md + specs/*.spec → SeeCode flowchart JSON (deterministic, ≤9-node/≤12-edge budget split, sub-labels from Intent clauses; canonical `N. **name**` and `### TASK N` plan styles) — diagrams/pi-workflows.json is now generator output, never hand-authored.
