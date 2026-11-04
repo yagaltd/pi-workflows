@@ -6,6 +6,7 @@ node_modules/
 .workflows/pii/
 !.workflows/LOG.md
 !.workflows/CONTEXT.md
+!.workflows/ideas.md
 !.workflows/proposals/
 !.workflows/reviews/
 !.workflows/archive/
