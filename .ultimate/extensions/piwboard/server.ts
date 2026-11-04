@@ -1,4 +1,5 @@
 /** pi-workflows project extension — the plan board: read diagrams/pi-workflows.json and diff board edits for the agent. */
+import { defineExtension } from '@earendil-works/pi-durable'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { Board, BoardState } from './refs.ts'
@@ -47,6 +48,8 @@ const edgeKey = (edge: readonly [string, string] | readonly [string, string, str
   `${edge[0]}->${edge[1]}`
 const edgeText = (edge: readonly [string, string] | readonly [string, string, string]) =>
   edge.length > 2 && edge[2] ? edge[2] : ''
+
+export default defineExtension({ name: 'piwboard' })
 
 export const actions = {
   /** `null` → the plan board (SeeCode flowchart JSON) from the project's `diagrams/pi-workflows.json`. */

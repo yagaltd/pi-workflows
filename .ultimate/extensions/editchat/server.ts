@@ -3,6 +3,7 @@
  * Minimal-import discipline like ../piw: one bare runtime import (a package of the clone) plus the
  * local diff helper; every host capability is reached through the `ctx` the action receives.
  */
+import { defineExtension } from '@earendil-works/pi-durable'
 import { BACKGROUND_CONTEXT as context } from '@earendil-works/chord/context'
 import { unifiedDiff } from './diff.tsx'
 
@@ -94,6 +95,8 @@ function textOf(content: unknown): string {
 }
 
 // ---- actions ------------------------------------------------------------------------------------
+
+export default defineExtension({ name: 'editchat' })
 
 /** The actions of `web.tsx`; each returns small JSON and throws with a message the UI can show. */
 export const actions = {
