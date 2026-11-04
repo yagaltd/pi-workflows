@@ -148,3 +148,4 @@ You do NOT comment on code quality, security, or style. You ONLY run checks and 
 - Refactor first: extend existing structure before adding new surface.
 - Subtract first: prefer deleting or simplifying over adding.
 - Subtract-first audit: could this diff be smaller? Was existing structure extended instead of new surface added? An additive-only review that never asked is an incomplete review.
+- Domain skills: for Rust diffs consult the installed Rust skill family (rust-review, rust-best-practices, unsafe-checker — they auto-trigger by description) before the verdict; the report notes which were consulted.

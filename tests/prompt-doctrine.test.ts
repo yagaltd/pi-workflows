@@ -307,6 +307,45 @@ describe("prompt doctrine — idea ledger + TypeLLM triage (T8, plan 20261104-05
 });
 
 // --- T7: reviewer doctrine hardening (plan 20261103-055 T1) ---
+describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 20261104-059)", () => {
+  const normT9 = (p: string) =>
+    fs.readFileSync(p, "utf8").replace(/\s+/g, " ");
+  const INIT_T9 = normT9("skills/init/SKILL.md");
+
+  test("reviewer.md names the Rust skill family in a domain-skills rule and requires the report to note which were consulted", () => {
+    const rulesIdx = REVIEWER.indexOf("## Rules");
+    expect(rulesIdx).toBeGreaterThan(-1);
+    const rules = REVIEWER.slice(rulesIdx);
+    expect(rules).toContain("Domain skills");
+    expect(rules).toContain("rust-review");
+    expect(rules).toContain("rust-best-practices");
+    expect(rules).toContain("unsafe-checker");
+    expect(rules).toContain("notes which were consulted");
+  });
+
+  test("init step 6 charter probe is BLOCKING — init cannot proceed without AGENTS.md, remediation mandatory", () => {
+    const step6 = INIT_T9.slice(INIT_T9.indexOf("6. **Charter probe**"), INIT_T9.indexOf("7. **Dev environment"));
+    expect(step6).toContain("cannot proceed");
+    expect(step6).toContain("BLOCKING");
+    expect(step6).toContain("mandatory");
+  });
+
+  test("init step 7 degrades gracefully when mise is missing — report + offer install, Phase 5 never aborts", () => {
+    const step7 = INIT_T9.slice(INIT_T9.indexOf("7. **Dev environment"), INIT_T9.indexOf("8. **Model policy**"));
+    expect(step7).toContain("mise");
+    expect(step7).toContain("OFFER");
+    expect(step7).toContain("never abort");
+  });
+
+  test("init step 1 charter authoring cites the Rust skill family for Rust projects' review pointers", () => {
+    const step1 = INIT_T9.slice(INIT_T9.indexOf("1. **Charter**"), INIT_T9.indexOf("2. **Profile**"));
+    expect(step1).toContain("Rust");
+    expect(step1).toContain("rust-review");
+    expect(step1).toContain("rust-best-practices");
+    expect(step1).toContain("unsafe-checker");
+  });
+});
+
 describe("prompt doctrine — reviewer Read-AGENTS.md mandate + charter lines (T7, plan 20261103-055)", () => {
   const REFACTOR_FIRST =
     "Refactor first: extend existing structure before adding new surface.";
