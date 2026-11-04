@@ -102,7 +102,9 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    tests/README.md`) — never command inventories; nested AGENTS.md files
    don't auto-load (pi walks up from cwd only). Then RUN
    `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
-   handoff: fix before presenting. Every session — orchestrator and all
+   handoff: fix before presenting. For Rust projects, the charter's review
+   pointers cite the Rust skill family (rust-review, rust-best-practices,
+   unsafe-checker). Every session — orchestrator and all
    subagents — auto-loads it from here on.
 2. **Profile**: GENERATE `.workflows/profile.json` — the machine truth
    for project facts: `commands`, `pointers`, `tree`, `gates`,
@@ -130,8 +132,10 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    project root. If missing, FAIL LOUDLY: name the missing path
    (`AGENTS.md at <project root>`) and the remediation — run the charter step
    (Phase 5 step 1: copy `templates/AGENTS.md` and fill the slots), see
-   `templates/DOCS-POLICY.md` / `docs/canon.md`. Do NOT hand off without a
-   charter: downstream roles and lints depend on it.
+   `templates/DOCS-POLICY.md` / `docs/canon.md`. This probe is BLOCKING:
+   init cannot proceed past it without AGENTS.md, and the remediation is
+   mandatory, not advisory. Do NOT hand off without a charter: downstream
+   roles and lints depend on it.
 7. **Dev environment (mise)**: DETECT the stack from build markers
    (`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`,
    `*.csproj`) and existing version files (`.nvmrc`, `.python-version`,
@@ -145,8 +149,10 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    runtime resolves with `mise exec -- <runtime> --version`. Boundaries:
    NEVER delete existing version files; NEVER upgrade runtimes just to
    enable mise; NEVER silently replace another tool manager. mise
-   missing → suggest `curl https://mise.run | sh`, SKIP LOUDLY, and
-   continue — init never blocks on mise.
+   missing → SKIP LOUDLY: REPORT it, OFFER installation
+   (`curl https://mise.run | sh`), then continue Phase 5 without a
+   `mise.toml` — init never blocks on mise, and the phase never aborts.
+   Report the mise-absent skip loudly in the handoff.
 8. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
    surface — capability metadata only) and build the per-tier shortlist
    (strong/standard/scout/vision), preferring native provider models and
