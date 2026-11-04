@@ -1,3 +1,9 @@
+## 2026-11-04 — v0.14.13: mechanical diagram generators (plan 20261104-057)
+
+- **scripts/plan-diagram.mjs**: .workflows/plan.md + specs/*.spec → SeeCode flowchart JSON (deterministic, ≤9-node/≤12-edge budget split, sub-labels from Intent clauses; canonical `N. **name**` and `### TASK N` plan styles) — diagrams/pi-workflows.json is now generator output, never hand-authored.
+- **scripts/ship-diagram.mjs**: git diff --name-status → A/M/R/D classification + markdown ship report (files by kind, CHANGELOG features, verdict criticality — deterministic only) + SeeCode bar JSON. CLI: --from <tag|ref> --to <ref> [--diff-file].
+- Diagram tooling: upstream diagram-design (cathrynlavery) installed as the editorial skill; SeeCode retained as the mechanical renderer engine (the JSON-spec model is the fork's invention — upstream is agent-authored HTML).
+- Version tags introduced: v0.14.10–v0.14.13 (ship-diagram anchors). 16 new tests; suite 352 pass / 0 fail; verdict reviews/plan-057.md ok:true (Tier A inline).
 ## 2026-11-04 — v0.14.12: idea ledger + TypeLLM triage (plan 20261104-056)
 
 - **Triage step** in /plan and /idea: when `.workflows/ideas.md` has untriaged lines, ONE typellm_judge call extracts (1-2-sentence summary), classifies (now / explore / nice-to-have / reject / ask-owner), refines (when-gated value/effort levels), and scores batch `stacking_risk` — the plan cites the verdict table and a Stuffed flag goes back to the owner before contracts are written. NO-JUDGE = visible skip, work proceeds.
