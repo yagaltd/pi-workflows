@@ -150,6 +150,28 @@ assumption in the plan, and keep grilling only the material ones.
 
 If no unresolved decisions remain, state that and continue.
 
+## Triage step (before productization)
+
+Before productizing (Phase 4): if `.workflows/ideas.md` has untriaged lines
+(ledger lines without a `→ <category>` suffix), run ONE judgment call via the
+native `typellm_judge` tool with this exact questions map, context = the
+untriaged ledger lines + the current idea intent:
+
+- per idea `i{n}_summary` (string, 1-2 sentence extract), `i{n}_category`
+  (enum: now | explore | nice-to-have | reject | ask-owner), `i{n}_why`
+  (string, one line), `i{n}_value` level-score Nice-to-have/Useful/Critical
+  (gated: skip when category=reject), `i{n}_effort` level-score
+  Minutes/Half-day/Multi-day (gated: only when category ∈ {now, explore});
+- one batch-level `stacking_risk` (levels Lean/Balanced/Stuffed).
+
+Render the verdict table (idea / category / value / effort / why) in chat; the
+plan cites it; a `Stuffed` `stacking_risk` is flagged back to the owner before
+productization proceeds.
+
+NO-JUDGE degradation: when `typellm_judge` is unavailable or no key is set,
+`JUDGE SKIPPED` prints as a visible skip note and work proceeds — the ledger
+lines stay untriaged and no idea is silently dropped.
+
 ## Phase 4: PLAN
 
 Ensure the `.workflows/` directory exists:

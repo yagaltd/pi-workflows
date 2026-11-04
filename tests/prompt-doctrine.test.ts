@@ -268,6 +268,44 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
   });
 });
 
+// --- T8: idea ledger + TypeLLM triage (plan 20261104-056 T1) ---
+const PLAN_SKILL = fs.readFileSync("skills/plan/SKILL.md", "utf8");
+const IDEA_SKILL = fs.readFileSync("skills/idea/SKILL.md", "utf8");
+const IDEAS_LEDGER = fs.existsSync(".workflows/ideas.md")
+  ? fs.readFileSync(".workflows/ideas.md", "utf8")
+  : "";
+
+describe("prompt doctrine — idea ledger + TypeLLM triage (T8, plan 20261104-056)", () => {
+  test("plan SKILL contains a triage step", () => {
+    expect(PLAN_SKILL).toContain("Triage step");
+  });
+
+  test("idea SKILL contains the same triage step", () => {
+    expect(IDEA_SKILL).toContain("Triage step");
+  });
+
+  test("triage step requires citing the verdict table in the plan and flagging Stuffed batches to the owner", () => {
+    for (const skill of [PLAN_SKILL, IDEA_SKILL]) {
+      expect(skill).toContain("verdict table");
+      expect(skill).toContain("Stuffed");
+      expect(skill).toContain("typellm_judge");
+      expect(skill).toContain("stacking_risk");
+    }
+  });
+
+  test("a NO-JUDGE skip note is present in both SKILLs", () => {
+    for (const skill of [PLAN_SKILL, IDEA_SKILL]) {
+      expect(skill).toContain("NO-JUDGE");
+      expect(skill).toContain("JUDGE SKIPPED");
+    }
+  });
+
+  test("the ideas ledger exists and documents its append-only format", () => {
+    expect(/append-only/i.test(IDEAS_LEDGER)).toBe(true);
+    expect(IDEAS_LEDGER).toContain("- [YYYYMMDD]");
+  });
+});
+
 // --- T7: reviewer doctrine hardening (plan 20261103-055 T1) ---
 describe("prompt doctrine — reviewer Read-AGENTS.md mandate + charter lines (T7, plan 20261103-055)", () => {
   const REFACTOR_FIRST =
