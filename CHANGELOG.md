@@ -1,3 +1,8 @@
+## 2026-11-04 — v0.14.15: reviewer Rust-family wiring + /init hardening (plan 20261104-059)
+
+- **agents/reviewer.md** gains the Domain-skills rule: for Rust diffs consult the installed Rust skill family (rust-review, rust-best-practices — the BeautifulRust synthesis, unsafe-checker) before the verdict, noting which were consulted.
+- **/init** hardened: the charter probe (AGENTS.md exists) is now **BLOCKING** — init cannot proceed without the charter, remediation mandatory; step 7 degrades gracefully when `mise` is missing (SKIP LOUDLY: report + offer install, Phase 5 never aborts); Rust-project charters cite the Rust skill family in review pointers.
+- Pinned by 4 T9 tests. Suite 356 pass / 0 fail. Verdict reviews/plan-059.md ok:true (Tier A inline).
 ## 2026-11-04 — v0.14.14: Ultimate surfaces (plan 20261104-058)
 
 - pi-workflows now ships a committed `.ultimate/` package for [Ultimate](https://github.com/HazAT/ultimate) (pi in a web UI): **editchat** — hover ✎ on any stored message, edit with live LCS diff preview, send as correction (durable submit) or fork-at-entry carrying the edit; **piwboard** — dragology board (vendored, MIT) rendering `scripts/plan-diagram.mjs` output, drag/edit nodes, send the structured board-state diff to the agent; **piw** — orchestration action scaffold.
