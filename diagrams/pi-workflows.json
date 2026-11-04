@@ -1,0 +1,28 @@
+{
+  "type": "flowchart",
+  "title": "Plan tasks",
+  "nodes": [
+    {
+      "id": "task-1",
+      "label": "pii-scan.mjs (TDD)",
+      "sub": "New `scripts/pii-scan",
+      "row": 0,
+      "col": 1,
+      "shape": "terminal"
+    },
+    {
+      "id": "task-2",
+      "label": "/review integration + docs",
+      "sub": "One line in /review Stage 2: optional",
+      "row": 1,
+      "col": 1,
+      "shape": "terminal"
+    }
+  ],
+  "edges": [
+    [
+      "task-1",
+      "task-2"
+    ]
+  ]
+}
