@@ -377,3 +377,63 @@ describe("prompt doctrine — reviewer Read-AGENTS.md mandate + charter lines (T
     expect(rules).toContain("Subtract-first audit");
   });
 });
+
+// --- T10: executable charter (plan 20261104-060 T1) ---
+const INIT_SKILL_T10 = fs.readFileSync("skills/init/SKILL.md", "utf8");
+const REVIEW_SKILL_T10 = fs.readFileSync("skills/review/SKILL.md", "utf8");
+const FLOW_GATES_T10 = fs.readFileSync("scripts/flow-gates.mjs", "utf8");
+
+function step7SliceT10() {
+  const m = INIT_SKILL_T10.indexOf("**Dev environment (mise)**");
+  return INIT_SKILL_T10.slice(m, INIT_SKILL_T10.indexOf("**Model policy**", m));
+}
+function step1SliceT10() {
+  const m = INIT_SKILL_T10.indexOf("1. **Charter**");
+  return INIT_SKILL_T10.slice(m, INIT_SKILL_T10.indexOf("2. **Profile**"));
+}
+
+function stage1SliceT10() {
+  const m = REVIEW_SKILL_T10.indexOf("## Stage 1: Mechanical Verification");
+  return REVIEW_SKILL_T10.slice(m, REVIEW_SKILL_T10.indexOf("## Stage 2", m));
+}
+
+describe("prompt doctrine — executable charter, mise tasks (T10, plan 20261104-060)", () => {
+  test("(a) init step 7: greenfield mise.toml gains a [tasks] section with stack-appropriate check + verify commands (real commands, no placeholders)", () => {
+    const slice = step7SliceT10();
+    expect(slice).toContain("[tasks]");
+    expect(slice).toContain("check");
+    expect(slice).toContain("verify");
+    // real per-stack examples pinned, not placeholder filler
+    expect(slice).toContain("bunx tsc --noEmit");
+    expect(slice).toContain("bun test");
+    expect(slice).toContain("cargo clippy -- -D warnings");
+    expect(slice).toContain("cargo test");
+  });
+
+  test("(a) init step 7: persists the approved Phase 3 tree as .workflows/tree.json with an explicit minimal shape", () => {
+    const slice = step7SliceT10();
+    expect(slice).toContain(".workflows/tree.json");
+    expect(slice).toContain("roots");
+    expect(slice).toContain("files");
+  });
+
+  test("(b) init step 1: charter verification pointers cite mise run check / mise run verify", () => {
+    const slice = step1SliceT10();
+    expect(slice).toContain("mise run check");
+    expect(slice).toContain("mise run verify");
+  });
+
+  test("(c) review Stage 1: run mise run check + mise run verify when mise.toml defines them; SKIP LOUDLY otherwise", () => {
+    const slice = stage1SliceT10();
+    expect(slice).toContain("mise run check");
+    expect(slice).toContain("mise run verify");
+    expect(slice).toContain("SKIP LOUDLY");
+  });
+
+  test("(d) scripts/flow-gates.mjs: test-quality gate executes the mise tasks when defined (code presence pin)", () => {
+    expect(FLOW_GATES_T10).toContain("mise run check");
+    expect(FLOW_GATES_T10).toContain("mise run verify");
+    expect(FLOW_GATES_T10).toContain("[tasks]");
+    expect(FLOW_GATES_T10).toContain("miseTasks");
+  });
+});

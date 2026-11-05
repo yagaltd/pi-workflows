@@ -104,7 +104,11 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
    handoff: fix before presenting. For Rust projects, the charter's review
    pointers cite the Rust skill family (rust-review, rust-best-practices,
-   unsafe-checker). Every session — orchestrator and all
+   unsafe-checker). Verification pointers in the charter cite the project's
+   actual commands — when the dev environment defines mise tasks (step 7
+   below), the charter's test/check pointers cite `mise run check` and
+   `mise run verify` so agents execute the same tasks gates run. Every
+   session — orchestrator and all
    subagents — auto-loads it from here on.
 2. **Profile**: GENERATE `.workflows/profile.json` — the machine truth
    for project facts: `commands`, `pointers`, `tree`, `gates`,
@@ -141,7 +145,27 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    `*.csproj`) and existing version files (`.nvmrc`, `.python-version`,
    `.tool-versions`, `mise.toml`). Greenfield: GENERATE a `mise.toml`
    draft — a `[tools]` block pinned from the detected markers, versions
-   confirmed with `mise current` — then 🛑 GATE: the OWNER approves the
+   confirmed with `mise current` — together with a `[tasks]` section whose
+   `check` and `verify` tasks are REAL commands detected from the stack —
+   never placeholder filler. Examples: bun/TS projects →
+   `check = "bunx tsc --noEmit"`, `verify = "bun test"`; rust projects →
+   `check = "cargo clippy -- -D warnings"`, `verify = "cargo test"`;
+   python → the project's lint/test commands. These tasks are the
+   executable charter: gates and review run them (see scripts/flow-gates.mjs),
+   and the step 1 charter cites them. Also PERSIST the approved Phase 3
+   tree as `.workflows/tree.json` in this minimal shape (the tree checker
+   consumes it):
+
+   ```json
+   {
+     "roots": ["src", "tests"],
+     "files": ["AGENTS.md", "README.md", "mise.toml"]
+   }
+   ```
+
+   (`roots` = top-level directories from the approved tree; `files` =
+   top-level files.)
+   then 🛑 GATE: the OWNER approves the
    draft before anything is written. Brownfield: mise already reads
    `.nvmrc` / `.python-version` / `.tool-versions` natively as-is —
    REPORT the native pinning and OFFER consolidation into `mise.toml`

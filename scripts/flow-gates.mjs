@@ -11,7 +11,7 @@
 // No matching proofs for the evidence gate ⇒ loud fail ("not_checked").
 
 import { spawnSync } from "node:child_process";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readProofs, evidenceVerdict } from "./proof-ledger.mjs";
 
@@ -88,7 +88,7 @@ function contractGateCommands() {
   return listSpecs().map((f) => `agent-spec guard --spec ${f} --code .`);
 }
 
-export function gateCommands(name) {
+export function gateCommands(name, dir = ".") {
   switch (name) {
     // Per-spec scoping - plan 20261031-047: guard each spec file individually so
     // in-scope files are not failed by other tasks' skipped lifecycle verdicts.
@@ -96,7 +96,7 @@ export function gateCommands(name) {
     // Version tolerance - plan 20261031-048: --spec-less agent-spec degrades to
     // the aggregate --spec-dir guard, loudly (see specGuardSupport).
     case "contract": return contractGateCommands();
-    case "test-quality": return ["tdd-gate gaming --diff HEAD"];
+    case "test-quality": return testQualityCommands(dir);
     case "review": return ["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"];
     case "evidence": return []; // handled by evidenceGate in runGate — no shell commands
     default: return null;
@@ -117,19 +117,59 @@ function listSpecs() {
 
 const firstToken = (cmd) => cmd.split(/\s+/)[0];
 
+// Executable charter (plan 20261104-060 T1): a repo whose mise.toml defines
+// [tasks] check/verify gets those tasks run as part of the test-quality gate
+// — the charter's commands are executable, not prose. Parse is deliberately
+// minimal (flat `key = "value"` lines under [tasks]); mise itself stays the
+// executor. Both tasks must be defined — one alone is not a contract.
+export function miseTasks(text) {
+  const section = text.match(/^\[tasks\]$/m);
+  if (!section) return null;
+  const rest = text.slice(section.index + section[0].length);
+  const next = rest.indexOf("\n[");
+  const body = next === -1 ? rest : rest.slice(0, next);
+  const read = (key) => {
+    const m = body.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^"]+)"`, "m"));
+    return m ? m[1] : undefined;
+  };
+  const check = read("check");
+  const verify = read("verify");
+  return check && verify ? { check, verify } : null;
+}
+
+const MISE_TASK_SKIP = "test-quality gate: mise.toml defines [tasks] check/verify but the mise binary is absent — skipping the executable-charter tasks LOUDLY";
+
+export function testQualityCommands(dir = ".") {
+  const base = ["tdd-gate gaming --diff HEAD"];
+  let text;
+  try {
+    text = readFileSync(join(dir, "mise.toml"), "utf8");
+  } catch {
+    return base;
+  }
+  return miseTasks(text) ? [...base, "mise run check", "mise run verify"] : base;
+}
+
 export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], {
       encoding: "utf8",
       // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
       env: process.env,
-    }), present, taskId, task, ledger, planId } = {}) {
+      // bounded: a hung check/verify task must not wedge the gate (T10)
+      timeout: 120_000,
+    }), present, taskId, task, ledger, planId, dir } = {}) {
   if (name === "evidence") return evidenceGate(taskId ?? task, { ledger, planId });
-  const commands = gateCommands(name);
+  const commands = gateCommands(name, dir);
   if (!commands) return { status: "fail", reason: `unknown gate: ${name}`, results: [] };
 
   const bin = firstToken(commands[0]);
   const here = present ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`], { env: process.env }).status === 0);
   if (!here(bin)) {
     return { status: "skipped", reason: `toolchain absent: ${bin}`, results: [] };
+  }
+  // mise tasks appended by testQualityCommands need the mise binary; absent →
+  // loud skip, not a silent pass (same doctrine as the toolchain check above).
+  if (commands.some((c) => firstToken(c) === "mise") && !here("mise")) {
+    return { status: "skipped", reason: MISE_TASK_SKIP, results: [] };
   }
 
   const results = [];
