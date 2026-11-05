@@ -1,3 +1,9 @@
+## 2026-11-05 — v0.14.18: /init Phase 5 docs consolidation (plan 20261104-061)
+
+- New Phase 5 **step 8 "Docs consolidation"**: brownfield root-level design notes get classified into four destinations — `.workflows/decisions/ADR-NNNN` (date/status/context/decision/consequences), archive, `docs/`, or the .workflows queue — rendered as a table, **🛑 owner-gated before any move**, references updated repo-wide, deletion forbidden, WARN self-probe for leftovers. Model policy → 9, Hand off → 10.
+- Born from the agent-mailbox /init trial (design notes left "untouched" forever) and the agent-subscription incomplete scaffold (pre-BLOCKING-probe run).
+- Supersede advisory (adr-contract-file/DEC-xxx) raised at the gate: consolidated decisions that obsolete existing ADRs must mark them SUPERSEDED — exercised in the agent-mailbox live trial.
+- 4 T11 pins; renumber-safe (T3/T6/T9 pin phrasings updated). Suite 380 pass / 0 fail. Verdict reviews/plan-061.md ok:true.
 ## 2026-11-04 — v0.14.17: executable charter, generated docs, placement manifest (plan 20261104-060)
 
 Adopting craft-anything's enforcement principle — **make the rule a type or a command** (source: ~/Documents/vibe/craft-anything/log/repo-inspection.md §9–10, owner-supplied inspection artifact):
