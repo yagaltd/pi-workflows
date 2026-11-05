@@ -172,6 +172,14 @@ NO-JUDGE degradation: when `typellm_judge` is unavailable or no key is set,
 `JUDGE SKIPPED` prints as a visible skip note and work proceeds — the ledger
 lines stay untriaged and no idea is silently dropped.
 
+**Domain-skill consideration**: for the idea's domain, consider the
+installed domain skills (Rust family, modern-web-guidance, impeccable,
+workers + security-audit, harden, ...). Where no installed skill covers a
+capability the idea needs, record the gap as a research item in the idea
+ledger. Skill discovery via `find-skills` is owner-invoked — never run it
+yourself. For ideas built on third-party API services, prefer wiring the
+vendor's MCP server over installing a skill wrapper.
+
 ## Phase 4: PLAN
 
 Ensure the `.workflows/` directory exists:
