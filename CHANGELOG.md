@@ -1,3 +1,16 @@
+## 2026-11-04 — v0.14.17: executable charter, generated docs, placement manifest (plan 20261104-060)
+
+Adopting craft-anything's enforcement principle — **make the rule a type or a command** (source: ~/Documents/vibe/craft-anything/log/repo-inspection.md §9–10, owner-supplied inspection artifact):
+
+- **Executable charter**: /init Phase 5 now generates a `[tasks]` section in mise.toml — `check` + `verify` with real per-stack commands (bun: tsc --noEmit/bun test; rust: clippy -D warnings/cargo test) — and persists the approved tree as `.workflows/tree.json`. /review Stage 1 gains "Layer 0": runs `mise run check && mise run verify` when defined (SKIP LOUDLY otherwise); flow-gates' test-quality gate appends them the same way.
+- **Generated docs**: `scripts/gen-docs.mjs` regenerates the README commands table from prompts/*.md frontmatter (marker-delimited, idempotent, `--check` exit 1 on drift) — byte diff replaces model judgment.
+- **Placement manifest**: `scripts/check-tree.mjs` verifies repo files against `.workflows/tree.json` (WARN tier first ship, `--strict` available); wired into docs-lint as gates 6–7.
+- 15 new tests (T10 + gen-docs + tree-check). Suite 376 pass / 0 fail. Verdict reviews/plan-060.md ok:true.
+## 2026-11-04 — v0.14.16: remove Ultimate surfaces (trial verdict)
+
+- **Removed** the `.ultimate/` package (piw, piwboard, editchat, settings.json) shipped in v0.14.14: owner tried Ultimate as a pi-workflows frontend and **was not satisfied** — trial closed, surfaces withdrawn.
+- Kept: `.workflows/ideas.md` (v0.14.12), `scripts/plan-diagram.mjs` + `scripts/ship-diagram.mjs` (v0.14.13 — agent-agnostic), all doctrine and pins. The Ultimate clone (`~/Documents/vibe/ultimate`) and its local patches remain machine-level, untouched.
+- Lesson recorded: Ultimate's UX did not clear the bar for a daily frontend; the ACP/graft/maki exploration continues at the research layer (microOS proposal-005) rather than as pi-workflows runtime surfaces.
 ## 2026-11-04 — v0.14.15: reviewer Rust-family wiring + /init hardening (plan 20261104-059)
 
 - **agents/reviewer.md** gains the Domain-skills rule: for Rust diffs consult the installed Rust skill family (rust-review, rust-best-practices — the BeautifulRust synthesis, unsafe-checker) before the verdict, noting which were consulted.
