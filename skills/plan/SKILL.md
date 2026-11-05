@@ -288,6 +288,9 @@ bullet grammar").
 - **Testing strategy**: example-based
 - **Flags**: `tdd:` (optional — routes this build task to the tester
   two-phase shape at `/next`; see Task flags under Spec Map)
+- **Skills**: <optional — installed domain skills relevant to this task
+  (e.g. rust-review, modern-web-guidance, security-audit); told explicitly,
+  not description luck>
 - **What**: <specific>
 - **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec
 - **Status**: ⬜ PENDING

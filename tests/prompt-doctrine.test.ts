@@ -506,3 +506,67 @@ describe("prompt doctrine: TASK bullet grammar (plan 20261104-062 T12)", () => {
     expect(PLAN_SKILL).toContain("Plan TASK\nbullet grammar");
   });
 });
+
+// Plan 20261104-063 T13 — domain-skill wiring: reviewer domain-skills rule is
+// stack/area-general (not Rust-only); /init charter cites the DETECTED stack's
+// installed family (greenfield pre-detection skips cleanly); /plan contracts
+// carry an optional `Skills:` line; /idea considers installed domain skills,
+// turns capability gaps into ledger research items, keeps find-skills
+// owner-invoked, and prefers MCP servers for API services.
+
+const INIT_SKILL_T13 = fs.readFileSync("skills/init/SKILL.md", "utf8");
+const normT13 = (s: string) => s.replace(/\s+/g, " ");
+
+describe("prompt doctrine — domain-skill wiring (T13, plan 20261104-063)", () => {
+  test("reviewer.md Domain-skills rule is stack/area-general with consulted-note duty kept", () => {
+    const rulesIdx = REVIEWER.indexOf("## Rules");
+    const rules = REVIEWER.slice(rulesIdx);
+    expect(rules).toContain("Domain skills");
+    // Rust family still named (kept working)
+    expect(rules).toContain("rust-review");
+    expect(rules).toContain("rust-best-practices");
+    // generalized to non-Rust stacks/areas
+    expect(rules).toContain("modern-web-guidance");
+    expect(rules).toContain("workers");
+    expect(rules).toContain("security-audit");
+    expect(rules).toContain("impeccable");
+    expect(rules).toContain("audit");
+    expect(rules).toContain("harden");
+    // consulted-note duty kept
+    expect(rules).toContain("notes which were consulted");
+    // no Rust-only phrasing left
+    expect(rules).not.toContain("for Rust diffs");
+    expect(rules).not.toContain("For Rust diffs");
+  });
+
+  test("init step 1 charter cites the DETECTED stack's installed family and skips when stack unknown", () => {
+    const step1 = normT13(
+      INIT_SKILL_T13.slice(
+        INIT_SKILL_T13.indexOf("1. **Charter**"),
+        INIT_SKILL_T13.indexOf("2. **Profile**"),
+      ),
+    );
+    expect(step1).toContain("detect");
+    // per-stack examples
+    expect(step1).toContain("rust-review");
+    expect(step1).toContain("rust-best-practices");
+    expect(step1).toContain("unsafe-checker");
+    expect(step1).toContain("modern-web-guidance");
+    expect(step1).toContain("impeccable");
+    expect(step1).toContain("security-audit");
+    // greenfield pre-detection skips cleanly
+    expect(step1).toMatch(/not.*known|unknown|greenfield/i);
+  });
+
+  test("plan SKILL: contracts carry an optional `Skills:` line citing relevant domain skills", () => {
+    expect(PLAN_SKILL).toMatch(/- \*\*Skills\*\*:/);
+    expect(PLAN_SKILL).toContain("domain skill");
+  });
+
+  test("idea SKILL: domain-skill consideration + capability gaps → ledger research items, find-skills owner-invoked, API services prefer MCP", () => {
+    expect(IDEA_SKILL).toContain("domain skill");
+    expect(IDEA_SKILL).toContain("find-skills");
+    expect(IDEA_SKILL).toContain("owner");
+    expect(IDEA_SKILL).toContain("MCP");
+  });
+});

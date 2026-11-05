@@ -102,9 +102,13 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    tests/README.md`) — never command inventories; nested AGENTS.md files
    don't auto-load (pi walks up from cwd only). Then RUN
    `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
-   handoff: fix before presenting. For Rust projects, the charter's review
-   pointers cite the Rust skill family (rust-review, rust-best-practices,
-   unsafe-checker). Verification pointers in the charter cite the project's
+   handoff: fix before presenting. The charter's review pointers cite the
+   installed domain-skill family matching the DETECTED stack (Phase 1 TREE):
+   Rust → the Rust skill family (rust-review, rust-best-practices,
+   unsafe-checker); web frontend → modern-web-guidance + impeccable/audit;
+   Cloudflare Workers → the workers skill family + security-audit. When the
+   stack is not yet known (greenfield, pre-detection), skip the review-pointer
+   family citation — do not guess. Verification pointers in the charter cite the project's
    actual commands — when the dev environment defines mise tasks (step 7
    below), the charter's test/check pointers cite `mise run check` and
    `mise run verify` so agents execute the same tasks gates run. Every
