@@ -268,6 +268,9 @@ Draft guidance: proposals follow `templates/PROPOSAL-FORMAT.md` (pi-workflows pa
 
 ## Tasks
 
+TASK field bullets use canonical grammar `- **Label**: value` (colon outside
+bold; the dispatcher tolerates `**Label:**` — see CONTRACT-FORMAT, "Plan TASK
+bullet grammar").
 ### TASK 1: Scout <area>
 - **Agent**: scout
 - **Depends on**: none

@@ -2,6 +2,15 @@
 
 Loaded on demand at plan Phase 5 (after plan approval). Normative.
 
+### Plan TASK bullet grammar
+
+Every field bullet in a plan.md TASK body uses canonical form
+`- **Label**: value` — the colon sits OUTSIDE the bold. Known labels:
+`Status`, `Wave`, `Depends On`, `Parallel group`, `Agent`, `Contract path`,
+`Allowed`, `Verify`, `tdd`. The dispatcher (`parsePlan`) tolerates the legacy
+form `- **Label:** value` (colon inside bold), but authored plans always use
+canonical.
+
 > **FRONT MATTER IS MANDATORY.** Every contract opens with the block below — keys
 > first, then the `---` terminator, then the body. A contract without it fails
 > `agent-spec parse` with `error: invalid front-matter: missing front-matter
