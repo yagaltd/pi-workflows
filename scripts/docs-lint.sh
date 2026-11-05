@@ -19,6 +19,13 @@
 #     AGENTS.md + docs/** must carry a gate reference on the same line: a
 #     backtick span containing `/`, a command-shaped backtick span, or a
 #     `gate:` token. Missing ⇒ finding with file:line + the claim text.
+#   * 6. gen-docs — the README commands table between the
+#     `<!-- generated:commands:start/end -->` markers must match
+#     regeneration from prompts/*.md frontmatter (`scripts/gen-docs.mjs
+#     --check`). Drift ⇒ failure.
+#   * 7. check-tree — placement manifest scan (`scripts/check-tree.mjs`):
+#     files outside the .workflows/tree.json manifest are reported at WARN
+#     tier; this gate never fails the run on its own.
 #
 # Env:
 #   DRIFT_SCAN_DIR     override the drift-section scan root (fixtures). With
@@ -241,6 +248,35 @@ run_claims() {
   done
 }
 
+run_gen_docs() {
+  echo "== 6. gen-docs — README commands table matches prompts frontmatter =="
+  if [ ! -f scripts/gen-docs.mjs ]; then
+    SKIPPED+=("gen-docs")
+    warn "scripts/gen-docs.mjs missing — commands-table check skipped"
+    return
+  fi
+  RAN+=("gen-docs")
+  local out
+  if out=$(node scripts/gen-docs.mjs --check 2>&1); then
+    ok "gen-docs: commands table in sync with prompts/*.md"
+  else
+    printf '%s\n' "$out" >&2
+    err "gen-docs: README commands section drifted (run node scripts/gen-docs.mjs)"
+  fi
+}
+
+run_check_tree() {
+  echo "== 7. check-tree — placement manifest scan (WARN tier) =="
+  if [ ! -f scripts/check-tree.mjs ]; then
+    SKIPPED+=("check-tree")
+    warn "scripts/check-tree.mjs missing — placement check skipped"
+    return
+  fi
+  RAN+=("check-tree")
+  # WARN tier by design: findings are reported, never fail the run.
+  node scripts/check-tree.mjs || true
+}
+
 if [ -n "$drift_root" ]; then
   # Fixture mode: only the drift sections run, on the fixture root, so
   # fixture outcomes do not depend on installed tools or live doc state.
@@ -256,6 +292,8 @@ else
   run_harper
   run_stamps
   run_claims
+  run_gen_docs
+  run_check_tree
 fi
 
 echo
