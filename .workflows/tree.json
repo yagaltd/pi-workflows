@@ -1,0 +1,35 @@
+{
+  "roots": [
+    ".githooks",
+    "agents",
+    "asset",
+    "diagrams",
+    "docs",
+    "extensions",
+    "fixtures",
+    "models",
+    "prompts",
+    "scripts",
+    "skills",
+    "templates",
+    "tests",
+    "tooling"
+  ],
+  "files": [
+    ".gitignore",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CONTRACTS",
+    "LICENSE",
+    "README.md",
+    "justfile",
+    "mise.toml",
+    "package.json"
+  ],
+  "ignore": [
+    ".pi",
+    ".seecode",
+    ".workflows",
+    "node_modules"
+  ]
+}
