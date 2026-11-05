@@ -486,3 +486,23 @@ describe("prompt doctrine — /init Docs consolidation step 8 (T11, plan 2026110
     expect(step).toMatch(/brownfield/i);
   });
 });
+
+// Plan 20261104-062 T12 — TASK bullet grammar pins. The canonical form is
+// `- **Label**: value` (colon outside bold); it is pinned in the docs the
+// plan skill reads (CONTRACT-FORMAT) and referenced from the plan skill.
+
+const CONTRACT_FORMAT = fs.readFileSync("templates/CONTRACT-FORMAT.md", "utf8");
+const GRAMMAR_RULE = /`- \*\*Label\*\*: value`/;
+
+describe("prompt doctrine: TASK bullet grammar (plan 20261104-062 T12)", () => {
+  test("CONTRACT-FORMAT pins the bullet grammar naming `- **Label**: value`", () => {
+    expect(CONTRACT_FORMAT).toMatch(GRAMMAR_RULE);
+    expect(CONTRACT_FORMAT).toContain("Plan TASK bullet grammar");
+    expect(CONTRACT_FORMAT).toMatch(/colon.*OUTSIDE the bold|colon sits OUTSIDE/i);
+  });
+
+  test("plan SKILL references the same grammar rule", () => {
+    expect(PLAN_SKILL).toMatch(GRAMMAR_RULE);
+    expect(PLAN_SKILL).toContain("Plan TASK\nbullet grammar");
+  });
+});

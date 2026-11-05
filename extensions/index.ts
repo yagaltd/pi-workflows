@@ -333,6 +333,18 @@ const THINKING_RANK: Record<string, number> = {
   xhigh: 4,
 };
 
+/** Label bullets of a TASK body: `- **Label**: value` (canonical, colon
+ *  outside bold). The dispatcher also tolerates `- **Label:** value`
+ *  (colon inside bold) so legacy plans parse identically. Bare-text
+ *  bullets (no bold) are not field bullets and stay unparsed. */
+export function parseTaskBullets(body: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const re = /^[-*]\s*\*\*([^*]+?):?\*\*:?\s*(.+)$/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) out[m[1].trim()] = m[2].trim();
+  return out;
+}
+
 /** Parse a plan.md Tasks section into data-only tasks. Field bullets are
  *  optional and default conservatively (status ⬜, wave 1, no deps). */
 export function parsePlan(plan: string): PlanTask[] {
@@ -353,14 +365,11 @@ export function parsePlan(plan: string): PlanTask[] {
     const body = rest.slice(0, ends.length ? Math.min(...ends) : rest.length);
     prevEnd = m.index + m[0].length;
 
-    const bullet = (name: string): string | null => {
-      const b = new RegExp(`^[-*]\\s*\\*\\*${name}\\*\\*:?\\s*(.+)$`, "m").exec(body);
-      return b ? b[1].trim() : null;
-    };
-    const statusMark = /^[-*]\s*\*\*Status\*\*:?\s*(.)/m.exec(body)?.[1];
-    const depsRaw = bullet("Depends On");
-    const waveRaw = bullet("Wave");
-    const allowedRaw = bullet("Allowed");
+    const bullets = parseTaskBullets(body);
+    const statusMark = bullets["Status"]?.[0];
+    const depsRaw = bullets["Depends On"];
+    const waveRaw = bullets["Wave"];
+    const allowedRaw = bullets["Allowed"];
     const num = m[1];
     tasks.push({
       id: `task-${num}`,
@@ -374,12 +383,12 @@ export function parsePlan(plan: string): PlanTask[] {
         depsRaw && !/^none$/i.test(depsRaw)
           ? Array.from(depsRaw.matchAll(/TASK\s+(\d+)/gi), (d) => `task-${d[1]}`)
           : [],
-      tdd: /^true$/i.test(bullet("tdd") ?? ""),
+      tdd: /^true$/i.test(bullets["tdd"] ?? ""),
       parallelGroup: group,
       allowed: allowedRaw
         ? allowedRaw.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
-      verify: bullet("Verify") ?? "",
+      verify: bullets["Verify"] ?? "",
       contractPath: `.workflows/specs/task-${num}.spec`,
     });
   }
