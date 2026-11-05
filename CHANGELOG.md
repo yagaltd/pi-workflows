@@ -1,3 +1,8 @@
+## 2026-11-05 — v0.14.19: dispatcher colon-placement tolerance + plan bullet grammar pin (plan 20261104-062)
+
+- `dispatch_next` now parses task bullets with the colon either side of the bold (`- **Label:** value` and `- **Label**: value`) via a `parseTaskBullets` seam — hand-authored brownfield plans (the visual-agent-frontend trial) no longer yield empty allowed/verify. Canonical-form regression golden-locked; bare-text bullets stay unparsed.
+- **templates/CONTRACT-FORMAT.md** gains its first plan.md-side pin: the TASK bullet grammar `- **Label**: value` (canonical), tolerated forms noted; plan SKILL references it; 4 T12 doctrine pins + 3 parser unit tests.
+- DEC-002 advisory resolved no-action (tolerance ≠ contract shape change). Suite 385 pass / 0 fail. Verdict reviews/plan-062.md ok:true.
 ## 2026-11-05 — v0.14.18: /init Phase 5 docs consolidation (plan 20261104-061)
 
 - New Phase 5 **step 8 "Docs consolidation"**: brownfield root-level design notes get classified into four destinations — `.workflows/decisions/ADR-NNNN` (date/status/context/decision/consequences), archive, `docs/`, or the .workflows queue — rendered as a table, **🛑 owner-gated before any move**, references updated repo-wide, deletion forbidden, WARN self-probe for leftovers. Model policy → 9, Hand off → 10.
