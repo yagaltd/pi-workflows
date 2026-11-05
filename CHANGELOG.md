@@ -1,3 +1,10 @@
+## 2026-11-05 — v0.14.20: domain-skill wiring (plan 20261104-063)
+
+- **agents/reviewer.md**: the Domain-skills rule is now stack/area-general — consult the installed family matching the diff (Rust trio; **modern-web-guidance** + impeccable/audit for web/UI; **cloudflare workers + security audit** for CF code; **harden** for resilience), consulted-note duty kept (was Rust-only since v0.14.15).
+- **/init**: the charter cites the DETECTED stack's installed family (greenfield pre-detection skips cleanly — the check lives right after the stack becomes known, not before).
+- **/plan**: contracts carry an optional `- **Skills**:` line — workers are told the relevant domain skills explicitly.
+- **/idea**: domain-skill consideration; capability gaps become ledger research items; `find-skills` stays owner-invoked (supply-chain consent); API services prefer MCP servers over skills.
+- 4 T13 pins. Suite 389 pass / 0 fail. Verdict reviews/plan-063.md ok:true. Supersede advisory repeat-firing recorded as known false-positive class (DEC-002 no-action stands).
 ## 2026-11-05 — v0.14.19: dispatcher colon-placement tolerance + plan bullet grammar pin (plan 20261104-062)
 
 - `dispatch_next` now parses task bullets with the colon either side of the bold (`- **Label:** value` and `- **Label**: value`) via a `parseTaskBullets` seam — hand-authored brownfield plans (the visual-agent-frontend trial) no longer yield empty allowed/verify. Canonical-form regression golden-locked; bare-text bullets stay unparsed.
