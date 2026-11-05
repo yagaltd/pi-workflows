@@ -86,7 +86,7 @@ const readT3 = (p: string) => fs.readFileSync(p, "utf8");
 const normT3 = (s: string) => s.replace(/\s+/g, " ");
 
 describe("prompt doctrine — /init model policy + catalog-first resolution (T3, plan 20261102-051)", () => {
-  test("init skill has a Model policy step 8 between the Dev environment step and the handoff (renumbered 9)", () => {
+  test("init skill has a Model policy step 9 between the Dev environment step and the handoff (renumbered 10)", () => {
     const skill = readT3("skills/init/SKILL.md");
     const probe = skill.indexOf("**Charter probe**");
     const model = skill.indexOf("**Model policy**");
@@ -94,8 +94,8 @@ describe("prompt doctrine — /init model policy + catalog-first resolution (T3,
     expect(probe).toBeGreaterThan(-1);
     expect(model).toBeGreaterThan(probe);
     expect(handoff).toBeGreaterThan(model);
-    expect(skill).toMatch(/8\. \*\*Model policy\*\*/);
-    expect(skill).toMatch(/9\. \*\*Hand off\*\*/);
+    expect(skill).toMatch(/9\. \*\*Model policy\*\*/);
+    expect(skill).toMatch(/10\. \*\*Hand off\*\*/);
   });
 
   test("model policy step queries the live pi catalog, presents the tier shortlist at a human gate, and writes models/registry.json with pi-catalog provenance", () => {
@@ -215,8 +215,8 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
     expect(model).toBeGreaterThan(dev);
     expect(handoff).toBeGreaterThan(model);
     expect(skill).toMatch(/7\. \*\*Dev environment \(mise\)\*\*/);
-    expect(skill).toMatch(/8\. \*\*Model policy\*\*/);
-    expect(skill).toMatch(/9\. \*\*Hand off\*\*/);
+    expect(skill).toMatch(/9\. \*\*Model policy\*\*/);
+    expect(skill).toMatch(/10\. \*\*Hand off\*\*/);
   });
 
   test("step 7 detects stack markers and the version files mise already reads natively as-is", () => {
@@ -258,9 +258,9 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
     expect(slice).toContain("init never blocks on mise");
   });
 
-  test("handoff step 9 reports BOTH outcomes: model-policy AND dev-environment", () => {
+  test("handoff step 10 reports BOTH outcomes: model-policy AND dev-environment", () => {
     const skill = normT6(readT6("skills/init/SKILL.md"));
-    const m = skill.indexOf("9. **Hand off**");
+    const m = skill.indexOf("10. **Hand off**");
     expect(m).toBeGreaterThan(-1);
     const slice = skill.slice(m);
     expect(slice).toContain("model-policy outcome");
@@ -331,7 +331,7 @@ describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 
   });
 
   test("init step 7 degrades gracefully when mise is missing — report + offer install, Phase 5 never aborts", () => {
-    const step7 = INIT_T9.slice(INIT_T9.indexOf("7. **Dev environment"), INIT_T9.indexOf("8. **Model policy**"));
+    const step7 = INIT_T9.slice(INIT_T9.indexOf("7. **Dev environment"), INIT_T9.indexOf("9. **Model policy**"));
     expect(step7).toContain("mise");
     expect(step7).toContain("OFFER");
     expect(step7).toContain("never abort");
@@ -435,5 +435,54 @@ describe("prompt doctrine — executable charter, mise tasks (T10, plan 20261104
     expect(FLOW_GATES_T10).toContain("mise run verify");
     expect(FLOW_GATES_T10).toContain("[tasks]");
     expect(FLOW_GATES_T10).toContain("miseTasks");
+  });
+});
+
+// --- T11: /init Phase 5 step 8 "Docs consolidation" (plan 20261104-061 T1) ---
+const INIT_SKILL_T11 = fs.readFileSync("skills/init/SKILL.md", "utf8");
+
+function step8SliceT11() {
+  const m = INIT_SKILL_T11.indexOf("8. **Docs consolidation**");
+  return INIT_SKILL_T11.slice(m, INIT_SKILL_T11.indexOf("9. **Model policy**", m));
+}
+
+describe("prompt doctrine — /init Docs consolidation step 8 (T11, plan 20261104-061)", () => {
+  test("Phase 5 has a Docs-consolidation step 8 with the four-destination classification (decisions/ADR, archive, docs/, .workflows queue)", () => {
+    const skill = INIT_SKILL_T11;
+    const dev = skill.indexOf("7. **Dev environment");
+    const docs = skill.indexOf("8. **Docs consolidation**");
+    const model = skill.indexOf("9. **Model policy**");
+    const handoff = skill.indexOf("10. **Hand off**");
+    expect(dev).toBeGreaterThan(-1);
+    expect(docs).toBeGreaterThan(dev);
+    expect(model).toBeGreaterThan(docs);
+    expect(handoff).toBeGreaterThan(model);
+    const step = step8SliceT11();
+    expect(step).toContain(".workflows/decisions/ADR-");
+    expect(step).toMatch(/archive\/done\//);
+    expect(step).toContain("docs/");
+    expect(step).toMatch(/\.workflows\/.*(queue|proposals)/);
+    expect(step).toMatch(/date.*status.*context.*decision.*consequences|context.*decision.*consequences/);
+  });
+
+  test("owner approval (🛑 GATE) is required before any file moves", () => {
+    const step = step8SliceT11();
+    expect(step).toContain("🛑 GATE");
+    expect(step).toMatch(/owner approves/i);
+    expect(step).toMatch(/before (anything|any file|any note) moves|before moving/i);
+  });
+
+  test("moves update references repo-wide and deletion is forbidden", () => {
+    const step = step8SliceT11();
+    expect(step).toMatch(/update references|references repo-wide|grep each moved/i);
+    expect(step).toMatch(/never delete|NEVER delete/i);
+  });
+
+  test("leftover unclassified root notes produce a WARN self-probe recorded in LOG without blocking init", () => {
+    const step = step8SliceT11();
+    expect(step).toMatch(/WARN/i);
+    expect(step).toMatch(/LOG/i);
+    expect(step).toMatch(/init proceeds|not blocking|without blocking|continue/i);
+    expect(step).toMatch(/brownfield/i);
   });
 });
