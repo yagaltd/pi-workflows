@@ -30,6 +30,18 @@ The evidence verdict is computed from recorded proofs — reviewer probes must b
 
 First, run the full verification suite (same as `/verify`):
 
+### Layer 0: Executable-charter tasks (mise)
+
+If the repo's `mise.toml` defines `[tasks]` with `check`/`verify` (the
+executable charter, written by `/init` step 7), run them FIRST:
+
+```bash
+mise run check && mise run verify
+```
+
+A non-zero exit FAILS Stage 1. If `mise.toml` has no such tasks (or mise
+is absent), SKIP LOUDLY — note the skip in the report; do not silently pass.
+
 ### Layer 1: Contract Verification (agent-spec)
 
 ```bash
