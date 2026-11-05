@@ -177,14 +177,36 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    (`curl https://mise.run | sh`), then continue Phase 5 without a
    `mise.toml` — init never blocks on mise, and the phase never aborts.
    Report the mise-absent skip loudly in the handoff.
-8. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
+8. **Docs consolidation**: triage loose root-level `*.md`
+   design/roadmap/refactor notes using the Phase 3 TREE listing. Greenfield:
+   there are typically none — state that and skip this step cleanly.
+   Brownfield: CLASSIFY each loose root-level note into exactly one of four
+   destinations and render the classification table in chat:
+
+   | Note records... | Destination |
+   | --- | --- |
+   | A decision + its rationale | `.workflows/decisions/ADR-NNNN-<slug>.md` (with date, status, context, decision, consequences) |
+   | Superseded / historical content | `archive/done/<area>/` |
+   | Living reference material | `docs/` |
+   | Roadmap / future work | `.workflows/` queue or proposals |
+
+   🛑 GATE: the OWNER approves the classification before anything moves.
+   Unclassifiable notes stay put and are listed as open questions.
+   On approval: EXECUTE the moves — convert decision notes to ADR structure
+   (date, status, context, decision, consequences), update references
+   repo-wide (grep each moved filename and fix every citation), NEVER delete
+   a note (superseded notes go to archive, not `/dev/null`), and append the
+   moves to `.workflows/LOG.md`. Self-probe: WARN-tier listing of any
+   root-level notes still unclassified — record the WARN in LOG; init
+   proceeds (this probe is advisory, not blocking).
+9. **Model policy**: QUERY the LIVE pi model catalog (subagent_models tool
    surface — capability metadata only) and build the per-tier shortlist
    (strong/standard/scout/vision), preferring native provider models and
    noting provenance for each pick. 🛑 GATE: present the shortlist to the
    OWNER and record their pick, then write `models/registry.json` with
    provenance `pi-catalog`. The catalog is CAPABILITY truth: NEVER read
    key files or key contents (API keys) — the catalog needs no secrets.
-9. **Hand off**: present the summary — including BOTH the model-policy
+10. **Hand off**: present the summary — including BOTH the model-policy
    outcome (the owner's registry picks and their provenance) AND the
    dev-environment outcome (mise.toml written and verified, native
    pinning reported, or the loud mise-absent skip) — and point at `/plan` — its contract
