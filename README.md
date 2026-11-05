@@ -39,8 +39,10 @@ Two modes: `/next` × N (step by step) or `/auto-next` (fire and forget).
 
 ## Commands
 
-One command per prompt file — descriptions from each prompt's frontmatter:
+One command per prompt file — descriptions from each prompt's frontmatter
+(generated — do not hand-edit; run `node scripts/gen-docs.mjs`):
 
+<!-- generated:commands:start -->
 | Command | What it does |
 |---|---|
 | `/abort` | Abort — abandon the live plan, archive it to .workflows/archive/superseded/ |
@@ -66,6 +68,7 @@ One command per prompt file — descriptions from each prompt's frontmatter:
 | `/review` | Review — run /verify first, then quality review with bug-hunter + judgment |
 | `/status` | Show current .workflows/plan.md progress with contract status and cost summary |
 | `/verify` | Verify — run agent-spec guard on all contracts + full project checks |
+<!-- generated:commands:end -->
 
 ## The loop
 
