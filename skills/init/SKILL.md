@@ -105,7 +105,7 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    handoff: fix before presenting. The charter's review pointers cite the
    installed domain-skill family matching the DETECTED stack (Phase 1 TREE):
    Rust → the Rust skill family (rust-review, rust-best-practices,
-   unsafe-checker); web frontend → modern-web-guidance + impeccable/audit;
+   rust-port); web frontend → modern-web-guidance + impeccable/audit;
    Cloudflare Workers → the workers skill family + security-audit. When the
    stack is not yet known (greenfield, pre-detection), skip the review-pointer
    family citation — do not guess. Verification pointers in the charter cite the project's
@@ -151,10 +151,17 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    draft — a `[tools]` block pinned from the detected markers, versions
    confirmed with `mise current` — together with a `[tasks]` section whose
    `check` and `verify` tasks are REAL commands detected from the stack —
-   never placeholder filler. Examples: bun/TS projects →
+   never placeholder filler. For JS/TS, DETECT the project's OWN tooling
+   instead of assuming TypeScript: the linter (`eslint` or `biome`, from
+   `eslint.config.*` / `.eslintrc*` / `biome.json` or a linter entry in the
+   package manifest) and the runner (`vitest`, `node --test`, `bun test`,
+   from that manifest or the test script). Examples: bun/TS projects →
    `check = "bunx tsc --noEmit"`, `verify = "bun test"`; rust projects →
    `check = "cargo clippy -- -D warnings"`, `verify = "cargo test"`;
-   python → the project's lint/test commands. These tasks are the
+   vanilla JS (`eslint` + `node --test`) → `check = "bunx eslint ."`,
+   `verify = "node --test"`; python → the project's lint/test commands.
+   If no linter is detectable, `check` stays ABSENT and the handoff says
+   so plainly — leave the gate out rather than invent one. These tasks are the
    executable charter: gates and review run them (see scripts/flow-gates.mjs),
    and the step 1 charter cites them. Also PERSIST the approved Phase 3
    tree as `.workflows/tree.json` in this minimal shape (the tree checker

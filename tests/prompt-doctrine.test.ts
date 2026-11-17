@@ -319,7 +319,7 @@ describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 
     expect(rules).toContain("Domain skills");
     expect(rules).toContain("rust-review");
     expect(rules).toContain("rust-best-practices");
-    expect(rules).toContain("unsafe-checker");
+    expect(rules).toContain("rust-port");
     expect(rules).toContain("notes which were consulted");
   });
 
@@ -342,7 +342,7 @@ describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 
     expect(step1).toContain("Rust");
     expect(step1).toContain("rust-review");
     expect(step1).toContain("rust-best-practices");
-    expect(step1).toContain("unsafe-checker");
+    expect(step1).toContain("rust-port");
   });
 });
 
@@ -550,7 +550,7 @@ describe("prompt doctrine — domain-skill wiring (T13, plan 20261104-063)", () 
     // per-stack examples
     expect(step1).toContain("rust-review");
     expect(step1).toContain("rust-best-practices");
-    expect(step1).toContain("unsafe-checker");
+    expect(step1).toContain("rust-port");
     expect(step1).toContain("modern-web-guidance");
     expect(step1).toContain("impeccable");
     expect(step1).toContain("security-audit");
@@ -601,5 +601,125 @@ describe("prompt doctrine: no prompt template shadows a pi built-in command", ()
     const restart = fs.readFileSync("prompts/restart.md", "utf8");
     expect(restart).toContain("bash scripts/resume-digest.sh");
     expect(restart).toContain("execution-doctrine.md");
+  });
+});
+
+// --- T1 (plan 20261117-066): JS/TS gates + the whole web skill family ---
+// Pins the vanilla-JS gate branch in skills/init/SKILL.md, the web family in
+// agents/reviewer.md, and a FIXED installed-skill allowlist. The skills live
+// on the authoring machine, not in CI, so the set is hardcoded here and never
+// read from disk — a name outside it is doctrine citing a skill no agent can
+// consult.
+
+const INIT_T1 = fs.readFileSync("skills/init/SKILL.md", "utf8");
+
+const INSTALLED_SKILLS = new Set([
+  "rust-review",
+  "rust-best-practices",
+  "rust-port",
+  "modern-web-guidance",
+  "web-perf",
+  "audit",
+  "harden",
+  "distill",
+  "normalize",
+  "polish",
+  "critique",
+  "typeset",
+  "security-audit",
+  "workers-best-practices",
+  "bug-hunter",
+  "find-skills",
+]);
+
+function initDevEnvironmentSliceT1(): string {
+  const m = INIT_T1.indexOf("**Dev environment (mise)**");
+  expect(m).toBeGreaterThan(-1);
+  return INIT_T1.slice(m, INIT_T1.indexOf("**Model policy**", m));
+}
+
+function reviewerDomainSkillsRuleT1(): string {
+  const m = REVIEWER.indexOf("- Domain skills:");
+  expect(m).toBeGreaterThan(-1);
+  const rest = REVIEWER.slice(m);
+  const nextTopBullet = rest.indexOf("\n- ", 1);
+  return nextTopBullet === -1 ? rest : rest.slice(0, nextTopBullet);
+}
+
+describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
+  test("test_init_names_js_linters_and_a_vanilla_example", () => {
+    const slice = initDevEnvironmentSliceT1();
+    // the project's OWN linter and runner, detected from stack markers
+    expect(slice).toContain("eslint");
+    expect(slice).toContain("biome");
+    expect(slice).toContain("vitest");
+    expect(slice).toContain("node --test");
+    expect(slice).toContain("bun test");
+    // one worked vanilla-JS example beside the bun/TS and rust ones
+    expect(slice).toContain('check = "bunx eslint ."');
+    expect(slice).toContain('verify = "node --test"');
+    // the real-commands rule stays explicit
+    expect(slice).toContain("never placeholder filler");
+    // nothing detectable → `check` is left absent, never invented
+    expect(slice).toContain("no linter is detectable");
+    expect(slice).toContain("`check` stays ABSENT");
+  });
+
+  test("test_init_keeps_existing_stack_examples", () => {
+    const slice = initDevEnvironmentSliceT1();
+    expect(slice).toContain('check = "bunx tsc --noEmit"');
+    expect(slice).toContain('verify = "bun test"');
+    expect(slice).toContain('check = "cargo clippy -- -D warnings"');
+    expect(slice).toContain('verify = "cargo test"');
+  });
+
+  test("test_reviewer_names_web_family", () => {
+    const rule = reviewerDomainSkillsRuleT1();
+    // named FIRST for any client-side diff
+    expect(rule).toContain("`modern-web-guidance` first");
+    // CWV-sensitive diffs
+    expect(rule).toContain("`web-perf`");
+    expect(rule).toMatch(/LCP\/INP\/CLS/);
+    // the impeccable set, by intent
+    for (const verb of ["audit", "harden", "distill", "normalize", "polish"]) {
+      expect(rule).toContain(`\`${verb}\``);
+    }
+    expect(rule).toMatch(/UI audit/);
+    expect(rule).toMatch(/resilience/);
+    expect(rule).toMatch(/density/);
+    expect(rule).toMatch(/consistency/);
+    expect(rule).toMatch(/finish/);
+  });
+
+  test("test_reviewer_names_only_installed_skills", () => {
+    const rule = reviewerDomainSkillsRuleT1();
+    const cited = [...rule.matchAll(/`([a-z0-9][a-z0-9-]*)`/g)].map(
+      (m) => m[1],
+    );
+    expect(cited.length).toBeGreaterThan(0);
+    expect(cited.filter((n) => !INSTALLED_SKILLS.has(n))).toEqual([]);
+    // the installed Rust trio reads exactly
+    expect(rule).toContain("`rust-review`");
+    expect(rule).toContain("`rust-best-practices`");
+    expect(rule).toContain("`rust-port`");
+    // the phantom skill is gone from the doctrine at large
+    expect(INSTALLED_SKILLS.has("unsafe-checker")).toBe(false);
+    expect(REVIEWER).not.toContain("unsafe-checker");
+    expect(INIT_T1).not.toContain("unsafe-checker");
+  });
+
+  test("test_gates_stay_green", () => {
+    // Static pin of the gate wiring; the gates themselves run in the task
+    // verify line (`bun test && bash scripts/check-drift.sh`).
+    const justfile = fs.readFileSync("justfile", "utf8");
+    const ci = justfile.slice(
+      justfile.indexOf("ci:"),
+      justfile.indexOf("ci-lite:"),
+    );
+    expect(ci).toContain("./scripts/check-drift.sh");
+    expect(ci).toContain("bun test");
+    const rule = reviewerDomainSkillsRuleT1();
+    expect(rule).toContain("notes which were consulted");
+    expect(INIT_T1).toContain("**Dev environment (mise)**");
   });
 });

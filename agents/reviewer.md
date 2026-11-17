@@ -170,4 +170,15 @@ You do NOT comment on code quality, security, or style. You ONLY run checks and 
 - Refactor first: extend existing structure before adding new surface.
 - Subtract first: prefer deleting or simplifying over adding.
 - Subtract-first audit: could this diff be smaller? Was existing structure extended instead of new surface added? An additive-only review that never asked is an incomplete review.
-- Domain skills: consult the installed domain-skill family matching the diff's stack/area before the verdict — Rust: rust-review, rust-best-practices, unsafe-checker; web frontend: modern-web-guidance (+ impeccable/audit for UI); Cloudflare Workers: workers skills + security-audit; resilience/edge-case work: harden (all auto-trigger by description); the report notes which were consulted.
+- Domain skills: consult the installed domain-skill family matching the
+  stack or area the diff touches before the verdict.
+  The report notes which were consulted.
+  - Rust: `rust-review`, `rust-best-practices`, `rust-port`.
+  - Web client-side (any diff): `modern-web-guidance` first.
+    Then by intent: `web-perf` for Core Web Vitals work (`LCP/INP/CLS`,
+    loading, images); `audit` for a UI audit; `harden` for resilience and
+    edge cases. `distill` / `normalize` / `polish` when the diff changes
+    density, consistency, or finish — the impeccable set, one verb at a
+    time.
+  - Cloudflare Workers: the workers skill family + `security-audit`.
+  - Each auto-triggers by description.
