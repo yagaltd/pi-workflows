@@ -3,3 +3,9 @@
 bun = "1.3.11"
 node = "25.8.0"
 just = "1.59.0"
+# Documentation gates for `scripts/docs-lint.sh` sections 1-3. Project-local
+# on purpose: without the pins those sections skip and the summary still
+# reads CLEAN.
+markdownlint-cli2 = "0.24.1"
+lychee = "0.24.2"
+harper-cli = "3.2.0"
