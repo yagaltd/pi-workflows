@@ -1,3 +1,19 @@
+## 2026-11-17 — v0.15.1: `/restart` digests the repo you stand in (plan 20261117-065)
+
+- **fix: the restart digest resolved the wrong repo.** `scripts/resume-digest.sh` found its root by
+  walking up from the script's own directory, so the installed package copy reported the *package
+  clone*: a project with a plan id in `.workflows/plan.md` got `note: no live plan`. Resolution is
+  now cwd-first — `--root <dir>` → cwd's git root when it has `.workflows/` → script-dir walk-up
+  only when that checkout *is* the cwd → a loud `FAIL` (exit 1, printed before any section) when
+  none resolves. The seven sections are unchanged once the root is right.
+- **`/restart` states the resolution rule**: the repo's own `scripts/resume-digest.sh` first, the
+  installed package copy second (findable via `pi list` / the skill path), always against the
+  current directory's repo — so a project bootstrapped by `/init`, which has no `scripts/` of its
+  own, gets a working restart instead of exit 127.
+- 5 pins in `tests/resume-digest.test.ts` (4 red on base), each invoking the script by absolute
+  path from a foreign cwd. Suite 416 tests · drift CLEAN · docs-lint CLEAN with no baseline write
+  (the ratchet forced the prompt prose to be rewrapped rather than the budget raised).
+
 ## 2026-11-17 — v0.15.0: hygiene reset, gate truth, and `/restart` (plan 20261117-064)
 
 - **`/resume` → `/restart`**: the command was silently dead — pi resolves built-ins before package prompts, so the session picker owned the name. Renamed, README regenerated, and pinned: no prompt filename may shadow a pi built-in (26-name set of record, `tests/prompt-doctrine.test.ts`).
