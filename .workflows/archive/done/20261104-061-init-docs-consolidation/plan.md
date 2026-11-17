@@ -38,7 +38,7 @@ A new Phase 5 step — **Docs consolidation** — turns brownfield root-level de
 
 ## Docs impact
 
-- skills/init/SKILL.md (Phase 5 step insertion + renumber), tests/prompt-doctrine.test.ts
+- `skills/init/SKILL.md` (Phase 5 step insertion + renumber), `tests/prompt-doctrine.test.ts`
 
 ## Risks / assumptions
 

@@ -19,7 +19,7 @@ docs canon: `docs/canon.md`). Machine-checkable truth lives in
 IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
           (cheap)    (architect)   (you)   (generated)  (worker)    (mechanical)  (judgment)        (cheap) (you)
                       bottlenecks   🛑       .spec        dispatch_next  agent-spec     + security         /docs
-                      testing        GATE    files        picks the      + tdd-gate     + simplicity       auto-check
+                      testing        GATE    files        picks the      + tdd-guard    + simplicity       auto-check
                       interview*                          task; /next    + project        + error handling
                       (chat)                              ×N /auto-next  checks           + human callouts
                                                                                           (🔴/🟡/🟠 only)
@@ -418,10 +418,19 @@ dispatch time — an unresolvable role falls back with a loud WARN — never sil
 
 ## The doc-drift gate
 
-`scripts/docs-lint.sh` lints the repository's human-facing Markdown in five
-sections: markdownlint-cli2 (structure), lychee (links), harper-cli (prose —
-downgradable to advisory via `DOCS_LINT_HARPER_ADVISORY=1`), and two drift
-sections: **stamps** and **claim-to-gate** (gate: `scripts/docs-lint.sh`).
+`scripts/docs-lint.sh` lints the repository's human-facing Markdown in seven
+sections, each recording one outcome (`ran` / `advisory` / `failed` / `skipped`)
+so a section that did not run can never read as a pass (gate: the
+`scripts/docs-lint.sh` summary block): markdownlint-cli2
+(structure), lychee (links, with a documented anti-bot 403 rule), harper-cli
+(prose — downgradable to advisory via `DOCS_LINT_HARPER_ADVISORY=1`), and four
+drift sections: **stamps**, **claim-to-gate**, **gen-docs**, **check-tree**.
+Findings are **ratcheted** against `scripts/docs-lint-baseline.json` — a
+committed per-file budget: a new file or an increased count fails, anything at
+or below budget passes with the residual printed, and `--write-baseline`
+regenerates it (gate: `scripts/docs-lint.sh --write-baseline`). An
+installed-but-broken tool is `failed: unusable`, never findings (gate: the same
+`scripts/docs-lint.sh` summary block); an absent one is a loud `skipped`.
 
 **Stamps** — a doc declaring `generated_by` must carry `generated_at` + `stale_after`; an expired `stale_after` date fails (gate: `scripts/docs-lint.sh` stamps section).
 
@@ -434,13 +443,15 @@ wired by default.
 
 ## Casual intake
 
-`/idea` and `/brainstorm` emit typed candidate requirement blocks to
-`.workflows/intake/<date>-<slug>.md` (fork marked-block format), verified with
-`agent-spec requirements import --from <file> --check --out <rendered-dir>`
-(drift-gate semantics: byte-exact render round-trip). Import runs only on
-explicit human approval of specific blocks; rejected blocks stay annotated in
-the intake file. Governance: post-import transitions are the fork's explicit
-human commands (gate: `.workflows/intake/` + the fork's requirements CLI).
+`/idea` and `/brainstorm` emit marked requirement blocks to
+`.workflows/intake/<date>-<slug>.md` and **stop at the human approval gate**.
+The import step is **deferred** (DEC-007): `agent-spec requirements import` does
+not exist in the installed binary (0.2.7) or in the repo, so there is no command
+to run and nothing to verify — the block format is kept in
+`tests/intake/README.md` as a **format record**, the specification a future
+importer must satisfy, never a passing check (gate:
+`.workflows/decisions/DEC-007.md`). No agent may claim blocks were
+imported. Revisit when an import command ships and runs in the installed binary.
 
 ## Judge
 
@@ -479,7 +490,8 @@ Selection rules are fixture-asserted in `bun test` (gate:
 
 **Auto-gate hook** — write-time enforcement. Editing a file inside a live
 plan's Allowed Changes runs Layer 1 (agent-spec checks: contract, lifecycle,
-guard) then Layer 2 (test-quality checks: tdd-gate gaming/drift) and blocks
+guard) then Layer 2 (test-quality checks: `tdd-guard lint`, then `tdd-guard
+verify --spec`) and blocks
 the write on violation with the failing layer + command + findings.
 Skip-only verifier results are an accepted limitation (proceed + note —
 backlog item 11); toolchain absent ⇒ deduped advisory, write proceeds;

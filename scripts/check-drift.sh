@@ -55,7 +55,9 @@ archive_coverage() {
       while (match(rest, /\(plan [^)]*\)/)) {
         tok = substr(rest, RSTART + 6, RLENGTH - 7)
         split(tok, w, /[[:space:]]+/)
-        if (w[1] != "") print w[1] "\t" NR
+        # only a real plan id (YYYYMMDD-NNN) counts: prose may legitimately contain
+        # literal "(plan <id>)" or "(plan text ...)" and must not become a phantom id
+        if (w[1] ~ /^[0-9]{8}-[0-9]{3}$/) print w[1] "\t" NR
         rest = substr(rest, RSTART + RLENGTH)
       }
     }

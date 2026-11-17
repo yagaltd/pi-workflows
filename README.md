@@ -4,7 +4,7 @@
   <img src="asset/cover.png" alt="pi-workflows" width="100%">
 </p>
 
-Contract-driven multi-model workflow for [pi](https://github.com/mariozechner/pi-coding-agent).
+Contract-driven multi-model workflow for [pi](https://github.com/badlogic/pi-mono).
 
 **Describe what you want. Agents plan, build, and verify through enforceable contracts.**
 
@@ -16,7 +16,7 @@ pi install git:github.com/yagaltd/pi-workflows
 
 Restart pi. All commands appear in `/` autocomplete.
 
-Requires [pi](https://github.com/mariozechner/pi-coding-agent) ≥ 0.60 · [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) (in-process subagents) · [agent-spec](https://github.com/ZhangHanDong/agent-spec) (contract verification). Optional tools (tdd-gate, cc-check, …) degrade gracefully with a note — the machinery is described in [docs/architecture.md](docs/architecture.md).
+Requires [pi](https://github.com/badlogic/pi-mono) ≥ 0.60 · [@arhen/pi-core-subagent](https://www.npmjs.com/package/@arhen/pi-core-subagent) (in-process subagents) · [agent-spec](https://github.com/ZhangHanDong/agent-spec) (contract verification). Optional tools (bombadil, and `cc-check` via `npm:@spolu/cc-check`) degrade gracefully with a note — the machinery is described in [docs/architecture.md](docs/architecture.md).
 
 ## Quick Start
 
@@ -86,7 +86,7 @@ Contracts are the authority — you approve contracts, not code. Format:
 
 ## Gates
 
-`bash scripts/check-drift.sh` runs ten drift sections on every commit (`.githooks/pre-commit`) and push (CI) — views must agree with sources; exit 1 on drift:
+`bash scripts/check-drift.sh` runs twelve drift sections on every commit (`.githooks/pre-commit`) and push (CI) — views must agree with sources; exit 1 on drift:
 
 | # | Section | What it proves |
 |---|---|---|
