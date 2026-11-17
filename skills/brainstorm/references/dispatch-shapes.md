@@ -38,7 +38,8 @@ Report (this exact shape, numbered findings):
 ### Local repo / codebase reading
 
 Use the scout role: `prompt: "@role:scout"` (resolved by the pi-workflows
-extension; without it, paste `agents/scout.md` verbatim), `thinking: "low"`, read-only.
+extension; without it, paste `agents/scout.md` verbatim), `thinking: "low"`,
+read-only.
 
 ```text
 task: `Investigate for: <central question>
@@ -95,4 +96,3 @@ Output: report-<NN>-<slug>.md → closes/updates branch <name>
 
 Then dispatch the research tasks for it (higher `thinking` for hard
 analysis: high/xhigh).
-

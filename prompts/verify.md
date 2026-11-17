@@ -1,8 +1,10 @@
 ---
 description: "Verify — run agent-spec guard on all contracts + full project checks"
 ---
+# `/verify`
 
-Run the full verification pipeline across all contracts and the project. Ordered, short-circuit on fail.
+Run the full verification pipeline across all contracts and the project.
+Ordered, short-circuit on fail.
 
 ## Layer 1: Contract Verification (agent-spec)
 
@@ -50,7 +52,7 @@ npm test && npm run lint && npm run typecheck && npm run build
 
 ## Report
 
-```
+```text
 ## Verification: PASS / FAIL
 
 ### Layer 1: agent-spec
@@ -66,6 +68,7 @@ npm test && npm run lint && npm run typecheck && npm run build
 ### Overall: PASS / FAIL
 ```
 
-If agent-spec is not installed, note it and fall back to running project checks only (Layer 3).
+If agent-spec is not installed, note it and fall back to running project checks
+only (Layer 3).
 
 $@

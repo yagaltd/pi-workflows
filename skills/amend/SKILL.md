@@ -7,7 +7,8 @@ argument-hint: "<change request>"
 
 # Amend Workflow
 
-Change plan/spec artifacts safely. Do not implement unless explicitly asked after amendment is approved.
+Change plan/spec artifacts safely. Do not implement unless explicitly asked
+after amendment is approved.
 
 ## Phase 1: LOAD CURRENT STATE
 
@@ -16,7 +17,8 @@ Read:
 1. `.workflows/plan.md` if present
 2. relevant `.workflows/specs/*.spec`
 3. `git diff --stat` and `git diff` to see in-progress work
-4. `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant `.workflows/docs/adr/*.md` if present
+4. `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant
+   `.workflows/docs/adr/*.md` if present
 5. completed/in-progress task notes in `.workflows/plan.md`
 
 If no plan/spec exists, stop and route to `/idea`.
@@ -59,9 +61,10 @@ For each question include:
 - recommended answer
 - evidence from code/docs/specs
 - why it matters (consequence if wrong)
-- default if user is AFK ("If you don't care: I'll proceed with <default>")
+- default if user is AFK ("If you don't care: I'll proceed with `<default>`")
 
-Ask one-by-one when decisions depend on previous answers. For independent choices, a single message works.
+Ask one-by-one when decisions depend on previous answers. For independent
+choices, a single message works.
 
 ## Phase 4: UPDATE ARTIFACTS
 
@@ -78,7 +81,8 @@ After decisions are clear, update only artifacts needed:
 - `.workflows/CONTEXT.md` for durable domain terms
 - ADR only when hard to reverse, surprising, and based on real tradeoff
 
-Mark invalidated tasks clearly. Add amendment notes to `.workflows/plan.md` so future `/next` can reason about changed boundaries.
+Mark invalidated tasks clearly. Add amendment notes to `.workflows/plan.md` so
+future `/next` can reason about changed boundaries.
 
 ## Phase 5: STOP
 
@@ -97,7 +101,8 @@ Output:
 Run `/next` to continue, or `/review` if implementation already changed.
 ```
 
-Do not implement code changes as part of amendment unless the user explicitly asks after approving updated specs.
+Do not implement code changes as part of amendment unless the user explicitly
+asks after approving updated specs.
 
 ## Rules
 

@@ -19,13 +19,14 @@ DELETED, not queued — subtract-first applies to the queue itself.
 Pinned set — do not add, drop, or reorder columns:
 
 | # | Item | Origin | Problem (plain words) | Impact if unfixed | Risk (P0–P3) | Effort (S/M/L) | Fix shape |
-|---|------|--------|-----------------------|-------------------|--------------|----------------|-----------|
+| --- | --- | --- | --- | --- | --- | --- | --- |
 
 - `#` — queue order; stable within a plan so tasks can reference rows by number
 - `Item` — short grep-able name for the finding
 - `Origin` — provenance: `planned` (on the ledger before this plan opened)
   or `new (<why>)` (found while working; never without the reason)
-- `Problem (plain words)` — what is wrong, no jargon; a newcomer reads this column alone
+- `Problem (plain words)` — what is wrong, no jargon; a newcomer reads this
+  column alone
 - `Impact if unfixed` — the concrete consequence if it ships as-is
 - `Risk (P0–P3)` — severity, per the scale below
 - `Effort (S/M/L)` — size of the fix, not of the problem
@@ -45,7 +46,7 @@ Real queue from plan 20261031-047 (evidence: plan Decisions 1–5, plan 046
 `reviews/fix-round.md`, scout 20261031):
 
 | # | Item | Origin | Problem (plain words) | Impact if unfixed | Risk (P0–P3) | Effort (S/M/L) | Fix shape |
-| --- | ----- | -------- | ----------------------- | ------------------- | -------------- | ---------------- | --------- |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Suite state-hardening | planned | 20 test files read gitignored `.workflows/` live state; fresh clones and worker worktrees fail with ENOENT (11+ tests) | Workers and clones see a red gate; plan 046's CI could only run ci-lite | P1 | M | Fixtures for behavior tests; loud named skips (`SKIPPED (state absent)`) for live-consistency tests via a requireLiveState helper |
 | 2 | CONTRACTS preamble | planned | CONTRACTS line 1 is prose before the first `@cc` directive; `cc-check format` exits non-zero | Lint failure is noise on every review running cc-check | P2 | S | Relocate the prose into a cc-check-accepted comment form |
 | 3 | Guard per-spec scoping | planned | Multi-spec dir guard flags in-scope files "verification not passing" mid-plan (absolute/relative boundary rendering) | False alarms in every multi-task review; reviewers must hand-scope | P2 | M | Per-spec scoping at the call sites (flow-gates contract gate + prompts/verify.md) |

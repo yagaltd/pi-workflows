@@ -6,7 +6,8 @@
 
 Contract-driven multi-model workflow for [pi](https://github.com/badlogic/pi-mono).
 
-**Describe what you want. Agents plan, build, and verify through enforceable contracts.**
+**Describe what you want.
+Agents plan, build, and verify through enforceable contracts.**
 
 ## Install
 
@@ -20,7 +21,7 @@ Requires [pi](https://github.com/badlogic/pi-mono) ≥ 0.60 · [@arhen/pi-core-s
 
 ## Quick Start
 
-```
+```sh
 /idea I want to add caching to the API
          → you describe what you want
          → scouts codebase, writes .workflows/plan.md
@@ -72,7 +73,7 @@ One command per prompt file — descriptions from each prompt's frontmatter
 
 ## The loop
 
-```
+```sh
 /idea or /plan  → scouts + writes .workflows/plan.md (bottleneck tags) → STOP: you approve
                 → .spec contracts generated for every task
 /next × N       → dispatch_next picks the task → worker implements → reviewer verdict gates it
@@ -84,12 +85,16 @@ all green?      → SHIP: commit + archive + CHANGELOG entry      (/abort to sup
 Contracts are the authority — you approve contracts, not code. Format:
 [templates/CONTRACT-FORMAT.md](templates/CONTRACT-FORMAT.md); `/contract [spec]` shows a task's contract.
 
+Back after a break (or in a different checkout)? `/restart` runs the read-only
+resume digest for the repo you stand in — its output IS the session state, so
+nothing is rediscovered by reading files around.
+
 ## Gates
 
 `bash scripts/check-drift.sh` runs twelve drift sections on every commit (`.githooks/pre-commit`) and push (CI) — views must agree with sources; exit 1 on drift:
 
 | # | Section | What it proves |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Prompt frontmatter | only supported keys (`description`, `argument-hint`, `hidden`) |
 | 2 | Old-API remnants | no removed-extension API, dead integrations, or stale fork pointers |
 | 3 | Roles | role files exist + registered; every `@role:` ref resolves; skill modules resolve; extension registered |

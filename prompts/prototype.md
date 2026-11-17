@@ -1,20 +1,26 @@
 ---
 description: "Prototype — run parallel A/B/C prototypes, benchmark, keep the winner"
 ---
+# `/prototype`
 
 ## Phase 1: CLASSIFY TARGET
 
-Identify if the target is a **UI** component/page or a **backend**/logic feature.
+Identify if the target is a **UI** component/page or a **backend**/logic
+feature.
 
-- **UI target** (component, page, layout, form): use the UI branch — spawn parallel workers each generating a radically different visual design
-- **Backend target** (API, logic, algorithm, data flow): use the backend branch — spawn parallel workers each building a PoC with benchmark data
+- **UI target** (component, page, layout, form): use the UI branch — spawn
+  parallel workers each generating a radically different visual design
+- **Backend target** (API, logic, algorithm, data flow): use the backend branch
+  — spawn parallel workers each building a PoC with benchmark data
 - **If unsure**: ask the user
 
 ## Phase 2: BRANCH BY TARGET
 
 ### UI Branch: Parallel Visual Designs
 
-Generate N radically different visual approaches. Each worker produces a self-contained, runnable artifact **in its own directory** — parallel children share one filesystem (no worktrees), so directory isolation is mandatory.
+Generate N radically different visual approaches. Each worker produces a
+self-contained, runnable artifact **in its own directory** — parallel children
+share one filesystem (no worktrees), so directory isolation is mandatory.
 
 Generate the variations with Green-hat divergence (templates/THINKING-TOOLS.md §2 — pi-workflows package, root via a skill location or `pi list`): each direction must differ in *structure* (layout, information architecture, interaction model), not just theming of the same layout — minimal/clean, feature-rich wizard, split-view panel, command-driven, etc.
 
@@ -120,7 +126,7 @@ variation's own directory is a violation.
 
 Present results side-by-side:
 
-```
+```text
 ## Prototypes
 
 | Approach | Metric | Verdict | Notes |

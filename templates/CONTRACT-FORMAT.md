@@ -2,7 +2,7 @@
 
 Loaded on demand at plan Phase 5 (after plan approval). Normative.
 
-### Plan TASK bullet grammar
+## Plan TASK bullet grammar
 
 Every field bullet in a plan.md TASK body uses canonical form
 `- **Label**: value` — the colon sits OUTSIDE the bold. Known labels:
@@ -27,7 +27,7 @@ tags: []
 mkdir -p .workflows/specs
 ```
 
-### Contract template:
+### Contract template
 
 ```spec
 spec: task
@@ -44,13 +44,14 @@ tags: [<relevant tags>]
 Optional: add a Mermaid diagram to clarify the flow, architecture, or state machine:
 
 ```mermaid
+
 flowchart LR
     A[Input] --> B{Decision}
     B -->|Yes| C[Happy path]
     B -->|No| D[Edge case]
     C --> E[Result]
     D --> E
-```
+```text
 
 ## Decisions
 
@@ -107,6 +108,7 @@ Scenario: <edge case name>
 ### Prototype specs (task type `prototype`)
 
 Same file, same pipeline — three differences:
+
 - **One bounded question** as the goal ("does X hold at seam Y?"), not a
   feature. If the spec describes user-visible behavior, it is an impl spec.
 - **Allowed Changes = `.workflows/spikes/<slug>/**` only**; production paths
@@ -116,14 +118,15 @@ Same file, same pipeline — three differences:
   discovered, dead ends named. Example scenario:
   `Scenario: approach proven
      Test: <artifact check — file exists with recorded measurements>
-     Given the spike dir .workflows/spikes/<slug>/
+     Given the spike dir .workflows/spikes/`<slug>`/
      When the reviewer reads the findings
      Then the bounded question is answered GO or NO-GO with numbers
      And every claim cites a file:line or command output in the spike dir`
 The reviewer verdict + spike artifacts are the impl spec's evidence source
 (drafted after, per the Prototype two-stage rule in skills/plan/SKILL.md).
 
-### Contract writing rules:
+### Contract writing rules
+
 - Every BDD scenario MUST have an explicit `Test:` selector — the exact function name
 - **Content-fact scenarios need repo-truth cross-checks**: when a scenario's
   Given/When/Then asserts facts about real repo content (file names, paths,
@@ -140,7 +143,8 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 - Criteria against `.workflows/` paths verify via the filesystem
   (`ls` / `test -f`) — never `git status` for untracked state.
 - Decisions are fixed — the worker may not re-open them
-- **@cc placement criterion**: when a Decision states a code-local invariant, the
+- **@cc placement criterion**: when a Decision states a code-local invariant,
+  the
   contract adds a criterion that the worker places
   `@cc [label:<seam>,adr:DEC-xxx] <constraint>` at the implementation point.
   Placement is an implementation artifact, not a completion criterion. Never
@@ -148,7 +152,8 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
 - Completion Criteria define "done" — if all scenarios pass, the task is done
 - Include edge cases: error states, boundary values, empty inputs
 - Include at least one negative scenario (what should fail)
-- Optional frontmatter `max-rounds: N` (default 2) — cap for reviewer-rejection fix
+- Optional frontmatter `max-rounds: N` (default 2) — cap for reviewer-rejection
+  fix
   rounds. Raise for tasks expected to need iteration (UI, integration); the cap
   exists so rejection loops escalate to the human instead of looping forever.
 - Optional frontmatter `verify: <literal command line>` — the exact pipeline
@@ -156,9 +161,11 @@ The reviewer verdict + spike artifacts are the impl spec's evidence source
   it verbatim (its Layer 3 rule — never re-derived). Every code-task spec should
   carry one; when absent, the dispatch context pack's `Verify:` line is the
   carrier.
-- **Diagrams**: add a `## Diagrams` section with a Mermaid diagram when the flow, architecture, or state machine is non-trivial. This helps the worker understand the expected behavior at a glance.
+- **Diagrams**: add a `## Diagrams` section with a Mermaid diagram when the
+  flow, architecture, or state machine is non-trivial. This helps the worker
+  understand the expected behavior at a glance.
 
-### Example contract:
+### Example contract
 
 ```spec
 spec: task
@@ -174,13 +181,14 @@ Add a Redis-backed cache layer for API responses with TTL support.
 ## Diagrams
 
 ```mermaid
+
 flowchart LR
     Request[API Request] --> Check{Cache hit?}
     Check -->|Yes| Return[Return cached value]
     Check -->|No| Fetch[Fetch from source]
     Fetch --> Store[Store in cache]
     Store --> Return
-```
+```text
 
 ## Decisions
 
@@ -227,5 +235,5 @@ Scenario: Delete removes cached key
   Then get("api:user:789") returns None
 ```
 
-Present the generated contracts to the human for a final quick check, then proceed to handoff.
-
+Present the generated contracts to the human for a final quick check, then
+proceed to handoff.

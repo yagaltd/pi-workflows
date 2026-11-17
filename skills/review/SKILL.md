@@ -54,7 +54,9 @@ for spec in .workflows/specs/*.spec; do
   agent-spec lifecycle "$spec" --code . --format json
 done
 ```
-If any scenario fails or boundaries violated → report FAIL, STOP. No quality review needed.
+
+If any scenario fails or boundaries violated → report FAIL, STOP. No quality
+review needed.
 
 ### Layer 2: Project Checks
 
@@ -134,7 +136,8 @@ Run `git diff` to see what changed. Apply judgment-based review:
 2. **Security**: untrusted input handling, SQL injection, open redirects
 3. **Error handling**: swallowed errors, silent failures
 4. **Surgical changes**: unnecessary modifications beyond task scope
-5. **Domain/ADR fit**: conflicts with `.workflows/CONTEXT.md` terminology, domain rules, or accepted ADRs
+5. **Domain/ADR fit**: conflicts with `.workflows/CONTEXT.md` terminology,
+   domain rules, or accepted ADRs
 6. **repo-faithful layouts**: reviewer briefs and temp scenarios that mirror repo layout (paths, trees, file lists) must match the real repo — check every layout claim against disk, not against the brief's own prose
 
 High bar for findings — empty review = clean code = success.
@@ -167,8 +170,11 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```bash
    mkdir -p .workflows/archive/done
    ```
-   Before the move: run `bash scripts/check-archive.sh <archive-target-dir>` — it refuses the archive (non-zero) when a declared Docs impact path is missing or CHANGELOG lacks the Plan ID.
+   Before the move: run `bash scripts/check-archive.sh <archive-target-dir>` —
+it refuses the archive (non-zero) when a declared Docs impact path is missing or
+CHANGELOG lacks the Plan ID.
    Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
+
    - `.workflows/plan.md` (set `Status: DONE` first)
    - `.workflows/specs/`
    - `.workflows/reviews/` (if present)
@@ -200,7 +206,8 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```
    New standing decisions made by this plan get a `record` entry; every
    `adr:` reference in the live plan must resolve.
-7. Append one line to `.workflows/LOG.md`: `<date> SHIP <PlanID> <slug> — <goal>`
+7. Append one line to `.workflows/LOG.md`:
+   `<date> SHIP <PlanID> <slug> — <goal>`
 5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive
@@ -208,7 +215,7 @@ entries + 1), so ids never collide and history is preserved.
 
 ## Combined Output
 
-```
+```text
 ## Review: PASS / FAIL
 
 ### Stage 1: Mechanical Verification

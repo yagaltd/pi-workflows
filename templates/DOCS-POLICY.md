@@ -6,7 +6,7 @@ Referenced by `/init` (README skeleton), `/next` (docs auto-check),
 ## The three homes (plus one)
 
 | Artifact | Content | Update discipline |
-|---|---|---|
+| --- | --- | --- |
 | **README.md** (repo root) | Current-state user docs: what it is, install, quick start, usage. The shop window. | **Same task as the behavior change** — never a later catch-up commit. If a task changed behavior a README reader would notice, the README changes in that task's round. |
 | **CHANGELOG.md** (repo root) | Append-only, curated, user-facing history: one entry per shipped plan (Plan ID + what changed + why, from the human's perspective). | **At `/review` SHIP only** — the orchestrator appends the plan's entry as a mechanical SHIP step. Never edited retroactively; never in worker tasks. |
 | **docs/** (project, if the user wants it) | Long-form user/operator docs: guides, how-tos, deep explanations, API references. | Per `/docs` rules; keep in sync with behavior like README. |
@@ -20,14 +20,18 @@ Referenced by `/init` (README skeleton), `/next` (docs auto-check),
 - **No code walkthroughs** — never duplicate what's obvious from reading
   the code; explain WHY, not line-by-line WHAT.
 - **No mixing** — README ≠ CHANGELOG ≠ docs/; one concern per artifact.
-- **Workers never write CHANGELOG.md** — it's an SHIP-gate artifact,
+- **Workers never write CHANGELOG.md** — it's a SHIP-gate artifact,
   orchestrator-written (single-writer doctrine).
 - **.workflows/docs/ stays internal** — user-facing material goes to
   README/docs/, never the reverse.
 
 ## README freshness gate (the rule with teeth)
 
-**Size + placement bound** (plan 20261026-045): README stays ≤ 200 lines — a 7-section spine (what/install/quick-start/commands/loop/gates/pointers) plus compressed machinery sections that wiring tests pin; architecture narration lives in `docs/architecture.md`; history lives in CHANGELOG. A README change that would exceed the budget extracts to `docs/` in the same task.
+**Size + placement bound** (plan 20261026-045): README stays ≤ 200 lines — a
+7-section spine (what/install/quick-start/commands/loop/gates/pointers) plus
+compressed machinery sections that wiring tests pin; architecture narration
+lives in `docs/architecture.md`; history lives in CHANGELOG. A README change
+that would exceed the budget extracts to `docs/` in the same task.
 
 A behavior change whose README implications land in a later commit is a
 doc-drift bug. Enforcement points:
@@ -50,6 +54,7 @@ it for **every session, every subagent, always** (ancestors of cwd only —
 verified). Bloat there is paid on every dispatch, forever.
 
 **Goes in AGENTS.md:**
+
 - Binding rules agents must not violate (containment, commit discipline,
   "never do X")
 - **One-liner facts** the agent needs constantly — e.g. `Test: npm test`
@@ -57,6 +62,7 @@ verified). Bloat there is paid on every dispatch, forever.
 tests/README.md (coverage, watch mode, fixtures)`
 
 **Never goes in AGENTS.md:**
+
 - Full command inventories (that's what the pointer target is for —
   `tests/README.md`, `docs/conventions.md`)
 - Anything from README.md (install/usage are human-facing; the agent
@@ -75,7 +81,9 @@ move detail to pointer targets and keep the rules.
 
 **Enforcement**: `scripts/agents-lint.sh` is the AGENTS.md gate
 
-Scaffold kinds live in `.workflows/profile.json`; template files are per-project — no baked languages (profile-lint validates kinds; `scripts/scaffold.sh` renders). —
+Scaffold kinds live in `.workflows/profile.json`; template files are per-project
+— no baked languages (profile-lint validates kinds;
+`scripts/scaffold.sh` renders). —
 check-drift runs it on this repo; `/init` runs it at generation (a lint
 failure blocks the handoff).
 

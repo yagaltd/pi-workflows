@@ -15,9 +15,13 @@ Decide which path applies before writing code.
 
 1. **Approved `.spec` path provided** → execute that contract.
 2. **Broad or ambiguous feature idea** → stop and route to `/idea`.
-   - Broad signals: unclear behavior, multiple screens/modules, data model choice, API design, architecture tradeoff, unknown scope, or user says "figure it out".
-3. **Small surgical request** → mini-recon first, then create a contract and ask approval.
-   - Surgical signals: one known command/flag/field/endpoint, narrow behavior, likely few files, no architecture choice.
+   - Broad signals: unclear behavior, multiple screens/modules, data model
+     choice, API design, architecture tradeoff, unknown scope, or user says
+     "figure it out".
+3. **Small surgical request** → mini-recon first, then create a contract and ask
+   approval.
+   - Surgical signals: one known command/flag/field/endpoint, narrow behavior,
+     likely few files, no architecture choice.
 
 If unsure, treat as broad and route to `/idea`.
 
@@ -25,10 +29,15 @@ If unsure, treat as broad and route to `/idea`.
 
 Ensure you have an evidence-backed contract before writing code.
 
-1. **If a `.spec` file exists**: Read it with `agent-spec contract <spec>`. This is your contract. Follow it.
-2. **If no spec but request is broad**: Stop. Say: "This needs `/idea` first so we can explore, resolve decisions, and write contracts."
-3. **If no spec but request is small/surgical**: run mini-recon BEFORE creating a contract:
-   - read `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant `.workflows/docs/adr/*.md` if present
+1. **If a `.spec` file exists**: Read it with `agent-spec contract <spec>`. This
+   is your contract. Follow it.
+2. **If no spec but request is broad**: Stop. Say: "This needs `/idea` first so
+   we can explore, resolve decisions, and write contracts."
+3. **If no spec but request is small/surgical**: run mini-recon BEFORE creating
+   a contract:
+
+   - read `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, and relevant
+     `.workflows/docs/adr/*.md` if present
    - find related code/tests with `find` and `rg`
    - identify existing patterns and exact files likely in scope
    - check cheap baseline tests if relevant
@@ -41,12 +50,14 @@ agent-spec init --level task --lang en --name "<feature-name>"
 ```
 
 Fill in from evidence:
+
 - **Intent**: what this feature does (1-3 sentences)
 - **Decisions**: technical choices fixed by repo patterns or user answers
 - **Boundaries**: exact files/globs allowed and forbidden
 - **Completion Criteria**: BDD scenarios with explicit test selectors
 
-Show the contract and mini-recon evidence to the human. Get approval before proceeding.
+Show the contract and mini-recon evidence to the human. Get approval before
+proceeding.
 
 🛑 **GATE**: Contract must be approved. Do NOT start building without it.
 
@@ -59,7 +70,7 @@ Understand the existing codebase before changing it.
 3. **Understand patterns**: How are similar features implemented?
 4. **Map dependencies**: What does this feature touch?
 5. **Check health**: Establish a green baseline
-   ```
+   ```sh
    # Adapt to project:
    npm test          # or: cargo test, pytest, etc.
    npm run lint      # or: cargo clippy, ruff check, etc.
@@ -77,11 +88,12 @@ Implement the feature within contract boundaries.
 2. **Stay within Boundaries** — only change Allowed files. Never touch Forbidden files.
 3. **Write code** following existing patterns and conventions
 4. **Write tests** for EVERY scenario in Completion Criteria:
-   - Each BDD scenario → one test function with the exact name from `Test:` selector
+   - Each BDD scenario → one test function with the exact name from
+     `Test:` selector
    - Unit tests for core logic
    - Edge cases: empty inputs, boundary values, error states
 5. **Self-verify after each change**:
-   ```
+   ```sh
    npm test          # All tests pass?
    npm run lint      # No lint errors?
    npm run typecheck # Types correct?
@@ -102,7 +114,9 @@ agent-spec lifecycle <spec> --code . --format json
 # Check boundaries
 agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
-If any scenario fails or boundaries violated → go back to Phase 3, fix, re-verify.
+
+If any scenario fails or boundaries violated → go back to Phase 3, fix,
+re-verify.
 
 ### Layer 2: Test quality (two-phase tdd flow — tdd-guard, if installed)
 
@@ -120,7 +134,8 @@ worker wave"):
    ```
    Gaps → follow-up tester dispatch with the `tdd-guard verify` output
    pasted verbatim into the pack; loop until the gate is clean. Clean ⇒
-   merge the tester branch (`git merge --no-ff subagents/<run>/tester-<task-id>`)
+   merge the tester branch
+(`git merge --no-ff subagents/<run>/tester-<task-id>`)
    so Wave B branches from a tree that already contains the red tests.
 3. **Wave B — worker + reviewer**: the worker implements to GREEN against
    the merged red suite (never weakens, skips, or renames the tester's
@@ -156,14 +171,23 @@ git diff --stat
 ### Optional: UI Verification
 
 If the feature has a UI component:
-- **Quick check**: dispatch a browser-automation subagent (agent-browser skill) to verify elements render and behave correctly; or ask the user to eyeball a screenshot
-- **Property check** (🟠 VERIFICATION_HEAVY web tasks, if bombadil is installed): `bombadil test <origin> [spec.ts] --exit-on-violation` — autonomous property-based exploration of the running app; violations are review findings
+
+- **Quick check**: dispatch a browser-automation subagent (agent-browser skill)
+  to verify elements render and behave correctly; or ask the user to eyeball a
+  screenshot
+- **Property check** (🟠 VERIFICATION_HEAVY web tasks, if bombadil is
+  installed): `bombadil test <origin> [spec.ts] --exit-on-violation` —
+  autonomous property-based exploration of the running app; violations are
+  review findings
 - **Skip**: If no UI or UI is trivial
 
 **Verification checklist**:
+
 - [ ] agent-spec lifecycle passes (all scenarios pass)
 - [ ] agent-spec guard passes (boundaries respected)
-- [ ] tdd-guard coverage gate clean (two-phase tdd flow: tester Wave A → coverage gate → Wave B worker + reviewer) or legacy shape used with the skip stated loudly
+- [ ] tdd-guard coverage gate clean (two-phase tdd flow: tester Wave A →
+  coverage gate → Wave B worker + reviewer) or legacy shape used with the skip
+  stated loudly
 - [ ] All tests pass (including new ones)
 - [ ] Zero lint warnings
 - [ ] Zero type errors
@@ -171,7 +195,8 @@ If the feature has a UI component:
 - [ ] Only expected files changed
 
 **OUTPUT**: Structured verdict:
-```
+
+```text
 ## Contract Verification: PASS / FAIL
 
 ### agent-spec lifecycle
@@ -191,7 +216,8 @@ If the feature has a UI component:
 Show the human what was done.
 
 Present:
-```
+
+```text
 ## Feature: <name>
 
 ### Contract
@@ -221,10 +247,16 @@ Human decides: ship, revise, or add more tests.
 ## Rules
 
 - **Contract first**: Never write code without a contract. The contract defines "done."
-- **Boundaries are hard limits**: Only change allowed files. agent-spec verifies this.
+- **Boundaries are hard limits**: Only change allowed files. agent-spec verifies
+  this.
 - **Test to completion criteria**: Every BDD scenario in the contract must have a test.
-- **agent-spec lifecycle is your verification**: Run it yourself. Don't make the reviewer catch failures.
-- **Small commits**: Commit at logical checkpoints. Don't bundle everything into one giant commit.
-- **Follow existing patterns**: Consistency beats cleverness. Match the codebase's style.
-- **No scope creep**: If you discover related improvements, note them separately. Don't bundle them in.
-- **Adapt commands**: The `npm` commands above are examples. Use whatever the project uses.
+- **agent-spec lifecycle is your verification**: Run it yourself. Don't make the
+  reviewer catch failures.
+- **Small commits**: Commit at logical checkpoints. Don't bundle everything into
+  one giant commit.
+- **Follow existing patterns**: Consistency beats cleverness. Match the
+  codebase's style.
+- **No scope creep**: If you discover related improvements, note them
+  separately. Don't bundle them in.
+- **Adapt commands**: The `npm` commands above are examples. Use whatever the
+  project uses.

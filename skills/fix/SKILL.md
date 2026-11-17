@@ -7,11 +7,13 @@ argument-hint: "<bug description or error>"
 
 # Fix Workflow
 
-Build a deterministic feedback loop → reproduce → hypothesize → instrument → fix → regression-test → verify. Find the root cause, not the symptom.
+Build a deterministic feedback loop → reproduce → hypothesize → instrument → fix
+→ regression-test → verify. Find the root cause, not the symptom.
 
 ## Phase 1: FEEDBACK LOOP FIRST
 
-Create the fastest reliable pass/fail signal for the bug before trying to fix it.
+Create the fastest reliable pass/fail signal for the bug before trying to fix
+it.
 
 Try, in order:
 
@@ -25,23 +27,30 @@ Try, in order:
 8. bisection or differential loop when regression range is known
 9. HITL script only if human clicks are unavoidable
 
-Improve the loop until it is fast, specific, and deterministic enough to debug against. For flaky bugs, raise reproduction rate with repetition, stress, parallelism, fixed seeds, or timing controls.
+Improve the loop until it is fast, specific, and deterministic enough to debug
+against. For flaky bugs, raise reproduction rate with repetition, stress,
+parallelism, fixed seeds, or timing controls.
 
-If no loop can be built, stop. Report what you tried and ask for environment access, captured artifacts, or permission to add temporary instrumentation.
+If no loop can be built, stop. Report what you tried and ask for environment
+access, captured artifacts, or permission to add temporary instrumentation.
 
 ## Phase 2: REPRODUCE
 
 Run the loop. Confirm it shows the user's exact symptom, not a nearby failure.
 
 Capture:
+
 - exact command/script
 - exact error/output/screenshot/log
 - reproduction rate if flaky
 - relevant environment details
 
 If you **cannot reproduce**:
-- Ask the human for more context (input data, environment, steps, logs, HAR, screenshot, trace)
-- 🛑 **STOP** if reproduction is impossible. Don't fix what you can't confirm is broken.
+
+- Ask the human for more context (input data, environment, steps, logs, HAR,
+  screenshot, trace)
+- 🛑 **STOP** if reproduction is impossible. Don't fix what you can't confirm is
+  broken.
 
 **OUTPUT**: Confirmed reproduction with exact error output.
 
@@ -57,7 +66,8 @@ Format:
    Evidence: <why plausible>
 ```
 
-Show the ranked list to the user when useful. Proceed with best-ranked hypothesis if user is AFK.
+Show the ranked list to the user when useful. Proceed with best-ranked
+hypothesis if user is AFK.
 
 ## Phase 4: INSTRUMENT
 
@@ -67,7 +77,8 @@ Test one hypothesis at a time.
 - Otherwise add targeted logs at boundaries that distinguish hypotheses.
 - Tag all temporary logs with a unique prefix: `[DEBUG-xxxx]`.
 - Never "log everything and grep".
-- For performance regressions: measure first with timing harness/profiler/query plan, then fix.
+- For performance regressions: measure first with timing harness/profiler/query
+  plan, then fix.
 
 ## Phase 5: DIAGNOSE
 
@@ -83,7 +94,8 @@ Find the ROOT CAUSE, not just the symptom.
 4. Identify the hypothesis that survived instrumentation.
 
 Present to the human:
-```
+
+```text
 ## Diagnosis
 
 ### Root cause
@@ -114,7 +126,8 @@ code (this instance) / test (this class) / process (this category).
 
 Minimal correction targeting the root cause within boundaries.
 
-1. **Write the fix**: Smallest change that corrects the root cause. Don't refactor. Don't improve. Just fix.
+1. **Write the fix**: Smallest change that corrects the root cause. Don't
+   refactor. Don't improve. Just fix.
 2. **Add a regression test**: Write a test that would have caught this bug.
    - The test should fail BEFORE the fix and pass AFTER.
    - Test the specific edge case that caused the bug.
@@ -126,15 +139,17 @@ Minimal correction targeting the root cause within boundaries.
    mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "fix-<bug-name>"
    ```
-   Fill in Intent (what's broken), Decisions (what changes), Boundaries (only the fix area), Completion Criteria (regression test scenario).
+   Fill in Intent (what's broken), Decisions (what changes), Boundaries (only
+the fix area), Completion Criteria (regression test scenario).
 4. **Run deterministic checks**:
-   ```
+   ```sh
    npm test          # Bug fix test passes? No regressions?
    npm run lint      # Clean?
    npm run typecheck # Clean?
    npm run build     # Builds?
    ```
-4. **Verify the original reproduction is fixed**: Re-run Phase 1's reproduction. It should now pass.
+4. **Verify the original reproduction is fixed**: Re-run Phase 1's reproduction.
+   It should now pass.
 
 If checks fail → fix the fix. Don't proceed with broken state.
 
@@ -145,17 +160,21 @@ Full verification that the fix works and nothing else broke. First, re-run the o
 Run in order. Stop at first failure.
 
 ### Layer 1: Contract verification (if contract exists)
+
 ```bash
 agent-spec lifecycle .workflows/specs/fix-<bug>.spec --code . --format json
 agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
+
 If fails → fix the fix. Don't proceed.
 
 ### Layer 2: Test quality (tdd-guard, if installed)
+
 ```bash
 tdd-guard lint --src src --tests tests --format json
 tdd-guard verify --spec .workflows/specs/fix-<bug>.spec --tests tests --format json   # when a contract exists
 ```
+
 `lint` fails on skipped, assertionless, internally mocked, or
 implementation-coupled tests; `verify` fails when tests do not cover the
 contract's decisions, boundaries, or `Test:` selectors. The task gate shape
@@ -165,6 +184,7 @@ PASS) — skip and note it LOUDLY, never a silent pass. Gaming, weakening and
 drift checks stay uncovered (DEC-003 accepted risk).
 
 ### Layer 3: Project verification
+
 ```bash
 # Full test suite (not just the new test)
 npm test
@@ -183,6 +203,7 @@ git diff --stat
 ```
 
 **Verification checklist**:
+
 - [ ] Original bug is fixed (reproduction passes)
 - [ ] Regression test added and passes
 - [ ] agent-spec lifecycle passes (if contract created)
@@ -194,7 +215,8 @@ git diff --stat
 - [ ] Fix is minimal (no unrelated changes)
 
 **OUTPUT**: Structured verdict:
-```
+
+```text
 ## Fix Verification: PASS / FAIL
 
 ### Bug: <description>
@@ -225,7 +247,8 @@ git diff --stat
 Before presenting:
 
 - Remove all `[DEBUG-...]` instrumentation (`rg "\\[DEBUG-"`).
-- Delete throwaway harnesses or move them to a clearly marked debug artifact if intentionally kept.
+- Delete throwaway harnesses or move them to a clearly marked debug artifact if
+  intentionally kept.
 - Ensure original feedback loop passes.
 - Ensure regression test passes, or document why no correct seam exists.
 - State which hypothesis was correct.
@@ -235,7 +258,7 @@ Before presenting:
 Document the fix to prevent recurrence.
 
 1. **Commit message** should include:
-   ```
+   ```text
    fix: <what was broken>
        
        Root cause: <why it broke>
@@ -245,10 +268,11 @@ Document the fix to prevent recurrence.
 
 2. **If the pattern is systemic** (same mistake could exist elsewhere):
    - `grep` for similar patterns in the codebase
-   - Flag them to the human: "This same pattern exists in <files>. Should I fix those too?"
+   - Flag them to the human: "This same pattern exists in `<files>`. Should I
+     fix those too?"
 
 3. **Present to the human**:
-   ```
+   ```text
    ## Fixed: <bug>
 
    Root cause: <why>
@@ -263,12 +287,19 @@ Document the fix to prevent recurrence.
 ## Rules
 
 - **Reproduce first**: Never fix a bug you haven't reproduced. If you can't reproduce, say so.
-- **Root cause, not symptom**: Fix why it broke, not just what's visible. A null check patches a symptom. Fixing why null reached that code fixes the root cause.
-- **Minimal fix**: Smallest change that corrects the root cause. Don't bundle improvements.
-- **Always add a regression test**: If the bug could happen again, it needs a test.
-- **Boundaries**: Only change files relevant to the fix. Don't touch unrelated code.
-- **No refactoring**: Fix phase is for fixing. Note refactor opportunities separately.
-- **Deterministic verification**: agent-spec + tdd-guard + tests + lint + types + build. No "looks right to me."
+- **Root cause, not symptom**: Fix why it broke, not just what's visible. A null
+  check patches a symptom. Fixing why null reached that code fixes the root
+  cause.
+- **Minimal fix**: Smallest change that corrects the root cause. Don't bundle
+  improvements.
+- **Always add a regression test**: If the bug could happen again, it needs a
+  test.
+- **Boundaries**: Only change files relevant to the fix. Don't touch unrelated
+  code.
+- **No refactoring**: Fix phase is for fixing. Note refactor opportunities
+  separately.
+- **Deterministic verification**: agent-spec + tdd-guard + tests + lint +
+  types + build. No "looks right to me."
 - **Adapt commands**: Use whatever toolchain the project uses.
 
 ## UI Fix Variant
@@ -276,8 +307,10 @@ Document the fix to prevent recurrence.
 If the issue is visual/UI:
 
 1. Ask the user for a screenshot and a text description of what looks wrong
-2. Dispatch a browser-automation subagent (agent-browser skill) against the page:
-   CSS selectors, computed styles, accessibility info, screenshots per broken element
+2. Dispatch a browser-automation subagent (agent-browser skill) against the
+   page:
+   CSS selectors, computed styles, accessibility info, screenshots per broken
+element
 3. Map selectors to source files (grep for class names, IDs)
 4. Apply fix
 5. Ask user to re-verify with a screenshot

@@ -1,6 +1,7 @@
 ---
 description: "Restart — rebuild session state from the digest, then act on it"
 ---
+# `/restart`
 
 Run the digest for the repo you are standing in — the digest it prints IS the
 session state (plan position, verdicts, budget, gates, git). Do not rediscover

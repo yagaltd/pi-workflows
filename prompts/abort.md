@@ -1,6 +1,7 @@
 ---
 description: "Abort — abandon the live plan, archive it to .workflows/archive/superseded/"
 ---
+# `/abort`
 
 Abandon the current plan and preserve its history.
 
@@ -14,6 +15,7 @@ mkdir -p .workflows/archive/superseded
 ```
 
 Move (not copy) into `.workflows/archive/superseded/<PlanID>-<slug>/`:
+
 - `.workflows/plan.md`
 - `.workflows/specs/`
 - `.workflows/reviews/` (if present)

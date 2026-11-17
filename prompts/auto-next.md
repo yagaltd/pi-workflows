@@ -1,6 +1,7 @@
 ---
 description: "Run ALL pending tasks in .workflows/plan.md autonomously — the dispatcher picks each task, you dispatch and gate until done"
 ---
+# `/auto-next`
 
 You are the orchestrator. You dispatch work to subagents via the
 `subagent` tool and never implement tasks yourself; task selection is

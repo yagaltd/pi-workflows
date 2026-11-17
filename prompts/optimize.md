@@ -1,6 +1,7 @@
 ---
 description: "Optimize — experiments, contracted deep passes, or an autoresearch loop"
 ---
+# `/optimize`
 
 Three modes — pick by the situation:
 
@@ -31,9 +32,10 @@ unattended grind → mode 3.
 
 Identify what to optimize and how to measure it.
 
-1. Read the target from the user (e.g. "API latency", "bundle size", "test speed")
+1. Read the target from the user (e.g. "API latency", "bundle size", "test
+   speed")
 2. Define a measurable metric and benchmark command:
-   ```
+   ```sh
    # Example:
    npm run bench           # latency benchmark
    du -sh dist/            # bundle size
@@ -47,17 +49,20 @@ Identify what to optimize and how to measure it.
 
 ## Phase 2: GENERATE OPTIMIZATION STRATEGIES
 
-Based on the codebase and the target, define 2-4 distinct optimization strategies.
+Based on the codebase and the target, define 2-4 distinct optimization
+strategies.
 
 Generate them with hats, pick with the matrix (templates/THINKING-TOOLS.md
 §2–3 — pi-workflows package, root via a pi-workflows skill location or
 `pi list`): Green-hat divergence first — strategies must be *radically different
 bottlenecks*, not variations of one idea. Then place each on Impact × Effort:
+
 - Quick Wins (high impact, low effort) → always include
 - Big Bets (high, high) → include but prototype-sized experiments de-risk them
 - Money Pits (low, high) → name and exclude explicitly
 
 For example, for "API latency":
+
 - Strategy A: Add caching layer
 - Strategy B: Optimize database queries
 - Strategy C: Parallelize independent requests
@@ -121,7 +126,7 @@ experiment's own directory is a violation.
 
 Compare all experiment results:
 
-```
+```text
 ## Optimization Results
 
 Target: <metric>
@@ -140,7 +145,8 @@ Baseline: <value>
 <integrate winner / combine approaches / discard all>
 ```
 
-If multiple strategies improved the metric, consider combining them (with care — they may conflict).
+If multiple strategies improved the metric, consider combining them (with care —
+they may conflict).
 
 🛑 STOP. Present to human. Let them decide: integrate, refine, or discard.
 

@@ -7,7 +7,8 @@ argument-hint: "<idea description, repo paths, URLs, or constraints>"
 
 # Idea Workflow
 
-Productize an idea into an execution plan: evidence → decisions → plan → contracts. Do not implement.
+Productize an idea into an execution plan: evidence → decisions → plan →
+contracts. Do not implement.
 
 ## Phase 1: EXPLORE FIRST
 
@@ -21,11 +22,13 @@ Gather evidence before asking questions.
    - `find`/`rg` relevant files, modules, tests, routes, CLI commands, schemas
    - read key files and tests
    - inspect dependencies (`package.json`, `Cargo.toml`, `pyproject.toml`, etc.)
-   - check recent related history with `git log --oneline -20` and targeted `git log -- <path>` when useful
+   - check recent related history with `git log --oneline -20` and targeted
+     `git log -- <path>` when useful
 3. **Scout external inputs**:
    - URLs: `curl -sL <url> | head -1000`
    - GitHub repos: clone to `/tmp/explore-<name>` and scout
-   - multiple inputs: use pi-core-subagent parallel scout tasks (read-only, inline prompts) when available
+   - multiple inputs: use pi-core-subagent parallel scout tasks (read-only,
+     inline prompts) when available
 4. **Check baseline health when useful**:
    - run existing tests/lint/typecheck/build if cheap and relevant
    - report existing failures separately from proposed work
@@ -36,7 +39,8 @@ them to `.workflows/knowledge/evidence-<YYYYMMDD>-<slug>.md` (mkdir -p the
 dir) — same shape as the `/explore` knowledge doc. Contracts and later plans
 cite these files; subagent reports are never re-run when they're on disk.
 
-**Rule:** If a question can be answered by repo/docs/tests/history, answer it from evidence. Do not ask the user.
+**Rule:** If a question can be answered by repo/docs/tests/history, answer it
+from evidence. Do not ask the user.
 
 **Output:** concise evidence summary:
 
@@ -53,7 +57,8 @@ cite these files; subagent reports are never re-run when they're on disk.
 
 Extract decisions from evidence.
 
-**Option generation + convergence** (templates/THINKING-TOOLS.md §2–3 — package templates/, two dirs up from this skill):
+**Option generation + convergence** (templates/THINKING-TOOLS.md §2–3 — package
+templates/, two dirs up from this skill):
 when 2+ viable approaches exist, generate with Green-hat divergence
 (radically different approaches, not variations of one), evaluate each with
 White (facts) → Yellow (best case) → Black (failure modes), then place the
@@ -76,7 +81,7 @@ taste are the **territory**. Classify what's missing from the map (protocol
 adapted from the grill-for-unknowns skill):
 
 | Gap | Meaning | How to close it |
-|---|---|---|
+| --- | --- | --- |
 | Known knowns | Proven by repo/docs/tests | Restate and cite; never ask |
 | Known unknowns | A decision is open | Grill — one at a time, with payload (Phase 3) |
 | Unknown knowns | User will recognize the right result when shown, but can't specify it | Do NOT ask text questions — offer 2-3 contrasting prototypes / examples / reference modules to react to (`/prototype`), capture their reaction as criteria |
@@ -212,10 +217,12 @@ Create `.workflows/plan.md` using the existing Plan Workflow rules:
 - worker tasks for code changes
 - reviewer and quality-reviewer tasks after build tasks
 - docs task for meaningful architecture/domain changes
-- bottleneck tags: 🔴 BLOCKING, 🟡 RISKY, 🔵 TIME_CONSUMING, 🟠 VERIFICATION_HEAVY, ⚪ STANDARD
+- bottleneck tags: 🔴 BLOCKING, 🟡 RISKY, 🔵 TIME_CONSUMING, 🟠
+  VERIFICATION_HEAVY, ⚪ STANDARD
 - parallel groups when independent tasks can safely run concurrently
 
-Use domain terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
+Use domain terms from `.workflows/CONTEXT.md` in task titles, specs, and test
+names.
 
 ## Phase 5: STOP FOR APPROVAL
 
@@ -244,6 +251,7 @@ Approve to generate contracts, then run `/next` to execute.
 ```
 
 Ask the human:
+
 - Plan structure right?
 - Bottleneck tags accurate?
 - Testing strategies appropriate?
@@ -260,7 +268,8 @@ mkdir -p .workflows/specs
 For each worker task, write `.workflows/specs/<task-name>.spec` with:
 
 - **Intent**: what to build and why (1-3 sentences)
-- **Diagrams** (optional): Mermaid diagram showing flow, architecture, or state machine
+- **Diagrams** (optional): Mermaid diagram showing flow, architecture, or state
+  machine
 - **Decisions**: technical choices already fixed
 - **Boundaries**: exact files/globs allowed and forbidden
 - **Completion Criteria**: BDD scenarios with explicit `Test:` selectors
@@ -271,7 +280,8 @@ Use the contract template from the `/plan` workflow.
 
 ## Phase 7: DOMAIN MEMORY UPDATES
 
-If the conversation resolved a durable domain term, update `.workflows/CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
+If the conversation resolved a durable domain term, update
+`.workflows/CONTEXT.md` (create lazily from `templates/CONTEXT.md` if helpful).
 
 Offer an ADR only when all are true:
 

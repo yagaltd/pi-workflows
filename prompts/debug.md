@@ -1,10 +1,13 @@
 ---
 description: "Debug — hypothesis-driven investigation for complex bugs"
 ---
+# `/debug`
 
-Follow the 'fix' skill workflow — load its SKILL.md with the read tool, then execute it.
+Follow the 'fix' skill workflow — load its SKILL.md with the read tool, then
+execute it.
 
-For complex, non-obvious bugs (multiple failed fix attempts, environment-specific, intermittent), use full diagnose mode:
+For complex, non-obvious bugs (multiple failed fix attempts,
+environment-specific, intermittent), use full diagnose mode:
 
 1. FEEDBACK LOOP: create fastest reliable pass/fail signal
 2. REPRODUCE: confirm exact user symptom
@@ -14,6 +17,7 @@ For complex, non-obvious bugs (multiple failed fix attempts, environment-specifi
 6. VERIFY + CLEANUP: original loop passes, debug artifacts removed
 
 Hard rules:
+
 - No fix code until reproducible loop exists or inability is reported
 - No single-hypothesis anchoring; rank 3-5 hypotheses first
 - One probe per hypothesis

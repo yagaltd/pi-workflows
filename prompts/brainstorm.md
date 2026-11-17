@@ -2,6 +2,7 @@
 description: "Brainstorm — divergent research mode: think together, evidence branches, research ledger, no building"
 argument-hint: "<topic or question | resume>"
 ---
+# `/brainstorm`
 
 Divergent research mode — build ideas WITH the human, validate/invalidate
 them with evidence, and structure everything into a living research ledger.
@@ -20,7 +21,7 @@ map + frontier top-3.
 
 **The loop**:
 
-```
+```text
 1. OPEN     — central question, IN/OUT scope, mkdir .workflows/research/<slug>/,
               ledger skeleton, LOG.md line
 2. DIVERGE  — Green-hat branches (market, competitor, feasibility,

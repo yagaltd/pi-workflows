@@ -7,25 +7,29 @@ argument-hint: "<scope or area to refactor>"
 
 # Refactor Workflow
 
-Change code structure WITHOUT changing behavior. Same outputs, better shape. Verify with agent-spec that behavior is preserved.
+Change code structure WITHOUT changing behavior. Same outputs, better shape.
+Verify with agent-spec that behavior is preserved.
 
 ## Phase 1: ASSESS
 
 Understand what needs to change and why.
 
 1. **Clarify the refactoring goal**:
-   - Why is this refactoring needed? (coupling, readability, testability, maintainability?)
+   - Why is this refactoring needed? (coupling, readability, testability,
+     maintainability?)
    - What's the target state? (extract module, rename, consolidate, decouple?)
 
 2. **Map the current structure**:
-   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`,
+     `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - `find` relevant files and modules
    - `grep`/`rg` for imports, usages, dependencies
    - Read key files to understand coupling and interfaces
    - Draw a quick dependency map: who uses what
 
 3. **Check domain/ADR constraints**:
-   - Use glossary terms from `.workflows/CONTEXT.md` when describing modules and behavior
+   - Use glossary terms from `.workflows/CONTEXT.md` when describing modules and
+     behavior
    - Flag user terminology that conflicts with project language
    - Flag refactors that contradict accepted ADRs before proposing them
 
@@ -49,7 +53,7 @@ Understand what needs to change and why.
    mkdir -p .workflows/specs
    agent-spec init --level task --lang en --name "refactor-<scope>"
    ```
-   
+
    The contract for refactoring is special — it verifies behavior is PRESERVED:
 
    ```spec
@@ -95,7 +99,8 @@ Understand what needs to change and why.
    ```
 
 Present to the human:
-```
+
+```text
 ## Refactoring: <scope>
 
 ### Current state
@@ -129,7 +134,8 @@ Apply changes step by step. Each step must leave the code in a working state.
 
 For each step:
 
-1. **Make the change**: One logical refactoring move (rename, extract, move, consolidate).
+1. **Make the change**: One logical refactoring move (rename, extract, move,
+   consolidate).
 2. **Run deterministic checks IMMEDIATELY**:
    ```bash
    npm test          # Must still pass
@@ -154,6 +160,7 @@ This gives you a clean rollback point for every step.
 Confirm behavior is UNCHANGED after all refactoring steps.
 
 ### Contract verification
+
 ```bash
 # Verify the refactoring contract
 agent-spec lifecycle .workflows/specs/refactor-<scope>.spec --code . --format json
@@ -163,6 +170,7 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 
 ### Project verification
+
 ```bash
 # Full verification
 npm test              # All tests pass (same as baseline)
@@ -176,6 +184,7 @@ git diff main         # Full diff review
 ```
 
 **Verification checklist**:
+
 - [ ] agent-spec lifecycle passes
 - [ ] agent-spec guard passes (only allowed files changed)
 - [ ] All tests pass (same tests as baseline — no new failures)
@@ -185,10 +194,12 @@ git diff main         # Full diff review
 - [ ] No behavioral changes (same outputs for same inputs)
 - [ ] Public APIs unchanged (or deliberately changed with migration)
 
-**Critical rule**: If tests pass but behavior changed, the tests are wrong. Investigate.
+**Critical rule**: If tests pass but behavior changed, the tests are wrong.
+Investigate.
 
 **OUTPUT**: Structured verdict:
-```
+
+```text
 ## Refactor Verification: PASS / FAIL
 
 ### Contract
@@ -215,7 +226,7 @@ If FAIL → go back to Phase 2, fix or rollback.
 
 Show the human what changed.
 
-```
+```text
 ## Refactored: <scope>
 
 ### Contract
@@ -248,11 +259,18 @@ Human decides: keep or rollback.
 ## Rules
 
 - **Behavior must not change**: If behavior changes, it's not a refactoring — it's a feature or a fix. Use the right workflow.
-- **Steps, not leaps**: One refactoring move at a time. Verify after each. Small commits.
+- **Steps, not leaps**: One refactoring move at a time. Verify after each. Small
+  commits.
 - **Never refactor on red**: If tests are failing, fix first. Refactor second.
-- **Test coverage is your safety net**: If the code you're refactoring has no tests, write characterization tests FIRST (tests that capture current behavior). Then refactor.
-- **Rollback is always available**: `git stash`, `git reset`, `git checkout`. Use them freely when a step goes wrong.
-- **No scope creep**: Refactor what was agreed on. Note other improvements separately.
-- **agent-spec verifies boundaries**: The guard catches any accidental changes outside allowed files.
-- **Deterministic verification only**: agent-spec + tests + lint + types + build. Not "I think it's the same."
+- **Test coverage is your safety net**: If the code you're refactoring has no
+  tests, write characterization tests FIRST (tests that capture current
+  behavior). Then refactor.
+- **Rollback is always available**: `git stash`, `git reset`, `git checkout`.
+  Use them freely when a step goes wrong.
+- **No scope creep**: Refactor what was agreed on. Note other improvements
+  separately.
+- **agent-spec verifies boundaries**: The guard catches any accidental changes
+  outside allowed files.
+- **Deterministic verification only**: agent-spec + tests + lint + types +
+  build. Not "I think it's the same."
 - **Adapt commands**: Use whatever toolchain the project uses.
