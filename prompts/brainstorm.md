@@ -49,13 +49,12 @@ chooser (`node scripts/format-chooser.mjs choose --for brainstorm-graduation --c
 requirements (typically at CONVERGE/EXIT), emit them as marked requirement
 blocks — format in `tests/intake/README.md`, worked example in
 `tests/intake/sample-intake.md` — to `.workflows/intake/<date>-<slug>.md`,
-then run `agent-spec requirements import --from <file> --check
---out .workflows/requirements/` and fix any block errors it reports
-(`drifted` lines only mean not-yet-imported candidates — expected before
-approval). Then stop: the real import runs only on explicit human approval of
-specific blocks (approved blocks go to a clean file first — the import has no
-per-block filter); rejected blocks stay annotated `rejected: <reason>` in the
-intake file. This is the one sanctioned write outside
-`.workflows/research/<slug>/`.
+and annotate rejected blocks `rejected: <reason>` in the intake file. Then
+stop at the human approval gate — that gate is the end of this workflow. The
+import step is DEFERRED: `agent-spec requirements import` does not exist in
+the installed agent-spec binary (0.2.7) or in the repo, so there is no command
+to run here and nothing to verify — never tell the human their blocks were
+imported or check them against `.workflows/requirements/` (`DEC-007`). This is
+the one sanctioned write outside `.workflows/research/<slug>/`.
 
 $@
