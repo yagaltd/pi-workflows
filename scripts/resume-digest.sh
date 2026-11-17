@@ -8,25 +8,56 @@
 # tail -2) · 7 git (log --oneline -10). The profile is CONSUMED, never
 # modified (python3 JSON — no deps, the profile-lint pattern); missing profile
 # ⇒ built-in default set + one note line. Every absent source degrades to a
-# note: line; exit stays 0. Exit 1 ONLY when the repo is broken (no .git).
-# Usage: bash scripts/resume-digest.sh   (writes nothing; caller redirects)
+# note: line; exit stays 0. Exit 1 ONLY when no repo can be digested (no
+# git repo with .workflows/ at cwd and no valid --root).
+# Usage: bash scripts/resume-digest.sh [--root <dir>]   (writes nothing)
+# The root is the cwd's repo, never the repo this script lives in.
 set -u
 
-# Repo root: .git walk-up from this script's dir (profile-lint pattern);
-# git rev-parse fallback for relocated copies.
+# Repo root resolution — cwd-first, because the digest describes the repo the
+# caller stands in, not the repo the script lives in:
+#   1. --root <dir> — explicit override for a caller that knows where to look;
+#      must be a git repo holding .workflows/, else loud FAIL.
+#   2. cwd's git root, when it holds .workflows/ (the normal /restart case).
+#   3. .git walk-up from this script's dir (profile-lint pattern) — only for
+#      the script's own checkout, i.e. when cwd resolves to that same repo.
+#   4. no root → loud FAIL, exit 1, before any section prints.
 dir="$(cd "$(dirname "$0")" && pwd)" || dir="$PWD"
 root=""
+case "${1:-}" in
+--root)
+  want="${2:-}"
+  if [ -z "$want" ] || [ ! -d "$want" ]; then
+    echo "FAIL: --root needs an existing directory (got '${want}')"
+    exit 1
+  fi
+  want="$(cd "$want" && pwd)"
+  if [ ! -e "$want/.git" ] || [ ! -d "$want/.workflows" ]; then
+    echo "FAIL: --root $want is not a git repo with .workflows/ — nothing to resume"
+    exit 1
+  fi
+  root="$want"
+  ;;
+esac
+cwd_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$root" ] && [ -n "$cwd_root" ] && [ -d "$cwd_root/.workflows" ]; then
+  root="$cwd_root"
+fi
+script_root=""
 scan="$dir"
 while [ "$scan" != "/" ]; do
   [ -e "$scan/.git" ] && {
-    root="$scan"
+    script_root="$scan"
     break
   }
   scan="$(dirname "$scan")"
 done
-[ -z "$root" ] && root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$root" ] && [ -n "$script_root" ] && [ "$script_root" = "$cwd_root" ]; then
+  root="$script_root"
+fi
 if [ -z "$root" ] || [ ! -e "$root/.git" ]; then
-  echo "FAIL: no .git found above $dir — not a git repo, nothing to resume"
+  echo "FAIL: no .git repo with .workflows/ to digest from cwd $PWD"
+  echo "      (run inside a plan repo, or pass --root <dir>)"
   exit 1
 fi
 cd "$root" || exit 1
