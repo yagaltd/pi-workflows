@@ -119,10 +119,15 @@ contradicted its own Boundaries, and the docs-lint ratchet froze the stock of
 
 ## Docs impact
 
-- T2: templates/FOLLOW-UP-TABLE.md (+Origin column), registry, reviewer, plan
-  and review skills — the format this plan's own ship report then uses.
-- T3: tdd-guard 0.1.2 CHANGELOG · T4: agent-spec 0.3.2 CHANGELOG.
-- T1: docs corpus to the floor + baseline rewrite; pi-workflows CHANGELOG
-  v0.15.3 records the whole plan at SHIP.
+- `templates/FOLLOW-UP-TABLE.md` — Origin column + three-exit-state rule (T2)
+- `agents/registry.md` — ship-table mandate + terminal-before-report (T2)
+- `agents/reviewer.md` — ledger drain check (T2)
+- `skills/plan/SKILL.md` — Ledger Resolution template section (T2)
+- `skills/review/SKILL.md` — ship step references the table (T2)
+- `CHANGELOG.md` + `package.json` — tdd-guard 0.1.2 (T3, its repo)
+- `CHANGELOG.md` + `Cargo.toml` — agent-spec 0.3.2 (T4, its repo)
+- `scripts/docs-lint-baseline.json` — budgets to measured floor (T1)
+- `README.md`, `docs/architecture.md`, `docs/canon.md` — currency (T1)
+- `CHANGELOG.md` — pi-workflows v0.15.3 entry (SHIP)
 
 ## Execution Notes
