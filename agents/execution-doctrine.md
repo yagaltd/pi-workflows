@@ -9,7 +9,7 @@ A worker settling is NOT completion. The task's `✅` in plan.md is written
 **only after a reviewer verdict `ok:true`** — mechanical stage first, then
 judgment:
 
-```
+```text
 worker → reviewer in ONE graph call (`needs` edge) → verdict
    reviewer fires mechanically when the worker settles — no orchestrator turn between
    ok:true → orchestrator runs tooling/verify-landing.sh --branches subagents/* <repo> <allowed>... < claims.txt (tripwire)
@@ -22,6 +22,7 @@ worker → reviewer in ONE graph call (`needs` edge) → verdict
 ```
 
 Rules:
+
 - **Done-when assertion duty**: the worker's final report asserts each
   Done-when line individually — every line in the contract's Completion
   Criteria gets its own assertion plus the evidence that satisfies it. A
@@ -42,13 +43,15 @@ Rules:
   only after mechanical ok:true.
 - **Degradation — tdd-guard absent**: the TDD task shape's test-quality
   layer is agent-spec's `tdd-guard` verifier
-  (`agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`).
+
+(`agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`).
   tdd-guard not installed ⇒ agent-spec reports SKIP for every scenario,
   never PASS: the legacy single-worker shape (sequential worker→reviewer,
   no tester wave, no coverage gate) applies and the skip is stated
   LOUDLY — in the dispatch text and LOG.md — never a silent pass. A
   standalone run is `tdd-guard lint` / `tdd-guard verify --spec <spec>`;
   gaming, weakening and drift checks stay uncovered (DEC-003 accepted risk).
+
 - **Quality-reviewer placement — per-task, gated, never per-wave.**
   Dispatch a quality-reviewer as a standalone follow-up AFTER the
   mechanical reviewer returns `ok:true` — it cannot be a `needs` node
@@ -65,7 +68,8 @@ Rules:
 - In parallel waves: parse each task's verdict from the reviewer's output;
   run fix rounds for every ok:false before advancing the wave.
 - **Tripwire (verify-landing.sh) runs after every claimed-done write task**
-  — the orchestrator runs `tooling/verify-landing.sh --branches subagents/* <repo> <allowed>...`
+  — the orchestrator runs
+`tooling/verify-landing.sh --branches subagents/* <repo> <allowed>...`
   with claimed files on stdin. The tripwire accepts branch evidence: S1
   passes on a dirty main tree OR an allowed-scoped non-empty task branch
   (`subagents/<run>/<task>`), never on branch existence alone — an
@@ -74,6 +78,7 @@ Rules:
   per-task cwd. Fake work is never reviewed. The script's `--selftest` mode
   is the authoritative verification for fixture-based contract scenarios
   that agent-spec lifecycle cannot cover.
+
 - **Consolidated final review**: parallel waves no longer share a single
   tree — each write task lands on its own `subagents/<run>/<task>` branch,
   and that per-task branch diff (`git diff <base>..<branch>`) is the review
@@ -169,6 +174,7 @@ The verdict file is the fixer's input and `/review`'s audit trail.
 ## Live-smoke layer (UI-facing plans only)
 
 Unit-green ≠ working. Two real-world escapes from plan 20260822-002:
+
 - **F1 form-persist**: unit tests passed, but submitted form data vanished
   on refresh — no persistence binding wired.
 - **F2 stale-serve**: dev server returned cached builds after code changes
@@ -176,6 +182,7 @@ Unit-green ≠ working. Two real-world escapes from plan 20260822-002:
 
 UI-facing plans include a dedicated live-smoke task (worker role, dispatched
 as a standalone task after all other tasks pass mechanical review):
+
 - Start the dev server, drive the real product with a browser (agent-browser
   or equivalent), and record observed states honestly.
 - Failures are findings — never rationalized away or softened.
@@ -255,7 +262,7 @@ worker's output directly). Re-review rounds after a fix re-dispatch the
 reviewer standalone (single-task form, no `needs`).
 
 For wave reviewers (verdicts per task), the task text must end:
-"Report per task: TASK <n>: ok <true|false> + findings. End with one
+"Report per task: TASK `<n>`: ok <true|false> + findings. End with one
 Verdict block per task."
 
 ## Fix-round dispatch shape
@@ -303,7 +310,7 @@ dispatches misfired with the SAME class before the pattern was named.
 Classify every misfire before re-dispatching — the class decides the fix.
 
 | # | Class | Signature | Fix |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | wrong-artifact | Output exists but wrong shape/location (e.g. plan doc where code was asked) | Re-dispatch with explicit artifact path + format |
 | 2 | budget-exhaustion | stopReason=length; reasoning ate the budget before the first write | Explicit line budget + "write early" instruction |
 | 3 | capability-gap | Model/thinking route lacks what the task needs (tool schema missing, thinking level unsupported) | Change model/thinking at dispatch — never retry same route |
@@ -425,7 +432,7 @@ escalation channel). When a HELP wakes you (inside an await or a notice):
 ### Escalation matrix
 
 | Signal in HELP / observation | Response |
-|---|---|
+| --- | --- |
 | contract ambiguity, two readings | **unblock**: you pick the reading, note it as an errata to the spec |
 | missing dependency outside Allowed | **narrow** (make it optional + spec errata) or **abort** (spec is wrong) |
 | repeated technical failure, coherent report | **escalate** — re-dispatch shape below |
@@ -491,5 +498,6 @@ Prompt-eval runs (`.workflows/evals/`) trigger kaizen by two modes:
   any change.
 
 Autonomy boundary: measurement autonomous — the eval loop runs and
-records scores without asking. Triggered corrective plans need human approval before execution. Scores are committed data (`!.workflows/evals/`
+records scores without asking. Triggered corrective plans need human approval
+before execution. Scores are committed data (`!.workflows/evals/`
 is whitelisted in .gitignore); never discard or rewrite recorded history.

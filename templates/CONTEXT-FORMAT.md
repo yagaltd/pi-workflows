@@ -1,6 +1,7 @@
 # .workflows/CONTEXT.md Format
 
-.workflows/CONTEXT.md is a **glossary of domain terms**, nothing else. No implementation details, no specs, no scratch notes.
+.workflows/CONTEXT.md is a **glossary of domain terms**, nothing else. No
+implementation details, no specs, no scratch notes.
 
 ## Format
 
@@ -16,11 +17,15 @@ Related terms: [Related Term], [Other Term]
 ## Rules
 
 1. **One entry per domain term** — not per file, class, or function
-2. **No implementation details** — don't describe how it's coded, only what it means
+2. **No implementation details** — don't describe how it's coded, only what it
+   means
 3. **Definitions are concise** — 1-3 sentences max per term
-4. **Relationships between terms** — use `Related terms:` to link related concepts
-5. **Create lazily** — only add a term when it comes up in conversation or a decision depends on it
-6. **Update when terms change** — if a term's meaning shifts during development, update the entry
+4. **Relationships between terms** — use `Related terms:` to link related
+   concepts
+5. **Create lazily** — only add a term when it comes up in conversation or a
+   decision depends on it
+6. **Update when terms change** — if a term's meaning shifts during development,
+   update the entry
 
 ## Example
 

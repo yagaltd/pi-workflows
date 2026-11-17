@@ -23,6 +23,7 @@ broke; 5-whys asks *why the system let it break*.
 ```
 
 Rules:
+
 - Every "why" must be **verifiable against evidence** (code, tests, logs,
   git history) — not speculation. A why you can't check is a hypothesis,
   treat it as one.
@@ -46,7 +47,7 @@ before converging on one. The point is rotating lenses so one mindset
 black, sanity-check with red, then blue to converge:
 
 | Hat | Lens | Ask |
-|---|---|---|
+| --- | --- | --- |
 | ⚪ White | Facts | What does the evidence (code/docs/benchmarks) actually say? |
 | 🟢 Green | Alternatives | What radically different approach exists? (this is where /prototype variations come from) |
 | 🟡 Yellow | Benefits | What's genuinely good about this option — best case? |
@@ -55,6 +56,7 @@ black, sanity-check with red, then blue to converge:
 | 🔵 Blue | Process | What's the next concrete step — prototype, decide, or discard? |
 
 Rules:
+
 - **One hat at a time** — mixing "it's good BUT risky" is how options get
   muddled.
 - Green before yellow/black — generate first, judge second.
@@ -70,7 +72,7 @@ task ordering (`/plan`), scope cuts (`/amend`, `/explore` kill/pivot calls).
 
 **Protocol:** score each option, place it, act per quadrant:
 
-```
+```text
                  High impact
                      │
      BIG BETS        │   QUICK WINS
@@ -84,6 +86,7 @@ task ordering (`/plan`), scope cuts (`/amend`, `/explore` kill/pivot calls).
 ```
 
 Rules:
+
 - **Impact** = evidence-backed movement on the goal / contract criteria
   (benchmark delta, scenario coverage, risk removed) — never "feels
   important".
@@ -101,7 +104,7 @@ make them comparable first or don't pretend to score them.
 
 ## How they compose
 
-```
+```text
 generate options (Green) → score (White) → place (Impact×Effort)
 → de-risk Big Bets (/prototype) → grill the survivors (decision tree)
 → fix recurrence with Five Whys when things break anyway

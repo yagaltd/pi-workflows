@@ -21,7 +21,7 @@ execution time; without the extension, the orchestrator reads and pastes
 `agents/<name>.md` itself.
 
 | id | prompt file | toolset | model | thinking default |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | scout | `agents/scout.md` | read-only (`write: false`) | inherit parent | low |
 | worker | `agents/worker.md` | `write: true` | inherit parent | medium |
 | tester | `agents/tester.md` | `write: true`, test-files-only — writes only test files carrying the spec's exact `Test:` selectors (RED-for-new-selectors is the success signal) | `@model:standard` | medium |
@@ -45,7 +45,7 @@ model's thinking level map) **per task**. Drive them from the task's
 bottleneck tag in `.workflows/plan.md`:
 
 | Bottleneck | Tier | model | thinking | extra |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 🔴 BLOCKING | C or B (per plan) | `@model:strong` | xhigh | human review after |
 | 🟡 RISKY | B | `@model:strong` | high | consider prototype first |
 | 🔵 TIME_CONSUMING | B | `@model:standard` | medium | split if it stalls |
@@ -60,7 +60,8 @@ Tier refines routing:
 
 - **A** → `@model:standard` + thinking low + grep-only review (one `Verify:`
   line suffices — no reviewer node) or orchestrator-inline
-- **B** → `@model:standard` + thinking high + existing per-tag routing above, unchanged
+- **B** → `@model:standard` + thinking high + existing per-tag routing above,
+  unchanged
   (the model and thinking must be spelled out: the dispatcher resolves this
   table mechanically and a row without them leaves every Tier B task
   undispatched — gate: `tests/extension.test.ts`)
@@ -88,10 +89,11 @@ The orchestrator resolves `@model:<role>` in this order:
    naming the role and the fallback — **never silent**:
 
 - `@model:strong` → `` `deepseek/deepseek-v4-pro` `` (fallback constant)
-- `@model:standard`, `@model:scout` → `` `openrouter/~deepseek/deepseek-flash-latest` ``
+- `@model:standard`, `@model:scout` →
+  `` `openrouter/~deepseek/deepseek-flash-latest` ``
   (fallback constant)
 
-```
+```text
 WARN: @model:<role> unresolvable — falling back to <legacy-id>
 ```
 
@@ -124,7 +126,7 @@ the reviewer's cost, never its existence: **every tier requires a reviewer
 verdict for ✅** (doctrine #7 unchanged).
 
 | Tier | Traits (from spec) | reviewer model | reviewer thinking | pass shape |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | docs-tier | pure docs / test-data / spec-only — no production code touched | `@model:standard` | low | one mechanical pass |
 | standard-tier | ordinary code tasks (default) | inherit parent | medium–high | standard mechanical pipeline |
 | high-risk-tier | security, concurrency, parsing, external input, crypto | `@model:strong` | xhigh | full mechanical pipeline + adversarial depth |

@@ -7,17 +7,22 @@ argument-hint: "<what to plan, or path to exploration output>"
 
 # Plan Workflow
 
-Decompose work into atomic tasks with verifiable contracts. Each worker task gets a `.spec` file upfront that defines Intent, Decisions, Boundaries, and Completion Criteria.
+Decompose work into atomic tasks with verifiable contracts. Each worker task
+gets a `.spec` file upfront that defines Intent, Decisions, Boundaries, and
+Completion Criteria.
 
 ## Phase 1: UNDERSTAND
 
 Gather enough context to plan well.
 
-1. **What's the goal?** Read what the human described. If vague, ask 1-2 clarifying questions max.
+1. **What's the goal?** Read what the human described. If vague, ask 1-2
+   clarifying questions max.
 2. **What exists already?**
-   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`,
+     `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - If the human pointed at a repo: read exploration output (`/explore`)
-   - If the human pointed at URLs: read them with `bash` (`curl -sL <url> | head -500`)
+   - If the human pointed at URLs: read them with
+     `bash` (`curl -sL <url> | head -500`)
    - If there's an existing exploration doc: read it
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
@@ -32,41 +37,55 @@ Gather enough context to plan well.
 
 ### Structured Interview (in chat)
 
-After analyzing the codebase, domain memory, ADRs, and understanding the goal, interview the human in chat. Ask only decisions that remain unresolved after evidence gathering.
+After analyzing the codebase, domain memory, ADRs, and understanding the goal,
+interview the human in chat. Ask only decisions that remain unresolved after
+evidence gathering.
 
 Ask about:
-- Framework / library choices (offer options with a `recommended` from your analysis)
+
+- Framework / library choices (offer options with a `recommended` from your
+  analysis)
 - Feature scope (which essentials are in/out)
 - Testing strategy preference (map from bottleneck analysis)
-- Model / thinking preferences for critical tasks (only when it changes cost materially)
+- Model / thinking preferences for critical tasks (only when it changes cost
+  materially)
 - Constraints (deadline, budget, compatibility)
 - Open questions (anything structured options miss)
 
-Treat decisions that affect architecture as critical; style preferences as minor.
-Have strong conviction when the codebase gives a clear answer; slight when multiple options are reasonable.
+Treat decisions that affect architecture as critical; style preferences as
+minor.
+Have strong conviction when the codebase gives a clear answer; slight when
+multiple options are reasonable.
 
 ### Interview → Spec Map Mapping
 
 Use interview responses to pre-fill the Spec Map:
+
 - Framework choice → determines worker toolchain assumptions
 - Feature scope → determines task list and dependencies
 - Testing preference → fills Testing Strategy column
 - Constraint answers → may promote tasks to 🔴 BLOCKING or 🟡 RISKY
 
-🛑 **GATE**: Do you understand the goal well enough to plan? If not, explore more first.
+🛑 **GATE**: Do you understand the goal well enough to plan? If not, explore
+more first.
 
 ## Phase 2: DECOMPOSE
 
-Break the goal into atomic tasks. Each task that involves code changes gets a contract.
+Break the goal into atomic tasks. Each task that involves code changes gets a
+contract.
 
-### What makes a task atomic:
+### What makes a task atomic
+
 - **One agent can do it** — no coordination needed mid-task
-- **Input is unambiguous** — exact files, exact behavior, exact acceptance criteria
-- **Output is verifiable** — test passes, contract satisfied, lint clean, build succeeds
+- **Input is unambiguous** — exact files, exact behavior, exact acceptance
+  criteria
+- **Output is verifiable** — test passes, contract satisfied, lint clean, build
+  succeeds
 - **Failure is isolated** — doesn't block unrelated tasks
 - **15-45 minutes of work** — if bigger, split further
 
-### Task types:
+### Task types
+
 - **scout** — read-only reconnaissance, no code changes, no contract needed
 - **worker** — builds/fixes/refactors code, REQUIRES a contract
 - **human** — decision point, no contract needed
@@ -77,16 +96,21 @@ the reviewer automatically for every task (verdict gating + fix rounds), and
 scan, quality judgment) at SHIP. Do NOT create plan-level "verify" or
 "quality review" tasks — they duplicate the gate chain.
 
-### Decomposition rules:
+### Decomposition rules
+
 1. **Scout before build** — always understand before changing
-2. **One concern per task** — don't bundle "add cache module" + "add cache to handler"
+2. **One concern per task** — don't bundle "add cache module" + "add cache to
+   handler"
 3. **Independent tasks can be parallel** — mark them: `[PARALLEL-GROUP: A]`, `[PARALLEL-GROUP: B]`, etc. Tasks in the same group run concurrently via pi-core-subagent (`tasks[]` in one subagent call). Groups execute as waves: all tasks in group A must finish before group B starts. **Tasks in the same parallel group MUST have disjoint `Allowed Changes` sets** — parallel subagents share one filesystem (no worktrees); overlapping boundaries → resequence with a dependency instead.
 4. **Sequential dependencies are explicit** — TASK 5 depends on TASK 4
-5. **Human tasks are real** — if you need a decision, make it a human task, don't guess
-6. **Plans end at build tasks (+ optional docs task)** — final verification is `/review`'s job, not a plan task
+5. **Human tasks are real** — if you need a decision, make it a human task,
+   don't guess
+6. **Plans end at build tasks (+ optional docs task)** — final verification is
+   `/review`'s job, not a plan task
 
-### Task ordering:
-```
+### Task ordering
+
+```text
 SCOUT tasks first (understand the codebase)
   ↓
 PLAN review (human approves)
@@ -101,8 +125,10 @@ DOCS task (optional — generate/update docs)
 SHIP (human approves: commit + archive)
 ```
 
-### Docs task (optional):
+### Docs task (optional)
+
 For significant features, include a docs task:
+
 - **Agent**: worker (cheap model via `/docs` command)
 - **What**: Generate/update `.workflows/docs/architecture.md` with what changed
 - **Why**: ensures architecture docs stay current after significant changes
@@ -123,7 +149,8 @@ When a task's approach is unproven (the adversarial pass flagged it 🟡, or
 the integration seam is unmapped), the plan decomposes it as
 `prototype → impl` instead of one open-ended task:
 
-- **The prototype is a first-class task type in plan.md** — `TASK <N>p (prototype)` —
+- **The prototype is a first-class task type in plan.md** —
+  `TASK <N>p (prototype)` —
   dispatched BEFORE the impl task it informs, with **its own spec** and the
   standard worker→reviewer loop. Same pipeline as every other task; no
   special verdict format, no separate VERDICT.md file.
@@ -150,12 +177,13 @@ the integration seam is unmapped), the plan decomposes it as
 ### Bottleneck Tags
 
 Tag every task with a bottleneck indicator. Drive the tags from the Impact ×
-Effort matrix (templates/THINKING-TOOLS.md §3 — package templates/, two dirs up from this skill): Quick Wins (high impact, low
+Effort matrix (templates/THINKING-TOOLS.md §3 — package templates/, two dirs up
+from this skill): Quick Wins (high impact, low
 effort) → ⚪ STANDARD; Big Bets (high, high) → 🟡 RISKY (prototype first) or
 🔴 BLOCKING when on the critical path; verification-heavy Big Bets → 🟠.
 
 | Tag | When | Implication |
-|---|---|---|
+| --- | --- | --- |
 | 🔴 BLOCKING | Others depend on this. Must succeed first. | Use strongest model, human review after |
 | 🟡 RISKY | Approach uncertain. Might fail. | **Prototype task first** (see Prototype tasks), then build |
 | 🔵 TIME_CONSUMING | Large scope but straightforward. | Break into smaller steps |
@@ -167,7 +195,7 @@ effort) → ⚪ STANDARD; Big Bets (high, high) → 🟡 RISKY (prototype first)
 Assign a testing strategy per task based on code type:
 
 | Code type | Strategy | When to use |
-|---|---|---|
+| --- | --- | --- |
 | API endpoint / CLI command | example-based (agent-spec BDD) | Most tasks |
 | Domain logic (math, parsing, transformation) | property-based (fast-check, proptest) | Pure functions |
 | External input handler | fuzz + example-based | Parsing user data |
@@ -187,27 +215,36 @@ Assign a testing strategy per task based on code type:
   document with different layout"; the human's own words arrived only at
   live review and retired 2,200 lines.
 
-- Use glossary terms from `.workflows/CONTEXT.md` in task titles, specs, and test names.
-- If user language conflicts with `.workflows/CONTEXT.md`, call it out before planning.
-- If requested design contradicts an ADR, flag the conflict and ask before proceeding.
-- If a durable domain term is clarified, update `.workflows/CONTEXT.md` or note that it should be created from `templates/CONTEXT.md`.
-- Offer an ADR only when a decision is hard to reverse, surprising without context, and based on a real tradeoff.
+- Use glossary terms from `.workflows/CONTEXT.md` in task titles, specs, and
+  test names.
+- If user language conflicts with `.workflows/CONTEXT.md`, call it out before
+  planning.
+- If requested design contradicts an ADR, flag the conflict and ask before
+  proceeding.
+- If a durable domain term is clarified, update `.workflows/CONTEXT.md` or note
+  that it should be created from `templates/CONTEXT.md`.
+- Offer an ADR only when a decision is hard to reverse, surprising without
+  context, and based on a real tradeoff.
 
 ### Task Tiers
 
-Every worker task is sized into one of three tiers; the tier decides routing (model/thinking), review depth, and parallelism.
+Every worker task is sized into one of three tiers; the tier decides routing
+(model/thinking), review depth, and parallelism.
 
 | Tier | Size | Routing & review | Parallelism |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Tier A — mechanical** | ≤20 lines changed, single file, grep-able done | `@model:standard` + thinking low; review = grep-only tier OR the task's `Verify:` line (exit code + git diff — Graph Protocol §9: verification command, never self-report); or **orchestrator-inline** — don't dispatch at all when the subagent round-trip costs more than the edit | any group |
 | **Tier B — bounded** | module + tests under contract, one concern | `@model:standard` (⚪/🔵/🟠) or `@model:strong` (🟡/🔴) per bottleneck tag; full mechanical review pipeline | any group |
 | **Tier C — spike/architecture** | verdict artifact required | `@model:strong` + thinking high; serial, **never in a parallel group**; zero production files unless the verdict says GO | serial only |
 
-- **Tier A explicitly includes the orchestrator-inline option** — when the subagent round-trip costs more than the edit, don't dispatch; do the edit yourself in the orchestrator.
+- **Tier A explicitly includes the orchestrator-inline option** — when the
+  subagent round-trip costs more than the edit, don't dispatch; do the edit
+  yourself in the orchestrator.
 - **Tiers are written next to tasks, not inferred** — every task carries its tier in plan.md (e.g. `TASK 3 (Tier B 🟡)`), and the tier is decided in the adversarial pass (phase 3 of the Drafting Pipeline), never by the worker.
-- **Prototype tasks carry `(prototype)` instead of a tier** (e.g. `TASK 2p (prototype)`) — Tier C routing rules apply (strong model, thinking high, serial), plus their own spec and standard review loop (see Prototype tasks above).
-
-
+- **Prototype tasks carry `(prototype)` instead of a tier** (e.g.
+  `TASK 2p (prototype)`) — Tier C routing rules apply (strong model, thinking
+  high, serial), plus their own spec and standard review loop (see Prototype
+  tasks above).
 
 ## Phase 3: WRITE PLAN
 
@@ -217,11 +254,13 @@ Ensure the `.workflows/` directory exists:
 mkdir -p .workflows
 ```
 
-Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder — they will be generated after approval in Phase 5.
+Write the plan to `.workflows/plan.md`. Contracts are listed by placeholder —
+they will be generated after approval in Phase 5.
 
-Draft guidance: proposals follow `templates/PROPOSAL-FORMAT.md` (pi-workflows package: templates/ two dirs up from this skill) — the Refactor assessment and Docs impact sections are mandatory (the archive gate reads the Docs impact declaration at SHIP).
-
-
+Draft guidance: proposals follow `templates/PROPOSAL-FORMAT.md` (pi-workflows
+package: templates/ two dirs up from this skill) — the Refactor assessment and
+Docs impact sections are mandatory (the archive gate reads the Docs impact
+declaration at SHIP).
 
 ```markdown
 # Plan: <goal>
@@ -324,18 +363,23 @@ resolved here — token grammar: `done(<task-ref>)` / `closed(<reason>)` /
 ## Execution Notes
 <filled in as tasks are completed — includes cost, duration, and learnings per task>
 ```
+
 🛑 **GATE**: Present the plan to the human. Do NOT proceed without approval.
 
 ## Drafting Pipeline
 
-The plan is drafted in five phases on evidence, not memory; only the last phase is interactive.
+The plan is drafted in five phases on evidence, not memory; only the last phase
+is interactive.
 
 1. **Scout** — facts-on-disk artifact `.workflows/scout/<plan-id>.md`: grep evidence, file paths with line anchors, API/vendor realities, existing-convention citations. Facts only — never summaries. (Reusable for every downstream phase; commit-adjacent, lives under `.workflows/` like specs.)
 2. **Draft** — a subagent (`@model:strong`, thinking high) receives the scout facts + user goal + this SKILL.md format → writes the plan draft. **Grounding rule**: every Context claim must cite a scout fact (`file:line`) — uncited claims get flagged in phase 3.
 3. **Adversarial + SPLIT/RISK pass** — orchestrator, challenge-skill discipline: walk every decision; single-surface inventory ("does this plan create a second path to X?"); per task: "can it be smaller? which tier? where's the integration seam?" — split or resequence accordingly. Rationale on record: dependency-partitioned graphs beat flat fan-out (+14% pass, −35% cost — pi-core-subagent "Why waves"); static ties dynamic when structure is known up front — which this pass produces. Adjust the draft directly; the draft is never dispatched unreviewed.
-     **Value/impact matrix**: for every task ask "what is the cheapest path to the
-     user-visible outcome?" — delete or inline tasks that only serve the design (Tier A
-     orchestrator-inline exists precisely for this); a plan that survives this pass is
+     **Value/impact matrix**: for every task ask "what is the cheapest path to
+the
+     user-visible outcome?" — delete or inline tasks that only serve the design
+(Tier A
+     orchestrator-inline exists precisely for this); a plan that survives this
+pass is
      minimal, not just decomposed.
 4. **Spec drafting fan-out** — one spec-drafter subagent per decision (`@model:standard`, thinking high): inputs = decision verbatim + the scout-fact slices that concern it + boundaries + spec name. Orchestrator mechanically reviews each spec: every decision clause appears as a Completion Criterion; criteria grep-able or runnable; **every scenario carries an explicit `Test:` selector** (restated unchanged — the rule stands: selectors are exact, the tester writes Wave A's failing tests from them verbatim, and only selector-complete build tasks can carry the `tdd:` flag); Allowed/Forbidden explicit and **disjoint across sibling specs** (shared-worktree rule: `git diff`-style criteria must be task-scoped). **Pre-dispatch git-dirty whitelist:** before any spec-drafter subagent dispatches, the orchestrator enumerates a deterministic shared-worktree **whitelist** so a dirty working tree is never a false blocker — sibling spec outputs are never violations by definition; the concrete enumerated whitelist is `M .workflows/LOG.md`, `M .workflows/plan.md`, `?? .workflows/specs/*.spec`. Only changes outside this whitelist count against the gate (e.g. stray edits to `src/` or other tasks' specs).
    **Prototype two-stage rule**: when the plan contains prototype tasks, only
@@ -343,13 +387,15 @@ The plan is drafted in five phases on evidence, not memory; only the last phase 
    now. Impls that consume a prototype's findings get their specs drafted
    AFTER that prototype's reviewer verdict — evidence = verdict + spike
    artifacts — followed by the human approval gate re-presenting the plan.
-5. **Human approval gate** — unchanged: nothing dispatches before user approval. With prototype tasks, the gate fires twice: once to dispatch the prototypes, once (with prototype evidence attached) to confirm the impls.
+5. **Human approval gate** — unchanged: nothing dispatches before user approval.
+   With prototype tasks, the gate fires twice: once to dispatch the prototypes,
+   once (with prototype evidence attached) to confirm the impls.
 
 ## Phase 4: REVIEW WITH HUMAN
 
 Present a compact summary:
 
-```
+```text
 ## Plan: <goal>
 ## <N> tasks, <M> contracts, <P> parallel groups, estimated <X> sequential steps
 
@@ -376,6 +422,7 @@ Present a compact summary:
 ```
 
 Ask the human:
+
 - Tasks right granularity?
 - Bottleneck tags accurate?
 - Testing strategies appropriate?
@@ -383,14 +430,16 @@ Ask the human:
 - Any missing?
 - Approve to start execution?
 
-### Wave execution summary:
-```
+### Wave execution summary
+
+```text
 Wave 0: TASK 1 (scout)
 Wave 1: TASK 2 + TASK 3 (parallel, PARALLEL-GROUP: A)
 Wave 2: TASK 4 (depends on wave 1)
 Wave 3: TASK 5 (docs — optional)
 → /review (final gate + SHIP)
 ```
+
 All tasks in a wave must complete before the next wave starts. `/next` enforces this. Verification runs per task (verdict gating) and once more at `/review` on the integrated whole.
 
 ## Triage step (before contracts)
@@ -458,10 +507,15 @@ explicit `Test:` selector, boundaries list exact paths, optional
 for a task's Allowed Changes files, populate the `## Applicable contracts`
 section in its spec from `cc-check list` output.
 
-For plans with **≥2 waves**, the default path is the spec-drafter fan-out from the
+For plans with **≥2 waves**, the default path is the spec-drafter fan-out from
+the
 Drafting Pipeline; the fallback is hand-writing the specs.
 
-**Judge pre-flight (plan 20261025-017) — one judge call per drafted contract, before the approval ask**: Phase 5 ends by presenting the generated contracts to the human. Before that approval ask, run the judge pre-flight: ONE judge call per drafted contract, findings fed back to the spec drafter as fix rounds, re-run after fixes — only then the approval ask.
+**Judge pre-flight (plan 20261025-017) — one judge call per drafted contract,
+before the approval ask**: Phase 5 ends by presenting the generated contracts to
+the human. Before that approval ask, run the judge pre-flight: ONE judge call
+per drafted contract, findings fed back to the spec drafter as fix rounds,
+re-run after fixes — only then the approval ask.
 
 ### Step 1 — write the question file (one per contract)
 
@@ -502,7 +556,8 @@ a contract, and agent-spec lint stays the mechanical authority.
 
 ### Step 5 — NO-JUDGE degradation
 
-`JUDGE SKIPPED` (missing `TYPESAFE_API_KEY` — env or `~/.pi/agent/auth.json` — or unreachable endpoint) is
+`JUDGE SKIPPED` (missing `TYPESAFE_API_KEY` — env or `~/.pi/agent/auth.json` —
+or unreachable endpoint) is
 the tested default path: the skip prints loudly and lands in the audit
 file, and you proceed straight to the approval ask. The judge informs the
 human gate; it never is the gate — the approval ask is unchanged.
@@ -589,7 +644,7 @@ proceed to handoff.
 
 Once approved, tell the human:
 
-```
+```text
 Plan approved. Execute with:
   /next    → run the next pending task (verdict-gated, fix rounds on reject)
   /status  → show plan progress + cost summary
@@ -605,16 +660,24 @@ Or run tasks manually:
 
 ## Rules
 
-- **Plans are living documents** — update `.workflows/plan.md` as you learn. Mark tasks done. Add notes.
-- **Plans change** — if TASK 3 reveals that TASK 4 needs different scope, update the plan AND its contract. Don't silently deviate.
-- **Every worker task has a contract** — if you can't write a contract, the task isn't atomic enough.
-- **Contracts are validated before execution** — `/next` checks if the spec is still valid given completed work, and updates it if needed.
-- **Scout first, always** — even if the human says "just build it." One scout task saves three rework tasks.
-- **Contracts are reviewed, not code** — the human approves the contract. The machine verifies the implementation.
+- **Plans are living documents** — update `.workflows/plan.md` as you learn.
+  Mark tasks done. Add notes.
+- **Plans change** — if TASK 3 reveals that TASK 4 needs different scope, update
+  the plan AND its contract. Don't silently deviate.
+- **Every worker task has a contract** — if you can't write a contract, the task
+  isn't atomic enough.
+- **Contracts are validated before execution** — `/next` checks if the spec is
+  still valid given completed work, and updates it if needed.
+- **Scout first, always** — even if the human says "just build it." One scout
+  task saves three rework tasks.
+- **Contracts are reviewed, not code** — the human approves the contract. The
+  machine verifies the implementation.
 - **No model marks its own work done** — a task's ✅ comes only from a reviewer verdict `ok:true` (mechanical before judgment). Rejections trigger bounded fix rounds (worker role + rejection evidence verbatim), capped at the spec's `max-rounds` (default 2); reviewers verify, never fix; verdicts persist to `.workflows/reviews/<task-id>.md`.
 - **Keep the human in the loop** — present after planning, not after building.
-- **Bottleneck tags guide execution** — they tell /next which model/thinking to use.
-- **Testing strategy is pre-assigned** — the worker follows the strategy, doesn't guess.
+- **Bottleneck tags guide execution** — they tell /next which model/thinking to
+  use.
+- **Testing strategy is pre-assigned** — the worker follows the strategy,
+  doesn't guess.
 - **Parallel groups execute as waves** — all tasks in a wave must finish before the next wave starts. `/next` enforces this. Within a wave, tasks run as one pi-core-subagent call (`tasks[]`, disjoint boundaries required); model and thinking per task come from the bottleneck tag via `agents/registry.md`.
 
 ## Standing decisions

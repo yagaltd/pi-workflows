@@ -7,7 +7,8 @@ stale_after: 2026-11-28
 # Docs canon
 
 This repository's documentation standard, adapted from lore-style documentation
-engineering (origin note: EpicGames/lore doc-standards canon, adapted upstream by
+engineering (origin note: EpicGames/lore doc-standards canon, adapted upstream
+by
 agent-spec). It governs every Markdown file a human or agent reads in this repo.
 
 ## Doc types (Diátaxis mapping)
@@ -21,6 +22,7 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 | `docs/**` | reference + explanation | Guides, architecture, decision context |
 | `docs/adr/**` | decision records | One ADR per architectural decision |
 | `.workflows/archive/**` | decision records | Closed plans, with rationale |
+| `.workflows/decisions/**` | decision records | Standing `DEC-xxx` rulings |
 | `.workflows/specs/**` | executable contracts | Per-task contracts, ephemeral |
 
 ## Rules
@@ -37,7 +39,8 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
    claim-to-gate scan, plan 20261025-018). If a sentence obligates an agent —
    do X, or avoid X — the same doc names the check that proves it: a command,
    a grep, or a verdict file.
-5. **Machine truth and human prose live apart.** `.workflows/specs` + `@cc` carry
+5. **Machine truth and human prose live apart.** `.workflows/specs` +
+   `@cc` carry
    machine-checkable truth; `docs/` carries reader-facing prose. Never duplicate
    one in the other.
 6. **@cc is seam-only.** Place an `@cc` contract at a new seam when the code

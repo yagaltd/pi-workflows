@@ -12,7 +12,7 @@ structures the conversation into a durable, versioned research ledger;
 read-only subagents fetch evidence on demand. Nothing is built, specced, or
 committed to beyond the ledger.
 
-```
+```text
 chat rounds (diverge ↔ challenge ↔ associate)
   → ledger update (agent is the single writer)
   → on demand: research subagents (web / repo / synthesis)
@@ -30,7 +30,7 @@ specs, no contracts, no code.
 One folder per brainstorm topic. `<slug>` = 2-4 short hyphenated words from
 the topic. Contents over time:
 
-```
+```text
 .workflows/research/<slug>/
   ledger.md              the living research tree (markdown)
   report-<NN>-<slug>.md  research subagent reports (evidence, numbered R1..)
@@ -238,7 +238,7 @@ frontier top-3, and propose where to pick up.
 - **Single writer.** Subagents report; the agent writes ledger/reports.
 - **Evidence-gated statuses.** ✅/❌ only with a cited `[R#]`/`[S#]`.
 - **Lead with your recommendation.** Every question to the human carries
-  Recommended + Evidence + "if you don't care, I'll proceed with <default>".
+  Recommended + Evidence + "if you don't care, I'll proceed with `<default>`".
 - **Kill fast, kill cheap.** The cheapest evidence that invalidates a
   branch is the best research you can run.
 - **Timebox rounds.** Minutes per round, not hours; the human can leave

@@ -12,7 +12,7 @@ contracts will later enforce. Nothing here builds features — it produces
 an approved architecture, an approved folder tree, the charter, the
 project profile, and doc skeletons, then hands off to `/plan`.
 
-```
+```text
 Phase 1 DECIDE  → stack/domain decisions (grill protocol)
 Phase 2 DESIGN  → architecture: modules, boundaries, data flow, ADRs
 Phase 3 TREE    → folder tree proposal → approval → architecture.md seeded
@@ -46,7 +46,7 @@ Produce a compact architecture design:
 Propose the folder tree — the thing contract Boundaries will later derive
 from:
 
-```
+```text
 src/
   <module-a>/     # <responsibility>
   <module-b>/     # <responsibility>
@@ -55,6 +55,7 @@ docs/             # if the user wants user-facing docs (see DOCS-POLICY)
 ```
 
 Tree rules:
+
 - Every directory maps to a module from Phase 2 (no junk drawers)
 - Tests mirror src/ layout
 - `.workflows/` exists for workflow state (gitignore it unless the team
@@ -108,7 +109,8 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    rust-port); web frontend → modern-web-guidance + impeccable/audit;
    Cloudflare Workers → the workers skill family + security-audit. When the
    stack is not yet known (greenfield, pre-detection), skip the review-pointer
-   family citation — do not guess. Verification pointers in the charter cite the project's
+   family citation — do not guess. Verification pointers in the charter cite the
+project's
    actual commands — when the dev environment defines mise tasks (step 7
    below), the charter's test/check pointers cite `mise run check` and
    `mise run verify` so agents execute the same tasks gates run. Every
@@ -135,7 +137,8 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 4. **README skeleton**: create per `templates/DOCS-POLICY.md` — title,
    one-paragraph description, install/build/test placeholders. (Full docs
    come from `/docs` when there's something real to document.)
-5. Append to `.workflows/LOG.md`: `<date> INIT — architecture + tree approved, scaffolded, profile linted`
+5. Append to `.workflows/LOG.md`:
+   `<date> INIT — architecture + tree approved, scaffolded, profile linted`
 6. **Charter probe**: VERIFY the scaffold finished — `test -f AGENTS.md` at the
    project root. If missing, FAIL LOUDLY: name the missing path
    (`AGENTS.md at <project root>`) and the remediation — run the charter step
@@ -195,7 +198,7 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    destinations and render the classification table in chat:
 
    | Note records... | Destination |
-   | --- | --- |
+| --- | --- |
    | A decision + its rationale | `.workflows/decisions/ADR-NNNN-<slug>.md` (with date, status, context, decision, consequences) |
    | Superseded / historical content | `archive/done/<area>/` |
    | Living reference material | `docs/` |
@@ -220,7 +223,8 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 10. **Hand off**: present the summary — including BOTH the model-policy
    outcome (the owner's registry picks and their provenance) AND the
    dev-environment outcome (mise.toml written and verified, native
-   pinning reported, or the loud mise-absent skip) — and point at `/plan` — its contract
+   pinning reported, or the loud mise-absent skip) — and point at `/plan` — its
+contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter (probed
    in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README

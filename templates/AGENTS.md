@@ -1,4 +1,4 @@
-<!-- TEMPLATE — copy to ./AGENTS.md at the project root, fill <placeholder>s, drop this header.
+<!-- TEMPLATE — copy to ./AGENTS.md at the project root, fill `<placeholder>`s, drop this header.
      Doctrine: AGENTS.md = CORE + POINTERS + PROJECT, hard budget 60 lines.
      It carries binding rules, one-liner facts, and pointers ONLY — maps, ADR
      bodies, and command inventories live in the pointer targets, never here.
@@ -14,7 +14,8 @@
 - TDD: write the failing test with the change, not after; keep the suite green.
 - Subtract first: prefer deleting or simplifying over adding.
 - Root causes: fix causes, not symptoms; never patch around a defect.
-- Docs discipline: docs describe current state; history lands only in CHANGELOG.md.
+- Docs discipline: docs describe current state; history lands only in
+  CHANGELOG.md.
 
 ## POINTERS
 
@@ -25,5 +26,5 @@
 
 ## PROJECT
 
-- <placeholder>: project-specific binding rules, one line each — only what
+- `<placeholder>`: project-specific binding rules, one line each — only what
   every session must always obey; detail belongs in pointer targets.

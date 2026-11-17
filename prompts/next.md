@@ -1,6 +1,7 @@
 ---
 description: "Dispatch the next pending task from .workflows/plan.md — the dispatcher selects, you dispatch and gate"
 ---
+# `/next`
 
 You are the orchestrator. You dispatch work to subagents via the
 `subagent` tool and never implement tasks yourself; which task runs

@@ -1,8 +1,11 @@
 ---
 description: "Show current .workflows/plan.md progress with contract status and cost summary"
 ---
+# `/status`
 
-Read `.workflows/plan.md` in the current project and show a compact progress summary. Also check .workflows/CONTEXT.md and .workflows/docs/adr/ for additional status:
+Read `.workflows/plan.md` in the current project and show a compact progress
+summary. Also check .workflows/CONTEXT.md and .workflows/docs/adr/ for
+additional status:
 
 ```bash
 # Check if .workflows/CONTEXT.md exists and when it was last updated
@@ -23,7 +26,7 @@ lack a `context:` marker — report as `context markers: X/Y` (Y = ✅ count).
 Missing markers mean the CONTEXT.md update step was skipped on those tasks;
 they'll be swept at `/review` SHIP.
 
-```
+```text
 ## Plan: <goal>
 ## Progress: X/N tasks done
 
@@ -61,7 +64,10 @@ they'll be swept at `/review` SHIP.
 ### Blocked: none / TASK 4 blocked by TASK 3
 ```
 
-If tasks have cost/duration data in .workflows/plan.md, show the summary. If no cost data yet, show "Cost: not tracked yet (add cost/duration to completed tasks)."
-If no .workflows/plan.md exists, say "No .workflows/plan.md found. Use /idea or /plan to create one."
+If tasks have cost/duration data in .workflows/plan.md, show the summary. If no
+cost data yet, show "Cost: not tracked yet (add cost/duration to completed
+tasks)."
+If no .workflows/plan.md exists, say "No .workflows/plan.md found. Use /idea or
+/plan to create one."
 
 $@

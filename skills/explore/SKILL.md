@@ -7,11 +7,14 @@ argument-hint: "<question or area to explore>"
 
 # Explore Workflow
 
-Research a question, gather evidence, make a confident decision. Kill bad ideas fast.
+Research a question, gather evidence, make a confident decision. Kill bad ideas
+fast.
 
 ## Phase 1: DEFINE
 
-Understand what the human needs to decide. `/explore` is for research, kill/pivot/proceed recommendations, and optional throwaway prototypes — not production planning.
+Understand what the human needs to decide. `/explore` is for research,
+kill/pivot/proceed recommendations, and optional throwaway prototypes — not
+production planning.
 
 - What question needs answering?
 - What would make them confident to **proceed** or **kill** this?
@@ -19,7 +22,8 @@ Understand what the human needs to decide. `/explore` is for research, kill/pivo
 
 **OUTPUT**: A clear question with success criteria.
 
-If the question is already clear from the argument, state it back briefly and move on. If vague, ask 1-2 clarifying questions max — don't over-interview.
+If the question is already clear from the argument, state it back briefly and
+move on. If vague, ask 1-2 clarifying questions max — don't over-interview.
 
 When you do ask, meet the grill bar (same protocol as `/idea`): the question
 must be **material** (could flip the verdict), **grounded** (cite what made
@@ -31,6 +35,7 @@ Why it matters: <how each answer changes the exploration verdict>
 Recommended: <answer> — Evidence: <files/docs>
 If you don't care: I'll proceed with <default>.
 ```
+
 Never ask what the repo/docs can answer — check evidence first.
 
 ## Phase 2: SCOUT
@@ -38,13 +43,18 @@ Never ask what the repo/docs can answer — check evidence first.
 Gather information from the codebase and any relevant sources.
 
 1. **Handle the input type**:
-   - **URL**: fetch with `bash` (`curl -sL <url> | head -1000`), extract key info
-   - **GitHub repo**: `bash` (`git clone <url> /tmp/explore-<name> && cd /tmp/explore-<name>`), then scout
+   - **URL**: fetch with `bash` (`curl -sL <url> | head -1000`), extract key
+     info
+   - **GitHub repo**:
+     `bash` (`git clone <url> /tmp/explore-<name> && cd /tmp/explore-<name>`),
+     then scout
    - **Local path**: `find`, `grep`/`rg` in the specified directory
    - **Vague description**: search current codebase + online if needed
    - **Multiple inputs** (2+ repos, URLs, or paths):
-     Use pi-core-subagent parallel mode — one read-only scout task per input, all in one call (inline prompts, no agent files):
-     ```
+     Use pi-core-subagent parallel mode — one read-only scout task per input,
+all in one call (inline prompts, no agent files):
+
+     ```text
      subagent({
        autoAwait: true,
        concurrency: 4,
@@ -61,7 +71,8 @@ Gather information from the codebase and any relevant sources.
      If the subagent tool is not available, handle each input in sequence.
 
 2. **Map the territory**:
-   - Read domain memory if present: `.workflows/CONTEXT.md`, `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
+   - Read domain memory if present: `.workflows/CONTEXT.md`,
+     `.workflows/CONTEXT-MAP.md`, relevant `.workflows/docs/adr/*.md`
    - `find`, `grep`/`rg` for relevant files, patterns, modules
    - Read key files to understand current architecture
    - Check dependencies (package.json, Cargo.toml, etc.)
@@ -89,14 +100,15 @@ findings with file:line citations, synthesis, verdict) and append a line to
 terms that crystallized go into `.workflows/CONTEXT.md`.
 
 When the exploration compares options (approaches, libraries, architectures),
-place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3 — package templates/, two dirs up from this skill)
+place each on the Impact × Effort matrix (templates/THINKING-TOOLS.md §3 —
+package templates/, two dirs up from this skill)
 before recommending: impact = evidence-backed movement on the question's
 success criteria; effort = files/deps/LOC. Kill = the option sits in Money
 Pit with no path out.
 
 Present to the human:
 
-```
+```text
 ## Exploration: <question>
 
 ### What we found
@@ -136,7 +148,8 @@ Build a minimal proof-of-concept. This is throwaway code.
 1. **Scope the prototype**: What's the minimum that proves feasibility?
 2. **Build it**: Quick and dirty. No tests needed. No polish.
 3. **Run it**: Does it work? What are the limitations?
-4. **Clean up**: If it fails, delete and report why. If it succeeds, show the human.
+4. **Clean up**: If it fails, delete and report why. If it succeeds, show the
+   human.
 
 **OUTPUT**: Working prototype or "killed — reason: ..."
 
@@ -145,8 +158,11 @@ Human decides: ship it as-is, turn it into a proper feature, or throw away.
 
 ## Rules
 
-- **Timebox**: Exploration should take minutes, not hours. If you're deep in implementation, you've gone too far.
+- **Timebox**: Exploration should take minutes, not hours. If you're deep in
+  implementation, you've gone too far.
 - **Kill fast**: If evidence says "bad idea", say so clearly. Don't sugar-coat.
 - **No commitments**: Exploration never commits production code. Prototype code is temporary.
-- **Stay on topic**: Answer the question that was asked. Don't scope-creep into related areas.
-- **Use deterministic tools**: Run existing tests, linters, type checkers to ground findings in facts, not guesses.
+- **Stay on topic**: Answer the question that was asked. Don't scope-creep into
+  related areas.
+- **Use deterministic tools**: Run existing tests, linters, type checkers to
+  ground findings in facts, not guesses.

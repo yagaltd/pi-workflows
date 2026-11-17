@@ -1,13 +1,14 @@
 ---
 description: "Init — bootstrap a project: architecture design, folder tree, charter, docs skeleton → hands off to /plan"
 ---
+# `/init`
 
 Bootstrap the project BEFORE any planning or building. Follow the 'init'
 skill workflow — load its SKILL.md with the read tool, then execute it.
 
 Quick reference (the skill is normative):
 
-```
+```text
 1. DECIDE   — stack/domain decisions (grill only unresolved, evidence first)
 2. DESIGN   — modules, boundaries (→ future contract Forbidden lists),
               data flow (Mermaid), key decisions → ADRs when 3-criteria

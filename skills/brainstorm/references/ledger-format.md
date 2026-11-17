@@ -1,4 +1,4 @@
-# Ledger format — .workflows/research/<slug>/ledger.md
+# Ledger format — .workflows/research/`<slug>`/ledger.md
 
 Loaded at session open (and whenever the ledger is written). Normative.
 
@@ -7,7 +7,7 @@ Loaded at session open (and whenever the ledger is written). Normative.
 One folder per brainstorm topic. `<slug>` = 2-4 short hyphenated words from
 the topic. Contents over time:
 
-```
+```text
 .workflows/research/<slug>/
   ledger.md              the living research tree (markdown)
   report-<NN>-<slug>.md  research subagent reports (evidence, numbered R1..)
@@ -54,7 +54,8 @@ the topic. Contents over time:
 - Status emoji leads every branch label: ❓ open · ✅ validated · ❌
   invalidated · 💤 parked. A branch changes status ONLY on evidence, never
   on vibes.
-- Markmap tooling retired (plan 20261026-032); visuals generate at graduation via the format chooser + diagram-design.
+- Markmap tooling retired (plan 20261026-032); visuals generate at graduation
+  via the format chooser + diagram-design.
 
 ### Update discipline
 
@@ -67,4 +68,3 @@ the topic. Contents over time:
   uncited claims in the tree.
 - Commit ledger changes with the project repo as you go (git versions the
   research history) — but never commit, merge, or push anything else.
-

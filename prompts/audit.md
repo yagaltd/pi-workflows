@@ -2,6 +2,7 @@
 description: "Audit — codebase map + adversarial pre-scan: know the terrain before planning"
 argument-hint: "[scope] [--security]"
 ---
+# `/audit`
 
 Map the codebase and hunt defects BEFORE planning. `/audit` answers
 "what is this codebase, and where does it hurt?" — its outputs are durable
@@ -109,7 +110,8 @@ Append to `.workflows/LOG.md`:
 
 - Read-only + `.bug-hunter/` artifacts + the map — audit touches nothing else
 - The map is DURABLE knowledge: never archived, updated (not replaced) each audit
-- Findings need evidence (file:line + why) or they go to manual review, not confirmed
+- Findings need evidence (file:line + why) or they go to manual review, not
+  confirmed
 - `/audit` feeds `/plan`; it never becomes a plan itself
 - Re-run per milestone or before big refactors — cheap compared to finding
   the same defects at `/review` time

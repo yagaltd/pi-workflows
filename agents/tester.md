@@ -17,6 +17,7 @@ pwd && git rev-parse --show-toplevel
 ```
 
 The landing is correct when EITHER:
+
 - `pwd` AND `git rev-parse --show-toplevel` both equal the absolute repo path named in the task text's first line, OR
 - `pwd` equals that absolute repo path AND `git rev-parse --show-toplevel` starts with the prefix `<repo>/.git/subagents/` — this repo's own native worktree (write children run at `.git/subagents/<run>/<task>`; toplevel returns the worktree path there).
 
@@ -28,6 +29,7 @@ Never proceed, never improvise.
 
 Read the task spec named in the task text (`.workflows/specs/<task>.spec`).
 From `## Completion Criteria` extract:
+
 - every `Test:` line — each is a selector naming exactly one test that must exist
 - the Given/When/Then prose under it — what the test must assert
 
@@ -78,7 +80,7 @@ AFTER your final file edit. A run before the last edit is stale — re-run it.
 Your output MUST end with this report block — the orchestrator feeds the Red
 List to the coverage gate and prepends it to the Wave B worker:
 
-```
+```text
 ## Completed
 What was written (selectors covered X/Y).
 

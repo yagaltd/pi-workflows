@@ -1,15 +1,21 @@
 ---
 description: "Explore — parallel multi-angle research, kill/pivot/proceed with evidence"
 ---
+# `/explore`
 
 ## Phase 1: DEFINE
 
-Understand what needs to be decided. What question? What would make us confident to proceed or kill?
+Understand what needs to be decided. What question? What would make us confident
+to proceed or kill?
 
-If the question is clear from the argument, state it and move on. If vague, ask 1 question max.
+If the question is clear from the argument, state it and move on. If vague, ask
+1 question max.
 
-Identify the **angles** that need exploration. Based on the question, pick the relevant angles from:
-- **Codebase architecture** — how is it structured, dependencies, risk boundaries
+Identify the **angles** that need exploration. Based on the question, pick the
+relevant angles from:
+
+- **Codebase architecture** — how is it structured, dependencies, risk
+  boundaries
 - **Security** — vulnerabilities, auth, untrusted input, injection surfaces
 - **Performance** — bottlenecks, N+1 queries, caching, hot paths
 - **Code quality** — error handling, swallowed failures, concurrency issues
@@ -121,7 +127,7 @@ If any domain terms crystallized during exploration, add them to
 
 Present the synthesis to the human:
 
-```
+```text
 ## Exploration: <question>
 
 ### What we found

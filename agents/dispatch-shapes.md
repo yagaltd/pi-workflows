@@ -97,6 +97,7 @@ End with the Verdict block (ok: true|false + findings with evidence).` },
 ```
 
 Notes:
+
 - A failed worker auto-aborts the reviewer (broken upstream must not be
   reviewed) — the abort is your signal the task failed.
 - With `autoAwait: true`, the call returns when the whole graph settles.
@@ -158,6 +159,7 @@ Verify: agent-spec guard --spec-dir .workflows/specs --code . --change-scope wor
 ```
 
 Notes:
+
 - **`needs` replaces wave bookkeeping**: the reviewer starts only when all
   workers settle; a failed worker auto-aborts it (a broken upstream must
   not be reviewed) — that abort is your signal the task failed.

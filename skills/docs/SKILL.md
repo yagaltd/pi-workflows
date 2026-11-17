@@ -7,7 +7,8 @@ argument-hint: "<what to document, or 'all' for full project docs>"
 
 # Docs Workflow
 
-Generate high-signal project documentation. Docs should be terse, architecture-focused, and explain WHY things exist.
+Generate high-signal project documentation. Docs should be terse,
+architecture-focused, and explain WHY things exist.
 
 ## Phase 1: ASSESS
 
@@ -17,9 +18,12 @@ Determine what docs are needed.
 2. **If user describes a specific area**: Generate one focused doc
 3. **If existing docs exist**: Check if they're current
 
-### Standard doc set for new projects:
-- `.workflows/docs/architecture.md` — system overview, module relationships, data flow
-- `.workflows/docs/decisions.md` — key technical decisions and why they were made
+### Standard doc set for new projects
+
+- `.workflows/docs/architecture.md` — system overview, module relationships,
+  data flow
+- `.workflows/docs/decisions.md` — key technical decisions and why they were
+  made
 - `.workflows/docs/onboarding.md` — how to get started, key entry points
 - `.workflows/docs/api.md` — public API surface (if applicable)
 
@@ -61,7 +65,8 @@ mkdir -p .workflows/docs
 
 Write docs. Terse, architecture-focused.
 
-### Rules for all docs:
+### Rules for all docs
+
 - Be **terse** — architecture and rationale, not code walkthroughs
 - Explain **WHY** things exist, not just WHAT they do
 - Never duplicate what's obvious from code
@@ -69,7 +74,8 @@ Write docs. Terse, architecture-focused.
 - Delete outdated sections, don't append
 - One doc per concern — don't mix architecture with onboarding
 
-### Architecture doc template:
+### Architecture doc template
+
 ```markdown
 # Architecture
 
@@ -89,7 +95,8 @@ Write docs. Terse, architecture-focused.
 <where to start reading the code>
 ```
 
-### Decisions doc template:
+### Decisions doc template
+
 ```markdown
 # Technical Decisions
 
@@ -100,7 +107,8 @@ Write docs. Terse, architecture-focused.
 - **Trade-offs**: <what we gained/lost>
 ```
 
-### Onboarding doc template:
+### Onboarding doc template
+
 ```markdown
 # Onboarding
 
@@ -131,7 +139,7 @@ Check generated docs quality:
 
 Show the human what was generated:
 
-```
+```text
 ## Docs Generated
 
 ### .workflows/docs/architecture.md
@@ -147,7 +155,8 @@ Show the human what was generated:
 
 ## Rules
 
-- **Cheap model is fine for docs** — docs don't need deep reasoning, just accurate summarization
+- **Cheap model is fine for docs** — docs don't need deep reasoning, just
+  accurate summarization
 - **Terse over comprehensive** — high signal, low noise
 - **Architecture over code** — explain WHY, not WHAT
 - **Current state only** — no history, no changelog

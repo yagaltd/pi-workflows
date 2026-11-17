@@ -22,7 +22,7 @@ State the overlap scan result and the verdict before any task is written:
 
 Declare every doc this plan must update, and the CHANGELOG entry:
 
-```
+```text
 Docs impact:
 - `docs/<path>.md` — <what changes>
 - `README.md` — <what changes>

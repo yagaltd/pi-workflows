@@ -10,7 +10,8 @@ After a task completes, check if project docs need updating.
 
 ## When Called
 
-This runs automatically after `/next` completes a task. It can also be called manually.
+This runs automatically after `/next` completes a task. It can also be called
+manually.
 
 ## Process
 
@@ -43,7 +44,7 @@ This runs automatically after `/next` completes a task. It can also be called ma
 
 Use this prompt to decide:
 
-```
+```text
 Given these tracked docs:
 - .workflows/docs/architecture.md — system overview, module relationships, folder tree
 - README.md — user-facing current state (install, commands, quick start)
@@ -61,4 +62,5 @@ Only YES if there's a meaningful architectural or structural change.
 - **Cheap model for gate** — this is a yes/no decision, not deep reasoning
 - **Only update if meaningful** — small fixes don't need doc updates
 - **Terse updates** — edit in-place, don't rewrite whole docs
-- **Skip silently if no change** — don't pollute conversation with "docs are fine"
+- **Skip silently if no change** — don't pollute conversation with "docs are
+  fine"

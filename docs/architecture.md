@@ -15,7 +15,7 @@ docs canon: `docs/canon.md`). Machine-checkable truth lives in
 
 ## The flow
 
-```
+```text
 IDEA ──► SCOUT ──► PLAN ──► APPROVE ──► CONTRACTS ──► EXECUTE ──► VERIFY ──► QUALITY REVIEW ──► DOCS ──► SHIP
           (cheap)    (architect)   (you)   (generated)  (worker)    (mechanical)  (judgment)        (cheap) (you)
                       bottlenecks   🛑       .spec        dispatch_next  agent-spec     + security         /docs
@@ -33,15 +33,16 @@ extension's `dispatch_next` tool — deterministic code (the model's own
 reading of the plan is never the selector — gate: `tests/extension.test.ts`).
 QUALITY REVIEW is
 tag-gated per-task; `/review` is the whole-plan quality gate. After a context
-restart, `/restart` rebuilds state from `bash scripts/resume-digest.sh` before
-anything dispatches.
+restart, `/restart` rebuilds state from the repo-resolved resume digest (the
+repo you stand in — `bash scripts/resume-digest.sh` or the installed package
+copy) before anything dispatches.
 
 ## Gates — verdict gating: no model marks its own work done
 
 Each worker task goes through checkpoints that agents cannot skip — the engine
 enforces the sequencing, not the model's memory:
 
-```
+```text
 ONE subagent graph call: tasks [worker, reviewer(needs: worker)]
   → worker implements (TDD, self-verifies) — settling is NOT completion
   → reviewer fires MECHANICALLY when the worker settles (needs edge,
@@ -68,14 +69,17 @@ compaction — one fixed-size judge table injected into leader context, 64-cap
 split with a per-child fallback when the judge is skipped (gate:
 `tests/extension.test.ts`). Verdicts persist to
 `.workflows/reviews/<task>.md` — the fixer cites them, `/review` audits the
-trail, SHIP archives them. Reviewers verify, never fix (gate:
+trail, SHIP archives them. SHIP reports end with the follow-up ledger table
+(`templates/FOLLOW-UP-TABLE.md`, `Origin` included); open items live in the
+table rather than prose, and a plan's ledger rows drain before a new plan
+opens (gate: `agents/registry.md`). Reviewers verify, never fix (gate:
 `agents/reviewer.md`); workers never write plan.md — the orchestrator is the
 single writer (gate: `agents/worker.md`).
 
 ## Three hard rails
 
 | Rail | What it enforces | How |
-|---|---|---|
+| --- | --- | --- |
 | **Contract** | Did we build the right thing? | agent-spec: BDD scenarios + boundary checks — mechanical, non-negotiable (`agent-spec guard`) |
 | **Adversarial** | Did we introduce bugs or vulnerabilities? | bug-hunter: Recon → Hunter → Skeptic → Referee — optional, recommended (skill: `skills/`-installed bug-hunter) |
 | **Quality** | Is the code maintainable? | quality-reviewer: simplicity, security, error handling — judgment-based (gate: `agents/quality-reviewer.md`) |
@@ -109,7 +113,9 @@ actually built, and after each task it updates the next 1-2 downstream
 contracts from learnings (significant changes go back to you first).
 
 Why:
-- **Human approves contracts, not code** — you review the plan + contracts once, upfront
+
+- **Human approves contracts, not code** — you review the plan + contracts once,
+  upfront
 - **Fresh context** — downstream contracts absorb learnings from completed tasks
 - **No silent drift** — a contract that no longer matches reality is updated and logged, never ignored (gate: `prompts/next.md` contract re-validation)
 
@@ -194,7 +200,8 @@ decisions change with no new ADR — advisory only, flags route to you, the
 human (gate: `tests/extension.test.ts`).
 
 - `adr:<n>` on a `@cc` links the contract to the ADR that governs it.
-- Live example: [`CONTRACTS`](../CONTRACTS) at the repo root — pi-workflows' own durable rules, dogfooded.
+- Live example: [`CONTRACTS`](../CONTRACTS) at the repo root — pi-workflows' own
+  durable rules, dogfooded.
 
 ## Planning
 
@@ -241,11 +248,15 @@ from `agents/registry.md`, driven by the task's bottleneck tag (model empty =
 inherit your session's model):
 
 | Role | Thinking default | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `scout` | low | Fast codebase recon with structured output. Read-only. |
 | `worker` | medium (xhigh if 🔴, high if 🟡) | TDD vertical slices within contract boundaries. Reports blockers + mandatory Domain Memory section. |
 | `reviewer` | per verification-policy tier (docs: low → high-risk: strongest model + xhigh) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. Fired automatically via the `needs` edge when the worker settles. |
 | `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Per-task, 🔴/🟡/🟠 tags only. Security, simplicity, error handling. |
+
+Review doctrine is language-aware: JS/TS projects gate on the project's own
+detected toolchain, and any web client-side diff runs the
+`modern-web-guidance` skill family first (gate: `agents/reviewer.md`).
 | `bug-hunter` | high | Adversarial pipeline (Recon → Hunter → Skeptic → Referee) — dispatched as a subagent from `/next` and `/review`. |
 
 **How subagents run**: always in-process, inside your session, via the
@@ -290,7 +301,7 @@ conventions so the prompts can stay lean:
 - **Intent-guard hook**: user prompts (not `/commands`) under a live plan
   with tasks get one judge classification (gate:
   `scripts/intent-guard.mjs`, DEC-001) — suggest-only routing, never
-  auto-executed, fails open (see [Intent-guard hook](#intent-guard-hook)).
+  auto-executed, fails open (see Intent-guard hook).
 
 The extension is the dispatch authority: without it, `dispatch_next` does not
 exist and the thin `/next` trigger has nothing to call — prompts stay lean
@@ -311,7 +322,7 @@ profile-lint; gate: `scripts/profile-lint.sh`).
 Every task gets a tag that changes execution strategy:
 
 | Tag | When | What changes |
-|---|---|---|
+| --- | --- | --- |
 | 🔴 BLOCKING | Others depend on this. Must succeed first. | Strongest model, human review after (gate: `agents/registry.md`) |
 | 🟡 RISKY | Approach uncertain. Might fail. | Prototype first, then build |
 | 🔵 TIME_CONSUMING | Large but straightforward. | Break into smaller steps |
@@ -323,7 +334,7 @@ Every task gets a tag that changes execution strategy:
 Assigned per task based on code type:
 
 | Code type | Strategy | When |
-|---|---|---|
+| --- | --- | --- |
 | API / CLI command | example-based (agent-spec BDD) | Most tasks |
 | Domain logic (math, parsing) | property-based (fast-check, proptest) | Pure functions |
 | External input handler | fuzz + example-based | Parsing user data |
@@ -336,7 +347,7 @@ Assigned per task based on code type:
 When a worker cannot proceed, it outputs a structured `WORKER_BLOCKER` instead
 of failing silently (gate: `agents/worker.md`):
 
-```
+```text
 WORKER_BLOCKER:
 {
   "status": "blocked",
@@ -351,7 +362,7 @@ clarification, or escalates to you.
 
 ## Quality pipeline
 
-```
+```text
 ARCHITECT (your session model)
     │
     ├── Structured interview to gather requirements
@@ -399,7 +410,7 @@ Model + thinking are set **per subagent task at dispatch time** via the
 `agents/registry.md` ladder (bottleneck tag → model/thinking). Spend tokens
 on reasoning, not model names:
 
-```
+```text
 scout / recon:                inherit model, low thinking
 standard tasks:               cheap/fast model, medium thinking
 risky + blocking tasks:       strong model, high/xhigh thinking
