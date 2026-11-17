@@ -104,7 +104,7 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If any scenario fails or boundaries violated → go back to Phase 3, fix, re-verify.
 
-### Layer 2: Test quality (two-phase tdd flow — tdd-gate, if installed)
+### Layer 2: Test quality (two-phase tdd flow — tdd-guard, if installed)
 
 Build tasks on this feature run through the TDD task shape from
 `agents/dispatch-shapes.md` ("TDD task shape: tester wave → coverage gate →
@@ -116,25 +116,29 @@ worker wave"):
    tester never writes production code.
 2. **Orchestrator coverage gate** (you run it, not a subagent):
    ```bash
-   tdd-gate coverage --spec <spec> --tests <dir> --format json
+   tdd-guard verify --spec <spec> --tests <dir> --format json
    ```
-   Gaps → follow-up tester dispatch with the `tdd-gate blame` output pasted
-   verbatim into the pack; loop until the gate is clean. Clean ⇒ merge the
-   tester branch (`git merge --no-ff subagents/<run>/tester-<task-id>`) so
-   Wave B branches from a tree that already contains the red tests.
+   Gaps → follow-up tester dispatch with the `tdd-guard verify` output
+   pasted verbatim into the pack; loop until the gate is clean. Clean ⇒
+   merge the tester branch (`git merge --no-ff subagents/<run>/tester-<task-id>`)
+   so Wave B branches from a tree that already contains the red tests.
 3. **Wave B — worker + reviewer**: the worker implements to GREEN against
    the merged red suite (never weakens, skips, or renames the tester's
-   tests); the reviewer's Layer 2 runs tdd-gate on the worker diff:
+   tests); the reviewer's Layer 2 runs the task gate and the standalone
+   tdd-guard checks on the worker diff:
    ```bash
-   tdd-gate gaming --diff
-   tdd-gate drift --spec <spec>
+   agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard
+   tdd-guard lint
+   tdd-guard verify --spec <spec>
    ```
-   gaming fails the diff when tests were weakened to pass; drift fails it
-   when the diff contradicts the contract.
+   `lint` fails on weakened, skipped, or assertionless tests; `verify`
+   fails when tests do not cover the contract's decisions, boundaries, or
+   `Test:` selectors.
 
-If tdd-gate is not installed, run the legacy single worker→reviewer shape
-and state the skip LOUDLY (never a silent pass). Any gate failure → go back
-to Phase 3.
+If tdd-guard is not installed, agent-spec reports SKIP for the layer
+(never PASS): run the legacy single worker→reviewer shape and state the
+skip LOUDLY (never a silent pass). Gaming, weakening and drift checks stay
+uncovered (DEC-003 accepted risk). Any gate failure → go back to Phase 3.
 
 ### Layer 3: Project verification
 
@@ -159,7 +163,7 @@ If the feature has a UI component:
 **Verification checklist**:
 - [ ] agent-spec lifecycle passes (all scenarios pass)
 - [ ] agent-spec guard passes (boundaries respected)
-- [ ] tdd-gate coverage gate clean (two-phase tdd flow: tester Wave A → coverage gate → Wave B worker + reviewer) or legacy shape used with the skip stated loudly
+- [ ] tdd-guard coverage gate clean (two-phase tdd flow: tester Wave A → coverage gate → Wave B worker + reviewer) or legacy shape used with the skip stated loudly
 - [ ] All tests pass (including new ones)
 - [ ] Zero lint warnings
 - [ ] Zero type errors

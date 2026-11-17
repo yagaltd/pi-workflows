@@ -187,8 +187,9 @@ from a post-edit run, never from memory or a pre-edit run.
 
 Run in order. Stop at first failure.
 
-**Test-quality gating (tdd-gate) is not the worker's layer** — build tasks
-defer it to the reviewer pipeline (Layer 2). In the TDD task shape the
+**Test-quality gating (tdd-guard) is not the worker's layer** — build tasks
+defer it to the reviewer pipeline (Layer 2) and to agent-spec's tdd-guard
+layer in the task gate. In the TDD task shape the
 tester's red tests are your inputs: implement until the suite is GREEN, and
 never weaken, skip, or rename them to get there.
 

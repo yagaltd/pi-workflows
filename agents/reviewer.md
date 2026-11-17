@@ -49,19 +49,28 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If boundary violated → report FAIL. Do NOT proceed. (The `--change-scope worktree` flag is an agent-spec option — it scopes boundary checking to the current changes; it does not require a git worktree setup.)
 
-### Layer 2: Test Quality (tdd-gate)
+### Layer 2: Test Quality (tdd-guard)
+
+The task gate runs agent-spec's tdd-guard layer in the same lifecycle call:
 
 ```bash
-tdd-gate gaming --diff
-tdd-gate drift --spec <spec>
+agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard
 ```
-Run both on the worker diff. `gaming` fails the diff when tests were
-weakened, skipped, or asserted into vacuity to pass; `drift` fails it when
-the diff contradicts the spec. This layer applies to BUILD tasks; the
-brownfield shapes (`/fix`, `/refactor`) keep their own legacy test-quality
-gate per their skills — they do not run this layer.
-If tdd-gate is not installed, skip this layer and note it — a skipped Layer 2
-is a degraded pipeline, never a silent pass.
+To isolate the test-quality verdict, run the tool standalone:
+
+```bash
+tdd-guard lint
+tdd-guard verify --spec <spec>
+```
+`lint` fails on skipped, assertionless, internally mocked, or
+implementation-coupled tests; `verify` fails when tests do not cover the
+spec's decisions, boundaries, or `Test:` selectors. This layer applies to
+BUILD tasks; the brownfield shapes (`/fix`, `/refactor`) keep their own
+legacy `tdd-guard lint` run per their skills — they do not run this layer.
+If tdd-guard is not installed, agent-spec returns SKIP for every scenario
+(never PASS) — skip this layer and note it loudly: a skipped Layer 2 is a
+degraded pipeline, never a silent pass. Gaming, weakening and drift checks
+remain uncovered (the accepted risk in DEC-003).
 If any rule fails → report FAIL with details. Do NOT proceed to Layer 3.
 
 ### Layer 3: Project Toolchain
@@ -119,9 +128,9 @@ repo: <git toplevel>
 - Lifecycle: X/Y scenarios pass
 - Guard: boundaries respected / violations: <list>
 
-### Layer 2: tdd-gate
-- Gaming: pass / fail (<count> issues) / skipped (not installed)
-- Spec-drift: pass / fail / skipped
+### Layer 2: tdd-guard
+- Lint: pass / fail (<count> issues) / skipped (not installed)
+- Spec coverage (verify): pass / fail / skipped
 
 ### Layer 3: project
 - Tests: pass / fail

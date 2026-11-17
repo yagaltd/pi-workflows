@@ -40,12 +40,15 @@ Rules:
   worker→(reviewer)→verdict discipline on judgment dimensions.
   `ok:false` (CHANGES_REQUESTED) triggers a fix round with the same cap —
   only after mechanical ok:true.
-- **Degradation — tdd-gate absent**: tdd-gate not installed ⇒ the
-  legacy single-worker shape (sequential worker→reviewer, no tester
-  wave, no coverage gate). State the skip LOUDLY — in the dispatch text
-  and LOG.md — never a silent pass. No auto-fallback to tdd-guard for
-  gating: tdd-guard stays a brownfield tool, cited only by the `/fix`
-  and `/refactor` shapes.
+- **Degradation — tdd-guard absent**: the TDD task shape's test-quality
+  layer is agent-spec's `tdd-guard` verifier
+  (`agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`).
+  tdd-guard not installed ⇒ agent-spec reports SKIP for every scenario,
+  never PASS: the legacy single-worker shape (sequential worker→reviewer,
+  no tester wave, no coverage gate) applies and the skip is stated
+  LOUDLY — in the dispatch text and LOG.md — never a silent pass. A
+  standalone run is `tdd-guard lint` / `tdd-guard verify --spec <spec>`;
+  gaming, weakening and drift checks stay uncovered (DEC-003 accepted risk).
 - **Quality-reviewer placement — per-task, gated, never per-wave.**
   Dispatch a quality-reviewer as a standalone follow-up AFTER the
   mechanical reviewer returns `ok:true` — it cannot be a `needs` node
@@ -82,7 +85,7 @@ Rules:
   "unverified-by-lifecycle" — a documented gap
   (fixture-based or grep-based scenarios have no verifier bound).
   Orchestrators instruct reviewers explicitly how skips are covered
-  (e.g., `--selftest` mode, tdd-gate coverage selectors + suite green, manual
+  (e.g., `--selftest` mode, tdd-guard selectors + suite green, manual
   grep checks). Never silently treat a lifecycle skip as a pass.
 
 ## Judge placement — flags and routes, never gates
@@ -97,7 +100,7 @@ never pass or fail anything: it cannot flip a task to ✅/❌, cannot clear
 the approval gate, and never substitutes for a reviewer verdict —
 low-confidence output escalates to the human, never resolved silently by
 the orchestrator. The mechanical gates keep authority: agent-spec
-parse/selector lint, lifecycle, guard, and tdd-gate (where installed)
+parse/selector lint, lifecycle, guard, and tdd-guard (where installed)
 remain the only non-human pass/fail layers, and the human approval gate
 is unchanged. NO-JUDGE degradation holds here too: `JUDGE SKIPPED` +
 audit entry, stated loudly, then the flow proceeds — a skipped judge is a
@@ -238,8 +241,9 @@ subagent({
       task: `Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
 the self-report: read .workflows/specs/<task-id>.spec yourself, then run
-in order, stop at first failure: agent-spec lifecycle, guard, tdd-gate
-gaming + drift (if installed), project checks (tests, lint, typecheck, build).
+in order, stop at first failure: agent-spec lifecycle
+(--layers lint,boundary,test,tdd-guard for build tasks), guard, project
+checks (tests, lint, typecheck, build).
 End with the Verdict block (ok: true|false + findings with evidence).` },
   ],
 })

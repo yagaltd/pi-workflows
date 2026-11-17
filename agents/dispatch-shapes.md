@@ -79,10 +79,10 @@ replaces discovery, not the spec).` },
 Mechanical verification for TASK <N>: <goal>.
 The worker's report is prepended above — verify against the contract, not
 the self-report: read .workflows/specs/<task-id>.spec yourself, then run
-in order, stop at first failure: agent-spec lifecycle, guard, tdd-gate
-gaming + drift (if installed — your Layer 2 for build tasks, see the TDD
-task shape), then the spec's verify line verbatim (tests/lint/typecheck/
-build only if no verify line exists — see your Layer 3 rule).
+in order, stop at first failure: agent-spec lifecycle
+(--layers lint,boundary,test,tdd-guard for build tasks, your Layer 2 — see
+the TDD task shape), guard, then the spec's verify line verbatim (tests/
+lint/typecheck/build only if no verify line exists — see your Layer 3 rule).
 Re-review rounds (round N>1): the diff to verify is the DELTA
 `git diff <roundN-1>..<roundN>` on top of the verdict file chain
 (.workflows/reviews/<task-id>.md) — do not re-derive the whole surface cold.
@@ -197,7 +197,7 @@ Notes:
 ## TDD task shape (two-phase: tester wave → coverage gate → worker wave)
 
 Build tasks whose spec scenarios carry `Test:` selectors run in TWO waves
-when tdd-gate is installed. The tester writes the failing tests first, the
+when tdd-guard is installed. The tester writes the failing tests first, the
 orchestrator gates coverage mechanically, and only then does the code worker
 implement to GREEN — it inherits a red suite as its acceptance criteria, so
 "done" is mechanically checkable.
@@ -227,11 +227,11 @@ signal — never write production code, never turn your own tests green.` },
 against the tester's worktree/branch):
 
 ```bash
-tdd-gate coverage --spec .workflows/specs/<task>.spec --tests <dir> --format json
+tdd-guard verify --spec .workflows/specs/<task>.spec --tests <dir> --format json
 ```
 
-- **Gaps** → follow-up tester dispatch (fix-round shape: gaps +
-  `tdd-gate blame` output pasted verbatim into the pack); loop until the
+- **Gaps** → follow-up tester dispatch (fix-round shape: gaps + the
+  `tdd-guard verify` output pasted verbatim into the pack); loop until the
   gate is clean. A tester branch with known gaps is never merged.
 - **Clean** ⇒ merge the tester branch like any write branch:
   `git merge --no-ff subagents/<run>/tester-<task-id>` — Wave B branches
@@ -260,18 +260,21 @@ GREEN. Never weaken, skip, or rename the tester's tests.` },
 
 Mechanical verification for TASK <N>: <goal>. Verify against the contract,
 not the self-report. Layer 2 (build task — run on the worker diff):
-  tdd-gate gaming --diff
-  tdd-gate drift --spec .workflows/specs/<task-id>.spec
-gaming fails the diff when tests were weakened to pass; drift fails it when
-the diff contradicts the spec. Then agent-spec lifecycle, guard, and the
-spec's verify line verbatim. End with the Verdict block.` },
+  agent-spec lifecycle .workflows/specs/<task-id>.spec --code . --layers lint,boundary,test,tdd-guard
+  tdd-guard lint
+  tdd-guard verify --spec .workflows/specs/<task-id>.spec
+lint fails on weakened, skipped, or assertionless tests; verify fails when
+tests do not cover the spec's decisions, boundaries, or selectors. Then
+agent-spec guard and the spec's verify line verbatim. End with the Verdict
+block.` },
   ],
 })
 ```
 
-**Degradation**: tdd-gate not installed ⇒ the legacy single-worker shape
-(sequential worker→reviewer above) with the skip stated LOUDLY in the
-dispatch text — never a silent pass (agents/execution-doctrine.md).
+**Degradation**: tdd-guard not installed ⇒ agent-spec reports SKIP for the
+tdd-guard layer (never PASS) ⇒ the legacy single-worker shape (sequential
+worker→reviewer above) with the skip stated LOUDLY in the dispatch text —
+never a silent pass (agents/execution-doctrine.md).
 
 ## Scout dispatch shape
 

@@ -33,7 +33,7 @@
  * 5. Auto-gate hook (tool_call): edit/write of code files while a live
  *    `.workflows/plan.md` exists runs the gate chain at write time —
  *    Layer 1 agent-spec (guard boundary, lifecycle scenarios) then Layer 2
- *    tdd-gate (gaming/drift on the touched spec) — blocking the write on
+ *    tdd-guard (lint/verify on the touched spec) — blocking the write on
  *    violation with the failing layer + command + first findings line.
  *    Toolchain absent ⇒ one-line advisory per file (deduped, watchdog
  *    pattern), write allowed. `*.md` writes outside the spec dirs skip
@@ -269,7 +269,7 @@ export interface PlanTask {
   wave: number;
   /** dependency ids, e.g. ["task-1"]; empty when none */
   deps: string[];
-  /** plan `tdd:` flag — routes the tdd-gate lines into gateCommands */
+  /** plan `tdd:` flag — routes agent-spec's tdd-guard layer into gateCommands */
   tdd: boolean;
   /** [PARALLEL-GROUP: name] the task block sits under, null when unmarked */
   parallelGroup: string | null;
@@ -538,16 +538,19 @@ export function buildPack(
   return lines.join("\n");
 }
 
-/** Ordered gate list for a task: contract lifecycle, then the tdd-gate
- *  test-quality layer when the plan flags it, then the plan's Verify line. */
+/** Ordered gate list for a task: contract lifecycle, then the plan's
+ *  Verify line. A task flagged `tdd:` runs the lifecycle with agent-spec's
+ *  tdd-guard layer enabled — one real chain, no separate test-quality binary.
+ *
+ * @cc [label:gate,id:gate-commands-name-real-tools] gate-commands-name-real-tools
+ *  Gate commands name tools that exist: the `tdd:` flag renders
+ *  `agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`
+ *  and never emits a standalone test-quality binary. An absent tdd-guard stays
+ *  agent-spec's loud SKIP, never a pass.
+ */
 export function gateCommandsFor(task: DispatchTask): string[] {
-  const cmds = [`agent-spec lifecycle ${task.contractPath} --code .`];
-  if (task.tdd) {
-    cmds.push(
-      `tdd-gate gaming --diff`,
-      `tdd-gate drift --spec ${task.contractPath}`
-    );
-  }
+  const layers = task.tdd ? " --layers lint,boundary,test,tdd-guard" : "";
+  const cmds = [`agent-spec lifecycle ${task.contractPath} --code .${layers}`];
   if (task.verify) cmds.push(task.verify);
   return cmds;
 }
@@ -1163,7 +1166,7 @@ const gateBlock = (
  * @cc [label:hook,id:auto-gate-write-time] auto-gate-write-time
  * Write-time gate for code files under a live plan: ordered chain, short-
  * circuit on first failure — guard (boundary, per-task staged spec dir) →
- * lifecycle --format json (scenarios) → tdd-gate gaming/drift (test quality).
+ * lifecycle --format json (scenarios) → tdd-guard lint/verify (test quality).
  * Block = failing layer + command + first findings line. Toolchain absent or
  * a layer verdict unreadable ⇒ advisory (write proceeds), never a block —
  * blocks only land on defined violation classes. Docs-only `*.md` writes
@@ -1266,26 +1269,26 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
           lifecycleFinding(j, l.stdout),
           file
         );
-      // Layer 2 — test quality (tdd-gate); a missing binary advises the
-      // sub-step only — Layer 1 still gated this write (D5).
-      const gamingCommand = "tdd-gate gaming --diff";
-      const gaming = input.run("tdd-gate", ["gaming", "--diff"]);
-      if (gaming === null) return advisoryTddGate(file);
-      if (gaming.code !== 0)
+      // Layer 2 — test quality (tdd-guard: lint then spec verify); a missing
+      // binary advises the sub-step only — Layer 1 still gated this write (D5).
+      const lintCommand = "tdd-guard lint";
+      const lint = input.run("tdd-guard", ["lint"]);
+      if (lint === null) return advisoryTddGuard(file);
+      if (lint.code !== 0)
         return gateBlock(
-          "Layer 2 test-quality (tdd-gate gaming)",
-          gamingCommand,
-          firstFindingsLine(`${gaming.stdout}\n${gaming.stderr}`),
+          "Layer 2 test-quality (tdd-guard lint)",
+          lintCommand,
+          firstFindingsLine(`${lint.stdout}\n${lint.stderr}`),
           file
         );
-      const driftCommand = `tdd-gate drift --spec ${task.contractPath}`;
-      const drift = input.run("tdd-gate", ["drift", "--spec", task.contractPath]);
-      if (drift === null) return advisoryTddGate(file);
-      if (drift.code !== 0)
+      const verifyCommand = `tdd-guard verify --spec ${task.contractPath}`;
+      const verify = input.run("tdd-guard", ["verify", "--spec", task.contractPath]);
+      if (verify === null) return advisoryTddGuard(file);
+      if (verify.code !== 0)
         return gateBlock(
-          "Layer 2 test-quality (tdd-gate drift)",
-          driftCommand,
-          firstFindingsLine(`${drift.stdout}\n${drift.stderr}`),
+          "Layer 2 test-quality (tdd-guard verify)",
+          verifyCommand,
+          firstFindingsLine(`${verify.stdout}\n${verify.stderr}`),
           file
         );
     }
@@ -1334,10 +1337,10 @@ function advisoryToolchain(file: string): AutoGateDecision {
   );
 }
 
-function advisoryTddGate(file: string): AutoGateDecision {
+function advisoryTddGuard(file: string): AutoGateDecision {
   return gateAdvisory(
     file,
-    `[pi-workflows auto-gate] tdd-gate not found on PATH — Layer 2 (test-quality) skipped for ${file} (advisory only); Layer 1 still gated this write.`
+    `[pi-workflows auto-gate] tdd-guard not found on PATH — Layer 2 (test-quality) skipped for ${file} (advisory only); install it (git clone https://github.com/yagaltd/tdd-guard && npm install && npm run build && npm link); Layer 1 still gated this write.`
   );
 }
 

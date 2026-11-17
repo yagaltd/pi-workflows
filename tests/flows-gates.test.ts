@@ -94,7 +94,7 @@ afterAll(() => {
 
 describe("flow-gates (plan 20261025-022)", () => {
   test("gate names resolve to the existing layer command sets", () => {
-    expect(gateCommands("test-quality")).toEqual(["tdd-gate gaming --diff HEAD"]);
+    expect(gateCommands("test-quality")).toEqual(["tdd-guard lint"]);
     expect(gateCommands("review")).toEqual(["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"]);
     expect(gateCommands("quantum")).toBeNull();
   });
@@ -134,7 +134,9 @@ describe("flow-gates (plan 20261025-022)", () => {
   test("absent toolchains skip loudly", () => {
     const skipped = runGate("test-quality", { present: () => false, exec: () => { throw new Error("must not run"); } });
     expect(skipped.status).toBe("skipped");
-    expect(skipped.reason).toContain("toolchain absent: tdd-gate");
+    expect(skipped.reason).toContain("toolchain absent: tdd-guard");
+    expect(skipped.reason).toContain("github.com/yagaltd/tdd-guard");
+    expect(skipped.reason).toContain("never a pass");
     expect(skipped.results).toEqual([]);
 
     const unknown = runGate("quantum", { exec: () => { throw new Error("must not run"); } });
