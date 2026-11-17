@@ -11,8 +11,10 @@
 #      keys); pointers >= 1 (each a repo path); tree >= 1 domain (name -> path);
 #      gates >= 1 (each a path under scripts/); scaffolds an object (may be
 #      empty) whose scaffolds.kinds entries each carry an existing template
-#      and a target containing {{name}}; meta.generated_by/-generated_at/
-#      -stale_after present, the dates ISO (YYYY-MM-DD)
+#      and a target carrying a filename placeholder — `{{name}}` and/or
+#      `{{next:N}}`; a target with neither is a finding (plan 20261117-064: the
+#      `adr` kind emits ledger records named `DEC-<nnn>.md`, so a `{{next:N}}`
+#      target is legal)
 #   b) existence: every pointers.* and tree.*.path exists on disk (test -e),
 #      resolved from the repo root (nearest ancestor of the profile containing
 #      .git; else the invoking cwd's toplevel; else the profile's dir). A linked
@@ -70,6 +72,7 @@ fi
 exec python3 - "$FILE" "$root" "$main" <<'PY'
 import json
 import os
+import re
 import shutil
 import sys
 from datetime import date, timedelta
@@ -164,7 +167,9 @@ for i, gate in enumerate(gates):
         fail(f"gates[{i}]: gate script does not exist: {gate}")
 
 # (a) + (b) scaffolds — an object, may be empty; every kind entry must carry
-# an existing template and a target containing {{name}}
+# an existing template and a target carrying a filename placeholder:
+# `{{name}}` and/or `{{next:N}}` (one of the two, never neither — the `adr`
+# kind names ledger records `DEC-<nnn>.md` from `{{next:N}}` alone).
 scaffolds = profile.get("scaffolds")
 if not isinstance(scaffolds, dict):
     fail('scaffolds missing or not an object (may be empty, e.g. {"kinds":{}})')
@@ -186,8 +191,11 @@ for kname in sorted(kinds):
         fail(f"scaffolds.kinds.{kname}.template: template does not exist: {template}")
     if not isinstance(target, str) or not target.strip():
         fail(f"scaffolds.kinds.{kname}.target must be a non-empty repo path")
-    elif "{{name}}" not in target:
-        fail(f"scaffolds.kinds.{kname}.target: target must contain {{{{name}}}}: {target}")
+    elif "{{name}}" not in target and not re.search(r"\{\{next:\d+\}\}", target):
+        fail(
+            f"scaffolds.kinds.{kname}.target: target must contain {{{{name}}}} "
+            f"or {{{{next:<N>}}}}: {target}"
+        )
 
 # (a)+(b)+(f) metrics — optional; when present, numbers in range, paths exist
 metrics = profile.get("metrics")

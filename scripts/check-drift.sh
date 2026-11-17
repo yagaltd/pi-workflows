@@ -5,14 +5,134 @@
 # preference. Run from anywhere; operates on the repo it lives in.
 #
 # Usage: ./scripts/check-drift.sh   (or bash scripts/check-drift.sh)
+#        bash scripts/check-drift.sh --only <archive|durable> [--root <dir>]
 # Exit 0 = clean · non-zero = drift found (each violation printed)
+#
+# `--only` + `--root` are the test seam for sections 11-12 (plan 20261117-064
+# TASK 3): they run one section against a fixture tree instead of the whole
+# gate. The full run takes no arguments and audits this repo.
 
 set -uo pipefail
-cd "$(dirname "$0")/.."
+
+ONLY=""
+ROOT_DIR=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --only) ONLY="${2:-}"; shift 2 || shift ;;
+    --root) ROOT_DIR="$(cd "${2:-.}" && pwd)"; shift 2 || shift ;;
+    *) echo "usage: bash scripts/check-drift.sh [--only archive|durable] [--root <dir>]" >&2; exit 2 ;;
+  esac
+done
+
+cd "${ROOT_DIR:-$(dirname "$0")/..}" || exit 2
 FAIL=0
 
 err() { echo "DRIFT: $1" >&2; FAIL=1; }
 ok()  { echo "ok:   $1"; }
+
+# ── 11. Archive coverage — a shipped plan id must have an archive bundle ──────
+# DEC-006: eight plans shipped without a bundle because no gate looked. Bounded
+# work: only the first 10 CHANGELOG entries are read. Absent
+# .workflows/archive/ is gitignored state (fresh clone) → LOUD SKIP, never a fail.
+archive_coverage() {
+  local changelog="CHANGELOG.md" dirs=() dirs_candidate entry ids id line found count=0 missing=0
+  echo "== 11. Archive coverage: every shipped plan id has a bundle =="
+  if [ ! -f "$changelog" ]; then
+    echo "skip: no $changelog in $PWD — archive-coverage check skipped (loud)"
+    return 0
+  fi
+  for dirs_candidate in .workflows/archive/done .workflows/archive/superseded; do
+    [ -d "$dirs_candidate" ] && dirs+=("$dirs_candidate")
+  done
+  if [ "${#dirs[@]}" -eq 0 ]; then
+    echo "skip: .workflows/archive/{done,superseded}/ absent (fresh clone — gitignored state); archive-coverage check skipped (loud)"
+    return 0
+  fi
+  ids=$(awk '
+    /^## / { entry++; if (entry > 10) exit }
+    entry >= 1 {
+      rest = $0
+      while (match(rest, /\(plan [^)]*\)/)) {
+        tok = substr(rest, RSTART + 6, RLENGTH - 7)
+        split(tok, w, /[[:space:]]+/)
+        if (w[1] != "") print w[1] "\t" NR
+        rest = substr(rest, RSTART + RLENGTH)
+      }
+    }
+  ' "$changelog" | awk -F'\t' '!seen[$1]++')
+  if [ -z "$ids" ]; then
+    ok "no (plan <id>) id in the first 10 CHANGELOG entries — nothing to audit"
+    return 0
+  fi
+  while IFS=$'\t' read -r id line; do
+    [ -n "$id" ] || continue
+    count=$((count + 1))
+    found=0
+    for dirs_candidate in "${dirs[@]}"; do
+      for entry in "$dirs_candidate/$id" "$dirs_candidate/$id"-*; do
+        if [ -e "$entry" ]; then found=1; break 2; fi
+      done
+    done
+    if [ "$found" -eq 0 ]; then
+      err "$changelog:$line: shipped plan $id has no archive bundle — expected ${dirs[0]}/$id-<slug>/ (a shipped plan id without an archive dir is drift, DEC-006)"
+      missing=$((missing + 1))
+    fi
+  done <<< "$ids"
+  [ "$missing" -eq 0 ] && ok "every shipped plan id has an archive bundle ($count ids, first 10 CHANGELOG entries)"
+  return 0
+}
+
+# ── 12. Durable knowledge — whitelisted .workflows paths must be tracked ─────
+# .gitignore never whitelisted .workflows/decisions/ until commit 4c13428, so
+# the ADR ledger (DEC-001..005 + INDEX) was untracked and a fresh clone would
+# have lost it. The whitelist is the audit list: every `!.workflows/<path>`
+# entry needs >= 1 git-tracked file, and the ledger itself must parse.
+durable_knowledge() {
+  local ln entry path tracked count=0 missing=0 out
+  echo "== 12. Durable knowledge: whitelisted .workflows paths are git-tracked =="
+  if ! git rev-parse --git-dir >/dev/null 2>&1; then
+    echo "skip: not a git checkout — durable-knowledge audit needs git; skipped (loud)"
+    return 0
+  fi
+  if [ ! -f .gitignore ]; then
+    echo "skip: no .gitignore in $PWD — no .workflows whitelist to audit; skipped (loud)"
+  fi
+  while IFS=: read -r ln entry; do
+    [ -n "$entry" ] || continue
+    path="${entry#!}"
+    count=$((count + 1))
+    tracked=$(git ls-files -- "$path" | head -n1)
+    if [ -n "$tracked" ]; then
+      ok "$path is git-tracked ($tracked)"
+    else
+      err ".gitignore:$ln: $path is whitelisted as durable but has no git-tracked file — a fresh clone loses it (git add $path)"
+      missing=$((missing + 1))
+    fi
+  done < <([ -f .gitignore ] && grep -nE '^!\.workflows/' .gitignore || true)
+  if [ "$count" -eq 0 ]; then
+    echo "skip: .gitignore whitelists no .workflows path — nothing to audit (loud)"
+  fi
+  if [ -f scripts/decisions.mjs ]; then
+    if out=$(node scripts/decisions.mjs check 2>&1); then
+      ok "the ADR ledger parses (scripts/decisions.mjs check CLEAN)"
+    else
+      echo "$out" | sed 's/^/DRIFT: decisions ledger: /' >&2
+      err "scripts/decisions.mjs check found ledger drift — a scaffold output the ledger rejects is a finding, never a silent success"
+      missing=$((missing + 1))
+    fi
+  else
+    echo "skip: scripts/decisions.mjs absent — ledger parse check skipped (loud)"
+  fi
+  return 0
+}
+
+if [ -n "$ONLY" ]; then
+  case "$ONLY" in
+    archive) archive_coverage; exit "$FAIL" ;;
+    durable) durable_knowledge; exit "$FAIL" ;;
+    *) echo "unknown section: $ONLY (known: archive, durable)" >&2; exit 2 ;;
+  esac
+fi
 
 echo "== 1. Prompt frontmatter: only supported keys (description, argument-hint, hidden) =="
 BAD=$(grep -rn -E '^(model|thinking|skill|restore|tools|agent):' prompts/ 2>/dev/null || true)
@@ -125,6 +245,14 @@ else
   echo "FAIL: metric-gates reported violations (scripts/metric-gates.sh)" >&2
   FAIL=$((FAIL + 1))
 fi
+echo
+
+# 11. archive coverage — every shipped plan id names an archive bundle (plan 20261117-064)
+archive_coverage
+echo
+
+# 12. durable knowledge — whitelisted .workflows paths are git-tracked (plan 20261117-064)
+durable_knowledge
 echo
 
 if [ "$FAIL" -eq 0 ]; then

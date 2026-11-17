@@ -31,8 +31,8 @@
   "scaffolds": {
     "kinds": {
       "adr": {
-        "template": "templates/ADR.md",
-        "target": ".workflows/decisions/DEC-{{next:3}}-{{name}}.md"
+        "template": "templates/DECISION.md",
+        "target": ".workflows/decisions/DEC-{{next:3}}.md"
       }
     }
   },
