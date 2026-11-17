@@ -38,6 +38,29 @@
 # Runs from anywhere; operates on the repo it lives in. No tool configs
 # (markdownlint/lychee configs may come later) — tools run on defaults.
 #
+# Outcome accounting: every section records exactly one outcome in the
+# summary — ran / advisory / failed / skipped — so no section can disappear
+# from the report:
+#   ran       executed, no findings
+#   advisory  executed, findings downgraded to advisory (harper only)
+#   failed    executed, findings that fail the run
+#   skipped   not executed (tool or helper script genuinely absent)
+# A section that ran and found something is never summarised as a pass.
+#
+# Baseline recorded 2026-11-17 (plan 20261117-064 TASK 6) with the three
+# tools pinned in mise.toml, before any triage in this task:
+#   markdownlint-cli2 1023 findings / 65 files (530 MD013, 144 MD060, …)
+#   lychee            2 errors (1 unique 404, README.md — out of task scope)
+#   harper-cli        1324 prose findings / 62 files (advisory candidates)
+# Residual after triage is reported per section on every run; the numbers
+# above are the starting point a reader compares against.
+#
+# Residual measured 2026-11-17 after this task's triage (docs/ clean apart
+# from docs/architecture.md): markdownlint-cli2 1008 findings / 64 files
+# (61 in docs/architecture.md, 406 skills/, 257 agents/, 119 templates/,
+# 102 prompts/, 53 README.md, 10 AGENTS.md); lychee 3 errors, all README.md;
+# harper-cli ~1325 prose findings / 63 files, advisory.
+#
 # Usage: ./scripts/docs-lint.sh   (or bash scripts/docs-lint.sh)
 # Exit 0 = clean, or findings only from advisory Harper · non-zero = findings
 #          (drift-section findings always fail, live repo or fixture)
@@ -46,8 +69,10 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 FAIL=0
-err()  { echo "DOCS-LINT: $1" >&2; FAIL=1; }
+SECTION_DIRTY=0
+err()  { echo "DOCS-LINT: $1" >&2; FAIL=1; SECTION_DIRTY=1; }
 warn() { echo "skip:  $1"; }
+note() { echo "note:  $1"; }
 ok()   { echo "ok:   $1"; }
 
 # Human-facing Markdown surfaces. Directories are linted recursively; a
@@ -55,14 +80,41 @@ ok()   { echo "ok:   $1"; }
 doc_paths=(README.md AGENTS.md docs agents skills prompts templates)
 
 RAN=()
+ADVISED=()
+FAILED=()
 SKIPPED=()
+
+# A section is bracketed by begin_section/end_section: err() marks the
+# section dirty, so a section that produced findings lands in FAILED and
+# never prints as a clean run. The flag is per section on purpose — a
+# global counter would hide the second failing section behind the first.
+begin_section() { SECTION_DIRTY=0; }
+# end_section <name> [advisory]
+end_section() {
+  local name=$1 kind=${2:-}
+  if [ "$kind" = "advisory" ]; then
+    ADVISED+=("$name")
+  elif [ "$SECTION_DIRTY" -ne 0 ]; then
+    FAILED+=("$name")
+  else
+    RAN+=("$name")
+  fi
+}
+
+print_outcomes() {
+  local label=$1 joined="" n
+  shift
+  if [ "$#" -eq 0 ]; then printf '%-10s (none)\n' "$label"; return; fi
+  for n in "$@"; do joined="${joined:+$joined, }$n"; done
+  printf '%-10s %s\n' "$label" "$joined"
+}
 
 paths=()
 for p in "${doc_paths[@]}"; do
   if [ -e "$p" ]; then
     paths+=("$p")
   else
-    warn "$p does not exist in this repo — not linted"
+    note "$p does not exist in this repo — not linted"
   fi
 done
 
@@ -113,10 +165,10 @@ run_markdownlint() {
   echo "== 1. markdownlint-cli2 — Markdown structure/style =="
   if ! command -v markdownlint-cli2 >/dev/null 2>&1; then
     SKIPPED+=("markdownlint-cli2")
-    warn "markdownlint-cli2 not installed — structure lint skipped (npm i -g markdownlint-cli2 to enable)"
+    warn "markdownlint-cli2 not installed — structure lint skipped (run mise install to enable)"
     return
   fi
-  RAN+=("markdownlint-cli2")
+  begin_section
   local out
   if out=$(markdownlint-cli2 "${md_files[@]}" 2>&1); then
     ok "markdownlint-cli2 clean"
@@ -124,16 +176,17 @@ run_markdownlint() {
     printf '%s\n' "$out" >&2
     err "markdownlint-cli2 found problems (see output above)"
   fi
+  end_section markdownlint-cli2
 }
 
 run_lychee() {
   echo "== 2. lychee — link checker =="
   if ! command -v lychee >/dev/null 2>&1; then
     SKIPPED+=("lychee")
-    warn "lychee not installed — link check skipped (https://lychee.cli.rs to enable)"
+    warn "lychee not installed — link check skipped (run mise install to enable)"
     return
   fi
-  RAN+=("lychee")
+  begin_section
   local out
   if out=$(lychee "${md_files[@]}" 2>&1); then
     ok "lychee: all links resolve"
@@ -141,16 +194,17 @@ run_lychee() {
     printf '%s\n' "$out" >&2
     err "lychee found broken links (see output above)"
   fi
+  end_section lychee
 }
 
 run_harper() {
   echo "== 3. harper-cli — English prose =="
   if ! command -v harper-cli >/dev/null 2>&1; then
     SKIPPED+=("harper-cli")
-    warn "harper-cli not installed — prose lint skipped (cargo install harper-cli to enable)"
+    warn "harper-cli not installed — prose lint skipped (run mise install to enable)"
     return
   fi
-  RAN+=("harper-cli")
+  begin_section
   local advisory=0
   if [ "${DOCS_LINT_HARPER_ADVISORY:-}" = "1" ]; then
     advisory=1
@@ -161,10 +215,13 @@ run_harper() {
   elif [ "$advisory" = "1" ]; then
     printf '%s\n' "$out" >&2
     warn "harper-cli found prose issues — advisory (DOCS_LINT_HARPER_ADVISORY=1), not failing"
+    end_section harper-cli advisory
+    return
   else
     printf '%s\n' "$out" >&2
     err "harper-cli found prose issues (set DOCS_LINT_HARPER_ADVISORY=1 to downgrade to advisory)"
   fi
+  end_section harper-cli
 }
 
 run_stamps() {
@@ -174,7 +231,7 @@ run_stamps() {
     warn "no files to scan for stamps"
     return
   fi
-  RAN+=("doc-stamps")
+  begin_section
   local f ln today d
   today=$(date +%F)
   for f in "${drift_stamp_files[@]}"; do
@@ -193,6 +250,7 @@ run_stamps() {
       err "$f:$ln: stamp expired — stale_after $d is before today $today"
     fi
   done
+  end_section doc-stamps
 }
 
 # Strip inline code spans (`…`, ``…``) so their contents never read as
@@ -228,7 +286,7 @@ run_claims() {
     warn "no files in claim scope"
     return
   fi
-  RAN+=("claim-to-gate")
+  begin_section
   local f n line stripped excerpt fence
   for f in "${drift_claim_files[@]}"; do
     fence=0
@@ -246,6 +304,7 @@ run_claims() {
       err "$f:$n: claim without gate reference: $excerpt"
     done < "$f"
   done
+  end_section claim-to-gate
 }
 
 run_gen_docs() {
@@ -255,7 +314,7 @@ run_gen_docs() {
     warn "scripts/gen-docs.mjs missing — commands-table check skipped"
     return
   fi
-  RAN+=("gen-docs")
+  begin_section
   local out
   if out=$(node scripts/gen-docs.mjs --check 2>&1); then
     ok "gen-docs: commands table in sync with prompts/*.md"
@@ -263,6 +322,7 @@ run_gen_docs() {
     printf '%s\n' "$out" >&2
     err "gen-docs: README commands section drifted (run node scripts/gen-docs.mjs)"
   fi
+  end_section gen-docs
 }
 
 run_check_tree() {
@@ -272,20 +332,24 @@ run_check_tree() {
     warn "scripts/check-tree.mjs missing — placement check skipped"
     return
   fi
-  RAN+=("check-tree")
+  begin_section
   # WARN tier by design: findings are reported, never fail the run.
   node scripts/check-tree.mjs || true
+  end_section check-tree
 }
 
 if [ -n "$drift_root" ]; then
   # Fixture mode: only the drift sections run, on the fixture root, so
   # fixture outcomes do not depend on installed tools or live doc state.
   warn "DRIFT_SCAN_DIR=$drift_root set — tool sections skipped (fixture mode: drift sections only)"
-  SKIPPED+=("markdownlint-cli2" "lychee" "harper-cli")
+  SKIPPED+=("markdownlint-cli2")
+  SKIPPED+=("lychee")
+  SKIPPED+=("harper-cli")
   run_stamps
   run_claims
 elif [ "${#md_files[@]}" -eq 0 ]; then
   warn "no Markdown files under doc_paths — nothing to lint"
+  SKIPPED+=("all sections (no Markdown files under doc_paths)")
 else
   run_markdownlint
   run_lychee
@@ -298,18 +362,18 @@ fi
 
 echo
 echo "== summary =="
-if [ "${#RAN[@]}" -gt 0 ]; then
-  for t in "${RAN[@]}"; do echo "ran:     $t"; done
-else
-  echo "ran:     (none)"
-fi
-if [ "${#SKIPPED[@]}" -gt 0 ]; then
-  for s in "${SKIPPED[@]}"; do echo "skipped: $s"; done
-fi
+print_outcomes "ran:" ${RAN[@]+"${RAN[@]}"}
+print_outcomes "advisory:" ${ADVISED[@]+"${ADVISED[@]}"}
+print_outcomes "failed:" ${FAILED[@]+"${FAILED[@]}"}
+print_outcomes "skipped:" ${SKIPPED[@]+"${SKIPPED[@]}"}
 echo
-if [ "$FAIL" -eq 0 ]; then
-  echo "CLEAN — docs lint passed."
-else
+if [ "$FAIL" -ne 0 ]; then
   echo "DOCS-LINT FAILED — fix the findings above; do not silence this check." >&2
+elif [ "${#RAN[@]}" -eq 0 ] && [ "${#ADVISED[@]}" -eq 0 ]; then
+  echo "CLEAN — but no section ran; read the skipped line above." >&2
+elif [ "${#SKIPPED[@]}" -gt 0 ]; then
+  echo "CLEAN — docs lint passed, with ${#SKIPPED[@]} section(s) not run (see skipped above)."
+else
+  echo "CLEAN — docs lint passed."
 fi
 exit "$FAIL"

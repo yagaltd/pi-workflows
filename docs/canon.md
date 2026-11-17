@@ -1,6 +1,8 @@
+---
 generated_by: pi-workflows plan lifecycle
 generated_at: 2026-10-29
 stale_after: 2026-11-28
+---
 
 # Docs canon
 
@@ -11,15 +13,15 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 ## Doc types (Diátaxis mapping)
 
 | Location | Type | Purpose |
-|---|---|---|
-| `README.md` | reference entry | Install, commands, gates — the human entry surface |
-| `AGENTS.md` | charter | Binding rules for every agent session; on conflict, this file wins |
-| `skills/**`, `prompts/**` | how-to (procedures) | Step-by-step flows the orchestrator and roles follow |
-| `agents/**` | procedures (verbatim prompts) | Role bodies — substituted verbatim at dispatch |
-| `docs/**` | reference + explanation | Development guides, architecture, decision context |
+| --- | --- | --- |
+| `README.md` | reference entry | Install, commands, gates — entry surface |
+| `AGENTS.md` | charter | Binding rules per session; wins on conflict |
+| `skills/**`, `prompts/**` | how-to | Step-by-step flows agents follow |
+| `agents/**` | procedures | Role bodies — substituted verbatim |
+| `docs/**` | reference + explanation | Guides, architecture, decision context |
 | `docs/adr/**` | decision records | One ADR per architectural decision |
-| `.workflows/archive/**` | decision records | Closed plans: the durable trace of what shipped and why |
-| `.workflows/specs/**` | executable contracts | Per-task contracts (ephemeral until archived) |
+| `.workflows/archive/**` | decision records | Closed plans, with rationale |
+| `.workflows/specs/**` | executable contracts | Per-task contracts, ephemeral |
 
 ## Rules
 
@@ -28,8 +30,9 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 2. **Generated docs carry stamps**: `generated_by` + `generated_at` + `stale_after`
    (+30d default). Expired stamps are drift (doc-drift gate, plan 20261025-018;
    gate: scripts/docs-lint.sh stamps section).
-3. **Adopted ideas use our names.** Origin tools appear only as reference notes —
-   e.g. "docs-lint — origin: agent-spec docs-lint, adapted from EpicGames/lore".
+3. **Adopted ideas use our names.** Origin tools appear only as reference
+   notes — e.g. "docs-lint — origin: agent-spec docs-lint, adapted from
+   EpicGames/lore".
 4. **Every behavioral claim names its gate** (gate: scripts/docs-lint.sh
    claim-to-gate scan, plan 20261025-018). If a sentence obligates an agent —
    do X, or avoid X — the same doc names the check that proves it: a command,
