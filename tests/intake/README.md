@@ -1,13 +1,27 @@
-# Intake fixture — marked requirement block format (agent-spec fork 1.5.0)
+# Intake format record — marked requirement block format (agent-spec fork 1.5.0)
 
-Discovered from the fork's import implementation (read-only reference
-`/home/aurel/Documents/vibe/coding-agent/agent-spec`): parser
-`src/spec_knowledge/intake.rs::parse_requirement_blocks`, command
-`src/main.rs::cmd_requirements_import` (`requirements import --from --out
---check --provenance`). The upstream clone
-(`/home/aurel/Documents/github/agent-spec`) has no marked-block parser — the
-fork is the only authority. This file is the format record; TASK 2 docs and
-future intake files take their syntax from here.
+**Status: FORMAT RECORD — not a passing check.** No importer exists, so nothing
+in this directory can be run or verified today. What is pinned here is the
+syntax, a sample input, and the expected output a future implementation must
+reproduce. The deferral is a decision of record: `.workflows/decisions/DEC-007.md`.
+
+## Why nothing here runs (verified 2026-11-17)
+
+- The installed binary has no such command: `agent-spec --version` is 0.2.7 and
+  `agent-spec requirements --help` fails with
+  `error: unrecognized subcommand 'requirements'`. The subcommand list is
+  `parse, lint, verify, init, lifecycle, brief, contract, guard, explain, stamp,
+  checkpoint, measure-determinism, install-hooks, resolve-ai, plan, graph,
+  plan-check` — no `requirements`.
+- The repo clone (`~/Documents/github/agent-spec`) has no marked-block parser:
+  no `parse_requirement_blocks`, no intake module under `src/`.
+- The fork this format was discovered from
+  (`/home/aurel/Documents/vibe/coding-agent/agent-spec`, agent-spec fork 1.5.0)
+  no longer exists on disk, so even the provenance below cannot be re-checked.
+
+Consequence: an intake session emits marked blocks, the human approves, and the
+blocks stay unimported — there is no command to hand them to. Nothing may claim
+otherwise until an importer ships.
 
 ## Block format
 
@@ -42,40 +56,46 @@ future intake files take their syntax from here.
   id in the same file, and `no agent-spec requirement blocks found in <file>`
   when a file has zero blocks.
 
-## Import lifecycle (D2/D4 of plan 20261025-019)
+Provenance of this record (from the fork, now unverifiable on disk): parser
+`src/spec_knowledge/intake.rs::parse_requirement_blocks`, command
+`src/main.rs::cmd_requirements_import` (`requirements import --from --out
+--check --provenance`). The upstream clone has no marked-block parser, so the
+fork was the only authority — and it is gone.
+
+## Import lifecycle — the contract a future implementation must satisfy (D2/D4 of plan 20261025-019)
+
+Nothing below runs today. Read the commands as the shape an implementation
+must provide, not as instructions.
 
 1. A session emits candidate blocks to `.workflows/intake/<date>-<slug>.md`.
-2. Verify: `agent-spec requirements import --from <file> --check --out .workflows/requirements/`.
-   - Parse errors mean a malformed block — fix the format.
-   - `error: generated requirement artifact drifted: <path>` for not-yet-imported
-     blocks is the EXPECTED pre-approval state: the parse succeeded and `<path>`
-     is the artifact an approved import would create. In fork 1.5.0 `--check` is
-     a drift gate (parse -> render -> byte-compare against the `--out` corpus),
-     not a parse-only validator; it exits 0 only once the corpus contains the
-     byte-identical rendered artifacts.
+2. `--check` is a drift gate, not a parse-only validator: parse → render →
+   byte-compare against the `--out` corpus, exiting 0 only once the corpus
+   contains the byte-identical rendered artifacts. Parse errors mean a
+   malformed block. `error: generated requirement artifact drifted: <path>` for
+   not-yet-imported blocks is the expected pre-approval state — the parse
+   succeeded and `<path>` is the artifact an approved import would create.
 3. STOP for human review. Rejected blocks stay in the intake file annotated
-   `rejected: <reason>`. Never run the import without `--check` without
-   explicit human approval of specific blocks.
+   `rejected: <reason>`. No import happens without explicit human approval of
+   specific blocks.
 4. On approval, put only the approved blocks in a clean file (the import has no
-   per-block filter — it imports every block in the file) and run the real
-   import: `agent-spec requirements import --from <file> --out .workflows/requirements/`.
+   per-block filter — it imports every block in the file) and import them.
    Artifacts are named `<id-lowercase>-<slugified-title>.md` with frontmatter
    `kind: requirement / status: proposed / liveness: auto`; afterwards the same
-   `--check` command exits 0 (drift gate green). Governance transitions remain
-   the fork's explicit human commands (`requirements transition`, `supersede`).
+   `--check` exits 0 (drift gate green). Governance transitions remain explicit
+   human commands (`requirements transition`, `supersede`).
 
-## This fixture
+## This fixture: pinned examples, not a gate
 
 - `sample-intake.md` — realistic 2-block candidate sample (feature idea
   `REQ-HISTORY-EXPORT` + guardrail idea `REQ-INTAKE-APPROVAL`).
-- `rendered/` — the exact artifacts the fork's renderer produces for those
-  blocks (checked in, following the fork's own noteapp fixture pattern:
-  `fixtures/requirements-noteapp` runs `import --from <prd> --out <checked-in
-  corpus> --check` as its demo gate). Note the renderer's Source Trace quirk,
-  reproduced byte-exactly in
+- `rendered/` — the artifacts the fork's renderer produced for those blocks,
+  checked in as the expected-output record. Note the renderer's Source Trace
+  quirk, reproduced byte-exactly in
   `rendered/req-history-export-export-run-history.md`: two blank lines before
   `## Source Trace`, none between the source bullet and `## Open Questions`.
-
-Verify (exit 0 proves parse + byte-exact round-trip):
-
-    agent-spec requirements import --from tests/intake/sample-intake.md --check --out tests/intake/rendered
+- There is no runnable verify line for this directory. The fork's own fixture
+  pattern (`fixtures/requirements-noteapp` ran `import --from <prd> --out
+  <checked-in corpus> --check`) is the reason these bytes are byte-exact, and
+  it is also the shape a future `--check` must reproduce; until an importer
+  exists, the only check available is reading a candidate implementation
+  against this file.
