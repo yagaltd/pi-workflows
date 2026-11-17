@@ -524,7 +524,9 @@ export function buildPack(
   repo: string
 ): string {
   const lines = [
-    `Repo: ${repo} (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/** worktree).`,
+    // Keep the glob out of a literal slash-star-star so cc-check's scanner
+    // does not read it as a doc comment: ${"**"} renders the same pack line.
+    `Repo: ${repo} (GUARD: verify pwd + git toplevel — toplevel = repo root OR a <repo>/.git/subagents/${"**"} worktree).`,
     `Plan: ${prov.planId} — ${prov.title} (${prov.status})`,
   ];
   if (prov.env) lines.push(`Env: ${prov.env}`);
@@ -538,12 +540,11 @@ export function buildPack(
   return lines.join("\n");
 }
 
-/** Ordered gate list for a task: contract lifecycle, then the plan's
+/** @cc [label:gate,id:gate-commands-name-real-tools] gate-commands-name-real-tools
+ *  Gate commands name tools that exist — contract lifecycle, then the plan's
  *  Verify line. A task flagged `tdd:` runs the lifecycle with agent-spec's
  *  tdd-guard layer enabled — one real chain, no separate test-quality binary.
- *
- * @cc [label:gate,id:gate-commands-name-real-tools] gate-commands-name-real-tools
- *  Gate commands name tools that exist: the `tdd:` flag renders
+ *  The `tdd:` flag renders
  *  `agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`
  *  and never emits a standalone test-quality binary. An absent tdd-guard stays
  *  agent-spec's loud SKIP, never a pass.

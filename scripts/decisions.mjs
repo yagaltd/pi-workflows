@@ -12,9 +12,11 @@
 //   node scripts/decisions.mjs list [--dir ...]
 //   node scripts/decisions.mjs index [--dir ...]            (regenerate INDEX.md)
 //   node scripts/decisions.mjs check [--plan .workflows/plan.md] [--dir ...]
-// Exit: check 0 ok / 1 findings · record/supersede/index 0 · 2 usage.
+//   node scripts/decisions.mjs self-check               (malformed heading is a finding)
+// Exit: check/self-check 0 ok / 1 findings · record/supersede/index 0 · 2 usage.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const REQUIRED = ["Status", "Decided-by", "Scope", "Revisit when"];
@@ -24,7 +26,7 @@ export function parseArgs(argv) {
   const keys = ["id", "title", "rule", "scope", "decided-by", "revisit", "by", "reason"];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "record" || a === "supersede" || a === "list" || a === "index" || a === "check") o.cmd = a;
+    if (a === "record" || a === "supersede" || a === "list" || a === "index" || a === "check" || a === "self-check") o.cmd = a;
     else if (a === "--dir") o.dir = argv[++i];
     else if (a === "--plan") o.plan = argv[++i];
     else if (a === "--status") o.status = argv[++i];
@@ -65,12 +67,13 @@ export function parseRecord(text, file) {
     const m = new RegExp(`^> ${name}: (.+)$`, "m").exec(text);
     return m ? m[1].trim() : null;
   };
-  const id = ( /^# (DEC-\d+):/m.exec(text) || [] )[1] ?? null;
+  const heading = /^# (DEC-\d+): (.+)$/m.exec(text);
+  const id = heading ? heading[1] : null;
   const rule = /^Rule: (.+)$/m.exec(text);
   const rec = {
     file,
     id,
-    title: id ? text.split("\n")[0].replace(`# ${id}: `, "") : null,
+    title: heading ? heading[2].trim() : null,
     status: field("Status"),
     decidedBy: field("Decided-by"),
     scope: field("Scope"),
@@ -82,9 +85,11 @@ export function parseRecord(text, file) {
 
 export function loadRecords(dir) {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir).filter((f) => /^DEC-\d+.*\.md$/.test(f))
+  // Every DEC-*.md record — a file the parser does not recognise must reach
+  // check() and be reported, never silently skipped as if it were not there.
+  return fs.readdirSync(dir).filter((f) => /^DEC-.*\.md$/.test(f))
     .map((f) => parseRecord(fs.readFileSync(path.join(dir, f), "utf8"), f))
-    .sort((a, b) => (a.id ?? "").localeCompare(b.id ?? ""));
+    .sort((a, b) => (a.id ?? a.file).localeCompare(b.id ?? b.file));
 }
 
 export function renderIndex(records) {
@@ -129,6 +134,7 @@ export function check({ dir, plan }) {
   const records = loadRecords(dir);
   const ids = new Set(records.map((r) => r.id).filter(Boolean));
   for (const r of records) {
+    if (!r.id) findings.push(`${r.file}: heading is not "# DEC-<n>: <title>" — a record without an id cannot read CLEAN`);
     for (const f of REQUIRED) {
       if (!r[FIELD_KEYS[f]]) findings.push(`${r.file}: missing field "${f}"`);
     }
@@ -148,6 +154,28 @@ export function check({ dir, plan }) {
     findings.push("INDEX.md drifted from regeneration — run: node scripts/decisions.mjs index");
   }
   return { ok: findings.length === 0, findings, records };
+}
+
+/** Regression self-check (tests/extension.test.ts is extension-scoped and the
+ *  ledger's own test file is out of TASK 7's Allowed Changes): a record whose
+ *  heading is not `# DEC-<n>: <title>` must be a finding, never id=null CLEAN. */
+export function selfCheck() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "decisions-selfcheck-"));
+  try {
+    fs.writeFileSync(path.join(dir, "DEC-999.md"), `# ADR-999: malformed heading
+> Status: active
+> Decided-by: self-check
+> Scope: self-check
+> Revisit when: never
+
+Rule: a malformed heading must be a finding, never a CLEAN ledger.
+`);
+    const { ok, findings } = check({ dir, plan: path.join(dir, "absent.md") });
+    const hit = findings.some((f) => f.startsWith("DEC-999.md:"));
+    return { ok: !ok && hit, findings };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 export async function main(argv) {
@@ -178,6 +206,12 @@ export async function main(argv) {
     const { ok, findings } = check({ dir: opts.dir, plan: opts.plan });
     for (const f of findings) console.error(`FINDING: ${f}`);
     console.log(`decisions check: ${ok ? "CLEAN" : `${findings.length} finding(s)`} · ${loadRecords(opts.dir).length} record(s)`);
+    return ok ? 0 : 1;
+  }
+  if (opts.cmd === "self-check") {
+    const { ok, findings } = selfCheck();
+    for (const f of findings) console.log(`fixture finding: ${f}`);
+    console.log(`decisions self-check: ${ok ? "PASS" : "FAIL"} — a malformed heading must be a finding, not id=null`);
     return ok ? 0 : 1;
   }
   return 2;
