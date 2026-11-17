@@ -1,3 +1,21 @@
+## 2026-11-17 — v0.15.2: real gates for vanilla JS, the whole web family in review (plan 20261117-066)
+
+- **`/init` learns vanilla JS.** The gate-generation paragraph had bun/TS, rust and python
+  examples but nothing for a project without a `tsconfig`: it now detects the project's own
+  linter (`eslint` | `biome`) for `check` and runner (`vitest` | `node --test` | `bun test`)
+  for `verify`, with a worked example — and states that `check` stays **absent** rather than
+  invented when no linter is detectable.
+- **Review names the web family by intent.** `modern-web-guidance` first for any client-side
+  diff, `web-perf` for CWV-sensitive work (LCP/INP/CLS), and the impeccable set where it
+  applies: `audit` for a UI audit, `harden` for resilience, `distill`/`normalize`/`polish`
+  when density, consistency or finish change.
+- **fix: doctrine named a skill that does not exist.** `unsafe-checker` was cited as part of
+  the Rust trio; the installed trio is `rust-review` / `rust-best-practices` / `rust-port`.
+  Same class as the retired `tdd-gate` — doctrine pointing at something unavailable.
+- **Pinned so names cannot rot**: every skill cited in reviewer doctrine must resolve against
+  a hardcoded installed-set of record, and `unsafe-checker` must appear nowhere. Suite 421
+  tests · drift CLEAN · docs-lint CLEAN with no raised budget (every new line ≤80 cols).
+
 ## 2026-11-17 — v0.15.1: `/restart` digests the repo you stand in (plan 20261117-065)
 
 - **fix: the restart digest resolved the wrong repo.** `scripts/resume-digest.sh` found its root by
