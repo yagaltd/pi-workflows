@@ -313,6 +313,14 @@ bullet grammar").
 | TASK 2 | .workflows/specs/task-<name>.spec | 4 scenarios |
 | TASK 3 | .workflows/specs/task-<other>.spec | 3 scenarios |
 
+## Ledger Resolution
+Drain before grow: every row of the last ship report's follow-up table is
+resolved here — token grammar: `done(<task-ref>)` / `closed(<reason>)` /
+`deferred(trigger: <condition>)`.
+
+| Item | Disposition | Note |
+|------|-------------|------|
+
 ## Execution Notes
 <filled in as tasks are completed — includes cost, duration, and learnings per task>
 ```

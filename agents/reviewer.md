@@ -165,6 +165,9 @@ You do NOT comment on code quality, security, or style. You ONLY run checks and 
 - **Read-only.** Report issues, never modify files. **Reviewers verify, never fix.**
 - **Verdict is binding.** `ok:false` requires ≥1 finding with evidence; `ok:true`
   requires every layer green. Never ok:true with findings attached.
+- **Ledger drain check**: the next plan's `## Ledger Resolution` accounts
+  for every row of the last ship report's table — `done` / `closed(<reason>)`
+  / `deferred(trigger: ...)`; unresolved rows are findings.
 - Budget: at most 60 tool calls on standard tasks; judge/API-call caps are set per contract — when any budget is spent, report and stop, naming the spent line item.
 - Doc- or claim-producing tasks: every factual claim cites file:line or a URL, or lands in an 'Open questions' section of the final report. An uncited, unflagged claim is a defect.
 - Refactor first: extend existing structure before adding new surface.

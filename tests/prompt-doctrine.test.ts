@@ -723,3 +723,124 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
     expect(INIT_T1).toContain("**Dev environment (mise)**");
   });
 });
+
+// --- T2: ledger doctrine wiring (plan 20261117-067) ---
+// Pins the follow-up table as the mandatory end of every ship report, the
+// drain-before-grow `## Ledger Resolution` plan section, and the
+// terminal-before-report rule for spawned runs.
+
+const LEDGER_TABLE = fs.readFileSync("templates/FOLLOW-UP-TABLE.md", "utf8");
+const REGISTRY_T2 = readT2("agents/registry.md");
+const REVIEWER_T2 = fs.readFileSync("agents/reviewer.md", "utf8");
+const PLAN_T2 = fs.readFileSync("skills/plan/SKILL.md", "utf8");
+const REVIEW_T2 = readT2("skills/review/SKILL.md");
+
+describe("prompt doctrine — ledger wiring (T2, plan 20261117-067)", () => {
+  test("test_ship_report_ends_with_followup_table", () => {
+    // registry doctrine (a): the ship report ENDS with the table —
+    // mandatory, bounded; no dangling prose caveats outside it
+    const m = REGISTRY_T2.indexOf("SHIP reports END with the follow-up table");
+    expect(m).toBeGreaterThan(-1);
+    const slice = REGISTRY_T2.slice(m, m + 700);
+    expect(slice).toContain("templates/FOLLOW-UP-TABLE.md");
+    expect(slice).toContain("Origin");
+    expect(slice).toContain("mandatory, bounded");
+    expect(slice).toContain(
+      "no open item may be mentioned in prose outside the table",
+    );
+    // the review skill's ship step points at the template + Origin
+    const ship = REVIEW_T2.indexOf("## Stage 3: SHIP");
+    expect(ship).toBeGreaterThan(-1);
+    const shipSlice = REVIEW_T2.slice(ship);
+    expect(shipSlice).toContain("templates/FOLLOW-UP-TABLE.md");
+    expect(shipSlice).toContain("Origin");
+  });
+
+  test("test_terminal_before_report_in_registry", () => {
+    // registry doctrine (b): enumerate spawned runs, consume subagent_result
+    // first-hand, wait when non-terminal
+    const m = REGISTRY_T2.indexOf("Terminal-before-report");
+    expect(m).toBeGreaterThan(-1);
+    const slice = REGISTRY_T2.slice(m, m + 700);
+    expect(slice).toContain("enumerate every spawned run");
+    expect(slice).toContain("terminal");
+    expect(slice).toContain("subagent_result");
+    expect(slice).toContain("first-hand words, never second-hand citation");
+    expect(slice).toContain("the report waits");
+  });
+
+  test("test_plan_skill_has_ledger_resolution", () => {
+    // the plan template drains the ledger before growing
+    expect(PLAN_T2).toContain("## Ledger Resolution");
+    const m = PLAN_T2.indexOf("## Ledger Resolution");
+    const slice = PLAN_T2.slice(m, m + 900);
+    expect(slice).toContain("Item");
+    expect(slice).toContain("Disposition");
+    expect(slice).toContain("Note");
+    expect(slice).toContain("done(<task-ref>)");
+    expect(slice).toContain("closed(<reason>)");
+    expect(slice).toContain("deferred(trigger: <condition>)");
+  });
+
+  test("test_followup_table_origin_column", () => {
+    // Origin is a pinned column, between Risk and Effort or after Item
+    const header = LEDGER_TABLE
+      .split("\n")
+      .find((l) => l.startsWith("| # |"));
+    expect(header).toBeDefined();
+    const h = header as string;
+    expect(h).toContain("Origin");
+    const item = h.indexOf("Item");
+    const origin = h.indexOf("Origin");
+    const risk = h.indexOf("Risk");
+    const effort = h.indexOf("Effort");
+    expect(origin).toBeGreaterThan(item);
+    expect(origin).toBeLessThan(risk); // after Item
+    expect(h.indexOf("Origin", origin + 1)).toBe(-1); // exactly once
+    // grammar: planned | new (<why>)
+    expect(LEDGER_TABLE).toContain("`planned`");
+    expect(LEDGER_TABLE).toContain("new (<why>)");
+    // amendment note dated 20261117 / plan 067
+    expect(LEDGER_TABLE).toContain("20261117");
+    expect(LEDGER_TABLE).toContain("20261117-067");
+    // three-exit-state rule sits near the top (before the columns section)
+    const cols = LEDGER_TABLE.indexOf("## Columns");
+    const top = LEDGER_TABLE.slice(0, cols);
+    expect(top).toContain("done");
+    expect(top).toContain("closed(reason)");
+    expect(top).toContain("deferred(trigger: ...)");
+    expect(top).toContain("before a new plan opens");
+    // anti-bloat: a row without Impact and Fix shape is deleted, not queued
+    expect(LEDGER_TABLE).toContain("DELETED, not queued");
+    // worked example gains one planned-origin row and one new-origin row
+    const rows = LEDGER_TABLE.split("\n").filter((l) => /^\| [67] \|/.test(l));
+    expect(rows.some((r) => r.includes(" planned "))).toBe(true);
+    expect(rows.some((r) => r.includes("new ("))).toBe(true);
+  });
+
+  test("test_reviewer_checks_ledger_resolution", () => {
+    // the reviewer holds the next plan to the last report's table
+    const m = REVIEWER_T2.indexOf("Ledger Resolution");
+    expect(m).toBeGreaterThan(-1);
+    const slice = REVIEWER_T2.slice(m, m + 500);
+    expect(slice).toContain("every row");
+    expect(slice).toContain("ship report");
+    expect(slice).toContain("finding");
+    expect(REVIEWER_T2).toContain("closed(");
+    expect(REVIEWER_T2).toContain("deferred(trigger");
+  });
+
+  test("test_gates_stay_green", () => {
+    // Static pin of the gate wiring; the gates themselves run in the task
+    // verify line (`bun test && bash scripts/check-drift.sh`).
+    const justfile = fs.readFileSync("justfile", "utf8");
+    const ci = justfile.slice(
+      justfile.indexOf("ci:"),
+      justfile.indexOf("ci-lite:"),
+    );
+    expect(ci).toContain("./scripts/check-drift.sh");
+    expect(ci).toContain("bun test");
+    // the table template exists and is still the format of record
+    expect(LEDGER_TABLE).toContain("# Follow-up table format");
+  });
+});
