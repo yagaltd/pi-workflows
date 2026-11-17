@@ -9,6 +9,9 @@
 #   * every backtick path declared under the plan's `## Docs impact`
 #     heading exists in the repo (a backtick span counts as a declared
 #     path when it contains `/` or ends in `.md`)
+#   * a `## Docs impact` section that declares no backtick path at all is a
+#     finding: the section exists to be machine-checked, so paths written as
+#     bare prose would otherwise pass silently (plan 20261117-064)
 #   * CHANGELOG.md mentions the Plan ID (the `> Plan ID:` line) — the
 #     plan dir's own copy when it carries one, else the repo's live
 #     CHANGELOG.md
@@ -82,7 +85,8 @@ while IFS= read -r entry; do
 done < <(printf '%s\n' "$section")
 
 if [ "$declared" -eq 0 ] && grep -q '^## Docs impact' "$plan"; then
-  ok "## Docs impact declares no backtick paths — only the CHANGELOG check applies"
+  heading=$(grep -nE '^## Docs impact' "$plan" | head -n1 | cut -d: -f1)
+  err "$plan:${heading:-1}: \`## Docs impact\` declares no backtick path — paths written as prose cannot be verified, so they pass silently; declare each doc as a backtick path (templates/PROPOSAL-FORMAT.md)"
 fi
 
 # --- CHANGELOG mentions the Plan ID -------------------------------------------

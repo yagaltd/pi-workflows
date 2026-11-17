@@ -1,0 +1,4 @@
+.workflows/*
+.workflows/pii/
+!.workflows/LOG.md
+!.workflows/decisions/
