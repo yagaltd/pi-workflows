@@ -10,6 +10,7 @@ node_modules/
 !.workflows/tree.json
 !.workflows/proposals/
 !.workflows/reviews/
+!.workflows/decisions/
 !.workflows/archive/
 !.workflows/profile.json
 !.workflows/evals/

@@ -570,3 +570,36 @@ describe("prompt doctrine — domain-skill wiring (T13, plan 20261104-063)", () 
     expect(IDEA_SKILL).toContain("MCP");
   });
 });
+
+// Prompt commands must never shadow a pi built-in slash command: pi resolves
+// built-ins before project/user/package resources, so a same-named template is
+// silently unreachable (the /resume incident — pi's session picker opened
+// instead of prompts/resume.md). Built-in set of record: pi docs/slash-commands.md.
+const PI_BUILTIN_COMMANDS = new Set([
+  "settings", "model", "thinking", "scoped-models", "login", "logout", "llama",
+  "new", "resume", "name", "session", "tree", "fork", "clone", "compact",
+  "import", "copy", "export", "share", "bug", "trust", "mcp", "reload",
+  "hotkeys", "changelog", "quit",
+]);
+
+describe("prompt doctrine: no prompt template shadows a pi built-in command", () => {
+  const promptNames = fs
+    .readdirSync("prompts")
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => f.slice(0, -3));
+
+  test("prompt filenames never collide with a pi built-in slash command", () => {
+    expect(promptNames.filter((n) => PI_BUILTIN_COMMANDS.has(n))).toEqual([]);
+  });
+
+  test("the restart trigger exists under a non-shadowed name", () => {
+    expect(promptNames).toContain("restart");
+    expect(promptNames).not.toContain("resume");
+  });
+
+  test("restart trigger runs the digest and defers to the lifecycle", () => {
+    const restart = fs.readFileSync("prompts/restart.md", "utf8");
+    expect(restart).toContain("bash scripts/resume-digest.sh");
+    expect(restart).toContain("execution-doctrine.md");
+  });
+});

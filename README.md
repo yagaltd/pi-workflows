@@ -64,7 +64,7 @@ One command per prompt file — descriptions from each prompt's frontmatter
 | `/plan` | Plan — decompose into atomic tasks from existing context |
 | `/prototype` | Prototype — run parallel A/B/C prototypes, benchmark, keep the winner |
 | `/refactor` | Refactor — powerful model, deep thinking, structure change only |
-| `/resume` | Resume — rebuild session state, then act on it |
+| `/restart` | Restart — rebuild session state from the digest, then act on it |
 | `/review` | Review — run /verify first, then quality review with bug-hunter + judgment |
 | `/status` | Show current .workflows/plan.md progress with contract status and cost summary |
 | `/verify` | Verify — run agent-spec guard on all contracts + full project checks |

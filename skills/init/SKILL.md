@@ -218,7 +218,7 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    the handoff). The fresh project now carries its charter (probed
    in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README
    skeleton — and
-   any later session can `/resume` (it runs `bash scripts/resume-digest.sh`)
+   any later session can `/restart` (it runs `bash scripts/resume-digest.sh`)
    to rebuild state before continuing.
 
 ## Rules

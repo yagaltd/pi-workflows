@@ -60,7 +60,10 @@ Tier refines routing:
 
 - **A** → `@model:standard` + thinking low + grep-only review (one `Verify:`
   line suffices — no reviewer node) or orchestrator-inline
-- **B** → existing per-tag routing above, unchanged
+- **B** → `@model:standard` + thinking high + existing per-tag routing above, unchanged
+  (the model and thinking must be spelled out: the dispatcher resolves this
+  table mechanically and a row without them leaves every Tier B task
+  undispatched — gate: `tests/extension.test.ts`)
 - **C** → `@model:strong` + thinking high + **serial, never parallel**
 
 ## Task tiers (routing overlay)

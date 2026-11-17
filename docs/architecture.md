@@ -33,7 +33,7 @@ extension's `dispatch_next` tool — deterministic code (the model's own
 reading of the plan is never the selector — gate: `tests/extension.test.ts`).
 QUALITY REVIEW is
 tag-gated per-task; `/review` is the whole-plan quality gate. After a context
-restart, `/resume` rebuilds state from `bash scripts/resume-digest.sh` before
+restart, `/restart` rebuilds state from `bash scripts/resume-digest.sh` before
 anything dispatches.
 
 ## Gates — verdict gating: no model marks its own work done
@@ -486,7 +486,7 @@ backlog item 11); toolchain absent ⇒ deduped advisory, write proceeds;
 docs-only `.md` writes are exempt; inert without a live plan (gate:
 `tests/extension.test.ts`).
 
-**Restart** — `/resume` runs the read-only 7-section digest
+**Restart** — `/restart` runs the read-only 7-section digest
 (`bash scripts/resume-digest.sh`: plan status, dispatcher context, LOG tail,
 budget, dirty paths, gates snapshot from `.workflows/profile.json`, recent
 commits) and acts on it; missing profile degrades to defaults with a note
