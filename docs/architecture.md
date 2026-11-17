@@ -502,4 +502,8 @@ docs-only `.md` writes are exempt; inert without a live plan (gate:
 (`bash scripts/resume-digest.sh`: plan status, dispatcher context, LOG tail,
 budget, dirty paths, gates snapshot from `.workflows/profile.json`, recent
 commits) and acts on it; missing profile degrades to defaults with a note
-(gate: `scripts/resume-digest.sh`).
+(gate: `scripts/resume-digest.sh`). It describes the repo of the current
+directory, not the repo the script lives in: the cwd's git root wins when
+it holds `.workflows/`, the script's own checkout is the fallback, and
+`--root <dir>` overrides both; an unresolvable root is a loud failure
+(gate: `tests/resume-digest.test.ts`).
