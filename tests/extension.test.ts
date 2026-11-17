@@ -827,13 +827,11 @@ describe("resolveNext (dispatcher)", () => {
     expect(b.split("\n\n")[1]).toContain("TASK 2:");
   });
 
-  test("gateCommandsFor: lifecycle first, tdd-gate lines when flagged, verify last", () => {
+  test("gateCommandsFor: lifecycle with the tdd-guard layer when flagged, verify last", () => {
     const tasks = parsePlan(FIXTURE_GROUPED);
     const policy = { model: "standard", thinking: "medium", role: "worker" };
     expect(gateCommandsFor({ ...tasks[0], ...policy })).toEqual([
-      "agent-spec lifecycle .workflows/specs/task-1.spec --code .",
-      "tdd-gate gaming --diff",
-      "tdd-gate drift --spec .workflows/specs/task-1.spec",
+      "agent-spec lifecycle .workflows/specs/task-1.spec --code . --layers lint,boundary,test,tdd-guard",
       "bun test",
     ]);
     expect(gateCommandsFor({ ...tasks[1], ...policy })).toEqual([
@@ -981,7 +979,7 @@ describe("autoGate (injected fakes)", () => {
     };
     const d = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run });
     expect(d.action).toBe("allow");
-    expect(calls.map((c) => c.cmd)).toEqual(["agent-spec", "agent-spec", "tdd-gate", "tdd-gate"]);
+    expect(calls.map((c) => c.cmd)).toEqual(["agent-spec", "agent-spec", "tdd-guard", "tdd-guard"]);
     expect(calls[0].args).toEqual([
       "guard",
       "--spec-dir",
@@ -1001,8 +999,8 @@ describe("autoGate (injected fakes)", () => {
       "--format",
       "json",
     ]);
-    expect(calls[2].args).toEqual(["gaming", "--diff"]);
-    expect(calls[3].args).toEqual(["drift", "--spec", ".workflows/specs/task-1.spec"]);
+    expect(calls[2].args).toEqual(["lint"]);
+    expect(calls[3].args).toEqual(["verify", "--spec", ".workflows/specs/task-1.spec"]);
   });
 
   test("guard failure blocks the boundary layer with the first finding", () => {
@@ -1045,29 +1043,29 @@ describe("autoGate (injected fakes)", () => {
     expect(d.reason).toContain("honors contract boundaries (verdict fail)");
   });
 
-  test("tdd-gate gaming then drift block the Layer 2 sub-steps", () => {
-    const gamingFail: GateRunner = (cmd, args) => {
-      if (cmd === "tdd-gate" && args[0] === "gaming")
-        return { code: 1, stdout: "", stderr: "tdd-gate: gaming detected: assertion removed" };
+  test("tdd-guard lint then verify block the Layer 2 sub-steps", () => {
+    const lintFail: GateRunner = (cmd, args) => {
+      if (cmd === "tdd-guard" && args[0] === "lint")
+        return { code: 1, stdout: "", stderr: "tdd-guard: no-assertionless-tests: src/a.test.ts:12 has no assertion" };
       return { code: 0, stdout: '{"passed": true}', stderr: "" };
     };
-    const d1 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: gamingFail });
+    const d1 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: lintFail });
     expect(d1.action).toBe("block");
     if (d1.action === "block") {
-      expect(d1.layer).toBe("Layer 2 test-quality (tdd-gate gaming)");
-      expect(d1.command).toBe("tdd-gate gaming --diff");
+      expect(d1.layer).toBe("Layer 2 test-quality (tdd-guard lint)");
+      expect(d1.command).toBe("tdd-guard lint");
     }
-    const driftFail: GateRunner = (cmd, args) => {
-      if (cmd === "tdd-gate" && args[0] === "drift")
-        return { code: 1, stdout: "", stderr: "- task-1.spec: drifted from tests" };
+    const verifyFail: GateRunner = (cmd, args) => {
+      if (cmd === "tdd-guard" && args[0] === "verify")
+        return { code: 1, stdout: "", stderr: "- task-1.spec: no test covers decision: cache eviction" };
       return { code: 0, stdout: '{"passed": true}', stderr: "" };
     };
-    const d2 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: driftFail });
+    const d2 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: verifyFail });
     expect(d2.action).toBe("block");
     if (d2.action === "block") {
-      expect(d2.layer).toBe("Layer 2 test-quality (tdd-gate drift)");
-      expect(d2.command).toBe("tdd-gate drift --spec .workflows/specs/task-1.spec");
-      expect(d2.reason).toContain("- task-1.spec: drifted from tests");
+      expect(d2.layer).toBe("Layer 2 test-quality (tdd-guard verify)");
+      expect(d2.command).toBe("tdd-guard verify --spec .workflows/specs/task-1.spec");
+      expect(d2.reason).toContain("no test covers decision");
     }
   });
 
@@ -1157,10 +1155,10 @@ esac
 exit 0
 `;
 
-const TDD_GATE_SHIM = `#!/bin/sh
-echo "tdd-gate $1" >> "$TDD_JOURNAL"
-if [ "$TDD_MODE" = "fail" ]; then
-  echo "tdd-gate: gaming detected: assertion removed in src/a.test.ts"
+const TDD_GUARD_SHIM = `#!/bin/sh
+echo "tdd-guard $1" >> "$TDD_JOURNAL"
+if [ "$TDD_MODE" = "fail" ] && [ "$1" = "lint" ]; then
+  echo "tdd-guard: no-assertionless-tests: src/a.test.ts:12 has no assertion"
   exit 1
 fi
 exit 0
@@ -1218,7 +1216,7 @@ async function withGateEnv(
   const savedModes: Record<string, string | undefined> = {};
   const journal = fs.mkdtempSync(path.join(os.tmpdir(), "t3-journal-"));
   const journalFile = path.join(journal, "agent-spec.log");
-  const tddJournalFile = path.join(journal, "tdd-gate.log");
+  const tddJournalFile = path.join(journal, "tdd-guard.log");
   fs.writeFileSync(journalFile, "");
   fs.writeFileSync(tddJournalFile, "");
   for (const [k, v] of Object.entries(modes)) {
@@ -1261,7 +1259,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
 
   test("blocks when a lifecycle scenario fails", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(
       bin,
@@ -1278,7 +1276,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
 
   test("passes with limitation when lifecycle is skip-only", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(bin, { LIFECYCLE_MODE: "skip" }, async () => {
       const { result } = await h.call("edit", { path: "src/a.ts", edits: [] });
@@ -1288,7 +1286,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
 
   test("blocks on real scenario failure but not skip-only", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(bin, { LIFECYCLE_MODE: "fail" }, async () => {
       const { result } = await h.call("edit", { path: "src/a.ts", edits: [] });
@@ -1318,7 +1316,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
 
   test("skips docs only markdown writes", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(bin, { GUARD_MODE: "fail", TDD_MODE: "fail" }, async (env) => {
       for (const p of ["docs/notes.md", ".workflows/plan.md"]) {
@@ -1352,7 +1350,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
 
   test("allows a clean write when every gate layer passes", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(bin, {}, async (env) => {
       const { result, notifications } = await h.call("write", { path: "src/a.ts", content: "x" });
@@ -1361,31 +1359,31 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
       const journal = fs.readFileSync(env.journal, "utf8");
       expect(journal).toContain("agent-spec guard");
       expect(journal).toContain("agent-spec lifecycle");
-      expect(fs.readFileSync(env.tddJournal, "utf8")).toContain("tdd-gate gaming");
+      expect(fs.readFileSync(env.tddJournal, "utf8")).toContain("tdd-guard lint");
     });
   });
 
-  test("blocks on a tdd-gate gaming failure (Layer 2)", async () => {
+  test("blocks on a tdd-guard lint failure (Layer 2)", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-gate": TDD_GATE_SHIM });
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM, "tdd-guard": TDD_GUARD_SHIM });
     const h = harness(proj);
     await withGateEnv(bin, { GUARD_MODE: "pass", TDD_MODE: "fail" }, async () => {
       const { result } = await h.call("write", { path: "src/a.ts", content: "x" });
       expect(result?.block).toBe(true);
-      expect(result.reason).toContain("Layer 2 test-quality (tdd-gate gaming)");
-      expect(result.reason).toContain("gaming detected: assertion removed");
+      expect(result.reason).toContain("Layer 2 test-quality (tdd-guard lint)");
+      expect(result.reason).toContain("no-assertionless-tests");
     });
   });
 
-  test("advises once when tdd-gate is absent but Layer 1 still gates", async () => {
+  test("advises once when tdd-guard is absent but Layer 1 still gates", async () => {
     const proj = makeProject();
-    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM }); // no tdd-gate on PATH
+    const bin = makeBinDir({ "agent-spec": AGENT_SPEC_SHIM }); // no tdd-guard on PATH
     const h = harness(proj);
     await withGateEnv(bin, { GUARD_MODE: "pass" }, async (env) => {
       const { result, notifications } = await h.call("write", { path: "src/a.ts", content: "x" });
       expect(result?.block).toBe(false);
       expect(notifications).toHaveLength(1);
-      expect(notifications[0].message).toContain("tdd-gate");
+      expect(notifications[0].message).toContain("tdd-guard");
       expect(notifications[0].message).toContain("Layer 1 still gated");
       // Layer 1 actually ran: guard + lifecycle in the journal
       const journal = fs.readFileSync(env.journal, "utf8");

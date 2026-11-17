@@ -260,11 +260,14 @@ Draft guidance: proposals follow `templates/PROPOSAL-FORMAT.md` (pi-workflows pa
 - `tdd:` — build task routes through the two-phase TDD task shape
   (`agents/dispatch-shapes.md` §TDD task shape) when `/next` dispatches it:
   tester Wave A writes the failing tests from the spec's exact `Test:`
-  selectors → the orchestrator gates coverage (`tdd-gate coverage --spec .workflows/specs/<task>.spec --tests <dir> --format json`) →
-  Wave B worker + reviewer (reviewer Layer 2: `tdd-gate gaming --diff` +
-  `tdd-gate drift --spec`). Only meaningful on build tasks whose spec
-  scenarios all carry `Test:` selectors. tdd-gate not installed → legacy
-  single worker→reviewer shape, skip stated loudly.
+  selectors → the orchestrator gates coverage (`tdd-guard verify --spec .workflows/specs/<task>.spec --tests <dir> --format json`) →
+  Wave B worker + reviewer (reviewer Layer 2: the task gate
+  `agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`,
+  standalone `tdd-guard lint` / `tdd-guard verify --spec`). Only meaningful
+  on build tasks whose spec scenarios all carry `Test:` selectors.
+  tdd-guard not installed → agent-spec reports SKIP (never PASS) → legacy
+  single worker→reviewer shape, skip stated loudly. Gaming, weakening and
+  drift checks stay uncovered (DEC-003 accepted risk).
 
 ## Tasks
 
@@ -292,7 +295,7 @@ bullet grammar").
   (e.g. rust-review, modern-web-guidance, security-audit); told explicitly,
   not description luck>
 - **What**: <specific>
-- **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec
+- **Verify**: agent-spec lifecycle .workflows/specs/task-<name>.spec --code . --layers lint,boundary,test,tdd-guard
 - **Status**: ⬜ PENDING
 
 ### TASK N: Docs (optional — significant changes only)

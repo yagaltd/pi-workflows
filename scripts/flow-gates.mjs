@@ -1,7 +1,7 @@
 // flow-gates — resolve flow gate names to the repo's existing command sets
 // (plan 20261025-022, D4). Gates are reused, never rebuilt:
 //   contract     → agent-spec guard   (the agent-spec mechanical checks)
-//   test-quality → tdd-gate gaming    (the test-quality checks over the diff)
+//   test-quality → tdd-guard lint    (the test-quality checks over the code)
 //   review       → check-drift + docs-lint (the repo-wide guards /review runs)
 //   evidence     → proof-ledger verdict (independence + replayable-kind rules
 //                  ported from kwant: src/server/missions/mod.rs:359, foundry.rs:636 —
@@ -139,8 +139,13 @@ export function miseTasks(text) {
 
 const MISE_TASK_SKIP = "test-quality gate: mise.toml defines [tasks] check/verify but the mise binary is absent — skipping the executable-charter tasks LOUDLY";
 
+// Absent tdd-guard is a loud skip that names the binary AND the install hint —
+// never a silent pass (DEC-003).
+const TEST_QUALITY_INSTALL =
+  "install it with: git clone https://github.com/yagaltd/tdd-guard && npm install && npm run build && npm link";
+
 export function testQualityCommands(dir = ".") {
-  const base = ["tdd-gate gaming --diff HEAD"];
+  const base = ["tdd-guard lint"];
   let text;
   try {
     text = readFileSync(join(dir, "mise.toml"), "utf8");
@@ -164,7 +169,11 @@ export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], {
   const bin = firstToken(commands[0]);
   const here = present ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`], { env: process.env }).status === 0);
   if (!here(bin)) {
-    return { status: "skipped", reason: `toolchain absent: ${bin}`, results: [] };
+    const reason =
+      name === "test-quality"
+        ? `toolchain absent: ${bin} — ${TEST_QUALITY_INSTALL}; the test-quality gate is skipped, never a pass`
+        : `toolchain absent: ${bin}`;
+    return { status: "skipped", reason, results: [] };
   }
   // mise tasks appended by testQualityCommands need the mise binary; absent →
   // loud skip, not a silent pass (same doctrine as the toolchain check above).

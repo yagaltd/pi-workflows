@@ -41,12 +41,14 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     const withoutDir = tmpRepo(NO_TASKS);
     const noFile = fs.mkdtempSync(path.join(os.tmpdir(), "flow-gates-mise-"));
     expect(testQualityCommands(withDir)).toEqual([
-      "tdd-gate gaming --diff HEAD",
+      "tdd-guard lint",
       "mise run check",
       "mise run verify",
     ]);
-    expect(testQualityCommands(withoutDir)).toEqual(["tdd-gate gaming --diff HEAD"]);
-    expect(testQualityCommands(noFile)).toEqual(["tdd-gate gaming --diff HEAD"]);
+    expect(testQualityCommands(withoutDir)).toEqual(["tdd-guard lint"]);
+    expect(testQualityCommands(noFile)).toEqual(["tdd-guard lint"]);
+    // The dead binary never comes back through this emitter (DEC-003).
+    expect(testQualityCommands(withDir).some((c) => c.startsWith("tdd-gate"))).toBe(false);
   });
 
   test("runGate executes the mise tasks; non-zero verify fails the gate with an output excerpt", () => {
@@ -60,7 +62,7 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     };
     const res = runGate("test-quality", {
       exec,
-      present: (b) => b === "tdd-gate" || b === "mise",
+      present: (b) => b === "tdd-guard" || b === "mise",
       dir,
     });
     expect(ran).toContain("mise run check");
@@ -74,7 +76,7 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     const dir = tmpRepo(WITH_TASKS);
     const res = runGate("test-quality", {
       exec: () => ({ status: 0, stdout: "ok" }),
-      present: (b) => b === "tdd-gate" || b === "mise",
+      present: (b) => b === "tdd-guard" || b === "mise",
       dir,
     });
     expect(res.status).toBe("pass");
@@ -84,7 +86,7 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     const dir = tmpRepo(WITH_TASKS);
     const skipped = runGate("test-quality", {
       exec: () => ({ status: 0, stdout: "" }),
-      present: (b) => b === "tdd-gate", // mise missing
+      present: (b) => b === "tdd-guard", // mise missing
       dir,
     });
     expect(skipped.status).toBe("skipped");
@@ -93,9 +95,19 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     const plain = tmpRepo(NO_TASKS);
     const res = runGate("test-quality", {
       exec: () => ({ status: 0, stdout: "" }),
-      present: (b) => b === "tdd-gate",
+      present: (b) => b === "tdd-guard",
       dir: plain,
     });
     expect(res.status).toBe("pass");
+
+    // Absent tdd-guard is a loud skip naming the binary, never a pass.
+    const noTddGuard = runGate("test-quality", {
+      exec: () => ({ status: 0, stdout: "" }),
+      present: (b) => b === "mise",
+      dir,
+    });
+    expect(noTddGuard.status).toBe("skipped");
+    expect(noTddGuard.reason).toContain("toolchain absent: tdd-guard");
+    expect(noTddGuard.reason).toContain("never a pass");
   });
 });

@@ -151,11 +151,18 @@ agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 If fails → fix the fix. Don't proceed.
 
-### Layer 2: Test quality (if tdd-guard installed)
+### Layer 2: Test quality (tdd-guard, if installed)
 ```bash
 tdd-guard lint --src src --tests tests --format json
+tdd-guard verify --spec .workflows/specs/fix-<bug>.spec --tests tests --format json   # when a contract exists
 ```
-If tdd-guard is not installed, skip and note it.
+`lint` fails on skipped, assertionless, internally mocked, or
+implementation-coupled tests; `verify` fails when tests do not cover the
+contract's decisions, boundaries, or `Test:` selectors. The task gate shape
+is `agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`
+(DEC-003). If tdd-guard is not installed, agent-spec reports SKIP (never
+PASS) — skip and note it LOUDLY, never a silent pass. Gaming, weakening and
+drift checks stay uncovered (DEC-003 accepted risk).
 
 ### Layer 3: Project verification
 ```bash
@@ -204,6 +211,7 @@ git diff --stat
 
 ### tdd-guard
 - Lint: ✅ pass / ⏭️ skipped / ❌ fail
+- Spec coverage (verify): ✅ pass / ⏭️ skipped / ❌ fail
 
 ### All checks
 - Tests: ✅ / ❌
