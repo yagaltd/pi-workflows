@@ -1,3 +1,31 @@
+## 2026-11-17 — v0.15.3: the drain plan — ledger doctrine, docs floor, lint fixes (plan 20261117-067)
+
+- **Ledger doctrine ships.** `templates/FOLLOW-UP-TABLE.md` — dead since plan
+  047 — is now the mandatory end of every ship report, amended once with an
+  `Origin` column and the three-exit-state rule (done / closed(reason) /
+  deferred(trigger)); plans carry `## Ledger Resolution` with the token grammar
+  `done(<task-ref>)` / `closed(<reason>)` / `deferred(trigger: <condition>)`,
+  which `agent-spec plan-check` validates mechanically; the reviewer verifies
+  the next plan resolves every row of the last table (drain-before-grow).
+- **Terminal-before-report.** Registry doctrine: before any completion or ship
+  post, enumerate every spawned run — each terminal, its result consumed via
+  `subagent_result`, first-hand words only. The early-report leak is doctrine
+  now, with a pin.
+- **Docs floor**: markdownlint 1011→335 (19 files at zero, dropped from the
+  baseline), harper 1121→1060, lychee 2→0; README + docs/architecture.md +
+  docs/canon.md brought current. One [P1] caught at review — closing fences
+  with info strings rendered 145 README lines as one code block — fixed, and
+  the baseline re-cut to honest counts (README 44, not the manufactured 40).
+- **Cross-repo**: tdd-guard 0.1.2 — the `.git` substring filter ran on absolute
+  paths, so every subagent-worktree lint run found 0 test files and passed
+  vacuously; now segment-precise, discovery probes `tests/`→`test/`→src, and
+  zero-file runs fail loudly (`--allow-empty` escapes). agent-spec 0.3.2 — new
+  boundaries-path lint rule (criterion paths must resolve inside Allowed
+  Changes; the plan-064 class dies at lint time) and plan-check validates
+  Ledger Resolution rows. Both cross-repo tasks hit their own boundary
+  machinery (lock file, gitignore) and the trail is in
+  `.workflows/reviews/fix-round-067.md`.
+
 ## 2026-11-17 — v0.15.2: real gates for vanilla JS, the whole web family in review (plan 20261117-066)
 
 - **`/init` learns vanilla JS.** The gate-generation paragraph had bun/TS, rust and python
