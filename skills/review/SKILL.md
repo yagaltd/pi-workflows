@@ -154,6 +154,9 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    date, user-facing changes — curated, user's perspective) BEFORE the
    commit so it ships inside it. The orchestrator writes it; workers
    never touch CHANGELOG.md (single-writer doctrine).
+   The posted ship report ends with the follow-up table
+   (`templates/FOLLOW-UP-TABLE.md`, including `Origin`) — mandatory, bounded;
+   the full rule lives in `agents/registry.md`.
 2. **Domain-memory sweep (guaranteed backstop)**: before archiving, sweep
    the plan's Execution Notes + worker Domain Memory reports + LOG.md for
    durable knowledge not yet promoted — terms/decisions →

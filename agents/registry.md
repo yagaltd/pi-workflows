@@ -140,6 +140,13 @@ directory → output exactly one line (`VOID — wrong working directory (<found
 ≠ <expected>); no verdicts emitted`). Details live in the role files
 (`agents/reviewer.md`, `agents/quality-reviewer.md`).
 
+- SHIP reports END with the follow-up table (`templates/FOLLOW-UP-TABLE.md`,
+  including `Origin`) — mandatory, bounded; no open item may be mentioned in
+  prose outside the table (ship step: `skills/review/SKILL.md`).
+- Terminal-before-report: before ANY completion or ship post, enumerate
+  every spawned run — terminal only, result consumed via subagent_result
+  (first-hand words, never second-hand citation) — else the report waits.
+
 ## Toolsets
 
 Two toolsets only (pi-core-subagent design): read-only (`read, grep, find,
