@@ -18,3 +18,85 @@ orchestrator marks its own work done. Only a reviewer verdict with
 Watchdogs (hygiene, docs-policy, supersede) remind once per new gap state
 — no spam. Once a drift configuration has been notified, the same
 configuration is not re-reported until the state changes.
+
+@cc [label:substitution,id:role-body] role-body
+Role body extraction is mechanical and verbatim — strips the leading "# Role:"
+header and any HTML dispatch-note comment that follows it, returning exact content.
+
+Strip the leading "# Role:" header and any HTML dispatch-note comment
+that follows it (real role files put the note AFTER the heading, not
+before — bug-hunter BH-002). Also drops leading blank lines.
+
+@cc [label:watchdog,id:hygiene-drift-counting] hygiene-drift-counting
+Done-task counts use the status-line pattern ("- **Status**: ✅"), not raw
+✅ emoji — raw emoji also appears in prose and inflates counts. Part of the
+once-per-gap watchdog reminder chain.
+
+Hygiene drift between plan.md statuses and the audit trails.
+Done tasks are counted by status-line pattern — NOT raw ✅ emoji,
+which also appears in prose (headers, notes) and inflates counts.
+
+@cc [label:dispatcher,id:resolve-next-pure] resolve-next-pure
+resolveNext is a pure selection function: plan text, registry map,
+verdict files and a spec reader are passed in — no fs/git access here.
+Blocked results are data, never dispatches: stale status (✅ without a
+verdict on file) and missing specs must surface as {ok:false} before
+any subagent call can be built.
+
+@cc [label:gate,id:gate-commands-name-real-tools] gate-commands-name-real-tools
+Gate commands name tools that exist — contract lifecycle, then the plan's
+Verify line. A task flagged `tdd:` runs the lifecycle with agent-spec's
+tdd-guard layer enabled — one real chain, no separate test-quality binary.
+The `tdd:` flag renders
+`agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard`
+and never emits a standalone test-quality binary. An absent tdd-guard stays
+agent-spec's loud SKIP, never a pass.
+
+@cc [label:dispatcher,id:registry-policy-table] registry-policy-table
+The registry map is built from agents/registry.md, never caller-supplied:
+the task's bottleneck-tag row (the per-task policy table) wins, else its
+tier bullet (the tier overlay); a task matching neither gets NO entry —
+the dispatcher blocks it as no-policy rather than guessing model/thinking.
+
+@cc [label:hook,id:verdict-automation] verdict-automation
+The verdict branch is record-only: it never blocks a write, never edits
+files, never emits a gate verdict — it spawns the record CLIs (proof-ledger,
+run-journal) once per task:round and the wave-settle compaction once per
+settled wave, then queues a fixed-size injection for the next
+before_agent_start. Absent scripts are documented degradation: skip
+silently (the same class as the auto-gate advisory — the hooks are
+optional tooling).
+
+Parse a repo-relative write into a FINAL verdict trigger: a
+`.workflows/reviews/<task-id>.md` path whose content carries the
+`## Verdict` block with a `**ok: true**` / `**ok: false**` marker.
+Notes, partial reviews, and other paths are null.
+
+@cc [label:watchdog,id:supersede-advisory-only] supersede-advisory-only
+The supersede watchdog is advisory-only: it never edits files, never blocks
+dispatch, and never emits a verdict — at most one line per new gap
+(watchdog-remind-once), routing to the human gate only.
+
+The line is static text derived from contract metadata only: `owner:`
+attributes name the sign-off targets; without them the generic human-gate
+line is emitted. Routing only — never a verdict.
+
+@cc [label:hook,id:auto-gate-write-time] auto-gate-write-time
+Write-time gate for code files under a live plan: ordered chain, short-
+circuit on first failure — guard (boundary, per-task staged spec dir) →
+lifecycle --format json (scenarios) → tdd-guard lint/verify (test quality).
+Block = failing layer + command + first findings line. Toolchain absent or
+a layer verdict unreadable ⇒ advisory (write proceeds), never a block —
+blocks only land on defined violation classes. Docs-only `*.md` writes
+outside the spec dirs are inert. Files no plan task claims are probed with
+guard alone: blocked only when EVERY task spec's guard rejects the change
+(unanimous exclusion ⇒ outside Allowed Changes); one passing spec means the
+plan text is stale and the spec — the boundary authority — allows it.
+
+The auto-gate decision core. Pure over its inputs (stageSpec/run
+injected) — the wiring in register() supplies fs/spawn.
+@test blocks a code write that violates contract boundaries
+@test blocks when a lifecycle scenario fails
+@test advises and allows when the toolchain is absent
+@test skips docs only markdown writes
+@test advises once per file (watchdog dedupe)

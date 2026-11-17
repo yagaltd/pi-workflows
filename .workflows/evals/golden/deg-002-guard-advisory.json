@@ -5,7 +5,7 @@
     "degradation"
   ],
   "recorded": {
-    "toolchain": "tdd-gate",
+    "toolchain": "agent-spec lifecycle <spec> --code . --layers lint,boundary,test,tdd-guard",
     "mode": "advisory"
   },
   "expected": {

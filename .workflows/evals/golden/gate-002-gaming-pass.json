@@ -1,11 +1,11 @@
 {
   "kind": "gate",
   "tags": [
-    "tdd-gate",
+    "tdd-guard",
     "gaming"
   ],
   "recorded": {
-    "tool": "tdd-gate gaming --diff",
+    "tool": "tdd-guard lint",
     "exit": 0
   },
   "expected": {

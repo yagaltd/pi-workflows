@@ -1969,3 +1969,32 @@ describe("verdict automation units", () => {
     expect(recordArgvs({ planId: "p", taskId: "t", verify: "v", contractPath: "s", ok: true }).journal).toContain("done");
   });
 });
+
+describe("CONTRACTS sync (plan 20261117-064 TASK 7)", () => {
+  const ROOT = path.join(import.meta.dir, "..");
+  // A directive line, not a mention: `@cc [metadata] id` at the start of a
+  // line (optionally inside a doc comment) is the only form cc-check parses.
+  const DIRECTIVE = /^\s*(?:\/\*\*|\*)?\s*@cc \[([^\]]+)\] (\S+)\s*$/gm;
+  const directiveIds = (text: string) =>
+    Array.from(text.matchAll(DIRECTIVE), (m) => m[2]);
+
+  // The repo-wide doctrine rules are CONTRACTS-only by design; every other
+  // CONTRACTS entry must mirror a code directive, and every code directive
+  // must be registered — the set is equal in both directions.
+  const DOCTRINE = new Set([
+    "role-substitution",
+    "reviewer-no-judgment",
+    "verdict-gating",
+    "watchdog-remind-once",
+  ]);
+
+  test("extensions/index.ts and CONTRACTS carry the same code-contract IDs", () => {
+    const codeIds = directiveIds(fs.readFileSync(path.join(ROOT, "extensions/index.ts"), "utf8"));
+    const registered = directiveIds(fs.readFileSync(path.join(ROOT, "CONTRACTS"), "utf8"));
+    // non-empty pin: a broken extractor must not pass vacuously
+    expect(codeIds).toContain("gate-commands-name-real-tools");
+    const code = Array.from(new Set(codeIds)).sort();
+    const mirrors = Array.from(new Set(registered.filter((id) => !DOCTRINE.has(id)))).sort();
+    expect(mirrors).toEqual(code);
+  });
+});

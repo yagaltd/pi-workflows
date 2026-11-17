@@ -9,3 +9,7 @@ just = "1.59.0"
 markdownlint-cli2 = "0.24.1"
 lychee = "0.24.2"
 harper-cli = "3.2.0"
+# @cc syntax gate + `cc-check list` for dispatch packs. The npm package is the
+# @cc tool; crates.io `cc-check` 0.1.4 is an unrelated commit-message checker
+# (probe 20261117: `cc-check format` → error: unexpected argument 'CONTRACTS').
+"npm:@spolu/cc-check" = "0.2.0"

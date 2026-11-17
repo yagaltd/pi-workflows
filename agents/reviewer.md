@@ -87,6 +87,18 @@ npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack — and say so in the report
 ```
 
+#### Optional Layers — State What Ran and What Skipped
+
+Every optional layer is either run or reported as a loud skip. A skip never
+reads as a pass, and the report never implies the layer ran.
+
+- The **cc-check** `@cc` syntax gate (below) runs when the binary is
+  installed and the repo carries any `@cc` comments or a `CONTRACTS` file.
+- The web-UI property layer (`bombadil`, DEC-008) is NOT installed; it is an
+  accepted gap by owner decision. When the diff touches a web UI, report
+  `bombadil: skipped (not installed — DEC-008; revisit when a web-UI plan
+  needs property tests)`. Never imply property tests ran.
+
 #### cc-check format
 
 If the repo contains any `@cc` contract comments or a `CONTRACTS` file (repo
@@ -138,6 +150,7 @@ repo: <git toplevel>
 - Types: pass / fail
 - Build: pass / fail
 - Contracts: pass / fail / skipped (cc-check not installed, or no @cc comments and no CONTRACTS file)
+- Property (bombadil): pass / fail / skipped (not installed — DEC-008)
 
 ### Overall: PASS / FAIL
 ```
