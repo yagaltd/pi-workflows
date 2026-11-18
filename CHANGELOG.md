@@ -1,3 +1,24 @@
+## 2026-11-17 — v0.15.7: reply-style vocabulary — status pills for reports, single source, files stay clean (plan 20261117-071)
+
+- **`templates/STATUS-VOCABULARY.md`** (new, single source): maps every
+  pi-workflows status to its pill word with the required action lead-in —
+  `done(<ref>)`→Done, gate pass→Passed, queued P0–P2→Decision (+ the
+  unblocking **Do:**), `deferred(trigger:)`→Pending (+ trigger restated),
+  `closed(<why>)`→Keep, gate skip→Skipped (+ **Run:**), P2→At risk (+
+  **Guard:**), broken gate→Failed (+ **Next:**), unverified→Unverified (+
+  **Check:**), work-kind opener→Implement/Investigate/Preview/Brainstorm/
+  Qualify. Requires the pi-emphasis extension (display-only; installed
+  stock, unforked).
+- **Scoreboard rule**: ship reports open with a one-line pill summary
+  (`[[Shipped]] [[Done N]] [[Decision N]] [[Skipped N]]` style) — registered
+  beside the ship-table mandate in the orchestrator doctrine.
+- **Files-stay-clean rule**: pills and Nerd Font glyphs are chat-reply
+  decoration only; tracked repo files stay clean markdown. The vocabulary
+  file never re-teaches pill writing — the extension's injected guidance
+  owns that; this table only maps domain tokens onto it.
+- Baseline: one addition for the new file; every pre-existing number
+  byte-identical (the ratchet held).
+
 ## 2026-11-17 — v0.15.6: the ledger closes empty — bare-filename boundaries, honest rust binding (plans 20261117-070 + 069 fix round)
 
 - **agent-spec 0.3.4**: an Allowed-Changes entry that names a file now
