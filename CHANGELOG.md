@@ -1,3 +1,25 @@
+## 2026-11-18 — v0.15.13: the accretion cure — reviewer tier-map + judge verdicts (plan 076 Phase 2)
+
+- **reviewer.md 214→160 lines (−25%)**: the serial 5-command pipeline and 12-field
+  report template are gone; three tiers remain — Tier 0 gate citations (one line,
+  never re-derived), Tier 1 the judge verdict table (input, never a verdict),
+  Tier 2 deep-read (uncertain rows, contradictions, intent, deviations). Census:
+  11 check families + 7 accretion rows deleted as script-covered, 4 moved to judge
+  scenarios, 5 intent checks stay. Accretion budget ≤170 lines pinned.
+- **reviewVerdicts over the JudgeBackend seam**: per-scenario pass/fail/uncertain
+  + confidence + evidence-quote; <0.6 → uncertain; backend skip → that row
+  uncertain (loud); all-skip → JUDGE SKIPPED, everything to Tier 2. Seam
+  generalized (TriageVerdict gains `value` — the verdict vocabulary rides the
+  schema, not the seam; zero Phase-1 churn).
+- **Wiring**: review runs Tier-1 verdicts before judgment, uncertain-only deep
+  read — the judge never closes a review alone; the reviewer subagent ALWAYS runs
+  (verdict-gating doctrine untouched, advisory exit 0).
+- **Harness verdict mode**: 8 fixtures + review-time CLI (`--scenarios --diff`);
+  live measurement 75% → 87.5% across repeats; miss class = over-confident pass
+  on ambiguity (safe-directed; uncertainty calibration is the Phase-3 lever).
+- Zero pinned-string amendments (T7/T13/050/067/068 verbatim); parse contract
+  byte-compatible; docs-lint budgets improved (residual 1104→1097).
+
 ## 2026-11-18 — v0.15.12: the judge tier begins — TypeLLM intake triage at ship (plan 076 Phase 1)
 
 - **JudgeBackend seam + TypeLLM transport** (extensions/index.ts §9): schema-driven
