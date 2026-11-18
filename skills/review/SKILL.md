@@ -148,13 +148,15 @@ only: the judge never closes a review alone.
 
 Harness modes (plan 076 Phase 3). The judge runs per-scenario (one call per
 scenario), `batched` (ALL scenarios + real file contents in one call within
-the 32k window), or `batched-dag` (dependency-ordered sub-judgments; later
-verdicts receive earlier ones as context). Batch chunking is deterministic
-at whole-scenario boundaries. A failed chunk marks only its own scenarios
-uncertain. Decompose is position-bias controlled. Floor, verdict schema and
-Tier-2 routing are identical across modes. Measured: batched holds the
-per-scenario accuracy at ~1/8 the calls — it is the default. `modes
-[--live]` prints the comparison table.
+the native 128K window), or `batched-dag` (dependency-ordered sub-judgments;
+later verdicts receive earlier ones as context). Batch chunking is
+deterministic at whole-scenario boundaries and only fires beyond the window.
+A failed chunk marks only its own scenarios uncertain. Position bias is
+controlled natively (`return_probabilities` + `permutations` — endpoint-side
+averaging; decompose runs once). Floor, verdict schema and Tier-2 routing are
+identical across modes. Measured: batched holds the per-scenario accuracy at
+~1/8 the calls — it is the default. `modes [--live]` prints the comparison
+table.
 
 ### Step 2: Judgment-based quality review
 
@@ -178,6 +180,20 @@ Intake triage (plan `20261117-076`): worker findings are classified
 confidence-gated (floor 0.6); a judge skip or a below-floor verdict stays
 in the default path and prints `JUDGE SKIPPED` loudly. Surface the verdict
 and confidence in the ship output.
+
+Claim verification (plan `077`): worker reports reach the orchestrator as a
+**compact verified digest**, not prose. The review flow calls
+`bun scripts/bench-intake-triage.ts claims --report <claims.json> --turns
+<turns.json>`. The caller extracts the report's claims (claim, type,
+session-turn pointer) and supplies the worker's session turns — the session
+file's entry order, one entry per line. In-extension transcript access is
+limited, so this is the flow-level seam (the plan's wiring note names the
+gap). Each claim is verified against the transcript: TRUE / FALSE /
+UNVERIFIABLE; a wrong or missing pointer is FALSE (pointer accuracy is part
+of the claim). Verified rows pass to the orchestrator; FALSE rows bounce to
+the worker (fix the report), UNVERIFIABLE rows to the reviewer (re-review
+the work). One batched call per report; a judge skip bounces everything
+loudly. Advisory routing only — the judge never closes a review alone.
 
 ## Stage 3: SHIP (only if Stage 1 PASSES and the human approves)
 

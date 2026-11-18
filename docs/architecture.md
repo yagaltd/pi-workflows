@@ -492,6 +492,36 @@ verdict). Low-confidence verdicts escalate to the human.
 regression-tested default (gate: `scripts/eval-golden.mjs`, degradation
 cases).
 
+**Native surface + the extraction suite** (plan 077): the extension's §9
+transport speaks the endpoint's native surface. Nullable output types are
+the architectural no-answer — a null verdict becomes uncertain + Tier 2
+(gate: `tests/judge-native-surface.test.ts`). Each batch rides ONE
+array-of-objects verdict question; the flat per-scenario key encoding is
+deleted. Position bias is native — endpoint-side averaging on
+`return_probabilities` + `permutations` (the hand-rolled 2-call decompose
+permutation loop is deleted; decompose runs once). The context window is
+the native 128K; chunking only fires beyond it. `images` pass through (≤8
+inline data URIs; oversize or over-count is a loud skip), `thinking`
+budgets
+are per-question and opt-in, and `usage` token accounting is surfaced on
+results (gate: `extensions/index.ts` §9).
+
+On top of the seam sit five surfaces. Claim-verified reporting:
+`verifyClaims` checks report claims against session turns; a wrong turn
+pointer is FALSE; the orchestrator gets the compact verified digest (gate:
+`tests/verify-claims.test.ts`). LOG → knowledge mining: `mineLog` produces
+073 promotion-vocabulary candidates that feed the sieve (gate:
+`tests/log-mining.test.ts`). Incident → doctrine: `doctrineCandidate`
+extracts rules as structured data (gate: `tests/log-mining.test.ts`).
+Worker-pack briefs: `extractTaskBrief` is augment-only — contracts stay
+primary (gate: `tests/task-brief.test.ts`). Spec drafts:
+`draftSpecScenarios` produce a draft skeleton for owner review before
+`agent-spec init` (gate: `tests/spec-draft.test.ts`). Fixture harness
+modes report accuracy per surface (gate:
+`scripts/bench-intake-triage.ts` + `tests/bench-plan077.test.ts`); every
+skip is loud and never scored as a pass (gate:
+`tests/bench-plan077.test.ts`).
+
 ## Dispatcher and auto-gate
 
 **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's
