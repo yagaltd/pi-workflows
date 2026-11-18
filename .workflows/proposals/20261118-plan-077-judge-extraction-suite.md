@@ -3,7 +3,30 @@
 > Status: QUEUED 2026-11-18 (owner: "yes queue all of them") — executes after plan 076 Phase 3 lands (serialized suites, Resources doctrine) · Repo: pi-workflows · Depends on: 076's JudgeBackend seam + harness (landed) + Phase 3 batched-DAG (running)
 > Origin: owner exchange 2026-11-18 — "typellm could help us save agent tokens, judgment, routing, verification, extraction… something else you see in the typellm api" + the report-normalization refinement (reports are for the orchestrator, not the owner; claims must be verified against session turns)
 
-## The five rows
+## The rows (Row 0 first)
+
+### Row 0 — native-surface upgrade (ADDED 2026-11-18, owner-verified from typellm.ai/docs/api — executes FIRST, it upgrades the transport every row rides)
+The landed phases hand-rolled or under-used six native capabilities (verified docs):
+1. **Nullable abstention**: `["verdict","null"]` output types — architectural
+   no-answer instead of prompt-instructed uncertainty (the v08 confident-wrong
+   residual's designed fix).
+2. **`return_probabilities` + `levels` + `permutations`**: native probability
+   distributions averaged over balanced option orders — DELETES our hand-rolled
+   2-call permutation runs.
+3. **`array` of objects** (minItems/maxItems ≤200): per-scenario verdicts as one
+   array question — deletes the flat `{id}_verdict` key hack.
+4. **128K-token context** (context + questions; we chunk at 32K): real multi-file
+   diffs fit unchunked.
+5. **`images`**: Base64 data URIs, ≤8/call ×10MB — E2E screenshot verdicts, visual
+   review without a subagent.
+6. **`thinking` + `thinking_budget`** ($0.50/M): reasoning on hard scenarios only.
+   Plus: `"user"` questions (native stop-and-resume human-in-the-loop — the light
+   Tier-2 escalation primitive) and `usage` token accounting (per-review cost).
+   Scope: transport-level upgrades in extensions/index.ts §9c/§9; each with a
+   fixture test (nullable → uncertain rows; probabilities present; array shape;
+   128K unchunked 100KB diff; image call; usage surfaced). Jev stays dropped.
+
+
 
 ### Row 1 — LOG → knowledge mining
 TypeLLM structured pull compiles the accreting `.workflows/LOG.md` into knowledge-promotion candidates (the 073 rule, machine-fed): periodic scan → candidate rows → the existing sieve judges → promoted or dropped. Kills the accretion disease at the root.
@@ -31,7 +54,7 @@ Schema-driven · loud-skip (no key/error → the agent does the work, surfaced) 
 
 ## Suggested rollout
 
-Row 5 first (the owner's pain, the clearest contract) → Rows 1+2 together (shared mining machinery) → Rows 3+4 (extraction pair). Each row lands with its own fixture harness mode (the Phase-1 pattern) and reports accuracy before the next.
+**Row 0 first** (transport upgrade — everything else rides it), then Row 5 (the owner's pain, the clearest contract) → Rows 1+2 together (shared mining machinery) → Rows 3+4 (extraction pair). Each row lands with its own fixture harness mode (the Phase-1 pattern) and reports accuracy before the next.
 
 ## Risks / open questions
 
