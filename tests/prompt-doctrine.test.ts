@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 
 // Plan 20261102-050 T1 — role-file doctrine: the three DSH/Bise steals.
@@ -970,4 +971,117 @@ describe("prompt doctrine — intake doctrine + in-scope fixes (TASK 1, plan 202
     // no bare (unbackticked) plan ids in the worked example
     expect(worked.match(/[^`]plan (2026\d{4}-\d{3}|0\d{2})/)).toBeNull();
   });
+});
+
+// --- T1: status vocabulary + scoreboard + clean-files (plan 20261117-071) ---
+// Six spec selectors: the vocabulary is the single-source pill mapping, ship
+// reports open with a scoreboard, repo files stay clean markdown, the docs-
+// lint ratchet only ever gains entries, the tree checker stays satisfied,
+// and the gates stay green.
+
+const norm071 = (s: string) => s.replace(/\s+/g, " ");
+const readVocab = () => fs.readFileSync("templates/STATUS-VOCABULARY.md", "utf8");
+
+const readBaseline = (rev: string) =>
+  JSON.parse(
+    spawnSync("git", ["show", `${rev}:scripts/docs-lint-baseline.json`], {
+      encoding: "utf8",
+    }).stdout
+  ) as { sections: Record<string, { files?: Record<string, number> }> };
+
+describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK 1, plan 20261117-071)", () => {
+  test("test_status_vocabulary_mapping_complete", () => {
+    const raw = readVocab();
+    const v = norm071(raw);
+    // every Decision-1 mapping row is present, token → pill paired
+    const rows = [
+      "`done(<ref>)` | [[Done]]",
+      "gate pass / `ok:true` | [[Passed]]",
+      "release | [[Shipped]]",
+      "merged branch | [[Merged]]",
+      "queued P0–P2 (owner call) | [[Decision]]",
+      "`deferred(trigger:)` | [[Pending]]",
+      "`closed(<why>)` | [[Keep]]",
+      "gate skip | [[Skipped]]",
+      "P2 risk | [[At risk]]",
+      "broken gate | [[Failed]]",
+      "unverified claim | [[Unverified]]",
+    ];
+    for (const row of rows) expect(v, `missing mapping row: ${row}`).toContain(row);
+    // the required action lead-ins are pinned too
+    for (const lead of ["**Do:**", "**Run:**", "**Guard:**", "**Next:**", "**Check:**"])
+      expect(v).toContain(lead);
+    // work-kind opener maps to its five pills
+    expect(v).toContain("Work-kind opener");
+    for (const pill of ["[[Implement]]", "[[Investigate]]", "[[Preview]]", "[[Brainstorm]]", "[[Qualify]]"])
+      expect(v).toContain(pill);
+    // single-source claim: the extension owns pill writing, not this file
+    expect(v).toContain("mapping of record");
+    expect(v).toContain("pi-emphasis");
+    expect(v).toContain("never re-teaches pill writing");
+    // hard shape constraints: ≤60 lines, every line ≤80 cols
+    const lines = raw.replace(/\n$/, "").split("\n");
+    expect(lines.length, `file is ${lines.length} lines (max 60)`).toBeLessThanOrEqual(60);
+    for (const [i, line] of lines.entries())
+      expect(line.length, `line ${i + 1} is ${line.length} cols (max 80)`).toBeLessThanOrEqual(80);
+  });
+
+  test("test_ship_report_scoreboard_rule", () => {
+    const r = fs.readFileSync("agents/registry.md", "utf8");
+    expect(r).toContain("one-line scoreboard");
+    expect(r).toContain("`templates/STATUS-VOCABULARY.md`");
+    // the scoreboard rule sits beside the existing ship-report doctrine
+    // (the follow-up-table mandate), not somewhere unrelated
+    const end = r.indexOf("SHIP reports END with the follow-up table");
+    const board = r.indexOf("one-line scoreboard");
+    expect(end).toBeGreaterThan(-1);
+    expect(board).toBeGreaterThan(end);
+    expect(board - end, "scoreboard rule not beside the ship-report doctrine").toBeLessThan(400);
+  });
+
+  test("test_files_stay_clean_rule", () => {
+    const v = norm071(readVocab());
+    expect(v).toContain("FILES-STAY-CLEAN");
+    // pills and glyphs are chat-reply decoration only
+    expect(v).toContain("chat-reply");
+    expect(v).toContain("Nerd Font glyphs");
+    // tracked repo files stay clean markdown, the tracked homes named
+    expect(v).toContain("clean markdown");
+    expect(v).toContain("LOG.md");
+    expect(v).toContain("CHANGELOG.md");
+    expect(v).toContain("archive");
+  });
+
+  test("test_baseline_additions_only", () => {
+    const head = readBaseline("HEAD");
+    // current working-tree baseline vs HEAD: every pre-existing per-file
+    // number byte-identical; the only allowed additions are the new
+    // template's own budget entries
+    const curRaw = JSON.parse(
+      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
+    ) as { sections: Record<string, { files?: Record<string, number> }> };
+    for (const section of Object.keys(head.sections)) {
+      const before = head.sections[section]?.files ?? {};
+      const after = curRaw.sections[section]?.files ?? {};
+      for (const [file, n] of Object.entries(before))
+        expect(after[file], `${section} budget for ${file} changed`).toBe(n);
+      for (const file of Object.keys(after))
+        if (!(file in before))
+          expect(file.includes("STATUS-VOCABULARY"), `unexpected new ${section} budget key: ${file}`).toBe(true);
+    }
+  });
+
+  test("test_tree_checker_satisfied", () => {
+    const r = spawnSync("bun", ["scripts/check-tree.mjs"], { encoding: "utf8", timeout: 60000 });
+    expect(r.status, `check-tree exited ${r.status}: ${r.stdout} ${r.stderr}`).toBe(0);
+    expect(r.stdout).toContain("check-tree: CLEAN");
+  }, 60000);
+
+  test("test_gates_stay_green", () => {
+    // the bun-test leg is the enclosing suite; the two script gates run here
+    for (const script of ["scripts/check-drift.sh", "scripts/docs-lint.sh"]) {
+      const r = spawnSync("bash", [script], { encoding: "utf8", timeout: 300000 });
+      expect(r.status, `${script} exited ${r.status}:\n${r.stdout}\n${r.stderr}`).toBe(0);
+    }
+  }, 600000);
 });
