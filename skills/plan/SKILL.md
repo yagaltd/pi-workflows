@@ -11,6 +11,30 @@ Decompose work into atomic tasks with verifiable contracts. Each worker task
 gets a `.spec` file upfront that defines Intent, Decisions, Boundaries, and
 Completion Criteria.
 
+## Sieve Gate
+
+Before evidence, decisions, or planning, answer four forced questions from
+the ask alone, then apply the pure outcome rules. One pass, no weighting:
+
+| Cell | Forced choice |
+| --- | --- |
+| V value | `nice-to-have` / `useful` / `valuable` / `must-have` |
+| R risk | `trivial` / `contained` / `serious` / `severe` — blast radius |
+| E effort | `xs` afternoon / `s` 1–2 days / `m` days / `l` project |
+| path | `research` / `inspect` / `grill` / `none` |
+
+Pure outcome rules:
+
+- `nice-to-have` or `useful` plus standalone → **park** — a ledger row,
+  no plan
+- `severe` → **park** plus a decompose flag
+- `valuable` or `must-have` with `xs` → **build-direct** — the lightweight
+  tier, no spec ceremony
+- any other verdict → **propose**
+
+Obligation flows (`/fix`, `/debug`, `/docs`, `/verify`, `/review`) are
+exempt — they answer to broken things, not value verdicts.
+
 ## Phase 1: UNDERSTAND
 
 Gather enough context to plan well.
@@ -280,7 +304,29 @@ declaration at SHIP).
 ## Context
 - <what we're building and why>
 - <key constraints>
-- <key decisions made>
+
+## Sieve
+
+| Cell | Verdict |
+|---|---|
+| V value | `nice-to-have` / `useful` / `valuable` / `must-have` |
+| R risk | `trivial` / `contained` / `serious` / `severe` |
+| E effort | `xs` / `s` / `m` / `l` |
+| path | `research` / `inspect` / `grill` / `none` |
+
+Outcome: propose | build-direct
+
+`park` never appears as an Outcome — parked ideas are ledger rows
+(`.workflows/ideas.md`), never plan files. Omitting the section is legal
+for non-proposal plans.
+
+## Decisions
+
+One row per decision the plan rests on; both fields REQUIRED:
+
+- **<decision>**: <resolution>
+  - `Cost of inaction:` <what breaks or stays slow if we don't>
+  - `Blast radius:` <touched flows/gates/repos, each +, −, or neutral>
 
 ## Exploration
 <summary of what was found, or "see exploration output above">
