@@ -146,6 +146,16 @@ deep-reads the uncertain rows only (skips + confidence < 0.6). `JUDGE SKIPPED`
 routes every row to the deep read — never a silent pass. Advisory routing
 only: the judge never closes a review alone.
 
+Harness modes (plan 076 Phase 3). The judge runs per-scenario (one call per
+scenario), `batched` (ALL scenarios + real file contents in one call within
+the 32k window), or `batched-dag` (dependency-ordered sub-judgments; later
+verdicts receive earlier ones as context). Batch chunking is deterministic
+at whole-scenario boundaries. A failed chunk marks only its own scenarios
+uncertain. Decompose is position-bias controlled. Floor, verdict schema and
+Tier-2 routing are identical across modes. Measured: batched holds the
+per-scenario accuracy at ~1/8 the calls — it is the default. `modes
+[--live]` prints the comparison table.
+
 ### Step 2: Judgment-based quality review
 
 Run `git diff` to see what changed. Apply judgment-based review:
