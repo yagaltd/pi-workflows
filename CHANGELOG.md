@@ -1,3 +1,24 @@
+## 2026-11-18 — v0.15.12: the judge tier begins — TypeLLM intake triage at ship (plan 076 Phase 1)
+
+- **JudgeBackend seam + TypeLLM transport** (extensions/index.ts §9): schema-driven
+  `POST /v1/generate` (`typellm-latest`), key env-side (`TYPELLM_API_KEY` →
+  `~/.config/pi-majordome/typellm.key`), **loud-skip** everywhere — no key, HTTP
+  error, non-JSON, schema-invalid, or missing result yields a surfaced SKIP that
+  routes to the default path; a skip is never a pass. Backend-pluggable: Phase 2's
+  backend (TypeLLM judging vs the Jev decision model) is decided by the measured
+  numbers.
+- **Intake triage at ship**: worker findings classify queued/batched/closed/done
+  (the 071 vocabulary, machine-consistent), confidence floor 0.6, verdict +
+  confidence + evidence rendered for the human; triage verdicts ride the ship
+  output.
+- **Measurement harness** (`scripts/bench-intake-triage.ts`): EVAL-SLICE pattern,
+  12 fixtures, recorded-fixture mode without a key. Phase-2 gate numbers: live
+  eval 10/12 = 83.3% (misses: two borderline confident-wrong pairs at 0.95);
+  Phase 2 plans on these numbers.
+- Doctrine line in skills/review (Stage-2 findings handling, cites plan 076).
+- Recovered research + diagnosis from the crashed 2026-11-17 session preserved as
+  scout notes (`.workflows/scout/20261118-*`).
+
 ## 2026-11-17 — v0.15.11: the last row closes — tdd-guard discovery widening (build-direct)
 
 - **tdd-guard 0.1.8**: the deferred discovery-widening row closes via its
