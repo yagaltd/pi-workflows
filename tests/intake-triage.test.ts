@@ -329,3 +329,272 @@ describe("bench harness — EVAL-SLICE (the Phase-2 gate instrument)", () => {
     expect(liveBackend().name).toBe("typellm");
   });
 });
+
+// ── plan 20261117-076 Phase 2: review verdicts over the seam ──────────────
+import {
+  REVIEW_VERDICTS,
+  REVIEW_VERDICT_SCHEMA,
+  renderVerdictTable,
+  reviewVerdicts,
+  scenarioInput,
+  type ReviewScenario,
+} from "../extensions/index.ts";
+import {
+  VERDICT_FIXTURES,
+  evalVerdictBackend,
+  evalVerdictBackends,
+  recordedVerdictBackend,
+} from "../scripts/bench-intake-triage.ts";
+import { parseVerdictWrite } from "../extensions/index.ts";
+
+const SCENARIOS: ReviewScenario[] = [
+  { id: "S1", claim: "The report's claims match what the diff actually does." },
+  { id: "S2", claim: "README/docs lines changed in the diff match the code." },
+];
+const DIFF = "diff summary text";
+
+const verdictBackend = (
+  verdicts: Record<string, { verdict: string; confidence: number; evidence?: string }>
+): JudgeBackend => ({
+  name: "verdict-fake",
+  async classify(schema, input) {
+    for (const s of SCENARIOS) {
+      if (input === scenarioInput(s, DIFF)) {
+        const v = verdicts[s.id];
+        if (!v) throw new Error(`fake backend has no scripted answer for ${s.id}`);
+        return {
+          skipped: false,
+          bucket: null,
+          value: { verdict: v.verdict, confidence: v.confidence, ...(v.evidence ? { evidence: v.evidence } : {}) },
+          confidence: v.confidence,
+          ...(v.evidence ? { evidence: v.evidence } : {}),
+        };
+      }
+    }
+    return { skipped: true, bucket: null, confidence: 0, reason: "unscripted input" };
+  },
+});
+
+const skippingBackend = (reason: string): JudgeBackend => ({
+  name: "no-key",
+  classify: async () => ({ skipped: true, bucket: null, confidence: 0, reason }),
+});
+
+describe("review verdicts over the seam (plan 20261117-076 Phase 2)", () => {
+  test("verdict vocabulary is pass/fail/uncertain; schema carries enum + confidence 0..1", () => {
+    expect(REVIEW_VERDICTS).toEqual(["pass", "fail", "uncertain"]);
+    const props = (REVIEW_VERDICT_SCHEMA as any).properties;
+    expect(props.verdict.enum).toEqual(REVIEW_VERDICTS);
+    expect(props.confidence.minimum).toBe(0);
+    expect(props.confidence.maximum).toBe(1);
+    expect((REVIEW_VERDICT_SCHEMA as any).required).toContain("verdict");
+    expect((REVIEW_VERDICT_SCHEMA as any).required).toContain("confidence");
+  });
+
+  test("scenarioInput carries the claim AND the diff summary to the judge", () => {
+    const input = scenarioInput(SCENARIOS[0], DIFF);
+    expect(input).toContain("S1");
+    expect(input).toContain(SCENARIOS[0].claim);
+    expect(input).toContain(DIFF);
+  });
+
+  test("per-scenario verdicts are parsed with evidence quotes (Tier 1)", async () => {
+    const backend = verdictBackend({
+      S1: { verdict: "pass", confidence: 0.9, evidence: "report says X, diff does X" },
+      S2: { verdict: "fail", confidence: 0.85, evidence: "README names a flag the diff never adds" },
+    });
+    const r = await reviewVerdicts(backend, SCENARIOS, DIFF);
+    expect(r.backend).toBe("verdict-fake");
+    expect(r.skippedAll).toBe(false);
+    expect(r.results).toHaveLength(2);
+    expect(r.results[0]).toMatchObject({
+      scenario: "S1", verdict: "pass", confidence: 0.9, evidence: "report says X, diff does X",
+    });
+    expect(r.results[1]).toMatchObject({ scenario: "S2", verdict: "fail" });
+    expect(r.deepRead).toEqual([]);
+  });
+
+  test("below-floor confidence → uncertain, routed to Tier 2 (majordome gating)", async () => {
+    const backend = verdictBackend({
+      S1: { verdict: "pass", confidence: 0.55 },
+      S2: { verdict: "fail", confidence: 0.95 },
+    });
+    const r = await reviewVerdicts(backend, SCENARIOS, DIFF);
+    expect(r.results[0].verdict).toBe("uncertain");
+    expect(r.results[0].reason).toContain("0.55");
+    expect(r.deepRead).toEqual(["S1"]);
+    expect(r.results[1].verdict).toBe("fail");
+  });
+
+  test("judge returns a verdict outside the enum → loud skip (never a guess)", async () => {
+    const backend = verdictBackend({
+      S1: { verdict: "ship-it", confidence: 0.99 },
+      S2: { verdict: "fail", confidence: 0.9 },
+    });
+    const r = await reviewVerdicts(backend, SCENARIOS, DIFF);
+    expect(r.results[0].verdict).toBe("uncertain");
+    expect(r.results[0].skipped).toBe(true);
+    expect(r.results[0].reason).toBeTruthy();
+    expect(r.deepRead).toContain("S1");
+  });
+
+  test("LOUD SKIP: backend unusable → ALL scenarios Tier 2, surfaced loudly", async () => {
+    const r = await reviewVerdicts(skippingBackend("missing TYPELLM_API_KEY"), SCENARIOS, DIFF);
+    expect(r.skippedAll).toBe(true);
+    expect(r.reason).toContain("TYPELLM_API_KEY");
+    expect(r.results.every((x) => x.verdict === "uncertain")).toBe(true);
+    expect(r.deepRead).toEqual(["S1", "S2"]);
+  });
+
+  test("no-key typellm transport loud-skips before any network call (green path)", async () => {
+    let called = false;
+    const backend = makeTypellmBackend({
+      key: "",
+      fetchImpl: async () => {
+        called = true;
+        throw new Error("must not be called");
+      },
+    } as any);
+    const r = await reviewVerdicts(backend, SCENARIOS, DIFF);
+    expect(called).toBe(false);
+    expect(r.skippedAll).toBe(true);
+    expect(r.results.every((x) => x.skipped)).toBe(true);
+  });
+
+  test("renderVerdictTable: verdict + confidence + evidence; uncertain rows marked DEEP-READ", () => {
+    const backend = verdictBackend({
+      S1: { verdict: "pass", confidence: 0.92, evidence: "claims match" },
+      S2: { verdict: "fail", confidence: 0.4 },
+    });
+    return reviewVerdicts(backend, SCENARIOS, DIFF).then((r) => {
+      const out = renderVerdictTable(r);
+      expect(out).toContain("S1");
+      expect(out).toContain("pass");
+      expect(out).toContain("0.92");
+      expect(out).toContain("claims match");
+      expect(out).toContain("DEEP-READ");
+    });
+  });
+
+  test("renderVerdictTable on a global skip prints JUDGE SKIPPED + all-Tier-2 line", async () => {
+    const r = await reviewVerdicts(skippingBackend("endpoint error (HTTP 503)"), SCENARIOS, DIFF);
+    const out = renderVerdictTable(r);
+    expect(out).toContain("JUDGE SKIPPED");
+    expect(out).toContain("503");
+    expect(out).toContain("Tier 2");
+  });
+
+  test("seam stays triage-compatible: a value-only fake drives triageFinding", async () => {
+    const fake: JudgeBackend = {
+      name: "value-only",
+      classify: async () => ({
+        skipped: false,
+        bucket: null,
+        value: { bucket: "queued", confidence: 0.8 },
+        confidence: 0.8,
+      }),
+    };
+    const r = await triageFinding(fake, "P0 — the ship path swallows write failures");
+    expect(r.bucket).toBe("queued");
+    expect(r.defaultPath).toBe(false);
+  });
+});
+
+describe("verdict harness — review-verdict fixtures (the Phase-2 gate instrument)", () => {
+  test("fixtures: unique ids, expected verdicts in the pass/fail/uncertain vocabulary", () => {
+    expect(VERDICT_FIXTURES.length).toBeGreaterThanOrEqual(8);
+    const ids = new Set(VERDICT_FIXTURES.map((f) => f.id));
+    expect(ids.size).toBe(VERDICT_FIXTURES.length);
+    for (const f of VERDICT_FIXTURES) expect(REVIEW_VERDICTS).toContain(f.expected);
+    for (const f of VERDICT_FIXTURES) {
+      expect(f.scenario.claim.length).toBeGreaterThan(0);
+      expect(f.diffSummary.length).toBeGreaterThan(0);
+    }
+  });
+
+  test("recorded verdict backend replays fixture ground truth (no key, no net)", async () => {
+    const b = recordedVerdictBackend();
+    expect(b.name).toBe("typellm-recorded-verdicts");
+    for (const f of VERDICT_FIXTURES) {
+      const v = await b.classify(REVIEW_VERDICT_SCHEMA, scenarioInput(f.scenario, f.diffSummary));
+      expect(v.skipped).toBe(false);
+      expect(v.value?.verdict).toBe(f.expected);
+    }
+  });
+
+  test("recorded verdict backend never invents an answer for unknown input (loud skip)", async () => {
+    const v = await recordedVerdictBackend().classify(
+      REVIEW_VERDICT_SCHEMA,
+      scenarioInput({ id: "X", claim: "not a fixture" }, "not a fixture diff")
+    );
+    expect(v.skipped).toBe(true);
+    expect(v.reason).toBeTruthy();
+  });
+
+  test("evalVerdictBackend scores the recorded slice at 1.0 with skips surfaced separately", async () => {
+    const score = await evalVerdictBackend(recordedVerdictBackend());
+    expect(score.name).toBe("typellm-recorded-verdicts");
+    expect(score.correct).toBe(VERDICT_FIXTURES.length);
+    expect(score.total).toBe(VERDICT_FIXTURES.length);
+    expect(score.accuracy).toBe(1);
+    expect(score.skipped).toBe(0);
+  });
+
+  test("a wrong verdict backend scores below 1 — a skipping backend scores 0", async () => {
+    const wrong: JudgeBackend = {
+      name: "always-pass",
+      classify: async () => ({
+        skipped: false,
+        bucket: null,
+        value: { verdict: "pass", confidence: 0.99 },
+        confidence: 0.99,
+      }),
+    };
+    const wrongScore = await evalVerdictBackend(wrong);
+    expect(wrongScore.accuracy).toBeLessThan(1);
+    const skipping: JudgeBackend = {
+      name: "no-key",
+      classify: async () => ({ skipped: true, bucket: null, confidence: 0, reason: "missing key" }),
+    };
+    const skipScore = await evalVerdictBackend(skipping);
+    expect(skipScore.correct).toBe(0);
+    expect(skipScore.skipped).toBe(VERDICT_FIXTURES.length);
+    expect(skipScore.accuracy).toBe(0);
+  });
+
+  test("evalVerdictBackends reports one row per backend (per-backend Phase-2 table)", async () => {
+    const rows = await evalVerdictBackends([recordedVerdictBackend()]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].accuracy).toBe(1);
+  });
+});
+
+describe("reviewer parse contract survives the restructure (the gate still consumes verdicts)", () => {
+  // The block below mirrors agents/reviewer.md's Output section shape — the
+  // orchestrator parses `.workflows/reviews/task-N.md` with parseVerdictWrite.
+  const reviewerShapedVerdict = [
+    "## Verdict",
+    "",
+    "**ok: true**",
+    "",
+    "(when ok:false — one numbered finding per line, each actionable:)",
+    "### Findings",
+    "1. [P1] docs name a flag the diff never adds — evidence: README.md:12",
+    "   Fix direction: align the docs line with the diff.",
+  ].join("\n");
+
+  test("parseVerdictWrite consumes the reviewer's documented verdict block", () => {
+    expect(parseVerdictWrite(".workflows/reviews/task-3.md", reviewerShapedVerdict)).toEqual({
+      taskId: "task-3",
+      ok: true,
+    });
+  });
+
+  test("parseVerdictWrite reads ok:false with findings attached", () => {
+    const block = reviewerShapedVerdict.replace("**ok: true**", "**ok: false**");
+    expect(parseVerdictWrite(".workflows/reviews/task-3.md", block)).toEqual({
+      taskId: "task-3",
+      ok: false,
+    });
+  });
+});

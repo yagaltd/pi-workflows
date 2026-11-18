@@ -128,6 +128,24 @@ name-like structure — header cells, headings, key names — passes a
 truncating, high-entropy-redacting sanitizer first; advisory only,
 exit 0, no gate semantics).
 
+#### Tier-1 Judge Verdicts (Plan 076)
+
+Run the judge first-pass before the reviewer's judgment pass. It judges the
+review's content-fact scenarios (report-vs-diff, docs-vs-code, pin validity,
+claim truthfulness) and feeds the rendered table into the reviewer's prompt —
+per-task reviewer subagent or this Stage-2 pass. The reviewer still runs
+ALWAYS. Command:
+
+```bash
+bun scripts/bench-intake-triage.ts verdicts \
+  --scenarios <scenarios.json> --diff <diff-summary.txt>
+```
+
+The table's pass/fail rows stand on their quoted evidence; the reviewer
+deep-reads the uncertain rows only (skips + confidence < 0.6). `JUDGE SKIPPED`
+routes every row to the deep read — never a silent pass. Advisory routing
+only: the judge never closes a review alone.
+
 ### Step 2: Judgment-based quality review
 
 Run `git diff` to see what changed. Apply judgment-based review:
