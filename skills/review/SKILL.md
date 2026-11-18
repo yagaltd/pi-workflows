@@ -144,6 +144,13 @@ High bar for findings — empty review = clean code = success.
 Report P0-P3 issues with file paths and evidence.
 Include human callouts (new deps, auth changes, migrations).
 
+Intake triage (plan `20261117-076`): worker findings are classified
+`queued/batched/closed/done` via the judge seam —
+`bun scripts/bench-intake-triage.ts triage --findings <file.json>` —
+confidence-gated (floor 0.6); a judge skip or a below-floor verdict stays
+in the default path and prints `JUDGE SKIPPED` loudly. Surface the verdict
+and confidence in the ship output.
+
 ## Stage 3: SHIP (only if Stage 1 PASSES and the human approves)
 
 On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:

@@ -65,6 +65,18 @@
  *    same class as the auto-gate advisory). Record-only: never blocks a
  *    write, separate registration branch from the auto-gate.
  *
+ * 9. TypeLLM judge client + backend-pluggable intake triage (plan
+ *    20261117-076 Phase 1): a judge-backend seam ({classify(schema, input)
+ *    → verdict}) with the TypeLLM transport as the first implementation
+ *    behind it (POST /v1/generate {context, questions} — the majordome
+ *    judges.ts contract; key chain TYPELLM_API_KEY env →
+ *    ~/.config/pi-majordome/typellm.key). No key / network error /
+ *    schema-invalid response ⇒ LOUD skip — never a silent pass. triageFinding(s) classify ship findings into the 071
+ *    buckets queued/batched/closed/done, confidence-gated (floor 0.6);
+ *    skips and below-floor verdicts stay in the default path. Pure
+ *    exports — the ship flow (skills/review) and the bench harness
+ *    (scripts/bench-intake-triage.ts) drive them; nothing registers here.
+ *
  * Deliberately small: role substitution + drift watchdogs + write-time
  * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
@@ -1402,6 +1414,315 @@ export function appendIntentTrail(
   } catch {
     // trail is best-effort; the guard never breaks a turn
   }
+}
+
+// ── 9. TypeLLM judge client + intake triage (plan 20261117-076 Phase 1) ────
+
+/** The four 071 intake-triage buckets (templates/FOLLOW-UP-TABLE.md discipline,
+ *  machine-consistent per plan 20261117-076). Order is display order. */
+export const TRIAGE_BUCKETS = ["queued", "batched", "closed", "done"] as const;
+export type TriageBucket = (typeof TRIAGE_BUCKETS)[number];
+
+/** Below this the verdict is not trusted — the finding stays in the default
+ *  path (majordome's mandatory confidence-gating, plan 20261117-076). */
+export const TRIAGE_CONFIDENCE_FLOOR = 0.6;
+
+/** The triage classification schema sent with every request. The transport
+ *  maps each property's {type, enum, description} onto the TypeLLM question
+ *  shape and validates the response's `result` against the constraints this
+ *  carries (enum membership, number range, required fields); anything it
+ *  cannot validate is a loud skip, never a guess. */
+export const TRIAGE_SCHEMA = {
+  type: "object",
+  properties: {
+    bucket: {
+      type: "string",
+      enum: TRIAGE_BUCKETS,
+      description:
+        "Which of the four review-finding buckets does this finding belong to? " +
+        "queued = a real P0-P2 problem for the owner's follow-up queue; " +
+        "batched = a P3 nit that bundles with similar items into one row; " +
+        "closed = not worth acting on, deleted with a one-line why; " +
+        "done = already fixed or verified within this plan.",
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the bucket choice. Use the full range; 0.9+ only " +
+        "when the finding unambiguously fits one bucket.",
+    },
+    evidence: {
+      type: "string",
+      description: "One short line citing the words in the finding that drove the choice.",
+    },
+  },
+  required: ["bucket", "confidence"],
+  additionalProperties: false,
+} as const;
+
+/** One judge classification. skipped=true is LOUD: `reason` always names
+ *  why, and callers must surface it — a skip is never a silent pass. */
+export interface TriageVerdict {
+  skipped: boolean;
+  bucket: TriageBucket | null;
+  confidence: number;
+  evidence?: string;
+  reason?: string;
+}
+
+/** The judge-backend seam (plan 20261117-076 owner steering): classification
+ *  goes through classify(schema, input) — no schema/endpoint/key specifics
+ *  leak past this shape. TypeLLM is the first implementation; a Jev backend
+ *  (Phase 2 candidate) slots in without touching the triage. */
+export interface JudgeBackend {
+  name: string;
+  classify(schema: object, input: string): Promise<TriageVerdict>;
+}
+
+/** Key chain (majordome judges.ts ground truth): TYPELLM_API_KEY env first,
+ *  then ~/.config/pi-majordome/typellm.key, else null. Deps injectable for
+ *  tests; defaults read the live environment. */
+export function resolveTypellmKey(
+  deps?: {
+    env?: Record<string, string | undefined>;
+    keyPath?: string;
+    readFile?: (p: string) => string | null;
+  }
+): string | null {
+  const env = deps?.env ?? process.env;
+  const fromEnv = env.TYPELLM_API_KEY;
+  if (typeof fromEnv === "string" && fromEnv.trim()) return fromEnv.trim();
+  const read = deps?.readFile ?? defaultReadFile;
+  const keyPath =
+    deps?.keyPath ?? path.join(os.homedir(), ".config", "pi-majordome", "typellm.key");
+  const fromFile = read(keyPath);
+  if (typeof fromFile === "string" && fromFile.trim()) return fromFile.trim();
+  return null;
+}
+
+function defaultReadFile(p: string): string | null {
+  try {
+    return fs.readFileSync(p, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+const TYPELLM_DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Validate a response `output` against the schema subset the triage uses:
+ *  type string|number, enum membership, minimum/maximum, required. Returns
+ *  the parsed value, or null when anything is off (caller skips loudly). */
+function validateSchemaValue(
+  schema: any,
+  value: unknown
+): { ok: true; value: any } | { ok: false; why: string } {
+  if (!schema || typeof schema !== "object") return { ok: false, why: "schema is not an object" };
+  if (schema.type === "object") {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return { ok: false, why: "schema: output is not an object" };
+    const v = value as Record<string, unknown>;
+    for (const req of schema.required ?? []) {
+      if (!(req in v)) return { ok: false, why: `schema: missing required field '${req}'` };
+    }
+    for (const [key, propSchema] of Object.entries<any>(schema.properties ?? {})) {
+      if (!(key in v) || v[key] === undefined) continue;
+      const check = validateSchemaValue(propSchema, v[key]);
+      if (!check.ok) return check;
+    }
+    return { ok: true, value: v };
+  }
+  if (schema.type === "string") {
+    if (typeof value !== "string") return { ok: false, why: `schema: expected string, got ${typeof value}` };
+    if (Array.isArray(schema.enum) && !schema.enum.includes(value))
+      return { ok: false, why: `schema: value '${value}' is outside the enum` };
+    return { ok: true, value };
+  }
+  if (schema.type === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value))
+      return { ok: false, why: `schema: expected finite number, got ${typeof value}` };
+    if (typeof schema.minimum === "number" && value < schema.minimum)
+      return { ok: false, why: `schema: number ${value} below minimum ${schema.minimum}` };
+    if (typeof schema.maximum === "number" && value > schema.maximum)
+      return { ok: false, why: `schema: number ${value} above maximum ${schema.maximum}` };
+    return { ok: true, value };
+  }
+  return { ok: false, why: `schema: unsupported type '${String(schema.type)}'` };
+}
+
+/** Map a JSON-schema object onto the TypeLLM questions shape — per field
+ *  {type, enum?, instructions} with the schema's description as the
+ *  instruction. Returns null (caller skips loudly) on any property the
+ *  transport cannot express. */
+function questionsOf(schema: any): Record<string, unknown> | null {
+  if (schema?.type !== "object" || !schema.properties) return null;
+  const questions: Record<string, unknown> = {};
+  for (const [key, prop] of Object.entries<any>(schema.properties)) {
+    if (prop.type !== "string" && prop.type !== "number") return null;
+    const q: Record<string, unknown> = {
+      type: prop.type,
+      instructions:
+        (typeof prop.description === "string" && prop.description.trim()) ||
+        `Value of the '${key}' field.`,
+    };
+    if (Array.isArray(prop.enum)) q.enum = prop.enum;
+    questions[key] = q;
+  }
+  return questions;
+}
+
+/** The TypeLLM transport as the first JudgeBackend implementation — the
+ *  majordome judges.ts contract (plan 20261117-076 ground truth): POST
+ *  {baseUrl}/v1/generate {context, questions}, bearer key, response `result`
+ *  object validated against the schema. Every failure mode is a LOUD skip
+ *  with the reason named: no key (checked before any network call), HTTP
+ *  error, non-JSON body, schema-invalid or missing result. Config injectable
+ *  for tests; env defaults otherwise. */
+export function makeTypellmBackend(
+  deps?: {
+    key?: string | null;
+    fetchImpl?: typeof fetch;
+    baseUrl?: string;
+    timeoutMs?: number;
+    env?: Record<string, string | undefined>;
+    keyPath?: string;
+    readFile?: (p: string) => string | null;
+  }
+): JudgeBackend {
+  const env = deps?.env ?? process.env;
+  const baseUrl = (deps?.baseUrl ?? env.TYPELLM_BASE_URL ?? "https://api.typellm.ai").replace(
+    /\/+$/,
+    ""
+  );
+  const timeoutMs = (() => {
+    const n = Number(deps?.timeoutMs ?? env.TYPELLM_TIMEOUT_MS);
+    return Number.isFinite(n) && n > 0 ? n : TYPELLM_DEFAULT_TIMEOUT_MS;
+  })();
+  return {
+    name: "typellm",
+    async classify(schema: object, input: string): Promise<TriageVerdict> {
+      const key = deps && deps.key !== undefined ? deps.key : resolveTypellmKey({ env, keyPath: deps?.keyPath, readFile: deps?.readFile });
+      if (!key)
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "missing TYPELLM_API_KEY (env or ~/.config/pi-majordome/typellm.key)",
+        };
+      const questions = questionsOf(schema);
+      if (!questions)
+        return { skipped: true, bucket: null, confidence: 0, reason: "schema not expressible as TypeLLM questions" };
+      const endpoint = `${baseUrl}/v1/generate`;
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), timeoutMs);
+      let res: Response;
+      let body: string;
+      try {
+        res = await (deps?.fetchImpl ?? fetch)(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+          body: JSON.stringify({ context: input, questions }),
+          signal: ac.signal,
+        });
+        body = await res.text();
+      } catch (e: any) {
+        const why = e?.name === "AbortError" ? `timed out after ${timeoutMs}ms` : String(e?.message ?? e);
+        return { skipped: true, bucket: null, confidence: 0, reason: `endpoint unreachable (${why})` };
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res.ok)
+        return { skipped: true, bucket: null, confidence: 0, reason: `endpoint error (HTTP ${res.status})` };
+      let parsed: any;
+      try {
+        parsed = JSON.parse(body);
+      } catch {
+        return { skipped: true, bucket: null, confidence: 0, reason: "endpoint returned a non-JSON response" };
+      }
+      if (!parsed || typeof parsed !== "object" || !("result" in parsed))
+        return { skipped: true, bucket: null, confidence: 0, reason: "endpoint response missing result" };
+      const check = validateSchemaValue(schema, parsed.result);
+      if (!check.ok)
+        return { skipped: true, bucket: null, confidence: 0, reason: `schema-invalid response: ${check.why}` };
+      const out = check.value as Record<string, unknown>;
+      const confidence = typeof out.confidence === "number" ? out.confidence : 0;
+      const evidence = typeof out.evidence === "string" ? out.evidence : undefined;
+      return {
+        skipped: false,
+        bucket: out.bucket as TriageBucket,
+        confidence,
+        ...(evidence !== undefined ? { evidence } : {}),
+      };
+    },
+  };
+}
+
+/** One triaged finding: the verdict plus the routing decision. defaultPath
+ *  is true when the human's default handling stays in charge — backend
+ *  skip OR confidence below the floor (the finding is never dropped). */
+export interface TriageResult extends TriageVerdict {
+  finding: string;
+  backend: string;
+  defaultPath: boolean;
+}
+
+/** Classify one worker finding through the seam. Below-floor verdicts keep
+ *  their bucket for visibility but route to the default path, loudly. */
+export async function triageFinding(backend: JudgeBackend, finding: string): Promise<TriageResult> {
+  const v = await backend.classify(TRIAGE_SCHEMA, finding);
+  if (v.skipped)
+    return { ...v, finding, backend: backend.name, defaultPath: true };
+  if (v.confidence < TRIAGE_CONFIDENCE_FLOOR)
+    return {
+      ...v,
+      finding,
+      backend: backend.name,
+      defaultPath: true,
+      reason: `below confidence floor (${v.confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — stays in the default path`,
+    };
+  return { ...v, finding, backend: backend.name, defaultPath: false };
+}
+
+/** Triage a batch of findings; the summary counts buckets + default-path
+ *  rows (skips and below-floor verdicts — never silent, never dropped). */
+export async function triageFindings(
+  backend: JudgeBackend,
+  findings: string[]
+): Promise<{ results: TriageResult[]; summary: Record<TriageBucket | "defaultPath", number> }> {
+  const results: TriageResult[] = [];
+  for (const finding of findings) results.push(await triageFinding(backend, finding));
+  const summary: Record<TriageBucket | "defaultPath", number> = {
+    queued: 0,
+    batched: 0,
+    closed: 0,
+    done: 0,
+    defaultPath: 0,
+  };
+  for (const r of results) {
+    if (r.defaultPath) summary.defaultPath++;
+    else if (r.bucket) summary[r.bucket]++;
+  }
+  return { results, summary };
+}
+
+/** Human-visible triage rows for the ship output: bucket + confidence when
+ *  triaged; a LOUD default-path line (JUDGE SKIPPED / below floor) when not. */
+export function renderTriageTable(results: TriageResult[]): string {
+  const short = (f: string) => (f.length > 72 ? `${f.slice(0, 69)}...` : f);
+  return results
+    .map((r) => {
+      if (r.defaultPath) {
+        const why = r.skipped
+          ? `JUDGE SKIPPED (${r.reason ?? "unspecified"})`
+          : `JUDGE SKIPPED (${r.reason ?? "below confidence floor"})`;
+        return `- ${short(r.finding)} → default path — ${why}`;
+      }
+      const ev = r.evidence ? ` [${r.evidence}]` : "";
+      return `- ${short(r.finding)} → ${r.bucket} (confidence ${r.confidence})${ev}`;
+    })
+    .join("\n");
 }
 
 export default function register(pi: any): void {
