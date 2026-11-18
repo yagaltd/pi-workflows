@@ -1,3 +1,28 @@
+## 2026-11-17 — v0.15.8: docs currency — the pi-emphasis companion, budgets track truth (plan 20261117-072)
+
+- **README names the reply-style companion**: pi-emphasis — display-only
+  status pills for reports (scoreboard openings, per
+  `templates/STATUS-VOCABULARY.md`), installed stock, optional, NOT a package
+  dependency: without it, pill tokens render as plain text and nothing
+  breaks. Currency pass brings the README current with the intake doctrine
+  (068), the ledger (067/068), and the boundaries-path lint (069).
+- **Budgets track truth**: the docs-lint baseline regenerated — 4 numbers
+  LOWERED, 0 raised (FOLLOW-UP-TABLE 33→24, review SKILL 16→14, both
+  markdownlint/harper totals down). Diagnosis corrected on the record: the
+  stale numbers were content-stale (068/069 improvements never priced in),
+  not tool drift — mise pins verified current.
+- **Pin generalization**: the 071 additions-only baseline pin is replaced by
+  the real invariant — budgets hold-or-fall vs the declared pre-regen
+  reference, never rise. Round-1 review caught the new pin being
+  git-state-coupled (green pre-commit, structurally red after) — fixed by
+  anchoring the truth-leg to the base revision; the reviewer's
+  committed-state reproduction method is recorded in
+  `.workflows/reviews/fix-round-072.md`.
+- **DOCS-POLICY**: the clean-files cross-ref lands (chat-reply decoration
+  never enters tracked files; rule of record: the vocabulary file) + the
+  budgets-track-truth rule (lowered budgets committed same-task; raises need
+  the plan's explicit justification).
+
 ## 2026-11-17 — v0.15.7: reply-style vocabulary — status pills for reports, single source, files stay clean (plan 20261117-071)
 
 - **`templates/STATUS-VOCABULARY.md`** (new, single source): maps every
