@@ -13,10 +13,17 @@
 //              transport): replay the review-verdict fixture slice (content-
 //              fact scenarios + diff summaries with expected pass/fail/
 //              uncertain) and report per-backend accuracy — the Phase-2
-//              measurement instrument. Review-time (`--scenarios <file>
-//              --diff <file>`): run Tier-1 verdicts for real review input
-//              and print the verdict table; ADVISORY — routing only, never
-//              a verdict; the reviewer subagent still runs ALWAYS.
+//              measurement instrument. Phase 3 adds harness MODES over the
+//              same fixtures: `--mode per-scenario|batched|batched-dag|all`
+//              reports accuracy + API call count + wall latency per mode
+//              (precision decides the default). Review-time
+//              (`--scenarios <file> --diff <file>`): run Tier-1 verdicts for
+//              real review input and print the verdict table; ADVISORY —
+//              routing only, never a verdict; the reviewer subagent still
+//              runs ALWAYS.
+//
+//   modes    — the full Phase-3 comparison table: all three modes on the
+//              SAME fixture slice, one row each (accuracy, calls, wallMs).
 //
 //   triage   — classify worker findings at ship time through the same seam:
 //              `--findings <file>` (JSON array of strings, or JSONL with a
@@ -27,7 +34,9 @@
 // Usage:
 //   bun scripts/bench-intake-triage.ts eval [--live]
 //   bun scripts/bench-intake-triage.ts verdicts [--live]
+//   bun scripts/bench-intake-triage.ts verdicts [--live] --mode per-scenario|batched|batched-dag|all
 //   bun scripts/bench-intake-triage.ts verdicts --scenarios <file> --diff <file>
+//   bun scripts/bench-intake-triage.ts modes [--live]
 //   bun scripts/bench-intake-triage.ts triage --findings <file>
 //
 // Exit: eval/verdicts 0 · triage 0 (advisory) · usage 2.
@@ -41,10 +50,14 @@ import {
   TRIAGE_SCHEMA,
   REVIEW_VERDICTS,
   REVIEW_VERDICT_SCHEMA,
+  DECOMPOSE_INPUT_MARKER,
+  REVIEW_CONTEXT_WINDOW,
   makeTypellmBackend,
   renderTriageTable,
   renderVerdictTable,
   reviewVerdicts,
+  reviewVerdictsBatched,
+  reviewVerdictsDag,
   scenarioInput,
   triageFinding,
   type JudgeBackend,
@@ -215,29 +228,58 @@ export const VERDICT_FIXTURES: VerdictFixture[] = [
 ];
 
 /** Recorded verdict backend: replays the verdict slice's ground truth.
- *  Deterministic, keyless, network-free. Unknown input is a LOUD skip. */
+ *  Deterministic, keyless, network-free. Understands ALL THREE Phase-3 call
+ *  shapes over the same fixture slice: the Phase-2 per-scenario input, the
+ *  batch body (flat per-scenario keys), and the decompose call (one group
+ *  covering every scenario present). Unknown input is a LOUD skip. */
 export function recordedVerdictBackend(): JudgeBackend {
   const byInput = new Map(
     VERDICT_FIXTURES.map((f) => [scenarioInput(f.scenario, f.diffSummary), f])
   );
+  const byId = new Map(VERDICT_FIXTURES.map((f) => [f.id, f]));
+  const skip = (why: string) => ({
+    skipped: true,
+    bucket: null as null,
+    confidence: 0,
+    reason: why,
+  });
+  const idsPresent = (input: string): string[] => {
+    const ids = [...new Set([...input.matchAll(/Scenario ([A-Za-z0-9_-]+):/g)].map((m) => m[1]))];
+    return ids.filter((id) => byId.has(id));
+  };
   return {
     name: "typellm-recorded-verdicts",
     async classify(schema, input) {
-      const f = byInput.get(input);
-      if (!f)
+      const legacy = byInput.get(input);
+      if (legacy)
         return {
-          skipped: true,
+          skipped: false,
           bucket: null,
-          confidence: 0,
-          reason: "recorded fixture replay: input is not in the verdict fixture slice",
+          value: { verdict: legacy.expected, confidence: 0.9, evidence: `recorded:${legacy.id}` },
+          confidence: 0.9,
+          evidence: `recorded:${legacy.id}`,
         };
-      return {
-        skipped: false,
-        bucket: null,
-        value: { verdict: f.expected, confidence: 0.9, evidence: `recorded:${f.id}` },
-        confidence: 0.9,
-        evidence: `recorded:${f.id}`,
-      };
+      if (input.includes(DECOMPOSE_INPUT_MARKER)) {
+        const ids = idsPresent(input);
+        if (!ids.length) return skip("recorded fixture replay: no fixture scenarios in the decompose input");
+        return {
+          skipped: false,
+          bucket: null,
+          value: { decomposition: JSON.stringify({ groups: [{ id: "J1", scenarios: ids, depends_on: [] }] }) },
+          confidence: 0.9,
+        };
+      }
+      const ids = idsPresent(input);
+      if (!ids.length)
+        return skip("recorded fixture replay: input is not in the verdict fixture slice");
+      const out: Record<string, unknown> = {};
+      for (const id of ids) {
+        const f = byId.get(id)!;
+        out[`${id}_verdict`] = f.expected;
+        out[`${id}_confidence`] = 0.9;
+        out[`${id}_evidence`] = `recorded:${f.id}`;
+      }
+      return { skipped: false, bucket: null, value: out, confidence: 0.9 };
     },
   };
 }
@@ -286,6 +328,92 @@ export async function evalVerdictBackends(
 ): Promise<VerdictScore[]> {
   const rows: VerdictScore[] = [];
   for (const b of backends) rows.push(await evalVerdictBackend(b, fixtures));
+  return rows;
+}
+
+/* ── Phase-3 harness modes: per-scenario | batched | batched-dag ──
+ *  Same fixtures, same accuracy scoring; calls + wall latency reported per
+ *  mode — precision (accuracy) decides the default, cost is the tiebreaker. */
+
+export type VerdictMode = "per-scenario" | "batched" | "batched-dag";
+export const VERDICT_MODES: VerdictMode[] = ["per-scenario", "batched", "batched-dag"];
+
+export interface VerdictModeScore extends VerdictScore {
+  mode: VerdictMode;
+  /** API calls actually made (counted at the seam, not assumed). */
+  calls: number;
+  /** Wall latency for the mode's whole eval pass, in ms. */
+  wallMs: number;
+}
+
+/** Wrap a backend so the harness counts REAL classify invocations. */
+function countingBackend(backend: JudgeBackend): { backend: JudgeBackend; count: () => number } {
+  let calls = 0;
+  return {
+    backend: {
+      name: backend.name,
+      async classify(schema, input) {
+        calls++;
+        return backend.classify(schema, input);
+      },
+    },
+    count: () => calls,
+  };
+}
+
+/** Run one harness mode over the fixture slice and score accuracy + calls +
+ *  wall latency. A skip is NEVER a pass in any mode (loud-skip doctrine). */
+export async function evalVerdictMode(
+  mode: VerdictMode,
+  backend: JudgeBackend,
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+): Promise<VerdictModeScore> {
+  const { backend: counted, count } = countingBackend(backend);
+  const t0 = Date.now();
+  let correct = 0;
+  let skipped = 0;
+  if (mode === "per-scenario") {
+    // the Phase-2 pattern: one call per scenario, no cross-scenario context
+    for (const f of fixtures) {
+      const r = await reviewVerdicts(counted, [f.scenario], f.diffSummary);
+      const v = r.results[0];
+      if (!v || v.skipped) skipped++;
+      else if (v.verdict === f.expected) correct++;
+    }
+  } else {
+    // batch / batched-dag: the whole slice rides as few calls as the window
+    // allows; each fixture's scenario id is its unique key
+    const scenarios: ReviewScenario[] = fixtures.map((f) => ({ id: f.id, claim: f.scenario.claim }));
+    const evidence = Object.fromEntries(fixtures.map((f) => [f.id, f.diffSummary]));
+    const r =
+      mode === "batched"
+        ? await reviewVerdictsBatched(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW })
+        : await reviewVerdictsDag(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW });
+    for (const f of fixtures) {
+      const v = r.results.find((x) => x.scenario === f.id);
+      if (!v || v.skipped) skipped++;
+      else if (v.verdict === f.expected) correct++;
+    }
+  }
+  return {
+    mode,
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+    calls: count(),
+    wallMs: Date.now() - t0,
+  };
+}
+
+/** All three modes on the SAME fixture slice — the Phase-3 comparison table. */
+export async function evalVerdictModes(
+  backend: JudgeBackend,
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+): Promise<VerdictModeScore[]> {
+  const rows: VerdictModeScore[] = [];
+  for (const mode of VERDICT_MODES) rows.push(await evalVerdictMode(mode, backend, fixtures));
   return rows;
 }
 
@@ -368,18 +496,63 @@ function verdictScoreLines(rows: VerdictScore[]): string[] {
   return lines;
 }
 
+function verdictModeLines(rows: VerdictModeScore[]): string[] {
+  const lines = [
+    "mode            correct/total  skipped  accuracy   calls  wallMs   (floor "
+      + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
+  ];
+  for (const r of rows) {
+    const mode = r.mode.padEnd(15);
+    const frac = `${r.correct}/${r.total}`.padEnd(13);
+    const skip = String(r.skipped).padEnd(8);
+    const acc = `${(r.accuracy * 100).toFixed(1)}%`.padEnd(10);
+    const calls = String(r.calls).padEnd(6);
+    lines.push(`${mode} ${frac} ${skip} ${acc} ${calls} ${r.wallMs}`);
+  }
+  // precision decides the default; a tie on accuracy breaks to the fewest calls
+  const best = rows.reduce((a, b) =>
+    b.accuracy > a.accuracy || (b.accuracy === a.accuracy && b.calls < a.calls) ? b : a
+  , rows[0]);
+  lines.push(`default: ${best.mode} (precision decides — accuracy ${(best.accuracy * 100).toFixed(1)}% on ${best.calls} call(s))`);
+  return lines;
+}
+
 async function cmdVerdicts(argv: string[]): Promise<number> {
   const live = argv.includes("--live");
   let scenariosFile: string | null = null;
   let diffFile: string | null = null;
+  let mode: string | null = null;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--live") continue;
     if (argv[i] === "--scenarios") scenariosFile = argv[++i] ?? null;
     else if (argv[i] === "--diff") diffFile = argv[++i] ?? null;
+    else if (argv[i] === "--mode") mode = argv[++i] ?? null;
     else {
       console.error(`usage error: unknown argument ${argv[i]}`);
       return 2;
     }
+  }
+  if (mode !== null && scenariosFile === null && diffFile === null) {
+    // Phase-3 harness modes: same fixtures, accuracy + calls + wall per mode.
+    if (mode !== "all" && !VERDICT_MODES.includes(mode as VerdictMode)) {
+      console.error(`usage error: --mode must be one of ${VERDICT_MODES.join("|")}|all`);
+      return 2;
+    }
+    const backend = live ? liveBackend() : recordedVerdictBackend();
+    const rows =
+      mode === "all"
+        ? await evalVerdictModes(backend)
+        : [await evalVerdictMode(mode as VerdictMode, backend)];
+    console.log(
+      `review-verdicts mode eval (plan 20261117-076 Phase 3) — ${mode} — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    );
+    for (const line of verdictModeLines(rows)) console.log(line);
+    const totalSkips = rows.reduce((n, r) => n + r.skipped, 0);
+    if (live && totalSkips === rows.reduce((n, r) => n + r.total, 0))
+      console.error(
+        `JUDGE SKIPPED (all rows skipped across modes — check TYPELLM_API_KEY / endpoint; skips are never passes)`
+      );
+    return 0;
   }
   if (scenariosFile !== null || diffFile !== null) {
     if (!scenariosFile || !diffFile) {
@@ -459,11 +632,21 @@ async function main(argv: string[]): Promise<number> {
       return await cmdEval(rest);
     case "verdicts":
       return await cmdVerdicts(rest);
+    case "modes": {
+      const live = rest.includes("--live");
+      const backend = live ? liveBackend() : recordedVerdictBackend();
+      const rows = await evalVerdictModes(backend);
+      console.log(
+        `review-verdicts mode comparison (plan 20261117-076 Phase 3) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+      );
+      for (const line of verdictModeLines(rows)) console.log(line);
+      return 0;
+    }
     case "triage":
       return await cmdTriage(rest);
     default:
       console.error(
-        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] | verdicts --scenarios <file> --diff <file> | triage --findings <file>"
+        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file>"
       );
       return 2;
   }

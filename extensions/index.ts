@@ -1769,6 +1769,14 @@ export interface ReviewScenario {
   claim: string;
 }
 
+/** Uncertainty calibration (plan 076 Phase 3 — the Phase-2 miss class was
+ *  over-confident passes on ambiguous evidence): the judge is TOLD that a
+ *  guess under ambiguity scores as a miss. Prompt-side lever — the schema
+ *  shape and the verdict vocabulary stay exactly as Phase 2 shipped them. */
+export const CALIBRATION_INSTRUCTION =
+  "Penalize confident guesses: ambiguous or partial evidence is uncertain " +
+  "rather than a confident guess.";
+
 /** The per-scenario classification schema sent with every request (same
  *  shape discipline as TRIAGE_SCHEMA — the transport validates `result`
  *  against this; anything it cannot validate is a loud skip). */
@@ -1781,7 +1789,8 @@ export const REVIEW_VERDICT_SCHEMA = {
       description:
         "Does the diff summary satisfy the scenario's claim? " +
         "pass = the claim holds on the evidence given; fail = the evidence " +
-        "visibly contradicts the claim; uncertain = the evidence cannot decide it.",
+        "visibly contradicts the claim; uncertain = the evidence cannot decide " +
+        `it. ${CALIBRATION_INSTRUCTION}`,
     },
     confidence: {
       type: "number",
@@ -1789,7 +1798,8 @@ export const REVIEW_VERDICT_SCHEMA = {
       maximum: 1,
       description:
         "0-1 confidence in the verdict. Use the full range; 0.9+ only when the " +
-        "evidence decides the claim unambiguously.",
+        "evidence decides the claim unambiguously. An honest uncertain at " +
+        "moderate confidence beats a guess on ambiguity.",
     },
     evidence: {
       type: "string",
@@ -1918,6 +1928,462 @@ export function renderVerdictTable(result: ReviewVerdictResult): string {
     lines.push(`| ${r.scenario} | ${verdictCell} | ${r.confidence} |${ev}`);
   }
   return lines.join("\n");
+}
+
+/* ── 9c. Batched-DAG review judging (plan 20261117-076 Phase 3, TypeLLM-only) ──
+ *
+ *  The Phase-2 runner spent one API call per scenario (12–27 per review) and
+ *  judged every scenario blind to the others. Phase 3 upgrades precision AND
+ *  cost: (1) BATCH — one call carries ALL scenarios + the diff's real file
+ *  contents within the context window (deterministic whole-scenario chunking
+ *  when over — boundaries never split a scenario); a failed chunk marks ITS
+ *  scenarios uncertain-loud, the others proceed. (2) DAG — the review
+ *  decomposes into dependency-ordered sub-judgments (position-bias controlled:
+ *  decompose runs over permuted presentations, the first valid decomposition
+ *  wins, execution order comes from the DAG's own topological sort); each
+ *  later sub-judgment RECEIVES the earlier verdicts as context. (3) The
+ *  calibration instruction rides every prompt (see CALIBRATION_INSTRUCTION).
+ *
+ *  Contract preservation: the per-scenario verdict stays {verdict, confidence,
+ *  evidence}; the schema vocabulary, the floor, the uncertain→Tier-2 routing,
+ *  the loud-skip doctrine and renderVerdictTable are untouched. The flat
+ *  {scenarioId}_verdict/_confidence/_evidence question encoding rides the
+ *  UNCHANGED {context, questions} transport — one POST per call, the runner
+ *  reassembles the per-scenario verdict array from the response keys. */
+
+/** Context-window cap for one batched call, in characters (the 32k window).
+ *  Over-window scenario sets chunk deterministically below this cap. */
+export const REVIEW_CONTEXT_WINDOW = 32_000;
+
+/** Marker line that keys a decompose call in the review body — the recorded
+ *  harness backend and the DAG runner both key off it. */
+export const DECOMPOSE_INPUT_MARKER =
+  "decompose this review into dependency-ordered sub-judgments";
+
+/** Real file contents carried alongside the diff summary — the judge reads
+ *  the code, not just the report about the code. */
+export interface ReviewFileContext {
+  path: string;
+  content: string;
+}
+
+export interface BatchedVerdictOptions {
+  /** The diff's files, included up to the window (deterministic truncation). */
+  files?: ReviewFileContext[];
+  /** Context-window cap in characters (default REVIEW_CONTEXT_WINDOW). */
+  window?: number;
+  /** Per-scenario evidence override (scenario id → its evidence text);
+   *  defaults every scenario to the shared diff summary. */
+  evidence?: Record<string, string>;
+}
+
+/** Batched result: the Phase-2 verdict result PLUS the mechanics the harness
+ *  comparison reports (API calls actually made, chunks the set split into). */
+export interface BatchedReviewResult extends ReviewVerdictResult {
+  calls: number;
+  chunks: number;
+}
+
+export interface DagReviewResult extends BatchedReviewResult {
+  /** Named when the decompose step was unusable and the runner fell back to
+   *  independent sub-judgments — degraded context flow, never a silent pass. */
+  degraded?: string;
+}
+
+function batchHeader(): string {
+  return (
+    "Review judge: judge every scenario below on the evidence (diff summary + files). " +
+    `${CALIBRATION_INSTRUCTION} Return one verdict per scenario id.\n\n`
+  );
+}
+
+function scenarioBlock(s: ReviewScenario, evidence: string): string {
+  return `Scenario ${s.id}: ${s.claim}\nEvidence:\n${evidence}\n`;
+}
+
+/** Deterministic file-context fitting: the window minus the fixed parts and
+ *  per-file overhead (head line + truncation marker + newline) splits evenly
+ *  across files; each oversized file is truncated with an explicit
+ *  `…[truncated N chars]` marker. Never silent — the marker names what the
+ *  judge did not see. */
+function fitFilesBlock(files: ReviewFileContext[], budget: number): string {
+  if (!files.length || budget <= 64) return "";
+  const sectionHead = "Files (real contents):\n";
+  const heads = files.map((f) => `--- file: ${f.path} ---\n`);
+  const headLengths = heads.reduce((n, h) => n + h.length + 1, 0);
+  const overhead = sectionHead.length + headLengths + 32 * files.length + 32;
+  const perFile = Math.max(0, Math.floor((budget - overhead) / files.length));
+  if (perFile <= 0) return "";
+  const parts = files.map((f, i) => {
+    const body =
+      f.content.length > perFile
+        ? `${f.content.slice(0, perFile)}…[truncated ${f.content.length - perFile} chars]\n`
+        : f.content.endsWith("\n")
+          ? f.content
+          : `${f.content}\n`;
+    return heads[i] + body;
+  });
+  return `${sectionHead}${parts.join("")}\n`;
+}
+
+/** Whole-scenario chunking: greedy fill under the window; a boundary falls
+ *  BETWEEN scenario blocks, never inside one; chunk order follows input order. */
+function chunkScenarios(
+  scenarios: ReviewScenario[],
+  evidenceOf: (id: string) => string,
+  prefixLength: number,
+  window: number
+): ReviewScenario[][] {
+  const chunks: ReviewScenario[][] = [];
+  let current: ReviewScenario[] = [];
+  let currentLength = 0;
+  for (const s of scenarios) {
+    const blockLength = scenarioBlock(s, evidenceOf(s.id)).length;
+    if (current.length > 0 && prefixLength + currentLength + blockLength > window) {
+      chunks.push(current);
+      current = [];
+      currentLength = 0;
+    }
+    current.push(s);
+    currentLength += blockLength;
+  }
+  if (current.length) chunks.push(current);
+  return chunks;
+}
+
+/** The batch schema for one call: flat per-scenario verdict/confidence/
+ *  evidence questions, nothing REQUIRED (a missing key degrades THAT scenario
+ *  loudly instead of failing the whole call at the transport). */
+export function batchVerdictSchema(scenarioIds: string[]): object {
+  const properties: Record<string, unknown> = {};
+  for (const id of scenarioIds) {
+    properties[`${id}_verdict`] = {
+      type: "string",
+      enum: REVIEW_VERDICTS,
+      description: `Verdict for scenario ${id}: pass/fail/uncertain. ${CALIBRATION_INSTRUCTION}`,
+    };
+    properties[`${id}_confidence`] = {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description: `0-1 confidence for scenario ${id}'s verdict.`,
+    };
+    properties[`${id}_evidence`] = {
+      type: "string",
+      description: `One short quote that drove scenario ${id}'s verdict.`,
+    };
+  }
+  return { type: "object", properties, required: [], additionalProperties: false };
+}
+
+/** Parse one call's flat response keys into per-scenario verdicts — same
+ *  enum/floor/skip semantics as the Phase-2 runner, per scenario. */
+function parseFlatVerdicts(ids: string[], value: Record<string, unknown>): {
+  results: ScenarioVerdict[];
+  anyUsable: boolean;
+} {
+  const results: ScenarioVerdict[] = [];
+  let anyUsable = false;
+  for (const id of ids) {
+    const verdict = value[`${id}_verdict`];
+    if (verdict === undefined || verdict === null) {
+      results.push({
+        scenario: id,
+        verdict: "uncertain",
+        confidence: 0,
+        skipped: true,
+        reason: `batch response missing verdict for ${id}`,
+      });
+      continue;
+    }
+    if (typeof verdict !== "string" || !REVIEW_VERDICTS.includes(verdict as ReviewVerdict)) {
+      results.push({
+        scenario: id,
+        verdict: "uncertain",
+        confidence: 0,
+        skipped: true,
+        reason: `schema-invalid response: verdict '${String(verdict)}' is outside the enum`,
+      });
+      continue;
+    }
+    const rawConfidence = value[`${id}_confidence`];
+    const confidence = typeof rawConfidence === "number" && Number.isFinite(rawConfidence) ? rawConfidence : 0;
+    const evidence = typeof value[`${id}_evidence`] === "string" ? (value[`${id}_evidence`] as string) : undefined;
+    if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
+      results.push({
+        scenario: id,
+        verdict: "uncertain",
+        confidence,
+        ...(evidence !== undefined ? { evidence } : {}),
+        reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — Tier 2 deep-read`,
+      });
+      continue;
+    }
+    anyUsable = true;
+    results.push({
+      scenario: id,
+      verdict: verdict as ReviewVerdict,
+      confidence,
+      ...(evidence !== undefined ? { evidence } : {}),
+    });
+  }
+  return { results, anyUsable };
+}
+
+/** Run Tier-1 review verdicts in BATCH mode: ALL scenarios (+ the diff's real
+ *  file contents) ride ONE call while they fit the window; over-window sets
+ *  chunk deterministically at whole-scenario boundaries. A failed chunk marks
+ *  ITS scenarios uncertain-loud; the others proceed. The judge never closes a
+ *  review alone — uncertain/skipped rows route to Tier 2 exactly as before. */
+export async function reviewVerdictsBatched(
+  backend: JudgeBackend,
+  scenarios: ReviewScenario[],
+  diffSummary: string,
+  opts?: BatchedVerdictOptions
+): Promise<BatchedReviewResult> {
+  const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
+  const evidenceOf = (id: string) => opts?.evidence?.[id] ?? diffSummary;
+  const header = batchHeader();
+  // Fit the files once against the tightest chunk (the largest one) so every
+  // call body stays inside the window.
+  const chunks0 = chunkScenarios(scenarios, evidenceOf, header.length, window);
+  const largestBlocks = Math.max(
+    0,
+    ...chunks0.map((c) => c.reduce((n, s) => n + scenarioBlock(s, evidenceOf(s.id)).length, 0))
+  );
+  const filesBlock = fitFilesBlock(opts?.files ?? [], window - header.length - largestBlocks);
+  const prefix = header + filesBlock;
+  const prefixLength = prefix.length;
+  const chunks = chunks0.length > 1 ? chunkScenarios(scenarios, evidenceOf, prefixLength, window) : chunks0;
+
+  const byId = new Map<string, ScenarioVerdict>();
+  let anyUsable = false;
+  let firstSkipReason: string | undefined;
+  for (const chunk of chunks) {
+    const ids = chunk.map((s) => s.id);
+    const input = prefix + chunk.map((s) => scenarioBlock(s, evidenceOf(s.id))).join("");
+    const v = await backend.classify(batchVerdictSchema(ids), input);
+    if (v.skipped) {
+      const why = v.reason ?? "judge skipped (unspecified)";
+      firstSkipReason ??= why;
+      for (const id of ids)
+        byId.set(id, { scenario: id, verdict: "uncertain", confidence: 0, skipped: true, reason: why });
+      continue;
+    }
+    const parsed = parseFlatVerdicts(ids, v.value ?? {});
+    for (const r of parsed.results) byId.set(r.scenario, r);
+    anyUsable ||= parsed.anyUsable;
+  }
+  const results = scenarios.map((s) => byId.get(s.id)!).filter(Boolean);
+  const skippedAll = !anyUsable && scenarios.length > 0;
+  return {
+    results,
+    deepRead: results.filter((r) => r.verdict === "uncertain").map((r) => r.scenario),
+    skippedAll,
+    backend: backend.name,
+    ...(skippedAll && firstSkipReason !== undefined ? { reason: firstSkipReason } : {}),
+    calls: chunks.length,
+    chunks: chunks.length,
+  };
+}
+
+/* ── DAG decompose — dependency-ordered sub-judgments, position-bias controlled ── */
+
+/** The decompose schema: ONE string question carrying the JSON decomposition
+ *  (groups with depends_on edges) — expressible by the unchanged transport. */
+export const REVIEW_DECOMPOSE_SCHEMA = {
+  type: "object",
+  properties: {
+    decomposition: {
+      type: "string",
+      description:
+        'JSON document: {"groups":[{"id":"J1","scenarios":["S1"],"depends_on":[]}]}' +
+        " — dependency-ordered sub-judgments covering every scenario id exactly once; " +
+        "a group's depends_on names group ids whose verdicts it needs first.",
+    },
+  },
+  required: ["decomposition"],
+  additionalProperties: false,
+} as const;
+
+/** Decompose presentation permutations (position-bias control — the solved
+ *  majordome pattern): the first run presents the scenarios REVERSED, the
+ *  second rotated by one. Neither run uses the input order as-given, so a
+ *  decomposition can never silently inherit the presentation-order bias. */
+function permutePresentation(scenarios: ReviewScenario[], run: number): ReviewScenario[] {
+  if (scenarios.length <= 1) return scenarios;
+  if (run === 0) return [...scenarios].reverse();
+  const k = run % scenarios.length;
+  return [...scenarios.slice(k), ...scenarios.slice(0, k)];
+}
+
+interface DecomposeGroup {
+  id: string;
+  scenarios: string[];
+  depends_on: string[];
+}
+
+/** Validate a decomposition: every scenario exactly once, edges reference
+ *  known groups, graph acyclic. Returns null on any defect (caller retries
+ *  the next permutation, then falls back — loudly). */
+function parseDecomposition(raw: unknown, scenarioIds: string[]): DecomposeGroup[] | null {
+  if (typeof raw !== "string") return null;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const groups: any[] = Array.isArray(parsed?.groups) ? parsed.groups : [];
+  if (!groups.length) return null;
+  const seen = new Map<string, DecomposeGroup>();
+  for (const g of groups) {
+    if (!g || typeof g.id !== "string" || !Array.isArray(g.scenarios)) return null;
+    const deps = Array.isArray(g.depends_on)
+      ? g.depends_on.filter((d: unknown): d is string => typeof d === "string")
+      : [];
+    for (const s of g.scenarios) if (typeof s !== "string") return null;
+    seen.set(g.id, { id: g.id, scenarios: g.scenarios, depends_on: deps });
+  }
+  // every scenario exactly once
+  const assigned: string[] = groups.flatMap((g: any) => g.scenarios);
+  if (assigned.length !== scenarioIds.length) return null;
+  for (const id of scenarioIds) if (!assigned.includes(id)) return null;
+  // edges reference known groups
+  for (const g of seen.values()) for (const d of g.depends_on) if (!seen.has(d)) return null;
+  // acyclic (Kahn)
+  const indegree = new Map<string, number>();
+  for (const g of seen.values()) indegree.set(g.id, g.depends_on.length);
+  const queue = [...seen.values()].filter((g) => (indegree.get(g.id) ?? 0) === 0).map((g) => g.id);
+  let visited = 0;
+  while (queue.length) {
+    const id = queue.pop()!;
+    visited++;
+    for (const g of seen.values())
+      if (g.depends_on.includes(id)) {
+        indegree.set(g.id, (indegree.get(g.id) ?? 1) - 1);
+        if (indegree.get(g.id) === 0) queue.push(g.id);
+      }
+  }
+  if (visited !== seen.size) return null;
+  return [...seen.values()];
+}
+
+/** Deterministic topological execution order: level-by-level Kahn, ready set
+ *  sorted numerically by group id — the DAG's own order, not presentation order. */
+function executionOrder(groups: DecomposeGroup[]): DecomposeGroup[] {
+  const byId = new Map(groups.map((g) => [g.id, g]));
+  const remaining = new Map(byId);
+  const done = new Set<string>();
+  const order: DecomposeGroup[] = [];
+  while (remaining.size) {
+    const ready = [...remaining.values()]
+      .filter((g) => g.depends_on.every((d) => done.has(d) || !byId.has(d)))
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+    if (!ready.length) break; // validated acyclic — defensive only
+    for (const g of ready) {
+      order.push(g);
+      remaining.delete(g.id);
+      done.add(g.id);
+    }
+  }
+  for (const g of remaining.values()) order.push(g); // defensive: never drop a scenario
+  return order;
+}
+
+/** Run Tier-1 review verdicts in BATCHED-DAG mode: the review decomposes into
+ *  dependency-ordered sub-judgments (position-bias controlled decompose over
+ *  permuted presentations); sub-judgments execute in the DAG's topological
+ *  order and each receives the earlier verdicts as context — the precision
+ *  upgrade on dependent concerns. Unusable decompose → LOUD deterministic
+ *  fallback to independent sub-judgments; unusable calls keep the per-chunk
+ *  loud-skip semantics. Verdict schema, floor and Tier-2 routing unchanged. */
+export async function reviewVerdictsDag(
+  backend: JudgeBackend,
+  scenarios: ReviewScenario[],
+  diffSummary: string,
+  opts?: BatchedVerdictOptions & { decomposeRuns?: number }
+): Promise<DagReviewResult> {
+  const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
+  const evidenceOf = (id: string) => opts?.evidence?.[id] ?? diffSummary;
+  const runs = Math.max(1, opts?.decomposeRuns ?? 2);
+  let calls = 0;
+  let firstSkipReason: string | undefined;
+  let degraded: string | undefined;
+
+  // 1. Decompose over permuted presentations; the first VALID decomposition wins.
+  let groups: DecomposeGroup[] | null = null;
+  let decomposeCalls = 0;
+  for (let run = 0; run < runs && !groups; run++) {
+    const presented = permutePresentation(scenarios, run);
+    const input =
+      `${DECOMPOSE_INPUT_MARKER}: group the scenarios below into sub-judgments with depends_on edges.\n\n` +
+      presented.map((s) => scenarioBlock(s, evidenceOf(s.id))).join("");
+    decomposeCalls++;
+    calls++;
+    const v = await backend.classify(REVIEW_DECOMPOSE_SCHEMA, input);
+    if (v.skipped) {
+      firstSkipReason ??= v.reason ?? "decompose skipped (unspecified)";
+      continue;
+    }
+    groups = parseDecomposition(v.value?.decomposition, scenarios.map((s) => s.id));
+    if (!groups) firstSkipReason ??= "decompose response invalid (coverage/edges/cyclicity)";
+  }
+  if (!groups) {
+    degraded =
+      `decompose unusable (${firstSkipReason ?? "no valid decomposition"}) — fell back to independent sub-judgments`;
+    groups = scenarios.map((s, i) => ({ id: `J${i + 1}`, scenarios: [s.id], depends_on: [] }));
+  }
+
+  // 2. Execute sub-judgments in the DAG's own order, each fed earlier verdicts.
+  const header = batchHeader();
+  const order = executionOrder(groups);
+  const byId = new Map<string, ScenarioVerdict>();
+  let anyUsable = false;
+  for (const group of order) {
+    const ids = group.scenarios;
+    const executed = [...byId.values()];
+    const contextSection = executed.length
+      ? `Earlier verdicts (context — judge this group with them in view):\n` +
+        executed.map((r) => `- ${r.scenario}: ${r.verdict} (confidence ${r.confidence})${r.evidence ? ` — ${r.evidence}` : ""}`).join("\n") +
+        "\n\n"
+      : "";
+    const blocksLength = ids.reduce((n, id) => {
+      const s = scenarios.find((x) => x.id === id)!;
+      return n + scenarioBlock(s, evidenceOf(id)).length;
+    }, 0);
+    const filesBlock = fitFilesBlock(opts?.files ?? [], window - header.length - contextSection.length - blocksLength);
+    const input =
+      header + contextSection + filesBlock +
+      ids
+        .map((id) => scenarioBlock(scenarios.find((x) => x.id === id)!, evidenceOf(id)))
+        .join("");
+    calls++;
+    const v = await backend.classify(batchVerdictSchema(ids), input);
+    if (v.skipped) {
+      const why = v.reason ?? "judge skipped (unspecified)";
+      firstSkipReason ??= why;
+      for (const id of ids)
+        byId.set(id, { scenario: id, verdict: "uncertain", confidence: 0, skipped: true, reason: why });
+      continue;
+    }
+    const parsed = parseFlatVerdicts(ids, v.value ?? {});
+    for (const r of parsed.results) byId.set(r.scenario, r);
+    anyUsable ||= parsed.anyUsable;
+  }
+
+  const results = scenarios.map((s) => byId.get(s.id)!).filter(Boolean);
+  const skippedAll = !anyUsable && scenarios.length > 0;
+  return {
+    results,
+    deepRead: results.filter((r) => r.verdict === "uncertain").map((r) => r.scenario),
+    skippedAll,
+    backend: backend.name,
+    ...(skippedAll && firstSkipReason !== undefined ? { reason: firstSkipReason } : {}),
+    calls,
+    chunks: order.length,
+    ...(degraded !== undefined ? { degraded } : {}),
+  };
 }
 
 export default function register(pi: any): void {
