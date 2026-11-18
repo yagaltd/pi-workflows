@@ -198,7 +198,11 @@ Isolation mechanics:
 
 A repo fact enters durable doctrine (`AGENTS.md`, templates, docs) only
 after confirmation in 3 independent sessions or reviewer verdicts; a
-contradiction reverts it to the ledger. Pattern credit: `TokenEconomizer`
-micro-skills — machine-local there; this adopts the confirmation shape
-only.- **Worker diffs are uncommitted until the orchestrator commits them post-verdict.** Never run worktree cleanup while a run's worker diff is uncommitted; `Already up to date` from an expected merge is a stop signal, not a result. Recovery method of record: session replay (extract the run's write/edit tool ops from the session jsonl, replay on a fresh worktree, re-run gates).
+contradiction reverts it to the ledger.
 
+- **Worker diffs are uncommitted until the orchestrator commits them
+  post-verdict.** Never run worktree cleanup while a run's worker diff is
+  uncommitted; `Already up to date` from an expected merge is a stop signal,
+  not a result. Recovery method of record: session replay (extract the run's
+  `write/edit` tool ops from the session `jsonl`, replay on a fresh worktree,
+  then rerun the gates).

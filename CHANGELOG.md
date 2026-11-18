@@ -57,7 +57,7 @@
   (test-shaped data, not tests); `tsc_and_build_clean` binds the gates
   selector for real. Completes the rust story: verify resolves via the
   cargo listing (0.1.4), lint classifies (0.1.5), neither silently passes.
-- **Knowledge promotion** (TokenEconomizer pattern, shape only): a repo fact
+- **Knowledge promotion**: a repo fact
   enters durable doctrine after 3 independent confirmations; contradiction
   reverts it.
 

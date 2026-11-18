@@ -1317,7 +1317,9 @@ describe("prompt doctrine — sieve gate + decision fields + promotion (T1, plan
     expect(registry).toContain("## Knowledge Promotion");
     expect(registry).toContain("after confirmation in 3 independent sessions");
     expect(registry).toContain("reverts it to the ledger");
-    expect(registry).toContain("`TokenEconomizer`");
+    // The TokenEconomizer extension was removed (owner decision, 20261117):
+    // the promotion rule stands on its own; doctrine must not reference it.
+    expect(registry).not.toContain("TokenEconomizer");
   });
 
   test("test_vocabulary_covers_outcomes", () => {
