@@ -193,3 +193,11 @@ Isolation mechanics:
   runs `tooling/verify-landing.sh` (branch-aware) with the worker's Files
   Changed on stdin. ALARM → worker report untrusted → verify cwd →
   redispatch with explicit per-task cwd.
+
+## Knowledge Promotion
+
+A repo fact enters durable doctrine (`AGENTS.md`, templates, docs) only
+after confirmation in 3 independent sessions or reviewer verdicts; a
+contradiction reverts it to the ledger. Pattern credit: `TokenEconomizer`
+micro-skills — machine-local there; this adopts the confirmation shape
+only.

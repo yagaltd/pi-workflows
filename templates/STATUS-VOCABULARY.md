@@ -21,6 +21,8 @@ read their pill words from this table, from no other source.
 | P2 risk | [[At risk]] | warn | **Guard:** the guard action |
 | broken gate | [[Failed]] | danger | **Next:** the fix step |
 | unverified claim | [[Unverified]] | warn | **Check:** how to verify |
+| park | [[Decision]] | ask | **Do:** revive or drop — the ledger row asks |
+| build-direct | [[Implement]] | neutral | skip the ceremony, keep the gates |
 
 Work-kind opener maps by kind: [[Implement]] / [[Investigate]] /
 [[Preview]] / [[Brainstorm]] / [[Qualify]].

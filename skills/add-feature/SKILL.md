@@ -9,6 +9,30 @@ argument-hint: "<feature description or spec path>"
 
 Execute an approved contract. Small surgical requests may create a contract after mini-recon. Broad ideas must route to `/idea`.
 
+## Sieve Gate
+
+Before evidence, decisions, or planning, answer four forced questions from
+the ask alone, then apply the pure outcome rules. One pass, no weighting:
+
+| Cell | Forced choice |
+| --- | --- |
+| V value | `nice-to-have` / `useful` / `valuable` / `must-have` |
+| R risk | `trivial` / `contained` / `serious` / `severe` — blast radius |
+| E effort | `xs` afternoon / `s` 1–2 days / `m` days / `l` project |
+| path | `research` / `inspect` / `grill` / `none` |
+
+Pure outcome rules:
+
+- `nice-to-have` or `useful` plus standalone → **park** — a ledger row,
+  no plan
+- `severe` → **park** plus a decompose flag
+- `valuable` or `must-have` with `xs` → **build-direct** — the lightweight
+  tier, no spec ceremony
+- any other verdict → **propose**
+
+Obligation flows (`/fix`, `/debug`, `/docs`, `/verify`, `/review`) are
+exempt — they answer to broken things, not value verdicts.
+
 ## Phase 0: CLASSIFY INPUT
 
 Decide which path applies before writing code.

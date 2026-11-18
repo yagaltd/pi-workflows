@@ -1216,3 +1216,113 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     }
   }, 600000);
 });
+
+// --- T1: sieve gate + decision fields + knowledge promotion (plan 20261117-073) ---
+
+// The gate block, verbatim — written once in the skill/prompt files, pinned
+// here byte-for-byte so the four entries cannot drift apart.
+const SIEVE_GATE = [
+  "## Sieve Gate",
+  "",
+  "Before evidence, decisions, or planning, answer four forced questions from",
+  "the ask alone, then apply the pure outcome rules. One pass, no weighting:",
+  "",
+  "| Cell | Forced choice |",
+  "| --- | --- |",
+  "| V value | `nice-to-have` / `useful` / `valuable` / `must-have` |",
+  "| R risk | `trivial` / `contained` / `serious` / `severe` — blast radius |",
+  "| E effort | `xs` afternoon / `s` 1–2 days / `m` days / `l` project |",
+  "| path | `research` / `inspect` / `grill` / `none` |",
+  "",
+  "Pure outcome rules:",
+  "",
+  "- `nice-to-have` or `useful` plus standalone → **park** — a ledger row,",
+  "  no plan",
+  "- `severe` → **park** plus a decompose flag",
+  "- `valuable` or `must-have` with `xs` → **build-direct** — the lightweight",
+  "  tier, no spec ceremony",
+  "- any other verdict → **propose**",
+  "",
+  "Obligation flows (`/fix`, `/debug`, `/docs`, `/verify`, `/review`) are",
+  "exempt — they answer to broken things, not value verdicts.",
+].join("\n");
+
+const IDEA_T1 = fs.readFileSync("skills/idea/SKILL.md", "utf8");
+const PLAN_T1 = fs.readFileSync("skills/plan/SKILL.md", "utf8");
+const ADD_T1 = fs.readFileSync("skills/add-feature/SKILL.md", "utf8");
+const PROTO_T1 = fs.readFileSync("prompts/prototype.md", "utf8");
+
+describe("prompt doctrine — sieve gate + decision fields + promotion (T1, plan 20261117-073)", () => {
+  test("test_sieve_gate_in_all_proposal_entries", () => {
+    for (const [name, content] of [
+      ["skills/idea/SKILL.md", IDEA_T1],
+      ["skills/plan/SKILL.md", PLAN_T1],
+      ["skills/add-feature/SKILL.md", ADD_T1],
+      ["prompts/prototype.md", PROTO_T1],
+    ] as const) {
+      expect(content, `${name} lacks the identical sieve gate block`).toContain(
+        SIEVE_GATE
+      );
+    }
+  });
+
+  test("test_obligation_flows_exempt", () => {
+    // The exemption lives inside the gate block itself; the obligation
+    // flows answer to broken things, not value verdicts — no gate lands
+    // in their files.
+    for (const p of [
+      "skills/fix/SKILL.md",
+      "prompts/debug.md",
+      "skills/docs/SKILL.md",
+      "prompts/verify.md",
+      "skills/review/SKILL.md",
+    ]) {
+      const content = fs.readFileSync(p, "utf8");
+      expect(content, `${p} must not carry the sieve gate`).not.toContain(
+        "## Sieve Gate"
+      );
+      expect(content, `${p} must not carry the forced-choice table`).not.toContain(
+        "| Cell | Forced choice |"
+      );
+    }
+  });
+
+  test("test_plan_template_sieve_section", () => {
+    // The plan template carries the Sieve section per the plan's normative
+    // grammar; park never appears as a valid Outcome in a plan file.
+    for (const line of [
+      "## Sieve",
+      "| Cell | Verdict |",
+      "| V value | `nice-to-have` / `useful` / `valuable` / `must-have` |",
+      "| R risk | `trivial` / `contained` / `serious` / `severe` |",
+      "| E effort | `xs` / `s` / `m` / `l` |",
+      "| path | `research` / `inspect` / `grill` / `none` |",
+      "Outcome: propose | build-direct",
+    ]) {
+      expect(PLAN_T1, `plan template lacks sieve grammar: ${line}`).toContain(line);
+    }
+    expect(PLAN_T1).toContain("`park` never appears as an Outcome");
+    expect(PLAN_T1).not.toContain("Outcome: park");
+  });
+
+  test("test_decision_rows_cost_and_blast_radius", () => {
+    expect(PLAN_T1).toContain("both fields REQUIRED");
+    expect(PLAN_T1).toContain("`Cost of inaction:`");
+    expect(PLAN_T1).toContain("`Blast radius:`");
+    expect(PLAN_T1).toContain("each +, −, or neutral");
+  });
+
+  test("test_knowledge_promotion_rule", () => {
+    const registry = fs.readFileSync("agents/registry.md", "utf8");
+    expect(registry).toContain("## Knowledge Promotion");
+    expect(registry).toContain("after confirmation in 3 independent sessions");
+    expect(registry).toContain("reverts it to the ledger");
+    expect(registry).toContain("`TokenEconomizer`");
+  });
+
+  test("test_vocabulary_covers_outcomes", () => {
+    const vocab = fs.readFileSync("templates/STATUS-VOCABULARY.md", "utf8");
+    expect(vocab).toContain("| park | [[Decision]] |");
+    expect(vocab).toContain("| build-direct | [[Implement]] |");
+  });
+});
