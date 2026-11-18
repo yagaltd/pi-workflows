@@ -985,6 +985,12 @@ describe("prompt doctrine — intake doctrine + in-scope fixes (TASK 1, plan 202
 const norm071 = (s: string) => s.replace(/\s+/g, " ");
 const readVocab = () => fs.readFileSync("templates/STATUS-VOCABULARY.md", "utf8");
 
+// BASE_REF is the pre-regen reference for the truth-leg below: the
+// "lowered > 0" proof is measured against the snapshot BEFORE plan
+// 20261117-072 regenerated the budgets, so the leg stays stable after the
+// regen is committed (comparing against HEAD would compare the commit
+// against itself and structurally read 0).
+const BASE_REF = "5acf35e";
 const readBaseline = (rev: string) =>
   JSON.parse(
     spawnSync("git", ["show", `${rev}:scripts/docs-lint-baseline.json`], {
@@ -1097,7 +1103,10 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // ratchet that keeps the measurement honest. A regen task that LOWERS
     // budgets is legitimate when its plan authorizes the rewrites (plan
     // 20261117-072 does); a rise means new doc debt was banked unjustified.
-    const head = readBaseline("HEAD");
+    // Truth-leg reference: BASE_REF (the pre-regen snapshot), never HEAD —
+    // see the comment above. Head self-comparison would always read 0 once
+    // committed.
+    const head = readBaseline(BASE_REF);
     const cur = JSON.parse(
       fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
     ) as { sections: Record<string, { files?: Record<string, number> }> };
@@ -1157,7 +1166,10 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
       fs.unlinkSync(snapshot);
       fs.unlinkSync(run1);
     }
-    const head = readBaseline("HEAD");
+    // Truth-leg reference: BASE_REF (the pre-regen snapshot), never HEAD —
+    // see the comment above. Head self-comparison would always read 0 once
+    // committed.
+    const head = readBaseline(BASE_REF);
     const cur = JSON.parse(
       fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
     ) as { sections: Record<string, { files?: Record<string, number> }> };
@@ -1175,9 +1187,9 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     }
     expect(
       lowered,
-      "no pre-existing budget lower than HEAD — stale budgets not corrected"
+      "no pre-existing budget lower than the pre-regen reference — stale budgets not corrected"
     ).toBeGreaterThan(0);
-    expect(raised, `${raised} budget(s) rose above HEAD — new doc debt`).toBe(0);
+    expect(raised, `${raised} budget(s) rose above the pre-regen reference — new doc debt`).toBe(0);
   }, 600000);
 
   test("test_baseline_pin_monotone", () => {
