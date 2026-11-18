@@ -72,7 +72,11 @@ split with a per-child fallback when the judge is skipped (gate:
 trail, SHIP archives them. SHIP reports end with the follow-up ledger table
 (`templates/FOLLOW-UP-TABLE.md`, `Origin` included); open items live in the
 table rather than prose, and a plan's ledger rows drain before a new plan
-opens (gate: `agents/registry.md`). Reviewers verify, never fix (gate:
+opens (gate: `agents/registry.md`). Reports speak reply-style: a one-line
+scoreboard opens a SHIP report and statuses render as pills — the
+token-to-pill mapping of record is `templates/STATUS-VOCABULARY.md`,
+rendered by the pi-emphasis extension (display-only, optional; without it
+pills are plain text). Reviewers verify, never fix (gate:
 `agents/reviewer.md`); workers never write plan.md — the orchestrator is the
 single writer (gate: `agents/worker.md`).
 

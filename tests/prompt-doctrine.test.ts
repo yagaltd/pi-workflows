@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 // Plan 20261102-050 T1 — role-file doctrine: the three DSH/Bise steals.
 // Pins the exact doctrine lines in agents/worker.md and agents/reviewer.md.
@@ -973,11 +975,12 @@ describe("prompt doctrine — intake doctrine + in-scope fixes (TASK 1, plan 202
   });
 });
 
-// --- T1: status vocabulary + scoreboard + clean-files (plan 20261117-071) ---
-// Six spec selectors: the vocabulary is the single-source pill mapping, ship
-// reports open with a scoreboard, repo files stay clean markdown, the docs-
-// lint ratchet only ever gains entries, the tree checker stays satisfied,
-// and the gates stay green.
+// --- T1: status vocabulary + scoreboard + clean-files (plan 20261117-071),
+// baseline ratchet generalized to the monotone invariant (plan 20261117-072):
+// the vocabulary is the single-source pill mapping, ship reports open with a
+// scoreboard, repo files stay clean markdown, a docs-lint budget holds or
+// falls against HEAD and never rises, regenerations are byte-deterministic,
+// the tree checker stays satisfied, and the gates stay green.
 
 const norm071 = (s: string) => s.replace(/\s+/g, " ");
 const readVocab = () => fs.readFileSync("templates/STATUS-VOCABULARY.md", "utf8");
@@ -1052,23 +1055,139 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     expect(v).toContain("archive");
   });
 
-  test("test_baseline_additions_only", () => {
+  test("test_readme_names_emphasis_companion", () => {
+    const r = norm071(fs.readFileSync("README.md", "utf8"));
+    expect(r).toContain("pi-emphasis");
+    expect(r).toContain("pi install git:github.com/johnlindquist/pi-emphasis");
+    // display-only + optional framing — never a package dependency
+    expect(r).toContain("display-only");
+    expect(r).toContain("optional and not a package dependency");
+    // the mapping of record is cited
+    expect(r).toContain("templates/STATUS-VOCABULARY.md");
+    // FILES-STAY-CLEAN: the README describes pills in plain words, no tokens
+    expect(r).not.toContain("[[");
+  });
+
+  test("test_readme_currency_current", () => {
+    const r = norm071(fs.readFileSync("README.md", "utf8"));
+    // reply-style scoreboard + intake triage + the ledger, as concept pins —
+    // not version numbers, not a changelog dump
+    expect(r).toContain("one-line scoreboard");
+    expect(r).toContain("follow-up table");
+    expect(r).toContain("queued, batched, closed, or done");
+    expect(r).toContain("drain before the next plan opens");
+    // boundaries-path lint is named
+    expect(r).toContain("boundaries-path");
+  });
+
+  test("test_docs_policy_crossref_lands", () => {
+    const p = norm071(fs.readFileSync("templates/DOCS-POLICY.md", "utf8"));
+    expect(p).toContain("No chat-reply decoration in tracked files");
+    expect(p).toContain("templates/STATUS-VOCABULARY.md");
+    // the budgets-track-truth rule: lowered budgets are committed, a raise
+    // needs the plan's explicit justification
+    expect(p).toContain("--write-baseline");
+    expect(p).toContain("explicit justification");
+  });
+
+  test("test_baseline_monotone", () => {
+    // The standing invariant, generalized from 071's additions-only pin
+    // (plan 20261117-072 T1): a per-file budget holds or FALLS against
+    // HEAD, never rises — docs-lint CLEAN (the gates pin below) is the
+    // ratchet that keeps the measurement honest. A regen task that LOWERS
+    // budgets is legitimate when its plan authorizes the rewrites (plan
+    // 20261117-072 does); a rise means new doc debt was banked unjustified.
     const head = readBaseline("HEAD");
-    // current working-tree baseline vs HEAD: every pre-existing per-file
-    // number byte-identical; the only allowed additions are the new
-    // template's own budget entries
-    const curRaw = JSON.parse(
+    const cur = JSON.parse(
       fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
     ) as { sections: Record<string, { files?: Record<string, number> }> };
     for (const section of Object.keys(head.sections)) {
       const before = head.sections[section]?.files ?? {};
-      const after = curRaw.sections[section]?.files ?? {};
-      for (const [file, n] of Object.entries(before))
-        expect(after[file], `${section} budget for ${file} changed`).toBe(n);
-      for (const file of Object.keys(after))
-        if (!(file in before))
-          expect(file.includes("STATUS-VOCABULARY"), `unexpected new ${section} budget key: ${file}`).toBe(true);
+      const after = cur.sections[section]?.files ?? {};
+      for (const [file, n] of Object.entries(after)) {
+        const was = before[file];
+        if (was === undefined) continue; // new tracked file: addition, not a rise
+        expect(
+          n,
+          `${section} budget for ${file} rose ${was} -> ${n} — new doc debt`
+        ).toBeLessThanOrEqual(was);
+      }
     }
+  });
+
+  test("test_baseline_regenerated_deterministic", () => {
+    // run1 and run2 are two consecutive fresh --write-baseline regens over
+    // the same tree; the pin compares them byte-for-byte via a temp copy
+    // (sections in fixed order, files sorted) — a budget that cannot be
+    // reproduced twice in a row is not a measurement. The committed budget
+    // is snapshotted first and restored either way: this pin never
+    // rewrites it as a side effect. Truth leg: the committed budget prices
+    // the current tree — at least one pre-existing number sits LOWER than
+    // HEAD (the stale 068/069-era budgets priced down) and none sits
+    // higher (the monotone pin above).
+    const committed = "scripts/docs-lint-baseline.json";
+    const snapshot = path.join(os.tmpdir(), `docs-baseline-commit-${process.pid}.json`);
+    const run1 = path.join(os.tmpdir(), `docs-baseline-run1-${process.pid}.json`);
+    fs.cpSync(committed, snapshot);
+    try {
+      const regen = () =>
+        spawnSync("bash", ["scripts/docs-lint.sh", "--write-baseline"], {
+          encoding: "utf8",
+          timeout: 600000,
+        });
+      const first = regen();
+      expect(
+        first.status,
+        `--write-baseline exited ${first.status}:\n${first.stdout}\n${first.stderr}`
+      ).toBe(0);
+      fs.cpSync(committed, run1); // run1 = first fresh regen
+      const second = regen();
+      expect(
+        second.status,
+        `--write-baseline exited ${second.status}:\n${second.stdout}\n${second.stderr}`
+      ).toBe(0);
+      const a = fs.readFileSync(run1);
+      const b = fs.readFileSync(committed); // run2 = second fresh regen
+      expect(
+        a.equals(b),
+        "two consecutive --write-baseline runs differ — non-deterministic"
+      ).toBe(true);
+    } finally {
+      fs.copyFileSync(snapshot, committed);
+      fs.unlinkSync(snapshot);
+      fs.unlinkSync(run1);
+    }
+    const head = readBaseline("HEAD");
+    const cur = JSON.parse(
+      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
+    ) as { sections: Record<string, { files?: Record<string, number> }> };
+    let lowered = 0;
+    let raised = 0;
+    for (const section of Object.keys(head.sections)) {
+      const before = head.sections[section]?.files ?? {};
+      const after = cur.sections[section]?.files ?? {};
+      for (const [file, was] of Object.entries(before)) {
+        const now = after[file];
+        if (now === undefined) continue;
+        if (now < was) lowered += 1;
+        if (now > was) raised += 1;
+      }
+    }
+    expect(
+      lowered,
+      "no pre-existing budget lower than HEAD — stale budgets not corrected"
+    ).toBeGreaterThan(0);
+    expect(raised, `${raised} budget(s) rose above HEAD — new doc debt`).toBe(0);
+  }, 600000);
+
+  test("test_baseline_pin_monotone", () => {
+    // The generalization proof: no additions-only-vs-HEAD assertion
+    // remains in this file; the monotone rule is what the pin enforces.
+    // Strings are built by concatenation so this pin cannot match itself.
+    const src = fs.readFileSync("tests/prompt-doctrine.test.ts", "utf8");
+    expect(src).not.toContain("additions_" + "only");
+    expect(src).toContain('test("test_baseline_mono' + 'tone"');
+    expect(src).toContain('test("test_baseline_regen' + 'erated_deterministic"');
   });
 
   test("test_tree_checker_satisfied", () => {

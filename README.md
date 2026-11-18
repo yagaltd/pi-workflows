@@ -84,10 +84,19 @@ all green?      → SHIP: commit + archive + CHANGELOG entry      (/abort to sup
 
 Contracts are the authority — you approve contracts, not code. Format:
 [templates/CONTRACT-FORMAT.md](templates/CONTRACT-FORMAT.md); `/contract [spec]` shows a task's contract.
+Boundaries lint mechanically — a criterion path outside Allowed Changes
+fails at lint time (agent-spec boundaries-path), so scope errors die
+before a worker dispatches.
 
 Back after a break (or in a different checkout)? `/restart` runs the read-only
 resume digest for the repo you stand in — its output IS the session state, so
 nothing is rediscovered by reading files around.
+
+Reviews and ship reports end with the follow-up table
+(`templates/FOLLOW-UP-TABLE.md`): every open item is triaged — queued,
+batched, closed, or done — and in-scope defects are fixed in the loop,
+never queued. A plan's rows drain before the next plan opens; the queue
+grows only through triage, never through prose.
 
 ## Gates
 
@@ -133,6 +142,20 @@ User prompts (not `/commands`) under a live plan with tasks get one judge classi
 ## Format chooser
 
 Decision outputs get the artifact a human decision needs — `node scripts/format-chooser.mjs choose --for <closeout|plan-approval|challenge|brainstorm-graduation> --content-file <output.md>`: two advisory judge questions. Q1 picks the form — `none` (prose, the correct default) · table · mermaid · html; Q2 names the diagram family. Closed boundary set; the agent may overrule with a stated reason; a skipped judge fails open to prose. HTML artifacts are generated views — never hand-edited, never gates.
+
+## The Reply-Style Companion
+
+Ship reports open with a one-line scoreboard, and each status speaks as a
+pill — Done, Decision, Pending, Failed, Unverified. Rendering belongs to
+pi-emphasis, a display-only pi extension (installed stock):
+
+```bash
+pi install git:github.com/johnlindquist/pi-emphasis
+```
+
+The token-to-pill mapping of record lives in `templates/STATUS-VOCABULARY.md`.
+The companion is optional and not a package dependency: without it, pill
+tokens render as plain text — nothing breaks, every word is still there.
 
 ## Close-out
 
