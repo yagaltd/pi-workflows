@@ -1,3 +1,27 @@
+## 2026-11-17 — v0.15.5: the queue drains — lint per-file continue, verify rust binding, shared discovery (plan 20261117-069)
+
+- **agent-spec 0.3.3**: multi-file lint no longer aborts at the first parse
+  error — per-file continue, every bad file named at exit. The P2 that
+  silently under-reported (it corrupted plan 067's durable "11 findings") is
+  dead; the full enumeration now processes 48/49 and names the one
+  unparseable file. The roadmap guard exclusion is documented as a decision
+  (gate scope = top-level active specs), not left implicit.
+- **tdd-guard 0.1.3**: verify resolves Rust selectors via the runner's own
+  listing (`cargo test --quiet -- --list`) — Rust tests were invisible to JS
+  parsing and three independent reviews hit it. Discovery is now ONE
+  implementation shared by lint/verify/mutate (segment-precise, probing,
+  allowEmpty, loud zero-files); hardcoded `--tests tests` defaults gone.
+  README documents the behavior; vitest excludes `.git/**`.
+- **Process, on the record**: the intake doctrine enforced itself twice — a
+  worker queued in-scope cosmetics and the reviewer caught it (068), and 069's
+  fix round resolved an invalid-@cc gate activation by subtraction (the repo
+  has no CONTRACTS workflow; markers dropped, prose kept). Both task specs
+  were amended to `./` bare-filename prefixes under recorded adjudication —
+  the `looks_like_path_boundary` matcher gap (queued P2, now fully specified
+  by two independent repros) is the ledger's remaining row. Plan 067's triage
+  defect (a row dropped without disposition) is corrected on the record in
+  `.workflows/reviews/fix-round-069.md`.
+
 ## 2026-11-17 — v0.15.4: intake doctrine — triage, in-scope-must-fix, progress-gated rounds (plan 20261117-068)
 
 - **The follow-up table learned triage.** Rows reach the durable queue only via
