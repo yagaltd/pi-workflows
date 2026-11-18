@@ -1,3 +1,27 @@
+## 2026-11-18 — v0.15.14: batched-DAG review judging — the default mode (plan 076 Phase 3)
+
+- **Batch**: one call carries ALL scenarios + real file contents within the
+  context window; deterministic whole-scenario chunking (a failed chunk marks ITS
+  scenarios uncertain-loud, others proceed; a skip is never a pass).
+- **DAG decompose**: the review decomposes into dependency-ordered sub-judgments,
+  position-bias controlled (reversed + rotate-1, never the input order), executed
+  in the DAG's own topological order — later verdicts receive earlier ones as
+  context. Unusable decomposition → LOUD deterministic fallback (independent
+  sub-judgments, `degraded` named).
+- **Calibration**: "penalize confident guesses — ambiguous or partial evidence is
+  uncertain" rides the verdict schema; the Phase-2 ambiguous fixture now returns
+  uncertain (1/1, was confident-wrong).
+- **TypeLLM-only; Jev dropped** (owner decision: one backend, precision-chosen) —
+  the JudgeBackend seam stays pluggable.
+- **Harness modes** (`--mode per-scenario|batched|batched-dag|all`): precision tie
+  (7/8 live both), batched wins cost — **~1/8 the calls**; default = batched
+  (precision-then-cost rule). Known residual: one ambiguous fixture still
+  confident-wrong live in all modes — routes safely to Tier 2; the native-surface
+  upgrade (plan 077 Row 0: nullable abstention + return_probabilities) is the
+  designed next lever.
+- 26 new tests (batch 13, DAG 7, calibration 3, harness 4); contract schemas,
+  parse contract, render table untouched.
+
 ## 2026-11-18 — v0.15.13: the accretion cure — reviewer tier-map + judge verdicts (plan 076 Phase 2)
 
 - **reviewer.md 214→160 lines (−25%)**: the serial 5-command pipeline and 12-field
