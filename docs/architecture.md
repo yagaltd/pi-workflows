@@ -194,8 +194,8 @@ narrative (home: `docs/`, ADRs, `.workflows/` decision trace).
 A `.spec` answers "is this task done?"; `@cc` code contracts answer "what
 must stay true forever?" (gate: `CONTRACTS` at the repo root). `@cc` directives
 annotate public seams (exported functions, classes, methods) and feed the root
-`CONTRACTS` file — the durable rules layer, an **ADD layer** — it never replaces the `.spec`'s task-done authority (gate: `CONTRACTS`). `cc-check format` is the
-reviewer's Layer 3 syntax gate (skipped when cc-check or the contracts are
+`CONTRACTS` file — the durable rules layer, an **ADD layer** — it never replaces the `.spec`'s task-done authority (gate: `CONTRACTS`). `cc-check format` is the reviewer's Tier-0 syntax gate (read from gate output
+per `agents/reviewer.md` — skipped when cc-check or the contracts are
 absent); `cc-check list` output rides dispatch packs and populates each
 `.spec`'s `## Applicable contracts` section, matched by the task's Allowed
 Changes files. The extension's supersede watchdog fires one static advisory
@@ -255,7 +255,7 @@ inherit your session's model):
 | --- | --- | --- |
 | `scout` | low | Fast codebase recon with structured output. Read-only. |
 | `worker` | medium (xhigh if 🔴, high if 🟡) | TDD vertical slices within contract boundaries. Reports blockers + mandatory Domain Memory section. |
-| `reviewer` | per verification-policy tier (docs: low → high-risk: strongest model + xhigh) | Mechanical verification only, ends with a binding Verdict (`ok: true/false`). No judgment, never fixes. Fired automatically via the `needs` edge when the worker settles. |
+| `reviewer` | per verification-policy tier (docs: low → high-risk: strongest model + xhigh) | Tiered verification: reads Tier-0 gate outputs + the Tier-1 judge verdict table, deep-reads uncertain rows/contradictions/intent (Tier 2), ends with a binding Verdict (`ok: true/false`). No opinions, never fixes. Fired automatically via the `needs` edge when the worker settles (gate: `agents/reviewer.md`). |
 | `quality-reviewer` | medium | Judgment review after mechanical pass, ends with a Verdict. Per-task, 🔴/🟡/🟠 tags only. Security, simplicity, error handling. |
 
 Review doctrine is language-aware: JS/TS projects gate on the project's own

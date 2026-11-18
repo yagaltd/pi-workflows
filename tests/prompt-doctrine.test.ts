@@ -1349,3 +1349,81 @@ describe("prompt doctrine — Resources pre-check in generated charters (T14, ow
     expect(home).toContain(SENTENCE);
   });
 });
+
+// --- plan 20261117-076 Phase 2 — the reviewer 73-check accretion cure ---
+// The serial pipeline (Layer 1 → 1b → 2 → 3, per-layer re-execution) is
+// DELETED from agents/reviewer.md and replaced by the tier map: Tier 0 =
+// script-covered gates (one-line citations, never re-derived), Tier 1 = the
+// judge verdict table the reviewer RECEIVES, Tier 2 = deep-read (intent,
+// contradictions, uncertain verdicts). Pinned charter lines (T7) survive
+// verbatim; the parse contract (## Verdict + **ok:** marker) stays
+// byte-compatible. The prompt must SHRINK — the budget below is the cure's
+// acceptance test and blocks silent re-accretion.
+describe("prompt doctrine — reviewer tier-map restructure (plan 20261117-076 Phase 2)", () => {
+  const reviewerLines = REVIEWER.split("\n");
+
+  test("the prompt SHRANK — accretion budget holds (was 214 lines pre-cure)", () => {
+    expect(reviewerLines.length).toBeLessThanOrEqual(170);
+  });
+
+  test("the serial pipeline is deleted — no verification commands are re-derived", () => {
+    // Exactly ONE bash fence remains: the Step-0 landing check (pwd && git
+    // rev-parse) — a self-landing VOID check no repo gate can perform.
+    const fences = REVIEWER.match(/```bash/g) ?? [];
+    expect(fences.length).toBe(1);
+    // The deleted per-layer command lines never return.
+    expect(REVIEWER).not.toContain("agent-spec lifecycle <spec>");
+    expect(REVIEWER).not.toContain("npm test && npm run lint");
+    expect(REVIEWER).not.toContain("tdd-guard lint\n");
+    expect(REVIEWER).not.toContain("cc-check format\n");
+  });
+
+  test("the deleted check families survive as Tier-0 gate citations (one line each)", () => {
+    expect(REVIEWER).toContain("Tier 0");
+    // each retired mechanical layer is cited as a gate, not re-executed
+    expect(REVIEWER).toContain("agent-spec lifecycle");
+    expect(REVIEWER).toContain("agent-spec guard");
+    expect(REVIEWER).toContain("tdd-guard");
+    expect(REVIEWER).toContain("cc-check");
+    expect(REVIEWER).toContain("bombadil");
+    expect(REVIEWER).toContain("verify line");
+    // the loud-skip discipline survives the deletion: a skipped gate is loud
+    expect(REVIEWER).toContain("never a silent pass");
+  });
+
+  test("Tier 1: the reviewer RECEIVES the judge verdict table (contract columns)", () => {
+    expect(REVIEWER).toContain("Tier 1");
+    expect(REVIEWER).toContain("scenario");
+    expect(REVIEWER).toContain("verdict");
+    expect(REVIEWER).toContain("confidence");
+    expect(REVIEWER).toContain("evidence");
+    // routing: uncertain rows (skips + below-floor) are the reviewer's input
+    expect(REVIEWER).toContain("uncertain");
+    expect(REVIEWER).toContain("the judge never closes a review alone");
+  });
+
+  test("Tier 2: deep-read duty names intent, contradictions, and the subtract-first lens", () => {
+    const tier2 = REVIEWER.slice(REVIEWER.indexOf("Tier 2"));
+    expect(tier2).toContain("intent");
+    expect(tier2).toContain("contradiction");
+    expect(tier2).toContain("uncertain");
+  });
+
+  test("the parse contract stays byte-compatible: ## Verdict + **ok:** marker survive", () => {
+    expect(REVIEWER).toContain("## Verdict");
+    expect(REVIEWER).toContain("**ok: true** | **ok: false**");
+    expect(REVIEWER).toContain("### Findings");
+  });
+
+  test("review flow wiring: Tier-1 verdicts run BEFORE the judgment pass, uncertain-only deep-read", () => {
+    const s = fs.readFileSync("skills/review/SKILL.md", "utf8");
+    const stage2 = s.indexOf("## Stage 2");
+    const stage3 = s.indexOf("## Stage 3");
+    const slice = s.slice(stage2, stage3);
+    expect(slice).toContain("bench-intake-triage.ts verdicts");
+    expect(slice).toContain("before");
+    expect(slice).toContain("uncertain");
+    expect(slice).toContain("the judge never closes a review alone");
+    expect(slice).toContain("JUDGE SKIPPED");
+  });
+});

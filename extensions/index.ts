@@ -77,6 +77,15 @@
  *    exports — the ship flow (skills/review) and the bench harness
  *    (scripts/bench-intake-triage.ts) drive them; nothing registers here.
  *
+ * 9b. Review verdicts (plan 20261117-076 Phase 2): the Tier-1 first-pass
+ *    over the SAME seam — reviewVerdicts judges content-fact scenarios
+ *    (report-vs-diff, docs-vs-code, pin validity, claim truthfulness) on
+ *    the diff summary, per-scenario pass/fail/uncertain with evidence
+ *    quotes; below-floor (<0.6) and backend skips route to Tier 2 loudly
+ *    (skippedAll + JUDGE SKIPPED). The reviewer subagent still runs ALWAYS
+ *    — the judge never closes a review alone. Harness: bench-intake-triage
+ *    verdicts mode (fixture accuracy, per-backend).
+ *
  * Deliberately small: role substitution + drift watchdogs + write-time
  * gate. The watchdogs encode the docs/verdict policy checks (see
  * templates/DOCS-POLICY.md — the exemption list there and isDocsExempt
@@ -1463,10 +1472,15 @@ export const TRIAGE_SCHEMA = {
 } as const;
 
 /** One judge classification. skipped=true is LOUD: `reason` always names
- *  why, and callers must surface it — a skip is never a silent pass. */
+ *  why, and callers must surface it — a skip is never a silent pass.
+ *  `value` (plan 20261117-076 Phase 2) is the schema-validated result payload:
+ *  the verdict vocabulary rides the schema, not the seam — review-verdict
+ *  consumers read value.verdict; triage reads bucket (a simple fake may pass
+ *  bucket alone; the transport fills value with the whole result object). */
 export interface TriageVerdict {
   skipped: boolean;
   bucket: TriageBucket | null;
+  value?: Record<string, unknown>;
   confidence: number;
   evidence?: string;
   reason?: string;
@@ -1651,7 +1665,8 @@ export function makeTypellmBackend(
       const evidence = typeof out.evidence === "string" ? out.evidence : undefined;
       return {
         skipped: false,
-        bucket: out.bucket as TriageBucket,
+        bucket: typeof out.bucket === "string" ? (out.bucket as TriageBucket) : null,
+        value: out,
         confidence,
         ...(evidence !== undefined ? { evidence } : {}),
       };
@@ -1674,15 +1689,20 @@ export async function triageFinding(backend: JudgeBackend, finding: string): Pro
   const v = await backend.classify(TRIAGE_SCHEMA, finding);
   if (v.skipped)
     return { ...v, finding, backend: backend.name, defaultPath: true };
+  // bucket rides the dedicated field OR the schema-validated payload (value-only
+  // fakes — the seam generalization keeps both shapes working).
+  const bucket = (v.bucket ??
+    (typeof v.value?.bucket === "string" ? (v.value.bucket as TriageBucket) : null)) as TriageBucket | null;
   if (v.confidence < TRIAGE_CONFIDENCE_FLOOR)
     return {
       ...v,
+      bucket,
       finding,
       backend: backend.name,
       defaultPath: true,
       reason: `below confidence floor (${v.confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — stays in the default path`,
     };
-  return { ...v, finding, backend: backend.name, defaultPath: false };
+  return { ...v, bucket, finding, backend: backend.name, defaultPath: false };
 }
 
 /** Triage a batch of findings; the summary counts buckets + default-path
@@ -1723,6 +1743,181 @@ export function renderTriageTable(results: TriageResult[]): string {
       return `- ${short(r.finding)} → ${r.bucket} (confidence ${r.confidence})${ev}`;
     })
     .join("\n");
+}
+
+/* ── 9b. Review verdicts (plan 20261117-076 Phase 2) — the Tier-1 first-pass ──
+
+ *  The reviewer's ~73 serial prompt checks map to three tiers: Tier 0 =
+ *  script-covered gates (deleted from the prompt, cited in one line each),
+ *  Tier 1 = THIS runner (content-fact scenarios judged on the diff with
+ *  evidence quotes), Tier 2 = the reviewer subagent's deep read (intent,
+ *  contradictions, uncertain verdicts). The judge never closes a review
+ *  alone: every uncertain row — and every row at all on a backend skip —
+ *  routes to Tier 2, loudly. Same seam, same confidence floor as triage. */
+
+/** Tier-1 verdict vocabulary: pass = the diff satisfies the claim · fail = it
+ *  visibly does not · uncertain = below-floor confidence or a backend skip
+ *  (uncertain is ALWAYS Tier 2 — the reviewer deep-reads it). */
+export const REVIEW_VERDICTS = ["pass", "fail", "uncertain"] as const;
+export type ReviewVerdict = (typeof REVIEW_VERDICTS)[number];
+
+/** One content-fact scenario the diff can pass or fail on (the contract's
+ *  scenario/verify claims — report-vs-diff, docs-vs-code, pin validity,
+ *  claim truthfulness). Intent and contradictions are NOT here — Tier 2. */
+export interface ReviewScenario {
+  id: string;
+  claim: string;
+}
+
+/** The per-scenario classification schema sent with every request (same
+ *  shape discipline as TRIAGE_SCHEMA — the transport validates `result`
+ *  against this; anything it cannot validate is a loud skip). */
+export const REVIEW_VERDICT_SCHEMA = {
+  type: "object",
+  properties: {
+    verdict: {
+      type: "string",
+      enum: REVIEW_VERDICTS,
+      description:
+        "Does the diff summary satisfy the scenario's claim? " +
+        "pass = the claim holds on the evidence given; fail = the evidence " +
+        "visibly contradicts the claim; uncertain = the evidence cannot decide it.",
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the verdict. Use the full range; 0.9+ only when the " +
+        "evidence decides the claim unambiguously.",
+    },
+    evidence: {
+      type: "string",
+      description:
+        "One short quote from the claim or the diff summary that drove the verdict.",
+    },
+  },
+  required: ["verdict", "confidence"],
+  additionalProperties: false,
+} as const;
+
+/** One scenario's Tier-1 verdict. skipped=true is LOUD (reason named); an
+ *  uncertain verdict — judge's own, below-floor, or skip — routes to Tier 2. */
+export interface ScenarioVerdict {
+  scenario: string;
+  verdict: ReviewVerdict;
+  confidence: number;
+  evidence?: string;
+  skipped?: boolean;
+  reason?: string;
+}
+
+/** The Tier-1 result: per-scenario verdicts + the deep-read routing (the
+ *  uncertain ids the reviewer must read) + the loud global-skip flag. */
+export interface ReviewVerdictResult {
+  results: ScenarioVerdict[];
+  deepRead: string[];
+  skippedAll: boolean;
+  backend: string;
+  reason?: string;
+}
+
+/** The judge's input for one scenario: the claim AND the diff summary — the
+ *  judge compresses, it does not discover (the mechanical facts ride in the
+ *  question; the harness replays this exact construction for fixtures). */
+export function scenarioInput(scenario: ReviewScenario, diffSummary: string): string {
+  return `Scenario ${scenario.id}: ${scenario.claim}\n\nDiff summary:\n${diffSummary}`;
+}
+
+/** Run Tier-1 review verdicts over the seam: one classify call per scenario.
+ *  Below-floor confidence → uncertain (Tier 2) with the reason named; a
+ *  backend skip → that scenario uncertain (skipped, loud); when EVERY
+ *  scenario skips, skippedAll is set with the backend's reason surfaced —
+ *  all scenarios route to Tier 2, never a silent pass. */
+export async function reviewVerdicts(
+  backend: JudgeBackend,
+  scenarios: ReviewScenario[],
+  diffSummary: string
+): Promise<ReviewVerdictResult> {
+  const results: ScenarioVerdict[] = [];
+  const deepRead: string[] = [];
+  let skippedAll = true;
+  let reason: string | undefined;
+  for (const scenario of scenarios) {
+    const v = await backend.classify(REVIEW_VERDICT_SCHEMA, scenarioInput(scenario, diffSummary));
+    if (v.skipped) {
+      const why = v.reason ?? "judge skipped (unspecified)";
+      reason ??= why;
+      deepRead.push(scenario.id);
+      results.push({
+        scenario: scenario.id,
+        verdict: "uncertain",
+        confidence: 0,
+        skipped: true,
+        reason: why,
+      });
+      continue;
+    }
+    skippedAll = false;
+    const verdict = v.value?.verdict;
+    if (typeof verdict !== "string" || !REVIEW_VERDICTS.includes(verdict as ReviewVerdict)) {
+      // schema-invalid payload from a misbehaving backend — loud skip
+      const why = `schema-invalid response: verdict '${String(verdict)}' is outside the enum`;
+      deepRead.push(scenario.id);
+      results.push({ scenario: scenario.id, verdict: "uncertain", confidence: 0, skipped: true, reason: why });
+      continue;
+    }
+    const confidence = typeof v.confidence === "number" ? v.confidence : 0;
+    if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
+      deepRead.push(scenario.id);
+      results.push({
+        scenario: scenario.id,
+        verdict: "uncertain",
+        confidence,
+        ...(v.evidence !== undefined ? { evidence: v.evidence } : {}),
+        reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — Tier 2 deep-read`,
+      });
+      continue;
+    }
+    results.push({
+      scenario: scenario.id,
+      verdict: verdict as ReviewVerdict,
+      confidence,
+      ...(v.evidence !== undefined ? { evidence: v.evidence } : {}),
+    });
+  }
+  return {
+    results,
+    deepRead,
+    skippedAll: skippedAll && scenarios.length > 0,
+    backend: backend.name,
+    ...(skippedAll && scenarios.length > 0 && reason !== undefined ? { reason } : {}),
+  };
+}
+
+/** The Tier-1 table fed into the reviewer's prompt: one row per scenario,
+ *  uncertain rows marked DEEP-READ; a global skip prints JUDGE SKIPPED and
+ *  the all-Tier-2 line loudly — a skip never reads as a pass. */
+export function renderVerdictTable(result: ReviewVerdictResult): string {
+  const lines: string[] = [];
+  if (result.skippedAll)
+    lines.push(
+      `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 (the judge never closes a review alone)`
+    );
+  lines.push(`TIER-1 VERDICT TABLE (backend ${result.backend})`);
+  lines.push("| scenario | verdict | confidence | evidence |");
+  lines.push("|---|---|---|---|");
+  for (const r of result.results) {
+    const ev = r.evidence ? ` ${r.evidence}` : "";
+    const verdictCell =
+      r.verdict === "uncertain"
+        ? r.skipped
+          ? `uncertain — DEEP-READ (skipped: ${r.reason ?? "unspecified"})`
+          : `uncertain — DEEP-READ${r.reason ? ` (${r.reason})` : ""}`
+        : r.verdict;
+    lines.push(`| ${r.scenario} | ${verdictCell} | ${r.confidence} |${ev}`);
+  }
+  return lines.join("\n");
 }
 
 export default function register(pi: any): void {

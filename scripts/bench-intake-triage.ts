@@ -1,36 +1,56 @@
 // bench-intake-triage — the EVAL-SLICE measurement harness for the ship-flow
-// intake triage (plan 20261117-076 Phase 1). Two modes:
+// intake triage and the review Tier-1 verdicts (plan 20261117-076). Modes:
 //
-//   eval    — replay the 12-finding fixture slice against one or more judge
-//             backends and report per-backend accuracy. Default backend is
-//             the recorded-fixture replay (deterministic, no key, no net);
-//             --live swaps in the real TypeLLM transport when
-//             TYPELLM_API_KEY is present. This is the Phase-2 gate
-//             instrument: Phase 2 (Jev sieve vs TypeLLM) is decided on the
-//             per-backend numbers this prints.
+//   eval     — replay the 12-finding fixture slice against one or more judge
+//              backends and report per-backend accuracy. Default backend is
+//              the recorded-fixture replay (deterministic, no key, no net);
+//              --live swaps in the real TypeLLM transport when
+//              TYPELLM_API_KEY is present. This is the Phase-2 gate
+//              instrument: Phase 2 (Jev sieve vs TypeLLM) is decided on the
+//              per-backend numbers this prints.
 //
-//   triage  — classify worker findings at ship time through the same seam:
-//             `--findings <file>` (JSON array of strings, or JSONL with a
-//             `finding` field). Advisory like the other ship-flow judge
-//             passes: prints the triage table, exit 0. Skips print LOUD
-//             (JUDGE SKIPPED) and stay in the default path.
+//   verdicts — TWO shapes. Fixture eval (default, `--live` for the real
+//              transport): replay the review-verdict fixture slice (content-
+//              fact scenarios + diff summaries with expected pass/fail/
+//              uncertain) and report per-backend accuracy — the Phase-2
+//              measurement instrument. Review-time (`--scenarios <file>
+//              --diff <file>`): run Tier-1 verdicts for real review input
+//              and print the verdict table; ADVISORY — routing only, never
+//              a verdict; the reviewer subagent still runs ALWAYS.
+//
+//   triage   — classify worker findings at ship time through the same seam:
+//              `--findings <file>` (JSON array of strings, or JSONL with a
+//              `finding` field). Advisory like the other judge passes:
+//              prints the triage table, exit 0. Skips print LOUD
+//              (JUDGE SKIPPED) and stay in the default path.
 //
 // Usage:
 //   bun scripts/bench-intake-triage.ts eval [--live]
+//   bun scripts/bench-intake-triage.ts verdicts [--live]
+//   bun scripts/bench-intake-triage.ts verdicts --scenarios <file> --diff <file>
 //   bun scripts/bench-intake-triage.ts triage --findings <file>
 //
-// Exit: eval 0 · triage 0 (advisory) · usage 2.
+// Exit: eval/verdicts 0 · triage 0 (advisory) · usage 2.
 //
-// The probe imports the shipped triage; it never re-implements classification.
+// The probe imports the shipped triage + verdict runner; it never
+// re-implements classification.
 import fs from "node:fs";
 import {
   TRIAGE_BUCKETS,
   TRIAGE_CONFIDENCE_FLOOR,
   TRIAGE_SCHEMA,
+  REVIEW_VERDICTS,
+  REVIEW_VERDICT_SCHEMA,
   makeTypellmBackend,
   renderTriageTable,
+  renderVerdictTable,
+  reviewVerdicts,
+  scenarioInput,
   triageFinding,
   type JudgeBackend,
+  type ReviewScenario,
+  type ReviewVerdict,
+  type ReviewVerdictResult,
   type TriageBucket,
   type TriageResult,
 } from "../extensions/index.ts";
@@ -130,6 +150,145 @@ export async function evalBackends(
   return rows;
 }
 
+/* ── verdict mode (plan 20261117-076 Phase 2): review-verdict fixtures ── */
+
+export interface VerdictFixture {
+  id: string;
+  scenario: ReviewScenario;
+  diffSummary: string;
+  expected: ReviewVerdict;
+}
+
+/** The review-verdict EVAL-SLICE: content-fact scenarios + the diff summary
+ *  they are judged against, with ground-truth verdicts (pass = the evidence
+ *  satisfies the claim · fail = it visibly contradicts it · uncertain = the
+ *  evidence cannot decide — exactly the Tier-1/Tier-2 boundary). */
+export const VERDICT_FIXTURES: VerdictFixture[] = [
+  {
+    id: "v01",
+    scenario: { id: "S1", claim: "The report's claim that all spec scenarios pass matches the diff's test changes." },
+    diffSummary: "tests/dispatch-parse.test.ts adds 4 cases covering the new colon-tolerant parser; spec task-3 scenarios map 1:1 onto them.",
+    expected: "pass",
+  },
+  {
+    id: "v02",
+    scenario: { id: "S2", claim: "README lines changed in the diff match the code's actual behavior." },
+    diffSummary: "README documents `--format json` for ship-diagram; the diff's ship-diagram.mjs has no --format flag and no JSON path.",
+    expected: "fail",
+  },
+  {
+    id: "v03",
+    scenario: { id: "S3", claim: "The new test pins assert what their scenarios claim (non-vacuous)." },
+    diffSummary: "test asserts expect(rows.length).toBe(2) after seeding exactly 2 rows and asserting intermediate state first.",
+    expected: "pass",
+  },
+  {
+    id: "v04",
+    scenario: { id: "S1", claim: "The report's claim that tests cover the new verify line matches the diff." },
+    diffSummary: "report claims coverage for the new CLI flag; the diff adds the flag to cli.ts but touches no test file.",
+    expected: "fail",
+  },
+  {
+    id: "v05",
+    scenario: { id: "S4", claim: "Version/CHANGELOG claims in the diff are truthful (no stale version strings)." },
+    diffSummary: "CHANGELOG entry names v0.15.12; package.json version is 0.15.12; cli.ts --version derives from package.json.",
+    expected: "pass",
+  },
+  {
+    id: "v06",
+    scenario: { id: "S3", claim: "The new test pins assert what their scenarios claim (non-vacuous)." },
+    diffSummary: "test imports the module and asserts expect(true).toBe(true) beside a commented-out real assertion.",
+    expected: "fail",
+  },
+  {
+    id: "v07",
+    scenario: { id: "S2", claim: "Docs lines changed in the diff match the code's actual behavior." },
+    diffSummary: "docs mention a retry cap of 3; the diff sets retries = 3 in one path and 5 in another; the doc's singular claim may match either.",
+    expected: "uncertain",
+  },
+  {
+    id: "v08",
+    scenario: { id: "S1", claim: "The report's claim that boundaries are respected matches the diff." },
+    diffSummary: "report says only agents/worker.md changed; the summary shows changes to agents/worker.md plus one test file inside Allowed; nothing outside Allowed is visible.",
+    expected: "uncertain",
+  },
+];
+
+/** Recorded verdict backend: replays the verdict slice's ground truth.
+ *  Deterministic, keyless, network-free. Unknown input is a LOUD skip. */
+export function recordedVerdictBackend(): JudgeBackend {
+  const byInput = new Map(
+    VERDICT_FIXTURES.map((f) => [scenarioInput(f.scenario, f.diffSummary), f])
+  );
+  return {
+    name: "typellm-recorded-verdicts",
+    async classify(schema, input) {
+      const f = byInput.get(input);
+      if (!f)
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "recorded fixture replay: input is not in the verdict fixture slice",
+        };
+      return {
+        skipped: false,
+        bucket: null,
+        value: { verdict: f.expected, confidence: 0.9, evidence: `recorded:${f.id}` },
+        confidence: 0.9,
+        evidence: `recorded:${f.id}`,
+      };
+    },
+  };
+}
+
+export interface VerdictScore {
+  name: string;
+  correct: number;
+  total: number;
+  skipped: number;
+  accuracy: number;
+}
+
+/** Score one backend against the verdict slice. A skip is NEVER a pass:
+ *  skipped rows count as not-correct and are reported separately (loud-skip
+ *  doctrine). An expected-uncertain fixture scores correct only when the
+ *  backend honestly returns uncertain — a confident guess at pass/fail is
+ *  scored as the miss it is. */
+export async function evalVerdictBackend(
+  backend: JudgeBackend,
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+): Promise<VerdictScore> {
+  let correct = 0;
+  let skipped = 0;
+  for (const f of fixtures) {
+    const v = await backend.classify(REVIEW_VERDICT_SCHEMA, scenarioInput(f.scenario, f.diffSummary));
+    if (v.skipped) {
+      skipped++;
+      continue;
+    }
+    if (v.value?.verdict === f.expected) correct++;
+  }
+  return {
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+  };
+}
+
+/** Per-backend rows — the Phase-2 comparison table (typellm today, a Jev
+ *  backend slots in without harness changes). */
+export async function evalVerdictBackends(
+  backends: JudgeBackend[],
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+): Promise<VerdictScore[]> {
+  const rows: VerdictScore[] = [];
+  for (const b of backends) rows.push(await evalVerdictBackend(b, fixtures));
+  return rows;
+}
+
 function scoreLines(rows: BackendScore[]): string[] {
   const lines = [
     "backend              correct/total  skipped  accuracy   (floor "
@@ -179,6 +338,89 @@ async function cmdEval(argv: string[]): Promise<number> {
   return 0;
 }
 
+/** Scenarios file: JSON array of {id, claim} rows or plain claim strings
+ *  (ids auto-assigned S1..Sn). Bounded shape — the same grammar the review
+ *  flow's Tier-1 step writes. */
+export function loadScenarios(file: string): ReviewScenario[] {
+  const raw = fs.readFileSync(file, "utf8").trim();
+  const arr = JSON.parse(raw);
+  if (!Array.isArray(arr) || arr.length === 0)
+    throw new Error("scenarios file must be a non-empty JSON array");
+  return arr.map((x: any, i: number) => {
+    if (typeof x === "string" && x.trim()) return { id: `S${i + 1}`, claim: x.trim() };
+    if (x && typeof x.id === "string" && x.id.trim() && typeof x.claim === "string" && x.claim.trim())
+      return { id: x.id.trim(), claim: x.claim.trim() };
+    throw new Error("scenarios rows must be non-empty strings or {id, claim} objects");
+  });
+}
+
+function verdictScoreLines(rows: VerdictScore[]): string[] {
+  const lines = [
+    "backend              correct/total  skipped  accuracy   (floor "
+      + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
+  ];
+  for (const r of rows) {
+    const name = r.name.padEnd(20);
+    const frac = `${r.correct}/${r.total}`.padEnd(13);
+    const skip = String(r.skipped).padEnd(8);
+    lines.push(`${name} ${frac} ${skip} ${(r.accuracy * 100).toFixed(1)}%`);
+  }
+  return lines;
+}
+
+async function cmdVerdicts(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  let scenariosFile: string | null = null;
+  let diffFile: string | null = null;
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--live") continue;
+    if (argv[i] === "--scenarios") scenariosFile = argv[++i] ?? null;
+    else if (argv[i] === "--diff") diffFile = argv[++i] ?? null;
+    else {
+      console.error(`usage error: unknown argument ${argv[i]}`);
+      return 2;
+    }
+  }
+  if (scenariosFile !== null || diffFile !== null) {
+    if (!scenariosFile || !diffFile) {
+      console.error("usage: bun scripts/bench-intake-triage.ts verdicts --scenarios <file> --diff <file>");
+      return 2;
+    }
+    // Review-time shape: Tier-1 verdicts for real review input. ADVISORY —
+    // routing only, never a verdict; the reviewer subagent still runs ALWAYS.
+    const scenarios = loadScenarios(scenariosFile);
+    const diffSummary = fs.readFileSync(diffFile, "utf8").trim();
+    const backend = live ? liveBackend() : recordedVerdictBackend();
+    const result: ReviewVerdictResult = await reviewVerdicts(backend, scenarios, diffSummary);
+    console.log(renderVerdictTable(result));
+    if (result.skippedAll)
+      console.error(
+        `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 deep-read`
+      );
+    else
+      console.error(
+        `Tier 1: ${result.results.length - result.deepRead.length}/${result.results.length} verdicts on the table; ` +
+          `${result.deepRead.length} route to Tier 2 deep-read (floor ${TRIAGE_CONFIDENCE_FLOOR}). ` +
+          "The judge never closes a review alone — the reviewer verifies intent."
+      );
+    return 0;
+  }
+  const backend = live ? liveBackend() : recordedVerdictBackend();
+  const rows = await evalVerdictBackends([backend]);
+  console.log(
+    `review-verdicts eval (plan 20261117-076 Phase 2) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+  );
+  for (const line of verdictScoreLines(rows)) console.log(line);
+  if (live) {
+    const r = rows[0];
+    if (r.skipped === r.total)
+      console.error(
+        `JUDGE SKIPPED (all ${r.total} rows skipped — check TYPELLM_API_KEY / endpoint; skips are never passes)`
+      );
+  }
+  return 0;
+}
+
 async function cmdTriage(argv: string[]): Promise<number> {
   let file: string | null = null;
   for (let i = 0; i < argv.length; i++) {
@@ -215,10 +457,14 @@ async function main(argv: string[]): Promise<number> {
   switch (cmd) {
     case "eval":
       return await cmdEval(rest);
+    case "verdicts":
+      return await cmdVerdicts(rest);
     case "triage":
       return await cmdTriage(rest);
     default:
-      console.error("usage: bun scripts/bench-intake-triage.ts eval [--live] | triage --findings <file>");
+      console.error(
+        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] | verdicts --scenarios <file> --diff <file> | triage --findings <file>"
+      );
       return 2;
   }
 }
