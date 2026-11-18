@@ -2,7 +2,7 @@
 
 The follow-up table is the review's reporting artifact: findings that are real
 but out of the current plan's scope become a queue the next `/idea` can draw
-from (plan 20261031-047 was seeded exactly this way, from plan 046's fix round).
+from (`plan 20261031-047` was seeded exactly this way, from `plan 046`'s fix round).
 
 **Rows are facts, not illustrations.** Every Problem and Impact must come from
 the evidence trail (review verdicts, fix-round findings, LOG entries, scout
@@ -13,6 +13,10 @@ row you cannot cite is fiction, and fiction in the queue poisons the next plan.
 `deferred(trigger: ...)` before a new plan opens — drain before grow.
 **Delete, don't queue.** A row that cannot state Impact and Fix shape is
 DELETED, not queued — subtract-first applies to the queue itself.
+**Intake triage.** A row reaches the durable queue only via ONE of:
+`queued` (Risk `P0–P2`) · `batched` (`P3` items bundle into one row per
+repo/theme, members named) · `closed` (deleted, one line why, kept in the
+fix-round trail) · `done`. `P3/S` never queues individually.
 
 ## Columns
 
@@ -42,17 +46,18 @@ guardrail) · **P3** minor (degradation already loud, disposition-able).
 
 ## Worked example
 
-Real queue from plan 20261031-047 (evidence: plan Decisions 1–5, plan 046
-`reviews/fix-round.md`, scout 20261031):
+Real queue from ``plan 20261031-047`` (evidence: plan Decisions 1–5,
+`plan 046` `reviews/fix-round.md`, scout 20261031):
 
 | # | Item | Origin | Problem (plain words) | Impact if unfixed | Risk (P0–P3) | Effort (S/M/L) | Fix shape |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Suite state-hardening | planned | 20 test files read gitignored `.workflows/` live state; fresh clones and worker worktrees fail with ENOENT (11+ tests) | Workers and clones see a red gate; plan 046's CI could only run ci-lite | P1 | M | Fixtures for behavior tests; loud named skips (`SKIPPED (state absent)`) for live-consistency tests via a requireLiveState helper |
-| 2 | CONTRACTS preamble | planned | CONTRACTS line 1 is prose before the first `@cc` directive; `cc-check format` exits non-zero | Lint failure is noise on every review running cc-check | P2 | S | Relocate the prose into a cc-check-accepted comment form |
-| 3 | Guard per-spec scoping | planned | Multi-spec dir guard flags in-scope files "verification not passing" mid-plan (absolute/relative boundary rendering) | False alarms in every multi-task review; reviewers must hand-scope | P2 | M | Per-spec scoping at the call sites (flow-gates contract gate + prompts/verify.md) |
-| 4 | Authoring standards | planned | Content-fact spec scenarios passed grep selectors while describing fiction (plan 046: CHANGELOG recipes were fabricated; caught by hand pre-review) | Gates miss fabricated content without a rule | P2 | S | Repo-truth cross-check rule in CONTRACT-FORMAT.md + repo-faithful layouts note in review SKILL.md |
-| 5 | Retired test-quality tool | planned | Retired: the binary this row named never existed as an installable tool (npm 404, no GitHub project); DEC-003 was amended 20261117-064 to the tdd-guard chain and test-quality now runs `tdd-guard lint` / `verify` (see `.workflows/decisions/DEC-003.md`) | Gaming/weakening detection absent where TDD shape is not used | P3 | S | Record the accepted-skip disposition (TASK 5 of plan 20261031-047) |
+| 1 | Suite state-hardening | planned | 20 test files read gitignored `.workflows/` live state; fresh clones and worker worktrees fail with ENOENT (11+ tests) | Workers and clones see a red gate; `plan 046`'s CI could only run ci-lite | `P1` | `M` | Fixtures for behavior tests; loud named skips (`SKIPPED (state absent)`) for live-consistency tests via a requireLiveState helper |
+| 2 | CONTRACTS preamble | planned | CONTRACTS line 1 is prose before the first `@cc` directive; `cc-check format` exits non-zero | Lint failure is noise on every review running cc-check | `P2` | `S` | Relocate the prose into a cc-check-accepted comment form |
+| 3 | Guard per-spec scoping | planned | Multi-spec dir guard flags in-scope files "verification not passing" mid-plan (absolute/relative boundary rendering) | False alarms in every multi-task review; reviewers must hand-scope | `P2` | `M` | Per-spec scoping at the call sites (flow-gates contract gate + prompts/verify.md) |
+| 4 | Authoring standards | planned | Content-fact spec scenarios passed grep selectors while describing fiction (`plan 046`: CHANGELOG recipes were fabricated; caught by hand pre-review) | Gates miss fabricated content without a rule | `P2` | `S` | Repo-truth cross-check rule in CONTRACT-FORMAT.md + repo-faithful layouts note in review SKILL.md |
+| 5 | Retired test-quality tool | planned | Retired: the binary this row named never existed as an installable tool (npm 404, no GitHub project); `DEC-003` was amended `20261117-064` to the tdd-guard chain and test-quality now runs `tdd-guard lint` / `verify` (see `.workflows/decisions/DEC-003.md`) | Gaming/weakening detection absent where TDD shape is not used | `P3` | `S` | Record the accepted-skip disposition (TASK 5 of ``plan 20261031-047``) |
 | 6 | Ledger | planned | prose caveats | lost | `P2` | `S` | pin at SHIP |
 | 7 | Steps | new (wiring) | step 5 twice | misread | `P3` | `S` | renumber |
 
-Rows 6–7 (20261117, plan 067) demonstrate `Origin` — this plan's own queue.
+Rows 6–7 (20261117, plan `20261117-067`) demonstrate `Origin` — this
+plan's own queue.

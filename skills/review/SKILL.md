@@ -208,7 +208,8 @@ CHANGELOG lacks the Plan ID.
    `adr:` reference in the live plan must resolve.
 7. Append one line to `.workflows/LOG.md`:
    `<date> SHIP <PlanID> <slug> — <goal>`
-5. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay live — never archived.
+8. `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` stay
+   live — never archived.
 
 The next `/idea` derives its Plan ID from the archive listing (NNN = archive
 entries + 1), so ids never collide and history is preserved.

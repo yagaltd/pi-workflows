@@ -844,3 +844,130 @@ describe("prompt doctrine — ledger wiring (T2, plan 20261117-067)", () => {
     expect(LEDGER_TABLE).toContain("# Follow-up table format");
   });
 });
+
+// --- TASK 1: intake doctrine + in-scope fixes (plan 20261117-068) ---
+// Pins the four-way intake triage gate, in-scope-must-fix, the reviewer's
+// queueing-is-a-finding + progress-gated extension rules, the plan-side
+// authoring rules (boundary generosity, bindable scenario pins), and the
+// in-scope cosmetics (stage-3 numbering, worked-example backticks).
+
+const REVIEW_SKILL_T1 = REVIEW_SKILL_T10;
+const normT1 = (s: string) => s.replace(/\s+/g, " ");
+
+describe("prompt doctrine — intake doctrine + in-scope fixes (TASK 1, plan 20261117-068)", () => {
+  test("test_intake_triage_rule_in_template", () => {
+    const t = normT1(LEDGER_TABLE);
+    // the four-way disposition, stated as the ONLY routes into the queue
+    expect(t).toContain(
+      "**Intake triage.** A row reaches the durable queue only via ONE of:",
+    );
+    expect(t).toContain("`queued` (Risk `P0–P2`)");
+    expect(t).toContain(
+      "`batched` (`P3` items bundle into one row per repo/theme, members named)",
+    );
+    expect(t).toContain(
+      "`closed` (deleted, one line why, kept in the fix-round trail)",
+    );
+    expect(t).toContain("`done`. `P3/S` never queues individually.");
+    // the gate sits with the intake rules (top slice), after delete-not-queue
+    const cols = LEDGER_TABLE.indexOf("## Columns");
+    const top = LEDGER_TABLE.slice(0, cols);
+    const del = top.indexOf("DELETED, not queued");
+    const triage = top.indexOf("durable queue only via ONE of");
+    expect(del).toBeGreaterThan(-1);
+    expect(triage).toBeGreaterThan(del);
+  });
+
+  test("test_in_scope_findings_fixed_in_loop", () => {
+    const w = normT1(WORKER);
+    expect(w).toContain("in-scope-must-fix");
+    expect(w).toContain(
+      "a defect found INSIDE your own Allowed Changes is fixed in the loop (TDD when code)",
+    );
+    expect(w).toContain(
+      "the follow-up table is for what your boundaries forbid, nothing else",
+    );
+    // stated in both homes: the boundaries walkthrough and the Rules scope-lock
+    expect(WORKER.split("in-scope-must-fix").length - 1).toBe(2);
+    // the out-of-scope rules stay intact (they are correct and unchanged)
+    expect(w).toContain("**note it and keep moving.** Do not fix it.");
+    expect(w).toContain(
+      "If you see something broken outside your task, report it. Don't fix it.",
+    );
+  });
+
+  test("test_queueing_in_scope_is_a_finding", () => {
+    const r = normT1(REVIEWER);
+    expect(r).toContain(
+      "Queueing an in-scope item is itself a reviewer finding",
+    );
+    expect(r).toContain("the task's Allowed list is the test");
+    // the finding routes back to the worker, not into the durable queue
+    expect(r).toContain("Route it back to the worker");
+  });
+
+  test("test_progress_gated_extension", () => {
+    const r = normT1(REVIEWER);
+    expect(r).toContain("Progress-gated extension");
+    expect(r).toContain("exactly ONE extra fix round");
+    expect(r).toContain("findings demonstrably shrink");
+    expect(r).toContain("state the grant in the verdict block");
+    expect(r).toContain("orchestrator adjudication");
+    expect(r).toContain("never silently into the ledger");
+    // the cap doctrine is untouched: max-rounds default stays 2 everywhere
+    expect(fs.readFileSync("agents/execution-doctrine.md", "utf8")).toContain(
+      "(N capped at max-rounds, default 2)",
+    );
+    expect(fs.readFileSync("templates/CONTRACT-FORMAT.md", "utf8")).toContain(
+      "`max-rounds: N` (default 2)",
+    );
+  });
+
+  test("test_boundary_generosity_guidance", () => {
+    const m = PLAN_SKILL.indexOf("## Phase 5: GENERATE CONTRACTS");
+    const end = PLAN_SKILL.indexOf("## Phase 6: HAND OFF");
+    expect(m).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(m);
+    const p = normT1(PLAN_SKILL.slice(m, end));
+    expect(p).toContain("Boundary generosity");
+    expect(p).toContain(
+      "pre-authorize in Allowed the adjacent fixes the worker will inevitably see",
+    );
+  });
+
+  test("test_doc_scenario_grep_pins", () => {
+    const m = PLAN_SKILL.indexOf("## Phase 5: GENERATE CONTRACTS");
+    const end = PLAN_SKILL.indexOf("## Phase 6: HAND OFF");
+    const p = normT1(PLAN_SKILL.slice(m, end));
+    expect(p).toContain("grep-able pins in existing test files");
+    expect(p).toContain("authoring defect");
+    expect(p).toContain("verify exits 1 by design");
+  });
+
+  test("test_in_scope_cosmetics_fixed", () => {
+    // review skill: the stage-3 list has no duplicate numbering (1..8)
+    const s3 = REVIEW_SKILL_T1.indexOf("## Stage 3");
+    const co = REVIEW_SKILL_T1.indexOf("## Combined Output");
+    expect(s3).toBeGreaterThan(-1);
+    expect(co).toBeGreaterThan(s3);
+    const stage3 = REVIEW_SKILL_T1.slice(s3, co);
+    const nums = [...stage3.matchAll(/^(\d+)\./gm)].map((x) => parseInt(x[1], 10));
+    expect(nums.length).toBe(8);
+    expect(new Set(nums).size).toBe(nums.length);
+    expect(stage3).toMatch(/7\. Append one line/);
+    expect(stage3).toMatch(/8\. `\.workflows\/CONTEXT\.md`/);
+    // follow-up table: every worked-example Risk/Effort cell is backticked
+    const weStart = LEDGER_TABLE.indexOf("## Worked example");
+    expect(weStart).toBeGreaterThan(-1);
+    const worked = LEDGER_TABLE.slice(weStart);
+    const rows = worked.split("\n").filter((l) => /^\| \d+ \|/.test(l));
+    expect(rows.length).toBe(7);
+    for (const row of rows) {
+      const cells = row.split("|").map((c) => c.trim()).filter(Boolean);
+      expect(cells[5]).toMatch(/^`P[0-3]`$/);
+      expect(cells[6]).toMatch(/^`[SML]`$/);
+    }
+    // no bare (unbackticked) plan ids in the worked example
+    expect(worked.match(/[^`]plan (2026\d{4}-\d{3}|0\d{2})/)).toBeNull();
+  });
+});

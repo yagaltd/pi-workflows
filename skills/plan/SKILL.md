@@ -507,9 +507,20 @@ explicit `Test:` selector, boundaries list exact paths, optional
 for a task's Allowed Changes files, populate the `## Applicable contracts`
 section in its spec from `cc-check list` output.
 
+Two authoring rules bind every generated contract:
+
+- **Boundary generosity**: pre-authorize in Allowed the adjacent fixes the
+  worker will inevitably see — stray numbering, missing backticks, broken
+  cross-references in the files the diff already touches. A defect the
+  worker must fix but the boundaries forbid is a plan defect, not a
+  worker shortcut.
+- **Scenario pins bind**: a content-fact scenario (one that asserts repo
+  content exists) must cite grep-able pins in existing test files; a
+  doc-only spec with unbindable selectors is an authoring defect —
+  verify exits 1 by design.
+
 For plans with **≥2 waves**, the default path is the spec-drafter fan-out from
-the
-Drafting Pipeline; the fallback is hand-writing the specs.
+the Drafting Pipeline; the fallback is hand-writing the specs.
 
 **Judge pre-flight (plan 20261025-017) — one judge call per drafted contract,
 before the approval ask**: Phase 5 ends by presenting the generated contracts to

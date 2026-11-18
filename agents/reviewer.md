@@ -182,6 +182,16 @@ report results.
 - **Verdict is binding.** `ok:false` requires ≥1 finding with evidence;
   `ok:true`
   requires every layer green. Never ok:true with findings attached.
+- **Queueing an in-scope item is itself a reviewer finding**: the worker
+  had the license — a row queuing a defect inside that task's Allowed
+  Changes should have fixed it in the loop, and the task's Allowed list
+  is the test. Route it back to the worker; the ledger is not a
+  workaround for boundaries.
+- **Progress-gated extension**: you may grant exactly ONE extra fix round
+  when findings demonstrably shrink vs the prior round (fewer or
+  lower-severity); state the grant in the verdict block. Round exhaustion
+  routes loudly to orchestrator adjudication (spec amendment / boundary
+  extension / closure) — never silently into the ledger.
 - **Ledger drain check**: the next plan's `## Ledger Resolution` accounts
   for every row of the last ship report's table — `done` / `closed(<reason>)`
   / `deferred(trigger: ...)`; unresolved rows are findings.
