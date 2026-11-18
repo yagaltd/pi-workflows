@@ -3,9 +3,9 @@
 > Status: QUEUED 2026-11-18 (owner: "yes queue all of them") — executes after plan 076 Phase 3 lands (serialized suites, Resources doctrine) · Repo: pi-workflows · Depends on: 076's JudgeBackend seam + harness (landed) + Phase 3 batched-DAG (running)
 > Origin: owner exchange 2026-11-18 — "typellm could help us save agent tokens, judgment, routing, verification, extraction… something else you see in the typellm api" + the report-normalization refinement (reports are for the orchestrator, not the owner; claims must be verified against session turns)
 
-## The rows (Row 0 first)
+## Tasks (one plan, ordered, executed in sequence under the normal gates)
 
-### Row 0 — native-surface upgrade (ADDED 2026-11-18, owner-verified from typellm.ai/docs/api — executes FIRST, it upgrades the transport every row rides)
+### Task 1 — native-surface upgrade (owner-verified from typellm.ai/docs/api; the transport every task rides)
 The landed phases hand-rolled or under-used six native capabilities (verified docs):
 1. **Nullable abstention**: `["verdict","null"]` output types — architectural
    no-answer instead of prompt-instructed uncertainty (the v08 confident-wrong
@@ -28,19 +28,19 @@ The landed phases hand-rolled or under-used six native capabilities (verified do
 
 
 
-### Row 1 — LOG → knowledge mining
+### Task 3 — LOG → knowledge mining
 TypeLLM structured pull compiles the accreting `.workflows/LOG.md` into knowledge-promotion candidates (the 073 rule, machine-fed): periodic scan → candidate rows → the existing sieve judges → promoted or dropped. Kills the accretion disease at the root.
 
-### Row 2 — incident → doctrine candidate
+### Task 4 — incident → doctrine candidate
 When an incident adds a rule, the incident itself extracts that rule as a **structured sieve candidate** (schema: rule, trigger, gate binding) → judged → pinned via the normal promotion path. Rules enter as DATA, never as prose accretion — the meta-cure for the 73-checks disease.
 
-### Row 3 — worker-pack context extraction
+### Task 5 — worker-pack context extraction
 TypeLLM pulls the **minimal per-task brief** from long brownfield plans/docs (32k window, chunked) — dispatch packs carry the extracted slice instead of full documents. Direct worker-token savings on every dispatch; contracts stay the primary context mechanism (extraction augments, never replaces).
 
-### Row 4 — spec-draft extraction
+### Task 6 — spec-draft extraction
 Plan text → draft `.spec` scenarios (agent-spec authoring): TypeLLM extraction produces the contract skeleton (scenarios, steps, selectors) for owner review before `agent-spec init`. Feeds agent-spec's authoring step; the spec language stays unchanged.
 
-### Row 5 — worker-report normalization + CLAIM VERIFICATION (the owner's refinement — the important one)
+### Task 2 — worker-report normalization + CLAIM VERIFICATION (the owner's refinement — the important one)
 Worker reports are for the orchestrator, not the owner, and are too verbose. The new contract:
 
 1. **Extract**: TypeLLM pulls the report's factual claims into a structured list (claim, type, session-turn pointer).
@@ -54,7 +54,7 @@ Schema-driven · loud-skip (no key/error → the agent does the work, surfaced) 
 
 ## Suggested rollout
 
-**Row 0 first** (transport upgrade — everything else rides it), then Row 5 (the owner's pain, the clearest contract) → Rows 1+2 together (shared mining machinery) → Rows 3+4 (extraction pair). Each row lands with its own fixture harness mode (the Phase-1 pattern) and reports accuracy before the next.
+Task 1 first (transport upgrade — everything else rides it), then Task 2 (the owner's pain, the clearest contract) → Tasks 3+4 together (shared mining machinery) → Tasks 5+6 (extraction pair). Each row lands with its own fixture harness mode (the Phase-1 pattern) and reports accuracy before the next.
 
 ## Risks / open questions
 
