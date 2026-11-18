@@ -1,3 +1,23 @@
+## 2026-11-17 — v0.15.6: the ledger closes empty — bare-filename boundaries, honest rust binding (plans 20261117-070 + 069 fix round)
+
+- **agent-spec 0.3.4**: an Allowed-Changes entry that names a file now
+  protects that file, whatever its extension — `README.md`, `CHANGELOG.md`,
+  `package.json`, `Cargo.toml`, `Cargo.lock` stop being dropped as prose, and
+  extension-bearing entries anchor to the EXACT file (no directory-prefix
+  regression; `./` prefixes still work). Prose stays prose, fail-closed stays
+  fail-closed. Guard's evidence run also ignores target-repo `**/fixtures/**`
+  instead of sweeping unrelated fixture failures into its output.
+- **tdd-guard 0.1.4**: rust selectors now match via `::`-anchored suffix —
+  src-colocated `#[cfg(test)]` tests list with full module paths and 0.1.3's
+  exact match missed every one (proved live: 6 code pins `found:false → true`
+  against the real agent-spec repo; prefix selectors still cannot overmatch).
+- **On the record**: the 069 closure of the rust-binding row was premature —
+  closure proof accepted a fixture that only covered integration tests. The
+  reopening, root cause, and the new closure proof (real repo, not fixture)
+  are in `.workflows/reviews/fix-round-069.md`. The ledger is now EMPTY:
+  zero queued, zero deferred, zero triggers — first time since the ledger
+  existed.
+
 ## 2026-11-17 — v0.15.5: the queue drains — lint per-file continue, verify rust binding, shared discovery (plan 20261117-069)
 
 - **agent-spec 0.3.3**: multi-file lint no longer aborts at the first parse
