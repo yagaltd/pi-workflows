@@ -1,3 +1,29 @@
+## 2026-11-17 — v0.15.9: the sieve gate — forced-choice triage at proposal entry (plan 20261117-073)
+
+- **The sieve gate** (pattern credit: pi-majordome's sieve, adopted as
+  doctrine, no judge model): every proposal entry (/idea, /plan, /add,
+  /prototype) answers four forced questions from the ask alone — V value, R
+  risk (blast radius), E effort, path — then applies pure outcome rules:
+  nice-to-have/useful + standalone → park (a ledger row, never a plan);
+  severe → park + decompose flag; valuable/must-have + xs → build-direct
+  (lightweight tier, no spec ceremony); else → propose. Obligation flows
+  (/fix, /debug, /docs, /verify, /review) are exempt. The gate block is
+  byte-identical in all four entries (pinned via a shared constant).
+- **Decision rows** gain two required fields: `Cost of inaction:` and
+  `Blast radius:` (each touched flow/gate/repo tagged +, −, or neutral).
+- **agent-spec 0.3.5**: plan-check validates the Sieve section grammar
+  (header-driven, enum-checked, errors name cell + line) — and `Outcome:
+  park` in a plan file is an error: parked ideas are ledger rows, never
+  plans.
+- **tdd-guard 0.1.5**: lint classifies rust repos (SKIPPED-RUST, exit 0,
+  loud line) instead of loud-failing; fixtures excluded from discovery
+  (test-shaped data, not tests); `tsc_and_build_clean` binds the gates
+  selector for real. Completes the rust story: verify resolves via the
+  cargo listing (0.1.4), lint classifies (0.1.5), neither silently passes.
+- **Knowledge promotion** (TokenEconomizer pattern, shape only): a repo fact
+  enters durable doctrine after 3 independent confirmations; contradiction
+  reverts it.
+
 ## 2026-11-17 — v0.15.8: docs currency — the pi-emphasis companion, budgets track truth (plan 20261117-072)
 
 - **README names the reply-style companion**: pi-emphasis — display-only
