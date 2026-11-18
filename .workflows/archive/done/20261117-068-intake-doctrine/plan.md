@@ -89,7 +89,10 @@ per-spec and progress-gating is the honest generalization.
 
 - `templates/FOLLOW-UP-TABLE.md`, `agents/worker.md`, `agents/reviewer.md`,
   `skills/plan/SKILL.md`, `skills/review/SKILL.md` — the four doctrine edits
-  (T1); `specs/**`, `docs/**`, `CHANGELOG.md` — the frozen-spec decision (T2);
-  `CHANGELOG.md` — pi-workflows v0.15.4 entry at SHIP.
+  (T1)
+- the frozen-spec decision (T2) lives in the agent-spec repo — its decision
+  doc, CHANGELOG entry, one frontmatter marker on each of the 11 affected
+  specs, and a pinning integration test — cross-repo, recorded by reference
+- `CHANGELOG.md` — pi-workflows v0.15.4 entry at SHIP
 
 ## Execution Notes
