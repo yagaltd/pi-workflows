@@ -1,3 +1,26 @@
+## 2026-11-17 — v0.15.10: drain the batches — language coverage, parser idioms, plan-check docs (plan 20261117-074)
+
+- **tdd-guard 0.1.6**: python repos classify SKIPPED-PY (loud line, exit 0,
+  mutmut named as the enforcement tool) instead of loud-failing; selector
+  content matching is word-anchored (`test_my_pin` no longer false-positives
+  on `test_my_pin_extended`); package-lock root version synced and pinned by
+  test.
+- **tdd-guard 0.1.7**: the parser unwraps curried wrapper idioms
+  (`test.skipIf(cond)(name, fn)`) — pi-workflows' requireLiveState pattern
+  produced 11 phantom assertionless violations on its real suite; now 0,
+  with the negative pin holding (empty bodies inside the idiom stay flagged
+  by name). The cli derives `--version` from package.json at startup — the
+  hardcoded-string drift class (three occurrences) is dead.
+- **agent-spec docs**: `docs/plan-check.md` documents the command, all four
+  validated sections, and real error shapes — verified line-by-line against
+  src/main.rs by review, pinned by a docs test.
+- **Registry**: the work-loss incident rule — worker diffs are uncommitted
+  until committed post-verdict; no cleanup with uncommitted worker work;
+  `Already up to date` from an expected merge is a stop signal; session
+  replay is the recovery method of record (the T1 worktree destruction was
+  recovered this way; incident + method in
+  `.workflows/reviews/fix-round-074.md`).
+
 ## 2026-11-17 — v0.15.9: the sieve gate — forced-choice triage at proposal entry (plan 20261117-073)
 
 - **The sieve gate** (pattern credit: pi-majordome's sieve, adopted as
