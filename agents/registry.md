@@ -145,6 +145,7 @@ directory → output exactly one line (`VOID — wrong working directory (<found
 - SHIP reports END with the follow-up table (`templates/FOLLOW-UP-TABLE.md`,
   including `Origin`) — mandatory, bounded; no open item may be mentioned in
   prose outside the table (ship step: `skills/review/SKILL.md`).
+- SHIP opens with the one-line scoreboard — `templates/STATUS-VOCABULARY.md`.
 - Terminal-before-report: before ANY completion or ship post, enumerate
   every spawned run — terminal only, result consumed via subagent_result
   (first-hand words, never second-hand citation) — else the report waits.
