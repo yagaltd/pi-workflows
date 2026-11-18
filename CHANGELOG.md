@@ -1,3 +1,29 @@
+## 2026-11-18 — v0.15.15: the judge-extraction suite — plan 077 complete (six tasks)
+
+- **T1 native-surface transport**: nullable output types (architectural abstention
+  → uncertain + Tier 2 — the confident-wrong class fixed at the API level), ONE
+  array-of-objects verdict question per batch (minItems 1 / maxItems 200, per-id
+  coverage check), native `return_probabilities` + `permutations` (the hand-rolled
+  2-call permutation runs DELETED — decompose runs exactly once, pinned), 128K
+  context (chunking only beyond), images pass-through (≤8 data URIs ×10MB, loud
+  skip before any network call), per-question `thinking`+`thinking_budget`,
+  `usage` token accounting surfaced.
+- **T2 claim-verified reporting**: `verifyClaims` — TRUE/FALSE/UNVERIFIABLE per
+  claim; wrong or missing session-turn pointer = FALSE by deterministic
+  pre-check (no judge call burned); FALSE → worker, UNVERIFIABLE → reviewer;
+  `renderClaimDigest` = the compact verified digest the orchestrator receives.
+- **T3/T4 mining**: `mineLog` (LOG → promotion candidates with mandatory
+  line-addressed provenance; below-floor and provenance-less rows DEFERRED — the
+  sieve never sees them) + `doctrineCandidate` (incident → structured
+  rule/trigger/gateBinding candidate; no-rule incident = native abstention).
+  Candidates feed the sieve — never auto-promoted.
+- **T5/T6 extraction**: `extractTaskBrief` (augment-only; harness proves
+  contract-marker parity brief-vs-full-doc 100%) + `draftSpecScenarios`
+  (status "draft" always, nothing ever written to specs/ automatically).
+- **Harness**: 8 modes, all fixture-scored, skips counted never scored.
+- 592 pass / 9 skip / 0 fail (+58 tests); drift + docs-lint CLEAN, lint budgets
+  not raised.
+
 ## 2026-11-18 — v0.15.14: batched-DAG review judging — the default mode (plan 076 Phase 3)
 
 - **Batch**: one call carries ALL scenarios + real file contents within the
