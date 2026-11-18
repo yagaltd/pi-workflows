@@ -51,22 +51,25 @@ const FILES = [
   { path: "README.md", content: "docs reference the PIN export.\n" },
 ];
 
-/** Flat per-scenario answers in the batch encoding: {S1_verdict, S1_confidence,
- *  S1_evidence, ...} for every id found in the input. */
+/** Verdict rows in the native array-of-objects encoding (plan 077 T1): one
+ *  {id, verdict, confidence, evidence} row per scenario present in the input. */
 function flatAnswers(
   scenarios: ReviewScenario[],
   input: string,
-  over?: Record<string, { verdict?: string; confidence?: number }>
+  over?: Record<string, { verdict?: string | null; confidence?: number }>
 ) {
-  const out: Record<string, unknown> = {};
+  const rows: Record<string, unknown>[] = [];
   for (const s of scenarios) {
     if (!input.includes(`Scenario ${s.id}:`)) continue;
     const o = over?.[s.id] ?? {};
-    out[`${s.id}_verdict`] = o.verdict ?? "pass";
-    out[`${s.id}_confidence`] = o.confidence ?? 0.9;
-    out[`${s.id}_evidence`] = `evidence for ${s.id}`;
+    rows.push({
+      id: s.id,
+      verdict: "verdict" in o ? o.verdict : "pass",
+      confidence: o.confidence ?? 0.9,
+      evidence: `evidence for ${s.id}`,
+    });
   }
-  return out;
+  return { verdicts: rows };
 }
 
 const idsIn = (scenarios: ReviewScenario[], input: string): string[] =>
@@ -83,8 +86,8 @@ const orderIn = (scenarios: ReviewScenario[], input: string): string[] =>
     .map((p) => p.id);
 
 /** A capture fake: records every classify (schema, input) pair and answers
- *  from the flat encoding. The batch/DAG runners speak the flat per-scenario
- *  question encoding on top of the unchanged seam. */
+ *  in the native array-of-objects encoding (plan 077 T1). The batch/DAG
+ *  runners speak the native array question on top of the seam. */
 function captureFake(
   scenarios: ReviewScenario[],
   answer?: (schema: object, input: string) => Record<string, unknown> | { skip: string }
@@ -101,7 +104,7 @@ function captureFake(
         skipped: false,
         bucket: null,
         value: out,
-        confidence: typeof out.confidence === "number" ? out.confidence : 0.9,
+        confidence: typeof (out as any).confidence === "number" ? (out as any).confidence : 0.9,
       };
     },
   };
@@ -192,11 +195,10 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
     expect(r.deepRead).toEqual(["S1", "S2", "S3"]);
   });
 
-  test("missing per-scenario keys in the response → that scenario loud-skips, others proceed", async () => {
+  test("missing verdict row in the response → that scenario loud-skips, others proceed", async () => {
     const { backend } = captureFake(SCENARIOS, (_schema, input) => {
-      const out = flatAnswers(SCENARIOS, input);
-      delete out.S3_verdict;
-      delete out.S3_confidence;
+      const out = flatAnswers(SCENARIOS, input) as { verdicts: Record<string, unknown>[] };
+      out.verdicts = out.verdicts.filter((row) => row.id !== "S3");
       return out;
     });
     const r = await reviewVerdictsBatched(backend, SCENARIOS, "d");
@@ -246,7 +248,7 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
     expect(chunked.chunks).toBeGreaterThanOrEqual(2);
   });
 
-  test("the live transport stays on the {context, questions} contract: flat per-scenario questions, one POST", async () => {
+  test("the native array question rides the {context, questions} contract: one POST, no flat keys", async () => {
     const bodies: any[] = [];
     const backend = makeTypellmBackend({
       key: "k",
@@ -258,11 +260,10 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
           text: async () =>
             JSON.stringify({
               result: {
-                S1_verdict: "pass",
-                S1_confidence: 0.9,
-                S1_evidence: "ok",
-                S2_verdict: "fail",
-                S2_confidence: 0.9,
+                verdicts: [
+                  { id: "S1", verdict: "pass", confidence: 0.9 },
+                  { id: "S2", verdict: "fail", confidence: 0.9 },
+                ],
               },
             }),
         };
@@ -270,8 +271,10 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
     } as any);
     const r = await reviewVerdictsBatched(backend, SCENARIOS.slice(0, 2), "d", { files: FILES });
     expect(bodies).toHaveLength(1);
-    expect(bodies[0].questions.S1_verdict.enum).toEqual(REVIEW_VERDICTS);
-    expect(bodies[0].questions.S2_confidence.type).toBe("number");
+    const q: any = bodies[0].questions.verdicts;
+    expect(q.type).toBe("array");
+    expect(q.items.properties.verdict.enum).toEqual(REVIEW_VERDICTS);
+    expect(JSON.stringify(bodies[0].questions)).not.toContain("_verdict");
     expect(bodies[0].context).toContain("Scenario S1:");
     expect(r.results[0].verdict).toBe("pass");
     expect(r.results[1].verdict).toBe("fail");
@@ -280,13 +283,12 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
 
 /* ── DAG decompose ── */
 
-/** A DAG fake: answers the decompose call with a scripted decomposition and
- *  per-scenario verdict calls with the flat encoding. `decomposeValidFor` can
- *  key off the presented scenario order to simulate position bias. */
+/** A DAG fake: answers the ONE decompose call with a scripted decomposition
+ *  and per-scenario verdict calls in the native array encoding. */
 function dagFake(opts: {
   groups: { id: string; scenarios: string[]; depends_on?: string[] }[];
   scenarios?: ReviewScenario[];
-  decomposeValidFor?: (input: string) => boolean;
+  decomposeSkips?: boolean;
   verdictOver?: Record<string, { verdict?: string; confidence?: number }>;
 }) {
   const scenarios = opts.scenarios ?? SCENARIOS;
@@ -297,8 +299,8 @@ function dagFake(opts: {
     async classify(schema, input) {
       if (input.includes(DECOMPOSE_INPUT_MARKER)) {
         decomposeCalls.push(input);
-        if (opts.decomposeValidFor && !opts.decomposeValidFor(input))
-          return { skipped: true, bucket: null, confidence: 0, reason: "degenerate on this order" };
+        if (opts.decomposeSkips)
+          return { skipped: true, bucket: null, confidence: 0, reason: "decompose skipped" };
         return {
           skipped: false,
           bucket: null,
@@ -307,8 +309,8 @@ function dagFake(opts: {
         };
       }
       verdictCalls.push({ schema, input });
-      const out = flatAnswers(scenarios, input, opts.verdictOver);
-      if (Object.keys(out).length === 0)
+      const out = flatAnswers(scenarios, input, opts.verdictOver) as { verdicts: Record<string, unknown>[] };
+      if (out.verdicts.length === 0)
         return { skipped: true, bucket: null, confidence: 0, reason: "unscripted verdict call" };
       return { skipped: false, bucket: null, value: out, confidence: 0.9 };
     },
@@ -316,8 +318,8 @@ function dagFake(opts: {
   return { backend, verdictCalls, decomposeCalls };
 }
 
-describe("DAG review verdicts — decompose, order, context flow (Phase 3)", () => {
-  test("decompose presents scenarios in a PERMUTED order (position-bias control)", async () => {
+describe("DAG review verdicts — decompose, order, context flow (Phase 3, native surface)", () => {
+  test("decompose runs EXACTLY ONCE (position bias is native, not re-presentation)", async () => {
     const f = dagFake({
       groups: [
         { id: "J1", scenarios: ["S1"] },
@@ -326,26 +328,19 @@ describe("DAG review verdicts — decompose, order, context flow (Phase 3)", () 
       ],
     });
     const r = await reviewVerdictsDag(f.backend, SCENARIOS, "d");
-    expect(f.decomposeCalls.length).toBeGreaterThanOrEqual(1);
-    expect(orderIn(SCENARIOS, f.decomposeCalls[0]).join(",")).not.toBe(
-      SCENARIOS.map((s) => s.id).join(",")
-    );
+    expect(f.decomposeCalls.length).toBe(1);
     expect(r.results).toHaveLength(3);
   });
 
-  test("a degenerate decompose on one order is retried on the next permutation (bias control)", async () => {
-    // valid ONLY when the presentation order starts with S2 — the first
-    // (reversed) presentation degenerates; the second permutation rescues it
+  test("a skipped decompose falls back LOUDLY to independent sub-judgments, once", async () => {
     const f = dagFake({
-      groups: [
-        { id: "J1", scenarios: ["S1", "S2"], depends_on: [] },
-        { id: "J2", scenarios: ["S3"], depends_on: ["J1"] },
-      ],
-      decomposeValidFor: (input) => orderIn(SCENARIOS, input)[0] === "S2",
+      groups: [],
+      decomposeSkips: true,
     });
     const r = await reviewVerdictsDag(f.backend, SCENARIOS, "d");
-    expect(f.decomposeCalls.length).toBeGreaterThanOrEqual(2);
-    expect(r.degraded).toBeUndefined();
+    expect(f.decomposeCalls.length).toBe(1);
+    expect(r.degraded).toBeTruthy();
+    expect(r.degraded).toContain("decompose");
     expect(r.results).toHaveLength(3);
   });
 
@@ -384,7 +379,6 @@ describe("DAG review verdicts — decompose, order, context flow (Phase 3)", () 
   test("degenerate decompose (missing scenarios) → LOUD deterministic fallback, verdicts still produced", async () => {
     const f = dagFake({
       groups: [{ id: "J1", scenarios: ["S1", "S9"] }], // S9 does not exist
-      decomposeValidFor: () => true,
     });
     const r = await reviewVerdictsDag(f.backend, SCENARIOS, "d");
     expect(r.degraded).toBeTruthy();
@@ -407,7 +401,7 @@ describe("DAG review verdicts — decompose, order, context flow (Phase 3)", () 
     expect(r.deepRead).toEqual(["S2"]);
   });
 
-  test("call accounting: decompose run(s) + one call per sub-judgment", async () => {
+  test("call accounting: ONE decompose call + one call per sub-judgment", async () => {
     const f = dagFake({
       groups: [
         { id: "J1", scenarios: ["S1", "S2"] },
@@ -415,7 +409,8 @@ describe("DAG review verdicts — decompose, order, context flow (Phase 3)", () 
       ],
     });
     const r = await reviewVerdictsDag(f.backend, SCENARIOS, "d");
-    expect(r.calls).toBe(f.decomposeCalls.length + 2);
+    expect(r.calls).toBe(3);
+    expect(f.decomposeCalls).toHaveLength(1);
     expect(f.verdictCalls).toHaveLength(2);
   });
 });

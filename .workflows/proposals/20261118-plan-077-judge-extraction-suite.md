@@ -1,6 +1,6 @@
 # Proposal — Plan 077: the judge-extraction suite (TypeLLM across pi-workflows' paper layers)
 
-> Status: QUEUED 2026-11-18 (owner: "yes queue all of them") — executes after plan 076 Phase 3 lands (serialized suites, Resources doctrine) · Repo: pi-workflows · Depends on: 076's JudgeBackend seam + harness (landed) + Phase 3 batched-DAG (running)
+> Status: SHIPPED 2026-11-18 (all six tasks landed: native-surface transport + claim verification + LOG mining + incident→doctrine + worker-pack brief + spec-draft; harness modes + fixture tests green) — executed after plan 076 Phase 3 landed (serialized suites, Resources doctrine) · Repo: pi-workflows · Depends on: 076's JudgeBackend seam + harness (landed) + Phase 3 batched-DAG (landed)
 > Origin: owner exchange 2026-11-18 — "typellm could help us save agent tokens, judgment, routing, verification, extraction… something else you see in the typellm api" + the report-normalization refinement (reports are for the orchestrator, not the owner; claims must be verified against session turns)
 
 ## Tasks (one plan, ordered, executed in sequence under the normal gates)
