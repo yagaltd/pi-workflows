@@ -49,3 +49,6 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
    (`adr:DEC-xxx`) (gate: cc-check format, final gate chain). It never restates
    ADR rationale or spec criteria (gate: plan 20261025-012 record), and never
    arrives as a folder-tree or per-file sweep (gate: plan 20261026-039 records).
+7. **Chat-reply decoration stays out.** Status pills and icon glyphs are for
+   chat replies; every tracked Markdown file stays clean (gate:
+   `templates/STATUS-VOCABULARY.md`, the rule of record).

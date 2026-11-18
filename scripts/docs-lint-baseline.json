@@ -3,7 +3,7 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 339,
+      "total": 337,
       "files": {
         "AGENTS.md": 11,
         "README.md": 44,
@@ -43,7 +43,7 @@
         "skills/optimize/SKILL.md": 7,
         "skills/plan/SKILL.md": 36,
         "skills/refactor/SKILL.md": 6,
-        "skills/review/SKILL.md": 16,
+        "skills/review/SKILL.md": 14,
         "templates/ADR-FORMAT.md": 3,
         "templates/AGENTS.md": 3,
         "templates/CONTEXT-FORMAT.md": 1,
@@ -58,7 +58,7 @@
       "files": {}
     },
     "harper-cli": {
-      "total": 1106,
+      "total": 1104,
       "files": {
         "ADR-FORMAT.md": 9,
         "ADR.md": 1,
@@ -67,7 +67,7 @@
         "CONTRACT-FORMAT.md": 19,
         "DECISION.md": 1,
         "DOCS-POLICY.md": 34,
-        "FOLLOW-UP-TABLE.md": 33,
+        "FOLLOW-UP-TABLE.md": 24,
         "PROPOSAL-FORMAT.md": 3,
         "README.md": 47,
         "REVIEW_GUIDELINES.md": 1,

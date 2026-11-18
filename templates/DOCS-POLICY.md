@@ -24,6 +24,9 @@ Referenced by `/init` (README skeleton), `/next` (docs auto-check),
   orchestrator-written (single-writer doctrine).
 - **.workflows/docs/ stays internal** — user-facing material goes to
   README/docs/, never the reverse.
+- **No chat-reply decoration in tracked files** — status pills and Nerd
+  Font glyphs are chat-reply decoration only; tracked Markdown stays
+  clean. Rule of record: `templates/STATUS-VOCABULARY.md`.
 
 ## README freshness gate (the rule with teeth)
 
@@ -46,6 +49,15 @@ doc-drift bug. Enforcement points:
 3. **CHANGELOG step** (SHIP): before commit, the orchestrator appends the
    plan entry (Plan ID, date, user-facing changes) — mechanical, never
    skipped.
+
+## Baseline Budgets Track Truth
+
+`scripts/docs-lint-baseline.json` records measured finding counts — a
+ratchet, not a wish (gate: `bash scripts/docs-lint.sh`). When a task's
+edits lower the measured findings, that task regenerates and commits the
+lowered budgets (`bash scripts/docs-lint.sh --write-baseline`) — budgets
+that stay high after the debt is paid hide the next regression. Raising
+a budget requires the plan's explicit justification.
 
 ## AGENTS.md (project) — binding rules + pointers, nothing else
 
