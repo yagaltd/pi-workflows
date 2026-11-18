@@ -1328,3 +1328,24 @@ describe("prompt doctrine — sieve gate + decision fields + promotion (T1, plan
     expect(vocab).toContain("| build-direct | [[Implement]] |");
   });
 });
+
+describe("prompt doctrine — Resources pre-check in generated charters (T14, owner doctrine 2026-11-16)", () => {
+  const flat = (s: string) => s.replace(/\s+/g, " ");
+  const TEMPLATE = flat(
+    fs.readFileSync(path.join(import.meta.dir, "..", "templates", "AGENTS.md"), "utf8"),
+  );
+  // Matched without the trailing period: the home charter carries a longer
+  // tail ("— resource exhaustion crashes the host.") — the shared prefix is
+  // the contract; the tail is each charter's own emphasis.
+  const SENTENCE =
+    "- Resources: before any test suite or build, verify free CPU and RAM (`free -h` + load average); constrained or many parallel runs → defer or serialize";
+
+  test("template CORE carries the resource pre-check line (host crashed under parallel suite load)", () => {
+    expect(TEMPLATE).toContain(SENTENCE);
+  });
+
+  test("the home AGENTS.md carries the same line (the two must not drift)", () => {
+    const home = flat(fs.readFileSync(path.join(import.meta.dir, "..", "AGENTS.md"), "utf8"));
+    expect(home).toContain(SENTENCE);
+  });
+});

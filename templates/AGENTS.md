@@ -12,6 +12,9 @@
 - Commits: workers never commit, merge, or push; a gate commits after review passes.
 - Refactor first: extend existing structure before adding new surface.
 - TDD: write the failing test with the change, not after; keep the suite green.
+- Resources: before any test suite or build, verify free CPU and RAM
+  (`free -h` + load average); constrained or many parallel runs → defer
+  or serialize.
 - Subtract first: prefer deleting or simplifying over adding.
 - Root causes: fix causes, not symptoms; never patch around a defect.
 - Docs discipline: docs describe current state; history lands only in

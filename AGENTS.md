@@ -9,7 +9,9 @@ Only speak to me in English. No Exceptions.
 - Commits: no agent commits, merges, or pushes; a gate commits only after review passes.
 - Refactor first: extend existing structure before adding new surface.
 - TDD: failing test first, then the fix — `bun test` stays green.
-- Resources: before any test suite or build, verify free CPU and RAM (`free -h` + load average); constrained or many parallel runs → defer or serialize — resource exhaustion crashes the host.
+- Resources: before any test suite or build, verify free CPU and RAM
+  (`free -h` + load average); constrained or many parallel runs → defer
+  or serialize — resource exhaustion crashes the host.
 - Subtract first: prefer deleting or simplifying over adding.
 - Root causes: fix causes, not symptoms; never patch around a defect (gate: `agents/execution-doctrine.md` fix rounds).
 - Docs discipline: docs describe current state, history only in CHANGELOG.md; `scripts/check-drift.sh` stays CLEAN.
