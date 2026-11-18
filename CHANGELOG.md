@@ -1,3 +1,17 @@
+## 2026-11-17 — v0.15.11: the last row closes — tdd-guard discovery widening (build-direct)
+
+- **tdd-guard 0.1.8**: the deferred discovery-widening row closes via its
+  enabler shipped in 0.1.6 (word-anchored selector match). Discovery now
+  finds rust files at any depth and falls back to the working directory as
+  scan root when the probed roots are absent — non-cargo rust-shaped
+  projects classify SKIPPED-RUST instead of loud-failing 0-files. Verify
+  never resolves rust selectors from file content (the listing is the rust
+  inventory of record) — comment-mention false positives die with the
+  substring leg. Orchestrator build-direct under the sieve's own outcome
+  rules (valuable + xs): no spec ceremony, full TDD.
+- Ledger: EMPTY — zero rows, zero triggers, nothing in prose. Second time,
+  and this time with nothing deferred behind it.
+
 ## 2026-11-17 — v0.15.10: drain the batches — language coverage, parser idioms, plan-check docs (plan 20261117-074)
 
 - **tdd-guard 0.1.6**: python repos classify SKIPPED-PY (loud line, exit 0,
