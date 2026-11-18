@@ -2,7 +2,8 @@
 
 The follow-up table is the review's reporting artifact: findings that are real
 but out of the current plan's scope become a queue the next `/idea` can draw
-from (`plan 20261031-047` was seeded exactly this way, from `plan 046`'s fix round).
+from (`plan 20261031-047` was seeded exactly this way, from
+`plan 046`'s fix round).
 
 **Rows are facts, not illustrations.** Every Problem and Impact must come from
 the evidence trail (review verdicts, fix-round findings, LOG entries, scout

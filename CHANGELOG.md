@@ -1,3 +1,28 @@
+## 2026-11-17 — v0.15.4: intake doctrine — triage, in-scope-must-fix, progress-gated rounds (plan 20261117-068)
+
+- **The follow-up table learned triage.** Rows reach the durable queue only via
+  one of: queued (Risk P0–P2) / batched (P3 items bundle per repo-theme,
+  members named) / closed (deleted, why kept in the fix-round trail) / done.
+  P3/S never queues individually. Plan 067's 12 rows came from transcribing
+  worker tables verbatim; this rule is why that never recurs.
+- **In-scope findings are fixed in the loop.** A defect inside the worker's own
+  Allowed Changes gets fixed, not queued; queueing one is now a reviewer
+  finding. The doctrine enforced itself before it even shipped: 068's own
+  reviewer caught its worker doing exactly that, and the fix round resolved it.
+- **Specs pre-authorize adjacent work.** Contract guidance now says to draw
+  Allowed generously (the adjacent fixes the worker will inevitably see), and
+  content-fact scenarios must cite grep-able pins — doc-only specs with
+  unbindable selectors are an authoring defect.
+- **Rounds extend on progress, not on hope.** The reviewer may grant exactly
+  one extra round when findings demonstrably shrink; exhaustion routes loudly
+  to orchestrator adjudication (spec amendment / boundary extension /
+  closure). The default stays `max-rounds: 2` — data: 80/109 tasks pass R1.
+- **agent-spec: the frozen-spec decision** (its repo, `docs/frozen-specs.md`):
+  boundaries-path applies to new and revised specs; 11 historical specs carry
+  `frozen:` markers pinned by a test. The worker also corrected plan 067's
+  truncated "11 findings" — the true set is 16 findings across 11 files; the
+  combined lint run aborts at the first parse error (new P2, queued).
+
 ## 2026-11-17 — v0.15.3: the drain plan — ledger doctrine, docs floor, lint fixes (plan 20261117-067)
 
 - **Ledger doctrine ships.** `templates/FOLLOW-UP-TABLE.md` — dead since plan
