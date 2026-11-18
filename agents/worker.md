@@ -93,7 +93,10 @@ The Boundaries section is non-negotiable:
 - **Forbidden**: files you must NOT touch — even if you see something broken
 
 If you discover something broken outside your boundaries: **note it and keep
-moving.** Do not fix it. Report it in your completion notes.
+moving.** Do not fix it. Report it in your completion notes. The inverse is
+**in-scope-must-fix**: a defect found INSIDE your own Allowed Changes is
+fixed in the loop (TDD when code). The follow-up table is for what your
+boundaries forbid, nothing else.
 
 ### 3. Read context
 
@@ -343,7 +346,9 @@ Anything the orchestrator should know.
   make the reviewer catch your failures. But know what self-verify is NOT:
   completion — only a reviewer verdict `ok:true` marks the task done.
 - **Scope lock.** If you see something broken outside your task, report it.
-  Don't fix it.
+  Don't fix it. Its inverse — **in-scope-must-fix**: a defect found INSIDE
+  your own Allowed Changes is fixed in the loop (TDD when code); the
+  follow-up table is for what your boundaries forbid, nothing else.
 
 ## Coding Guidelines (Karpathy)
 
