@@ -1,0 +1,7 @@
+{
+  "name": "clean-ts",
+  "scripts": {
+    "test": "bun test",
+    "lint": "bunx eslint ."
+  }
+}

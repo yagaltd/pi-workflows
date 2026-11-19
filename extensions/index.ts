@@ -1856,6 +1856,230 @@ export function renderTriageTable(results: TriageResult[]): string {
     .join("\n");
 }
 
+/* ── 9a. The 073 sieve gate on the seam (plan 20261118-078 T1 — consolidation) ──
+ *  The proposal-entry sieve (plan 20261117-073) predates the seam: its four
+ *  forced choices were answered BY HAND from the doctrine gate pinned in the
+ *  proposal-entry skills (idea/plan/add-feature/prototype — tests/prompt-
+ *  doctrine.test.ts T1). This gives the sieve its code surface ON the seam:
+ *  same vocabulary, same pure outcome rules, same confidence floor, same
+ *  loud-skip — one backend everywhere. The judge classifies the forced cells;
+ *  the outcome rules stay deterministic code, byte-identical to the doctrine
+ *  gate. A skip or below-floor verdict routes to the hand-answered doctrine
+ *  path LOUDLY — the gate never closes silently on the judge's word alone,
+ *  and the doctrine blocks remain the primary gate. */
+
+/** The 073 forced-choice vocabulary (byte-identical to the doctrine gate:
+ *  tests/prompt-doctrine.test.ts pins the exact table these mirror). */
+export const SIEVE_VALUE = ["nice-to-have", "useful", "valuable", "must-have"] as const;
+export const SIEVE_RISK = ["trivial", "contained", "serious", "severe"] as const;
+export const SIEVE_EFFORT = ["xs", "s", "m", "l"] as const;
+export const SIEVE_PATH = ["research", "inspect", "grill", "none"] as const;
+export const SIEVE_OUTCOMES = ["park", "build-direct", "propose"] as const;
+export type SieveValue = (typeof SIEVE_VALUE)[number];
+export type SieveRisk = (typeof SIEVE_RISK)[number];
+export type SieveEffort = (typeof SIEVE_EFFORT)[number];
+export type SievePath = (typeof SIEVE_PATH)[number];
+export type SieveOutcome = (typeof SIEVE_OUTCOMES)[number];
+
+/** The pure outcome rules, mirrored 1:1 from the doctrine gate (plan 073's
+ *  normative grammar): nice-to-have/useful + standalone → park; severe → park
+ *  plus a decompose flag; valuable/must-have + xs → build-direct; else
+ *  propose. No weighting, one pass — the judge never invents outcomes. */
+export function sieveOutcome(cells: {
+  value: SieveValue;
+  risk: SieveRisk;
+  effort: SieveEffort;
+  standalone: boolean;
+}): { outcome: SieveOutcome; decomposeFlag: boolean } {
+  if (cells.risk === "severe") return { outcome: "park", decomposeFlag: true };
+  if ((cells.value === "nice-to-have" || cells.value === "useful") && cells.standalone)
+    return { outcome: "park", decomposeFlag: false };
+  if ((cells.value === "valuable" || cells.value === "must-have") && cells.effort === "xs")
+    return { outcome: "build-direct", decomposeFlag: false };
+  return { outcome: "propose", decomposeFlag: false };
+}
+
+/** The sieve classification schema: the four forced cells + the standalone
+ *  bit the park rule reads + the seam's standard confidence/evidence pair. */
+export const SIEVE_SCHEMA = {
+  type: "object",
+  properties: {
+    value: {
+      type: "string",
+      enum: SIEVE_VALUE,
+      description: "V value cell — how much the ask matters: nice-to-have, useful, valuable, or must-have.",
+    },
+    risk: {
+      type: "string",
+      enum: SIEVE_RISK,
+      description: "R risk cell — the blast radius if it goes wrong or grows: trivial, contained, serious, or severe.",
+    },
+    effort: {
+      type: "string",
+      enum: SIEVE_EFFORT,
+      description: "E effort cell — xs an afternoon, s 1-2 days, m days, l a project.",
+    },
+    path: {
+      type: "string",
+      enum: SIEVE_PATH,
+      description: "path cell — what the ask needs before a verdict: research, inspect, grill, or none.",
+    },
+    standalone: {
+      type: "boolean",
+      description:
+        "true when the ask is standalone work on its own; false when it is part of a larger in-flight effort.",
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the forced cells. 0.9+ only when the ask unambiguously fits one cell per column.",
+    },
+    evidence: {
+      type: "string",
+      description: "One short line citing the words in the ask that drove the cells.",
+    },
+  },
+  required: ["value", "risk", "effort", "path", "standalone", "confidence"],
+  additionalProperties: false,
+} as const;
+
+export interface SieveCells {
+  value: SieveValue;
+  risk: SieveRisk;
+  effort: SieveEffort;
+  path: SievePath;
+  standalone: boolean;
+}
+
+/** One sieve verdict. skipped/defaultPath=true is LOUD (`reason` names why):
+ *  the doctrine gate answered by hand applies — never a silent pass. */
+export interface SieveVerdict {
+  skipped: boolean;
+  outcome: SieveOutcome | null;
+  decomposeFlag: boolean;
+  cells: SieveCells | null;
+  confidence: number;
+  evidence?: string;
+  reason?: string;
+  defaultPath: boolean;
+  backend: string;
+}
+
+/** The judge's input: the forced-choice framing over the ask (the harness
+ *  replays this exact construction). */
+export function sieveInput(ask: string): string {
+  return (
+    "Answer the 073 sieve gate for the proposal ask below: four forced choices " +
+    "(V value, R risk, E effort, path) plus whether the ask is standalone work. " +
+    "One pass, no weighting.\n\nProposal ask:\n" +
+    ask
+  );
+}
+
+/** Cells validated against the vocabulary — anything outside it is a loud
+ *  skip, never a guess. */
+function sieveCellsOf(value: unknown): SieveCells | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const cell = (x: unknown, vocab: readonly string[]): string | null =>
+    typeof x === "string" && (vocab as readonly string[]).includes(x) ? x : null;
+  const valueCell = cell(v.value, SIEVE_VALUE);
+  const riskCell = cell(v.risk, SIEVE_RISK);
+  const effortCell = cell(v.effort, SIEVE_EFFORT);
+  const pathCell = cell(v.path, SIEVE_PATH);
+  if (!valueCell || !riskCell || !effortCell || !pathCell || typeof v.standalone !== "boolean") return null;
+  return {
+    value: valueCell as SieveValue,
+    risk: riskCell as SieveRisk,
+    effort: effortCell as SieveEffort,
+    path: pathCell as SievePath,
+    standalone: v.standalone,
+  };
+}
+
+/** Classify one proposal ask through the seam (same key order, same
+ *  loud-skip, same confidence floor as every other judge call): the judge
+ *  answers the four forced cells; the outcome rules run deterministically.
+ *  A backend skip or schema-invalid cells → defaultPath (the hand-answered
+ *  doctrine gate applies, reason surfaced); below-floor keeps the cells for
+ *  visibility but still routes to the default path, loudly. */
+export async function sieveProposal(backend: JudgeBackend, ask: string): Promise<SieveVerdict> {
+  const v = await backend.classify(SIEVE_SCHEMA, sieveInput(ask));
+  const confidence = typeof v.confidence === "number" ? v.confidence : 0;
+  if (v.skipped)
+    return {
+      skipped: true,
+      outcome: null,
+      decomposeFlag: false,
+      cells: null,
+      confidence: 0,
+      reason: v.reason ?? "judge skipped (unspecified)",
+      defaultPath: true,
+      backend: backend.name,
+    };
+  const cells = sieveCellsOf(v.value);
+  if (!cells)
+    return {
+      skipped: true,
+      outcome: null,
+      decomposeFlag: false,
+      cells: null,
+      confidence,
+      reason: "schema-invalid response: forced cells missing or outside the vocabulary",
+      defaultPath: true,
+      backend: backend.name,
+    };
+  const rules = sieveOutcome(cells);
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+    return {
+      skipped: false,
+      outcome: rules.outcome,
+      decomposeFlag: rules.decomposeFlag,
+      cells,
+      confidence,
+      ...(v.evidence !== undefined ? { evidence: v.evidence } : {}),
+      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the hand-answered gate applies`,
+      defaultPath: true,
+      backend: backend.name,
+    };
+  return {
+    skipped: false,
+    outcome: rules.outcome,
+    decomposeFlag: rules.decomposeFlag,
+    cells,
+    confidence,
+    ...(v.evidence !== undefined ? { evidence: v.evidence } : {}),
+    defaultPath: false,
+    backend: backend.name,
+  };
+}
+
+/** The entry-gate rendering — the doctrine gate's table grammar with the
+ *  judged cells and the pure outcome that fired. A skip prints LOUD with the
+ *  hand-answered remediation named. */
+export function renderSieveVerdict(ask: string, v: SieveVerdict): string {
+  const lines: string[] = [
+    `SIEVE GATE (073 forced-choice vocabulary, judged via the seam) — ask: ${ask}`,
+  ];
+  if (!v.cells) {
+    lines.push(
+      `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — answer the four forced choices by hand (the doctrine gate applies)`
+    );
+    return lines.join("\n");
+  }
+  lines.push("| Cell | Verdict |", "|---|---|");
+  lines.push(`| V value | ${v.cells.value} |`);
+  lines.push(`| R risk | ${v.cells.risk} |`);
+  lines.push(`| E effort | ${v.cells.effort} |`);
+  lines.push(`| path | ${v.cells.path} |`);
+  lines.push(`| standalone | ${v.cells.standalone} |`);
+  lines.push(`Outcome: ${v.outcome}${v.decomposeFlag ? " + decompose flag" : ""}`);
+  if (v.defaultPath && v.reason) lines.push(`DEFAULT PATH — ${v.reason}`);
+  return lines.join("\n");
+}
+
 /* ── 9b. Review verdicts (plan 20261117-076 Phase 2) — the Tier-1 first-pass ──
 
  *  The reviewer's ~73 serial prompt checks map to three tiers: Tier 0 =
@@ -3634,6 +3858,788 @@ export async function draftSpecScenarios(
     ...(!scenarios.length ? { reason: "no scenario rows survived schema validation — owner authors them" } : {}),
     ...(v.usage !== undefined ? { usage: v.usage } : {}),
   };
+}
+
+/* ── 15. /init --adopt extraction (plan 078 Task 2) — draft-by-judge, verify-by-gate ──
+ *
+ *  Brownfield /init is analysis-heavy: ONE batched judge call drafts the
+ *  profile/stack/pointer FIRST DRAFT from the repo's tree + build manifests
+ *  (the context the caller assembles). The judge NEVER writes final config:
+ *  the caller writes *.draft files only, then the deterministic lints
+ *  (profile-lint + agents-lint + check-tree) verify every path — a lint
+ *  failure blocks loudly, exactly as the /init brownfield path already
+ *  blocks. Boolean gate-questions ride the same call ("test command
+ *  present", "no key material in charter"). Loud-skip → the existing
+ *  hand-derivation path applies (nothing auto-proceeds on a skip). */
+
+/** The adopt-extraction schema. Commands are nullable — null is the native
+ *  "not detectable", never an invented command (a fictional command is a
+ *  bug the profile-lint bites). Pointer/tree paths must come from the given
+ *  tree listing — the lints verify existence. */
+export const INIT_EXTRACT_SCHEMA = {
+  type: "object",
+  properties: {
+    profileCommands: {
+      type: "object",
+      description:
+        "The project's own commands drafted from its build manifests. null when not detectable — never invent one.",
+      properties: {
+        test: {
+          type: ["string", "null"],
+          description: "the test command (from package.json scripts.test, Cargo.toml, pyproject.toml…), or null when none is detectable",
+        },
+        lint: {
+          type: ["string", "null"],
+          description: "the lint/check command, or null when none is detectable",
+        },
+        build: {
+          type: ["string", "null"],
+          description: "the build command, or null when none is detectable",
+        },
+      },
+      required: ["test", "lint", "build"],
+      additionalProperties: false,
+    },
+    treeDomains: {
+      type: "array",
+      description:
+        "Top-level directory domains as name → repo-relative path. Real directories from the given listing only.",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "short domain name (e.g. src, docs)" },
+          path: { type: "string", description: "repo-relative path exactly as listed (e.g. src)" },
+        },
+        required: ["name", "path"],
+        additionalProperties: false,
+      },
+    },
+    stackDetection: {
+      type: "object",
+      description:
+        "The detected stack, and the installed domain-skill family the charter's review pointers should cite (skip the citation when the stack is not detectable).",
+      properties: {
+        stack: { type: "string", description: "the detected stack (language + runtime), e.g. 'TypeScript (bun)'" },
+        reviewSkills: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "skill names for the charter's review pointers: Rust → rust-review, rust-best-practices, rust-port; web frontend → modern-web-guidance, impeccable; Cloudflare Workers → the workers family, security-audit; not detectable → empty",
+        },
+      },
+      required: ["stack", "reviewSkills"],
+      additionalProperties: false,
+    },
+    charterPointers: {
+      type: "array",
+      description:
+        "Charter pointer candidates: name → an EXISTING repo path from the given listing (a fictional path is a bug).",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "pointer name (e.g. 'Project overview')" },
+          path: { type: "string", description: "repo-relative path that exists in the given listing" },
+        },
+        required: ["name", "path"],
+        additionalProperties: false,
+      },
+    },
+    gates: {
+      type: "object",
+      description: "Boolean gate-questions sanity-checking the draft itself.",
+      properties: {
+        testCommandPresent: {
+          type: "boolean",
+          description: "true only when profileCommands.test is a real detectable command",
+        },
+        noKeyMaterialInCharter: {
+          type: "boolean",
+          description: "true only when no API-key/secret material appears in the drafted pointers or commands",
+        },
+      },
+      required: ["testCommandPresent", "noKeyMaterialInCharter"],
+      additionalProperties: false,
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the draft. 0.9+ only when the manifests decide the fields unambiguously.",
+    },
+    evidence: {
+      type: "string",
+      description: "Which manifests drove the draft.",
+    },
+  },
+  required: ["profileCommands", "treeDomains", "stackDetection", "charterPointers", "gates", "confidence"],
+  additionalProperties: false,
+} as const;
+
+/** The judge-drafted adopt data (before any file is written). */
+export interface AdoptDraft {
+  commands: { test?: string; lint?: string; build?: string };
+  treeDomains: { name: string; path: string }[];
+  stackDetection: { stack: string; reviewSkills: string[] };
+  charterPointers: { name: string; path: string }[];
+  gates: { testCommandPresent: boolean; noKeyMaterialInCharter: boolean };
+  confidence: number;
+  evidence?: string;
+}
+
+export type AdoptExtraction =
+  | { skipped: true; reason: string }
+  | { skipped?: false; draft: AdoptDraft };
+
+/** Fields validated defensively — the recorded replay bypasses the live
+ *  transport's schema validation, so nothing is trusted by shape alone. */
+function adoptDraftOf(value: unknown): AdoptDraft | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const cmd = (x: unknown): string | undefined =>
+    typeof x === "string" && !!x.trim() ? x.trim() : undefined;
+  const pc = v.profileCommands;
+  if (!pc || typeof pc !== "object" || Array.isArray(pc)) return null;
+  const commands: AdoptDraft["commands"] = {};
+  const test = cmd((pc as Record<string, unknown>).test);
+  const lint = cmd((pc as Record<string, unknown>).lint);
+  const build = cmd((pc as Record<string, unknown>).build);
+  if (test) commands.test = test;
+  if (lint) commands.lint = lint;
+  if (build) commands.build = build;
+  const pair = (x: unknown): { name: string; path: string } | null => {
+    if (!x || typeof x !== "object") return null;
+    const p = x as Record<string, unknown>;
+    return typeof p.name === "string" && !!p.name.trim() && typeof p.path === "string" && !!p.path.trim()
+      ? { name: p.name.trim(), path: p.path.trim() }
+      : null;
+  };
+  const treeDomains = Array.isArray(v.treeDomains) ? v.treeDomains.map(pair) : null;
+  const charterPointers = Array.isArray(v.charterPointers) ? v.charterPointers.map(pair) : null;
+  if (!treeDomains || treeDomains.some((x) => x === null)) return null;
+  if (!charterPointers || charterPointers.some((x) => x === null)) return null;
+  const sd = v.stackDetection;
+  if (!sd || typeof sd !== "object") return null;
+  const stack = (sd as Record<string, unknown>).stack;
+  const reviewSkills = (sd as Record<string, unknown>).reviewSkills;
+  if (typeof stack !== "string" || !stack.trim()) return null;
+  if (!Array.isArray(reviewSkills) || reviewSkills.some((s) => typeof s !== "string")) return null;
+  const gates = v.gates;
+  if (!gates || typeof gates !== "object") return null;
+  const tcp = (gates as Record<string, unknown>).testCommandPresent;
+  const nkm = (gates as Record<string, unknown>).noKeyMaterialInCharter;
+  if (typeof tcp !== "boolean" || typeof nkm !== "boolean") return null;
+  return {
+    commands,
+    treeDomains: treeDomains as { name: string; path: string }[],
+    charterPointers: charterPointers as { name: string; path: string }[],
+    stackDetection: {
+      stack: stack.trim(),
+      reviewSkills: (reviewSkills as string[]).map((s) => s.trim()),
+    },
+    gates: { testCommandPresent: tcp, noKeyMaterialInCharter: nkm },
+    confidence: 0,
+  };
+}
+
+/** ONE batched judge call drafts the adopt data. Loud-skip semantics:
+ *  backend skip, schema-invalid fields, or below-floor confidence all return
+ *  skipped with the reason named — the caller's hand-derivation path applies,
+ *  and no draft is written. */
+export async function extractAdoptDraft(
+  backend: JudgeBackend,
+  context: string
+): Promise<AdoptExtraction> {
+  const v = await backend.classify(INIT_EXTRACT_SCHEMA, context);
+  if (v.skipped) return { skipped: true, reason: v.reason ?? "judge skipped (unspecified)" };
+  const confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+    return {
+      skipped: true,
+      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the draft by hand (the /init brownfield path)`,
+    };
+  const draft = adoptDraftOf(v.value);
+  if (!draft) return { skipped: true, reason: "schema-invalid response: draft fields missing or malformed" };
+  return {
+    draft: {
+      ...draft,
+      confidence,
+      ...(v.evidence !== undefined && typeof v.evidence === "string" ? { evidence: v.evidence } : {}),
+    },
+  };
+}
+
+/* ── 16. /plan-time DAG extraction (plan 078 Task 3) — extraction before, validation after ──
+ *
+ *  The landed decompose machinery (§9c's REVIEW_DECOMPOSE_SCHEMA) generalized
+ *  into a plan-edge extractor: plan text → task `Depends On` edges, BEFORE
+ *  spec drafting; plan-check validates the confirmed edges AFTER. Position
+ *  bias is controlled NATIVELY (probabilities + permutations on the edges
+ *  question — endpoint-side averaging over balanced orders; the hand-rolled
+ *  permutation loop stays deleted). The /plan flow renders the edges for the
+ *  OWNER to CONFIRM — a wrong edge is a FINDING, never silent acceptance.
+ *  Loud-skip and the shared confidence floor: a skip or below-floor verdict
+ *  routes to the hand-derived edges (the existing /plan path). */
+
+export const PLAN_DAG_SCHEMA = {
+  type: "object",
+  properties: {
+    edges: {
+      type: "array",
+      description:
+        "One row per task: the task's id and the ids it DEPENDS ON. Every task in the plan appears exactly once; dependsOn is empty when the task has no dependencies.",
+      items: {
+        type: "object",
+        properties: {
+          task: {
+            type: "string",
+            description: "the task id exactly as the plan writes it (e.g. TASK_2 or TASK 2)",
+          },
+          dependsOn: {
+            type: "array",
+            items: { type: "string" },
+            description: "the task ids this task depends on; empty when none",
+          },
+        },
+        required: ["task", "dependsOn"],
+        additionalProperties: false,
+      },
+      // Position-bias control is NATIVE (plan 077 T1, the majordome crib):
+      // probabilities + permutations on the edges question — the endpoint
+      // averages over balanced option orders.
+      probabilities: { permutations: 4 },
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the edges. 0.9+ only when the plan text states the dependencies unambiguously.",
+    },
+    evidence: {
+      type: "string",
+      description: "Which task blocks or table cells drove the edges.",
+    },
+  },
+  required: ["edges", "confidence"],
+  additionalProperties: false,
+} as const;
+
+export interface PlanDagEdge {
+  task: string;
+  dependsOn: string[];
+}
+
+export interface PlanDagFinding {
+  kind: "unknown-task" | "duplicate-task" | "cycle" | "schema-invalid";
+  detail: string;
+}
+
+export interface PlanDagResult {
+  edges: PlanDagEdge[];
+  findings: PlanDagFinding[];
+  skipped: boolean;
+  defaultPath: boolean;
+  reason?: string;
+  backend: string;
+  calls: number;
+  confidence: number;
+}
+
+const normTaskId = (id: string): string => id.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+/** The plan's own stated edges: TASK blocks (`- **Depends on**:` bullets)
+ *  win; the Spec Map table's `Depends On` column fills tasks without a block
+ *  (the draft phase). Ids normalized ("TASK 1" ≡ "TASK_1"). The recorded
+ *  harness replay uses this same parser — the extraction contract replayed
+ *  against its own input. */
+export function parsePlanDeps(planText: string): PlanDagEdge[] {
+  const byTask = new Map<string, PlanDagEdge>();
+  const labelOf = new Map<string, string>();
+  // TASK blocks: `### TASK 1: ...` + `- **Depends on**: ...`
+  const blockRe = /^#{2,4}\s*(TASK[\w\s-]*?)(?=\s*(?::|$))/gm;
+  const depRe = /^\s*-\s*\*\*Depends [Oo]n\*\*:\s*(.+)$/gm;
+  const matches = [...planText.matchAll(blockRe)];
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index ?? 0;
+    const end = i + 1 < matches.length ? matches[i + 1].index ?? planText.length : planText.length;
+    const slice = planText.slice(start, end);
+    const depLine = [...slice.matchAll(depRe)][0]?.[1];
+    const deps = parseDepCell(depLine ?? "none");
+    const id = matches[i][1].replace(/\s+/g, " ").trim();
+    const key = normTaskId(id);
+    if (!byTask.has(key)) {
+      byTask.set(key, { task: id, dependsOn: deps });
+      labelOf.set(key, id);
+    }
+  }
+  // Spec Map table rows: `| TASK_X | ... | deps |` — fills tasks with no block
+  for (const row of planText.matchAll(/^\|\s*(TASK[\w-]*)\s*\|.+\|\s*([^|]*?)\s*\|\s*$/gm)) {
+    const id = row[1];
+    const key = normTaskId(id);
+    if (byTask.has(key)) continue;
+    byTask.set(key, { task: id, dependsOn: parseDepCell(row[2]) });
+    labelOf.set(key, id);
+  }
+  return [...byTask.values()];
+}
+
+/** One `Depends On` cell: "none" / "—" → []; anything else yields the
+ *  TASK ids it names (comma, space, and N-M range separated; ids canonicalized
+ *  to the underscore form — "TASK 1" and "TASK_1" normalize identically). */
+function parseDepCell(cell: string): string[] {
+  const trimmed = cell.trim();
+  if (!trimmed || trimmed === "none" || trimmed === "—") return [];
+  const ids = trimmed.match(/TASK(?:[\w-]+|\s*\d+(?:\s*-\s*\d+)?)?/g) ?? [];
+  const out: string[] = [];
+  for (const raw of ids) {
+    const id = raw.replace(/\s+/g, " ").trim();
+    const range = id.match(/^TASK\s*(\d+)\s*-\s*(\d+)$/i);
+    if (range) {
+      const lo = Number(range[1]);
+      const hi = Number(range[2]);
+      for (let n = lo; n <= hi; n++) out.push(`TASK_${n}`);
+    } else out.push(id.replace(/\s+/g, "_"));
+  }
+  return out;
+}
+
+/** The judge's input: the edge-extraction framing over the plan text. */
+export function planDagInput(planText: string, opts?: { window?: number }): string {
+  const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
+  const body =
+    planText.length > window - 2_000
+      ? `${planText.slice(0, window - 2_000)}…[truncated ${planText.length - (window - 2_000)} chars]`
+      : planText;
+  return (
+    "Extract the task `Depends On` edges from this plan text: one row per " +
+    "task, its id exactly as the plan writes it, and the ids it depends on " +
+    "(empty when none). Every task appears exactly once; do not invent tasks " +
+    "or dependencies that the plan does not state.\n\n" +
+    body
+  );
+}
+
+/** Kahn cycle check over the extracted edges. Returns the tasks stuck in a
+ *  cycle (empty when acyclic). */
+function planDagCycle(edges: PlanDagEdge[]): string[] {
+  const indegree = new Map<string, number>();
+  const byId = new Map<string, PlanDagEdge>();
+  for (const e of edges) {
+    const key = normTaskId(e.task);
+    byId.set(key, e);
+    indegree.set(key, e.dependsOn.filter((d) => byId.has(normTaskId(d)) || true).length);
+  }
+  // only deps that name a task in the extraction count as graph edges
+  for (const e of edges) {
+    const key = normTaskId(e.task);
+    indegree.set(
+      key,
+      e.dependsOn.filter((d) => byId.has(normTaskId(d))).length
+    );
+  }
+  const queue = [...byId.keys()].filter((k) => (indegree.get(k) ?? 0) === 0);
+  const done = new Set<string>();
+  while (queue.length) {
+    const id = queue.pop()!;
+    done.add(id);
+    for (const e of byId.values())
+      if (e.dependsOn.some((d) => normTaskId(d) === id)) {
+        const k = normTaskId(e.task);
+        const n = (indegree.get(k) ?? 1) - 1;
+        indegree.set(k, n);
+        if (n === 0 && !done.has(k)) queue.push(k);
+      }
+  }
+  return [...byId.keys()].filter((k) => !done.has(k)).map((k) => byId.get(k)!.task);
+}
+
+/** Extract the plan's `Depends On` edges through the seam. Unknown ids,
+ *  duplicate rows, cycles, and schema-invalid rows are FINDINGS — the edges
+ *  stay visible for the owner to confirm or correct, never silently
+ *  accepted or dropped. A backend skip or below-floor confidence is LOUD:
+ *  defaultPath=true (the hand-derived edges apply). */
+export async function extractPlanDag(
+  backend: JudgeBackend,
+  planText: string,
+  taskIds?: string[],
+  opts?: { window?: number }
+): Promise<PlanDagResult> {
+  const v = await backend.classify(PLAN_DAG_SCHEMA, planDagInput(planText, opts));
+  const base = { backend: backend.name, calls: 1, findings: [] as PlanDagFinding[] };
+  if (v.skipped)
+    return {
+      ...base,
+      edges: [],
+      skipped: true,
+      defaultPath: true,
+      reason: `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — derive the Depends On edges by hand`,
+      confidence: 0,
+    };
+  const confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+    return {
+      ...base,
+      edges: [],
+      skipped: true,
+      defaultPath: true,
+      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the Depends On edges by hand`,
+      confidence,
+    };
+  const raw = (v.value ?? {}) as Record<string, unknown>;
+  if (raw.edges === null || raw.edges === undefined)
+    return {
+      ...base,
+      edges: [],
+      skipped: false,
+      defaultPath: false,
+      reason: "no extractable edges (native abstention) — confirm the edges by hand",
+      confidence,
+    };
+  if (!Array.isArray(raw.edges))
+    return {
+      ...base,
+      edges: [],
+      skipped: true,
+      defaultPath: true,
+      reason: "schema-invalid response: edges is neither an array nor null",
+      confidence,
+    };
+  const edges: PlanDagEdge[] = [];
+  const findings: PlanDagFinding[] = [];
+  const counts = new Map<string, number>();
+  for (const e of raw.edges as unknown[]) {
+    if (!e || typeof e !== "object" || Array.isArray(e)) {
+      findings.push({ kind: "schema-invalid", detail: "edge row is not an object" });
+      continue;
+    }
+    const row = e as Record<string, unknown>;
+    if (typeof row.task !== "string" || !row.task.trim() || !Array.isArray(row.dependsOn) || row.dependsOn.some((d) => typeof d !== "string")) {
+      findings.push({ kind: "schema-invalid", detail: `edge row malformed for '${String(row.task)}'` });
+      continue;
+    }
+    const edge: PlanDagEdge = { task: row.task.trim(), dependsOn: (row.dependsOn as string[]).map((d) => d.trim()) };
+    edges.push(edge);
+    const key = normTaskId(edge.task);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (taskIds) {
+      const known = new Set(taskIds.map(normTaskId));
+      for (const d of edge.dependsOn)
+        if (!known.has(normTaskId(d)))
+          findings.push({
+            kind: "unknown-task",
+            detail: `${edge.task} depends on '${d}' — no such task id in the plan`,
+          });
+    }
+  }
+  for (const [key, n] of counts)
+    if (n > 1)
+      findings.push({
+        kind: "duplicate-task",
+        detail: `${key} appears ${n} times — every task exactly once`,
+      });
+  const cycle = planDagCycle(edges);
+  if (cycle.length)
+    findings.push({ kind: "cycle", detail: `cyclic Depends On edges through: ${cycle.join(", ")}` });
+  return {
+    edges,
+    findings,
+    skipped: false,
+    defaultPath: false,
+    backend: backend.name,
+    calls: 1,
+    confidence,
+  };
+}
+
+/** The confirmation rendering for the /plan flow: proposed edges + FINDING
+ *  rows (a wrong edge is a finding, never silent acceptance) + the loud
+ *  skip line when the judge is out (the hand-derived path applies). */
+export function renderPlanDagTable(r: PlanDagResult): string {
+  const lines: string[] = [];
+  if (r.skipped) {
+    lines.push(`JUDGE SKIPPED (${r.reason ?? "unspecified"}) — derive the Depends On edges by hand`);
+    return lines.join("\n");
+  }
+  lines.push(
+    "PLAN DAG — proposed `Depends On` edges. The OWNER must CONFIRM or correct " +
+      "every edge; a wrong edge is a finding, never silent acceptance."
+  );
+  lines.push("| task | depends on |");
+  lines.push("|---|---|");
+  for (const e of r.edges) lines.push(`| ${e.task} | ${e.dependsOn.join(", ") || "—"} |`);
+  for (const f of r.findings) lines.push(`FINDING (${f.kind}): ${f.detail}`);
+  if (r.reason) lines.push(r.reason);
+  return lines.join("\n");
+}
+
+/** plan-check's AFTER step: validate the owner-confirmed edges against the
+ *  WRITTEN plan (TASK `Depends on` bullets, Spec Map fallback). A mismatch
+ *  is named per task — wrong edges are a finding. */
+export function validatePlanDag(
+  planText: string,
+  edges: PlanDagEdge[]
+): { ok: boolean; mismatches: string[] } {
+  const plan = parsePlanDeps(planText);
+  const planById = new Map(plan.map((e) => [normTaskId(e.task), e]));
+  const mismatches: string[] = [];
+  for (const e of edges) {
+    const key = normTaskId(e.task);
+    const stated = planById.get(key);
+    if (!stated) {
+      mismatches.push(`${e.task}: not defined in the plan`);
+      continue;
+    }
+    const a = new Set(stated.dependsOn.map(normTaskId));
+    const b = new Set(e.dependsOn.map(normTaskId));
+    const missing = [...a].filter((d) => !b.has(d));
+    const extra = [...b].filter((d) => !a.has(d));
+    if (missing.length || extra.length) {
+      const parts: string[] = [];
+      if (missing.length) parts.push(`plan states ${stated.dependsOn.join(", ") || "none"}`);
+      if (extra.length) parts.push(`edges state ${e.dependsOn.join(", ") || "none"}`);
+      mismatches.push(`${e.task}: Depends On mismatch — ${parts.join("; ")}`);
+    }
+  }
+  return { ok: mismatches.length === 0, mismatches };
+}
+
+/* ── 17. /audit batch verdicts (plan 078 Task 4) — the checklist as typed questions ──
+ *
+ *  The audit checklist becomes many typed questions over ONE codebase batch:
+ *  boolean gate-questions (confirmed), enum severities (P0-P3 — the /audit
+ *  output schema is UNCHANGED), and number evidence counts. Findings are
+ *  pre-verified by the judge; the owner receives the verified digest; the
+ *  uncertain rows stay for the agent (the manual-review queue). /audit
+ *  exists as a pi-workflows command (prompts/audit.md) — this capability
+ *  rides the same seam for it; one classify call per window (128K native;
+ *  a smaller window chunks), calls counted at the seam. Skips and
+ *  below-floor verdicts route the WHOLE batch to the agent, loudly. */
+
+export const AUDIT_SEVERITIES = ["P0", "P1", "P2", "P3"] as const;
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+
+export const AUDIT_BATCH_SCHEMA = {
+  type: "object",
+  properties: {
+    findings: {
+      type: "array",
+      description:
+        "One verified row per candidate finding, in the candidate order. A row you cannot verify from the batch stays confirmed=false — never guess, never drop a candidate.",
+      items: {
+        type: "object",
+        properties: {
+          finding: {
+            type: "string",
+            description: "the finding text, verbatim from the candidate",
+          },
+          severity: {
+            type: "string",
+            enum: AUDIT_SEVERITIES,
+            description:
+              "P0 blocking-critical · P1 major · P2 moderate · P3 minor — the /audit severity vocabulary, unchanged",
+          },
+          confirmed: {
+            type: "boolean",
+            description:
+              "true only when the evidence in the batch visibly supports the finding; ambiguous or missing evidence stays false",
+          },
+          evidenceCount: {
+            type: "integer",
+            minimum: 1,
+            description: "how many distinct pieces of evidence back the row (at least one, even when unconfirmed)",
+          },
+          evidence: {
+            type: "string",
+            description: "one short quote or description of the driving evidence",
+          },
+          fileRefs: {
+            type: "array",
+            items: { type: "string" },
+            description: "file:line references for the evidence, when resolvable",
+          },
+        },
+        required: ["finding", "severity", "confirmed", "evidenceCount"],
+        additionalProperties: false,
+      },
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+      description:
+        "0-1 confidence in the batch verdicts. 0.9+ only when the evidence decides the rows unambiguously.",
+    },
+  },
+  required: ["findings", "confidence"],
+  additionalProperties: false,
+} as const;
+
+export interface AuditCandidate {
+  id?: string;
+  finding: string;
+  claimedSeverity?: string;
+  evidence?: string;
+}
+
+export interface AuditBatchRow {
+  finding: string;
+  severity: AuditSeverity;
+  confirmed: boolean;
+  evidenceCount: number;
+  evidence?: string;
+  fileRefs?: string[];
+}
+
+export interface AuditBatchResult {
+  rows: AuditBatchRow[];
+  /** Uncertain / schema-invalid rows — the agent verifies these by hand. */
+  forAgent: string[];
+  skippedAll: boolean;
+  reason?: string;
+  backend: string;
+  calls: number;
+  confidence: number;
+}
+
+function auditBatchInput(candidates: AuditCandidate[]): string {
+  return (
+    "Verify these audit candidate findings against the evidence carried in " +
+    "each row. One verified row per candidate, in order: a typed severity " +
+    "(P0-P3), the boolean confirmed gate, and the number of distinct pieces " +
+    "of evidence backing it. Ambiguous evidence stays unconfirmed — a guess " +
+    "scores as a miss.\n\n" +
+    candidates
+      .map((c, i) => {
+        const id = c.id ?? `c${i + 1}`;
+        const claimed = c.claimedSeverity ? ` (claimed severity ${c.claimedSeverity})` : "";
+        const ev = c.evidence ? `\nEvidence: ${c.evidence}` : "";
+        return `- [${id}]${claimed} ${c.finding}${ev}`;
+      })
+      .join("\n")
+  );
+}
+
+/** Verify a batch of audit candidates through the seam: ONE classify call
+ *  per window (the native 128K; a smaller window chunks — calls counted).
+ *  Pre-verified rows are the owner's digest; uncertain and schema-invalid
+ *  rows route to the agent, loudly. A backend skip or below-floor confidence
+ *  routes the WHOLE batch to the agent (skippedAll) — never a silent pass. */
+export async function auditBatchVerdicts(
+  backend: JudgeBackend,
+  candidates: AuditCandidate[],
+  opts?: { window?: number }
+): Promise<AuditBatchResult> {
+  const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
+  const rows: AuditBatchRow[] = [];
+  const forAgent: string[] = [];
+  let calls = 0;
+  let confidence = 0;
+  let firstSkipReason: string | undefined;
+  // chunk the candidates so each input fits the window (bounds: the input is
+  // candidates + framing; chunk when the serialized batch would exceed it)
+  const serialize = (list: AuditCandidate[]) => auditBatchInput(list).length;
+  const chunks: AuditCandidate[][] = [];
+  if (candidates.length) {
+    let current: AuditCandidate[] = [];
+    for (const c of candidates) {
+      current.push(c);
+      if (serialize(current) > window - 2_000 && current.length > 1) {
+        chunks.push(current.slice(0, -1));
+        current = [c];
+      }
+    }
+    chunks.push(current);
+  }
+  for (const chunk of chunks) {
+    calls++;
+    const v = await backend.classify(AUDIT_BATCH_SCHEMA, auditBatchInput(chunk));
+    if (v.skipped) {
+      firstSkipReason ??= v.reason ?? "judge skipped (unspecified)";
+      forAgent.push(...chunk.map((c) => c.finding));
+      continue;
+    }
+    const raw = (v.value ?? {}) as Record<string, unknown>;
+    confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
+    if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
+      firstSkipReason ??= `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the agent verifies the batch by hand`;
+      forAgent.push(...chunk.map((c) => c.finding));
+      continue;
+    }
+    const list = Array.isArray(raw.findings) ? (raw.findings as unknown[]) : null;
+    if (!list) {
+      firstSkipReason ??= "schema-invalid response: findings is not an array — the agent verifies the batch by hand";
+      forAgent.push(...chunk.map((c) => c.finding));
+      continue;
+    }
+    const claimedByFinding = new Map(chunk.map((c) => [c.finding, c]));
+    for (const item of list) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      const row = item as Record<string, unknown>;
+      const finding = typeof row.finding === "string" ? row.finding : null;
+      if (!finding) continue;
+      const severity = AUDIT_SEVERITIES.includes(row.severity as AuditSeverity)
+        ? (row.severity as AuditSeverity)
+        : null;
+      const confirmed = typeof row.confirmed === "boolean" ? row.confirmed : null;
+      const evidenceCount =
+        typeof row.evidenceCount === "number" && Number.isInteger(row.evidenceCount) && row.evidenceCount >= 1
+          ? row.evidenceCount
+          : null;
+      const claimed = claimedByFinding.get(finding);
+      if (!severity || !claimed || confirmed === null || evidenceCount === null) {
+        // schema-invalid row (or an invented finding) — the agent takes it, loudly
+        forAgent.push(finding);
+        continue;
+      }
+      if (!confirmed) forAgent.push(finding);
+      rows.push({
+        finding,
+        severity,
+        confirmed,
+        evidenceCount,
+        ...(typeof row.evidence === "string" && row.evidence ? { evidence: row.evidence } : {}),
+        ...(Array.isArray(row.fileRefs)
+          ? { fileRefs: (row.fileRefs as unknown[]).filter((f): f is string => typeof f === "string") }
+          : {}),
+      });
+    }
+  }
+  const skippedAll = forAgent.length === candidates.length && candidates.length > 0;
+  return {
+    rows,
+    forAgent,
+    skippedAll,
+    ...(skippedAll && firstSkipReason !== undefined ? { reason: firstSkipReason } : {}),
+    backend: backend.name,
+    calls,
+    confidence,
+  };
+}
+
+/** The owner's digest — the /audit Phase-3 DISTILL shape, schema unchanged:
+ *  numbered confirmed findings with [Pn] + file:line evidence, then the
+ *  manual-review queue (the agent verifies those by hand). A skip prints
+ *  JUDGE SKIPPED with the remediation named. */
+export function renderAuditDigest(r: AuditBatchResult): string {
+  const lines: string[] = [];
+  if (r.skippedAll)
+    lines.push(`JUDGE SKIPPED (${r.reason ?? "unspecified"}) — the agent verifies the batch by hand`);
+  lines.push(`# Audit batch verdicts (backend ${r.backend}, ${r.calls} call(s))`);
+  const confirmed = r.rows.filter((row) => row.confirmed);
+  lines.push("");
+  lines.push("## Confirmed findings");
+  if (!confirmed.length) lines.push("- (none pre-verified — everything routed to the agent)");
+  confirmed.forEach((row, i) => {
+    const refs = row.fileRefs?.length ? ` — ${row.fileRefs.join(", ")}` : "";
+    const ev = row.evidence ? ` — ${row.evidence}` : "";
+    lines.push(`${i + 1}. [${row.severity}] ${row.finding}${refs}${ev} (${row.evidenceCount} evidence)`);
+  });
+  lines.push("");
+  lines.push("## Manual review queue (the agent verifies by hand)");
+  if (!r.forAgent.length) lines.push("- (empty — every candidate was pre-verified)");
+  for (const f of r.forAgent) lines.push(`- ${f}`);
+  return lines.join("\n");
 }
 
 export default function register(pi: any): void {

@@ -1,6 +1,6 @@
 # Proposal — Plan 078: the judge seam everywhere (command-by-command adoption)
 
-> Status: QUEUED 2026-11-18 (owner: "just occured to me that typellm can help when /restart or init on brownfield to speed things up and verify agent works") — executes after plan 077 lands (serialized; the seam and harness are 077's T1/T-harness) · Repo: pi-workflows
+> Status: SHIPPED 2026-11-19 (queued 2026-11-18 — owner: "just occured to me that typellm can help when /restart or init on brownfield to speed things up and verify agent works") — executed after plan 077 landed (serialized; the seam and harness are 077's T1/T-harness) · Repo: pi-workflows
 > Source: owner exchange 2026-11-18 + the command×capability audit (only /review and /ship have judge integration today)
 
 ## The principle

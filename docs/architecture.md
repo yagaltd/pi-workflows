@@ -522,6 +522,31 @@ modes report accuracy per surface (gate:
 skip is loud and never scored as a pass (gate:
 `tests/bench-plan077.test.ts`).
 
+**The judge seam everywhere** (plan 078) — four more surfaces on the same
+seam, floor, and loud-skip. The 073 proposal-entry sieve now has a code
+surface: `sieveProposal` judges the four forced cells and `sieveOutcome`
+applies the pure outcome rules, byte-identical to the doctrine gate. The
+pinned doctrine text stays primary; a skip routes to the hand-answered
+gate (gate: `tests/sieve-seam.test.ts`; doctrine pins in
+`tests/prompt-doctrine.test.ts`). `/init --adopt` drafts brownfield
+profiles in ONE judge call (`scripts/init-extract.ts`) — draft-by-judge,
+verify-by-gate. The extractor writes `*.draft` files only; the
+deterministic lints (profile-lint, agents-lint, check-tree) bite on every
+path. A lint failure blocks the handoff exactly as before (gate:
+`tests/init-extract.test.ts`, fixtures in `tests/fixtures/init-adopt/`).
+Plan `Depends On` edges extract before spec drafting (`extractPlanDag`;
+position bias is native on the edges question). The owner confirms every
+rendered edge; `validatePlanDag` then validates the confirmed edges
+against the written plan (gate: `tests/plan-dag.test.ts`). The audit
+checklist is many typed questions over one batch (`auditBatchVerdicts`):
+boolean confirmed, the /audit severity vocabulary unchanged, and evidence
+counts. Pre-verified findings digest to the owner; uncertain rows stay
+with the agent (gate: `tests/audit-batch.test.ts`; the audit-prompt
+wiring is a reported follow-up, outside this plan's Allowed Changes).
+Harness modes `sieve`, `initextract`, `plandag`, `auditbatch` report
+fixture accuracy per surface (gate: `scripts/bench-intake-triage.ts` +
+`tests/bench-plan078.test.ts`).
+
 ## Dispatcher and auto-gate
 
 **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's

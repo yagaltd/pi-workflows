@@ -93,10 +93,21 @@ import {
   extractTaskBrief,
   draftSpecScenarios,
   renderSpecDraft,
+  parsePlanDeps,
+  extractPlanDag,
+  renderPlanDagTable,
+  auditBatchVerdicts,
+  renderAuditDigest,
+  type AuditCandidate,
+  type AuditSeverity,
+  sieveInput,
+  sieveProposal,
+  renderSieveVerdict,
   type JudgeBackend,
   type ReviewScenario,
   type ReviewVerdict,
   type ReviewVerdictResult,
+  type SieveOutcome,
   type TriageBucket,
   type TriageResult,
   type ReportClaim,
@@ -1383,6 +1394,580 @@ async function cmdSpecDraft(argv: string[]): Promise<number> {
   return 0;
 }
 
+/* ── sieve mode (plan 078 T1): the 073 proposal-entry sieve on the seam ── */
+
+export interface SieveFixture {
+  id: string;
+  ask: string;
+  expected: SieveOutcome;
+  decomposeFlag?: boolean;
+}
+
+/** The sieve EVAL-SLICE: realistic proposal asks with the 073 outcome ground
+ *  truth (the pure rules applied to the fixture's forced cells). */
+export const SIEVE_FIXTURES: SieveFixture[] = [
+  {
+    id: "s01",
+    ask: "add a --version flag to the CLI that prints the resolved config path — an afternoon of work",
+    expected: "build-direct",
+  },
+  {
+    id: "s02",
+    ask: "rewrite the dispatch engine as a plugin system because it would be tidier",
+    expected: "park",
+  },
+  {
+    id: "s03",
+    ask: "replace the auth layer with a new token scheme — blast radius unclear, touches every flow",
+    expected: "park",
+    decomposeFlag: true,
+  },
+  {
+    id: "s04",
+    ask: "extract the shared judge seam so every command rides one backend",
+    expected: "propose",
+  },
+  {
+    id: "s05",
+    ask: "rename the confusing `bucket` variable across the two triage files",
+    expected: "park",
+  },
+  {
+    id: "s06",
+    ask: "add an artifact exporter with schema validation and a fixture suite",
+    expected: "propose",
+  },
+];
+
+/** Recorded sieve backend: replays the fixture slice's forced cells (the
+ *  outcome rules then run in the SAME deterministic code as live use).
+ *  Unknown asks are a LOUD skip. */
+export function recordedSieveBackend(): JudgeBackend {
+  const byAsk = new Map(SIEVE_FIXTURES.map((f) => [sieveInput(f.ask), f]));
+  return {
+    name: "typellm-recorded-sieve",
+    async classify(schema, input) {
+      const f = byAsk.get(input);
+      if (!f)
+        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: ask not in the fixture slice" };
+      void schema;
+      return {
+        skipped: false,
+        bucket: null,
+        value: {
+          value: f.expected === "park" ? "useful" : f.expected === "build-direct" ? "must-have" : "valuable",
+          risk: f.decomposeFlag ? "severe" : f.expected === "build-direct" ? "trivial" : "contained",
+          effort: f.expected === "build-direct" ? "xs" : f.expected === "propose" ? "s" : "m",
+          path: "none",
+          standalone: f.expected === "park",
+          confidence: 0.9,
+          evidence: `recorded:${f.id}`,
+        },
+        confidence: 0.9,
+        evidence: `recorded:${f.id}`,
+      };
+    },
+  };
+}
+
+export interface SieveScore {
+  name: string;
+  correct: number;
+  total: number;
+  skipped: number;
+  accuracy: number;
+}
+
+/** Score the sieve slice: outcome AND the decompose flag must both match.
+ *  A skip is NEVER a pass (loud-skip doctrine). */
+export async function evalSieveBackend(
+  backend: JudgeBackend,
+  fixtures: SieveFixture[] = SIEVE_FIXTURES
+): Promise<SieveScore> {
+  let correct = 0;
+  let skipped = 0;
+  for (const f of fixtures) {
+    const r = await sieveProposal(backend, f.ask);
+    if (r.skipped || r.defaultPath) {
+      skipped++;
+      continue;
+    }
+    if (r.outcome === f.expected && r.decomposeFlag === (f.decomposeFlag ?? false)) correct++;
+  }
+  return {
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+  };
+}
+
+async function cmdSieve(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  const askIdx = argv.indexOf("--ask");
+  if (askIdx >= 0) {
+    const ask = argv[askIdx + 1] ?? "";
+    if (!ask.trim()) {
+      console.error("usage: bun scripts/bench-intake-triage.ts sieve --ask <proposal ask>");
+      return 2;
+    }
+    const backend = live ? liveBackend() : recordedSieveBackend();
+    const r = await sieveProposal(backend, ask);
+    console.log(renderSieveVerdict(ask, r));
+    if (r.defaultPath)
+      console.error(
+        `JUDGE SKIPPED (${r.reason ?? "below confidence floor"}) — the doctrine gate answered by hand applies`
+      );
+    return 0;
+  }
+  const backend = live ? liveBackend() : recordedSieveBackend();
+  const rows = await evalSieveBackend(backend);
+  console.log(`sieve eval (plan 078 T1 — the 073 gate on the seam) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
+  console.log(
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%`
+  );
+  if (live && rows.skipped === rows.total)
+    console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  return 0;
+}
+
+/* ── initextract mode (plan 078 T2): /init --adopt extraction over fixture repos ── */
+
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import {
+  buildAdoptContext,
+  extractAdoptDraft,
+  initExtractMain,
+  recordedAdoptBackend,
+  verifyAdoptDrafts,
+  writeAdoptDrafts,
+  type AdoptDraft,
+} from "./init-extract.ts";
+
+export interface InitAdoptFixture {
+  id: string;
+  /** Directory under tests/fixtures/init-adopt/ — the fake brownfield tree. */
+  repo: string;
+  expectedCommands: Record<string, string>;
+  expectedStackIncludes: string;
+  /** Whether the deterministic lints must PASS on the drafted files. */
+  expectLintPass: boolean;
+}
+
+export const INIT_ADOPT_FIXTURES: InitAdoptFixture[] = [
+  {
+    id: "ia01",
+    repo: "tests/fixtures/init-adopt/clean-ts",
+    expectedCommands: { test: "bun test", lint: "bunx eslint ." },
+    expectedStackIncludes: "typescript",
+    expectLintPass: true,
+  },
+  {
+    id: "ia02",
+    repo: "tests/fixtures/init-adopt/messy-ts",
+    expectedCommands: { test: "definitely-missing-cmd-078 test" },
+    expectedStackIncludes: "typescript",
+    // bogus command + missing lint + no conventions doc → the lints block loudly
+    expectLintPass: false,
+  },
+];
+
+export interface InitAdoptScore {
+  name: string;
+  correct: number;
+  total: number;
+  skipped: number;
+  accuracy: number;
+  lintVerdictCorrect: number;
+}
+
+/** Copy the fixture repo into a tmpdir, git-init it (the lints resolve paths
+ *  against the walk-up .git), and run the extract→write→verify pipeline. */
+function stageFixtureRepo(fixtureRepo: string): string {
+  const src = path.isAbsolute(fixtureRepo) ? fixtureRepo : path.join(process.cwd(), fixtureRepo);
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "init-adopt-fixture-"));
+  fs.cpSync(src, tmp, { recursive: true });
+  const r = spawnSync("git", ["init", "-q"], { cwd: tmp, encoding: "utf-8" });
+  if (r.status !== 0) throw new Error(`git init failed in fixture staging: ${r.stderr}`);
+  return tmp;
+}
+
+/** Score the initextract mode: the drafted commands + stack must match the
+ *  fixture truth AND the lint verdict must match the expectation (a lint
+ *  failure IS the correct outcome for a messy repo — it blocks loudly). A
+ *  judge skip is never a pass. */
+export async function evalInitAdoptBackend(
+  backend: JudgeBackend,
+  fixtures: InitAdoptFixture[] = INIT_ADOPT_FIXTURES
+): Promise<InitAdoptScore> {
+  let correct = 0;
+  let lintCorrect = 0;
+  let skipped = 0;
+  const roots: string[] = [];
+  for (const f of fixtures) {
+    const root = stageFixtureRepo(f.repo);
+    roots.push(root);
+    const r = await extractAdoptDraft(backend, buildAdoptContext(root));
+    if (r.skipped || !r.draft) {
+      skipped++;
+      continue;
+    }
+    const draftOk =
+      Object.entries(f.expectedCommands).every(([k, v]) => (r.draft as AdoptDraft).commands[k as "test"] === v) &&
+      r.draft.stackDetection.stack.toLowerCase().includes(f.expectedStackIncludes);
+    if (draftOk) correct++;
+    const files = writeAdoptDrafts(root, r.draft);
+    const v = await verifyAdoptDrafts(root, files);
+    if (v.ok === f.expectLintPass) lintCorrect++;
+  }
+  for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
+  return {
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+    lintVerdictCorrect: lintCorrect,
+  };
+}
+
+async function cmdInitExtract(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  const rootIdx = argv.indexOf("--root");
+  if (rootIdx >= 0) {
+    // Real-repo shape: delegate to the extractor CLI itself.
+    const { initExtractMain } = await import("./init-extract.ts");
+    return await initExtractMain(["--root", argv[rootIdx + 1] ?? "", ...(live ? [] : ["--recorded"])]);
+  }
+  const backend = live ? liveBackend() : recordedAdoptBackend();
+  const rows = await evalInitAdoptBackend(backend);
+  console.log(
+    `initextract eval (plan 078 T2 — draft-by-judge, verify-by-gate) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+  );
+  console.log(
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  lintVerdictCorrect=${rows.lintVerdictCorrect}/${rows.total}`
+  );
+  if (live && rows.skipped === rows.total)
+    console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  return 0;
+}
+
+/* ── plandag mode (plan 078 T3): plan text → `Depends On` edges ── */
+
+export interface PlanDagFixture {
+  id: string;
+  plan: string;
+  taskIds?: string[];
+  /** Expected edges (ground truth = what the plan text states). */
+  expected: { task: string; dependsOn: string[] }[];
+  /** Minimum findings the messy fixture must surface (never silent). */
+  expectFindings?: number;
+}
+
+export const PLAN_DAG_FIXTURES: PlanDagFixture[] = [
+  {
+    id: "pd01",
+    plan: [
+      "# Plan 906 — the auth slice",
+      "",
+      "| Task | Agent | Goal | Bottleneck | Testing Strategy | Wave | Depends On |",
+      "|------|-------|------|------------|------------------|------|------------|",
+      "| TASK_1 | scout | Survey auth module | ⚪ STANDARD | — | 0 | — |",
+      "| TASK_2 | worker | Add login API `tdd:` | 🔴 BLOCKING | example-based | 1 | TASK_1 |",
+      "| TASK_3 | worker | Add OAuth flow | 🟡 RISKY | example-based | 1 | TASK_1 |",
+      "| TASK_4 | worker | Rate limiter | 🟠 VERIFICATION_HEAVY | property-based | 2 | TASK_2 |",
+      "",
+      "### TASK 1: Scout auth",
+      "- **Depends on**: none",
+      "",
+      "### TASK 2: Build login",
+      "- **Depends on**: TASK 1",
+      "",
+      "### TASK 3: OAuth",
+      "- **Depends on**: TASK 1",
+      "",
+      "### TASK 4: Rate limiter",
+      "- **Depends on**: TASK 2",
+    ].join("\n"),
+    taskIds: ["TASK_1", "TASK_2", "TASK_3", "TASK_4"],
+    expected: [
+      { task: "TASK_1", dependsOn: [] },
+      { task: "TASK_2", dependsOn: ["TASK_1"] },
+      { task: "TASK_3", dependsOn: ["TASK_1"] },
+      { task: "TASK_4", dependsOn: ["TASK_2"] },
+    ],
+  },
+  {
+    id: "pd02",
+    // messy: the stated deps name a task id that is not in the plan's id list
+    plan: [
+      "# Plan 907 — the messy slice",
+      "",
+      "### TASK 1: Survey",
+      "- **Depends on**: none",
+      "",
+      "### TASK 2: Build",
+      "- **Depends on**: TASK 9",
+    ].join("\n"),
+    taskIds: ["TASK_1", "TASK_2"],
+    expected: [
+      { task: "TASK_1", dependsOn: [] },
+      { task: "TASK_2", dependsOn: ["TASK_9"] },
+    ],
+    expectFindings: 1,
+  },
+];
+
+/** Recorded plan-DAG backend: the extraction contract replayed against its
+ *  own input — parsePlanDeps reads the plan's stated edges back out of the
+ *  input text. Unknown inputs are a LOUD skip. */
+export function recordedPlanDagBackend(): JudgeBackend {
+  return {
+    name: "typellm-recorded-plandag",
+    async classify(schema, input) {
+      void schema;
+      if (!input.includes("Depends On"))
+        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: not a plan-DAG input" };
+      const body = input.split("\n\n").slice(1).join("\n\n");
+      const edges = parsePlanDeps(body);
+      if (!edges.length)
+        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no task blocks in the plan" };
+      return {
+        skipped: false,
+        bucket: null,
+        value: { edges, confidence: 0.9, evidence: "recorded: the plan's stated edges" },
+        confidence: 0.9,
+      };
+    },
+  };
+}
+
+export interface PlanDagScore {
+  name: string;
+  correct: number;
+  total: number;
+  skipped: number;
+  accuracy: number;
+  findings: number;
+}
+
+/** Score the plandag slice: the extracted edge SET must match the plan's
+ *  stated ground truth AND the finding floor must be surfaced. A skip is
+ *  never a pass. */
+export async function evalPlanDagBackend(
+  backend: JudgeBackend,
+  fixtures: PlanDagFixture[] = PLAN_DAG_FIXTURES
+): Promise<PlanDagScore> {
+  let correct = 0;
+  let skipped = 0;
+  let findings = 0;
+  const norm = (id: string) => id.replace(/[^a-z0-9]/gi, "").toLowerCase();
+  for (const f of fixtures) {
+    const r = await extractPlanDag(backend, f.plan, f.taskIds);
+    findings += r.findings.length;
+    if (r.skipped) {
+      skipped++;
+      continue;
+    }
+    const got = new Map(r.edges.map((e) => [norm(e.task), new Set(e.dependsOn.map(norm))]));
+    const want = new Map(f.expected.map((e) => [norm(e.task), new Set(e.dependsOn.map(norm))]));
+    const setOk =
+      got.size === want.size &&
+      [...want.entries()].every(([k, deps]) => {
+        const g = got.get(k);
+        return g && deps.size === g.size && [...deps].every((d) => g.has(d));
+      });
+    const findingsOk = r.findings.length >= (f.expectFindings ?? 0);
+    if (setOk && findingsOk) correct++;
+  }
+  return {
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+    findings,
+  };
+}
+
+async function cmdPlanDag(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  const planIdx = argv.indexOf("--plan");
+  if (planIdx >= 0) {
+    const backend = live ? liveBackend() : recordedPlanDagBackend();
+    const r = await extractPlanDag(backend, fs.readFileSync(argv[planIdx + 1], "utf8"));
+    console.log(renderPlanDagTable(r));
+    if (r.skipped) console.error(r.reason ?? "JUDGE SKIPPED");
+    else if (r.findings.length)
+      console.error(
+        `${r.findings.length} finding(s) — the OWNER must confirm or correct every edge; wrong edges are findings, never silent acceptance`
+      );
+    return 0;
+  }
+  const backend = live ? liveBackend() : recordedPlanDagBackend();
+  const rows = await evalPlanDagBackend(backend);
+  console.log(`plan-DAG eval (plan 078 T3 — extraction before, validation after) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
+  console.log(
+    `${rows.name.padEnd(26)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  findings=${rows.findings}`
+  );
+  if (live && rows.skipped === rows.total)
+    console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  return 0;
+}
+
+/* ── auditbatch mode (plan 078 T4): the audit checklist as typed questions ── */
+
+export interface AuditBatchFixture {
+  id: string;
+  candidates: AuditCandidate[];
+  /** Ground-truth verified rows (finding text is the join key). */
+  expected: { finding: string; severity: AuditSeverity; confirmed: boolean; evidenceCount: number }[];
+}
+
+export const AUDIT_BATCH_FIXTURES: AuditBatchFixture[] = [
+  {
+    id: "ab01",
+    candidates: [
+      { id: "c1", finding: "ship path swallows write failures — errors are caught and never surfaced", claimedSeverity: "P1" },
+      { id: "c2", finding: "typo in a code comment — 'recieve'", claimedSeverity: "P3" },
+      { id: "c3", finding: "the retired gitleaks gate is still documented as active", claimedSeverity: "P2" },
+    ],
+    expected: [
+      { finding: "ship path swallows write failures — errors are caught and never surfaced", severity: "P1", confirmed: true, evidenceCount: 2 },
+      { finding: "typo in a code comment — 'recieve'", severity: "P3", confirmed: true, evidenceCount: 1 },
+      { finding: "the retired gitleaks gate is still documented as active", severity: "P2", confirmed: false, evidenceCount: 1 },
+    ],
+  },
+  {
+    id: "ab02",
+    candidates: [
+      { id: "c1", finding: "auth boundary has no rate limit on the token endpoint", claimedSeverity: "P0", evidence: "no limiter middleware in the auth module" },
+      { id: "c2", finding: "README documents a --format flag the CLI does not implement", claimedSeverity: "P1" },
+    ],
+    expected: [
+      { finding: "auth boundary has no rate limit on the token endpoint", severity: "P0", confirmed: true, evidenceCount: 3 },
+      { finding: "README documents a --format flag the CLI does not implement", severity: "P1", confirmed: true, evidenceCount: 2 },
+    ],
+  },
+];
+
+/** Recorded audit-batch backend: replays the fixture ground truth keyed by
+ *  finding text (with fileRef/evidence dressing). Unknown findings are a
+ *  LOUD unconfirmed route to the agent, never an invented row. */
+export function recordedAuditBatchBackend(): JudgeBackend {
+  const byFinding = new Map<string, (typeof AUDIT_BATCH_FIXTURES)[number]["expected"][number]>(
+    AUDIT_BATCH_FIXTURES.flatMap((f) => f.expected).map((e) => [e.finding, e])
+  );
+  return {
+    name: "typellm-recorded-auditbatch",
+    async classify(schema, input) {
+      void schema;
+      const rows = [...input.matchAll(/^- \[[^\]]+\] (?:\(claimed severity [^)]+\) )?(.+)$/gm)]
+        .map((m) => m[1].trim())
+        .filter((t) => !t.startsWith("Evidence:"));
+      if (!rows.length)
+        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no candidates in the input" };
+      const findings: Record<string, unknown>[] = [];
+      for (const text of rows) {
+        const e = byFinding.get(text);
+        if (!e) {
+          findings.push({ finding: text, severity: "P3", confirmed: false, evidenceCount: 1, evidence: "recorded replay: unknown candidate" });
+          continue;
+        }
+        findings.push({
+          finding: e.finding,
+          severity: e.severity,
+          confirmed: e.confirmed,
+          evidenceCount: e.evidenceCount,
+          evidence: "recorded",
+          fileRefs: e.confirmed ? ["fixtures/audit-batch.ts:1"] : undefined,
+        });
+      }
+      return { skipped: false, bucket: null, value: { findings, confidence: 0.9 }, confidence: 0.9 };
+    },
+  };
+}
+
+export interface AuditBatchScore {
+  name: string;
+  correct: number;
+  total: number;
+  skipped: number;
+  accuracy: number;
+}
+
+/** Score the auditbatch slice: severity + confirmed + evidenceCount must all
+ *  match ground truth. A skip is NEVER a pass. */
+export async function evalAuditBatchBackend(
+  backend: JudgeBackend,
+  fixtures: AuditBatchFixture[] = AUDIT_BATCH_FIXTURES
+): Promise<AuditBatchScore> {
+  let correct = 0;
+  let skipped = 0;
+  let total = 0;
+  for (const f of fixtures) {
+    const r = await auditBatchVerdicts(backend, f.candidates);
+    total += f.expected.length;
+    if (r.skippedAll) {
+      skipped++;
+      continue;
+    }
+    for (const e of f.expected) {
+      const row = r.rows.find((x) => x.finding === e.finding);
+      if (
+        row &&
+        row.severity === e.severity &&
+        row.confirmed === e.confirmed &&
+        row.evidenceCount === e.evidenceCount
+      )
+        correct++;
+    }
+  }
+  return {
+    name: backend.name,
+    correct,
+    total,
+    skipped,
+    accuracy: total ? correct / total : 0,
+  };
+}
+
+async function cmdAuditBatch(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  const candIdx = argv.indexOf("--candidates");
+  if (candIdx >= 0) {
+    const file = argv[candIdx + 1];
+    if (!file) {
+      console.error("usage: bun scripts/bench-intake-triage.ts auditbatch --candidates <candidates.json>");
+      return 2;
+    }
+    const candidates = JSON.parse(fs.readFileSync(file, "utf8")) as AuditCandidate[];
+    const backend = live ? liveBackend() : recordedAuditBatchBackend();
+    const r = await auditBatchVerdicts(backend, candidates);
+    console.log(renderAuditDigest(r));
+    if (r.skippedAll) console.error(r.reason ?? "JUDGE SKIPPED");
+    else
+      console.error(
+        `${r.rows.filter((row) => row.confirmed).length} pre-verified / ${r.forAgent.length} routed to the agent — audit output schema unchanged`
+      );
+    return 0;
+  }
+  const backend = live ? liveBackend() : recordedAuditBatchBackend();
+  const rows = await evalAuditBatchBackend(backend);
+  console.log(
+    `audit-batch eval (plan 078 T4 — pre-verified findings, digest to the owner) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+  );
+  console.log(
+    `${rows.name.padEnd(28)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%`
+  );
+  if (live && rows.skipped === rows.total)
+    console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  return 0;
+}
+
 async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
   switch (cmd) {
@@ -1412,9 +1997,17 @@ async function main(argv: string[]): Promise<number> {
       return await cmdBrief(rest);
     case "specdraft":
       return await cmdSpecDraft(rest);
+    case "sieve":
+      return await cmdSieve(rest);
+    case "initextract":
+      return await cmdInitExtract(rest);
+    case "plandag":
+      return await cmdPlanDag(rest);
+    case "auditbatch":
+      return await cmdAuditBatch(rest);
     default:
       console.error(
-        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>]"
+        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>] | sieve [--live] [--ask <proposal ask>] | initextract [--live] [--root <dir>] | plandag [--live] [--plan <file>] | auditbatch [--live] [--candidates <file>]"
       );
       return 2;
   }
