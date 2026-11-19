@@ -130,6 +130,13 @@ exit 0, no gate semantics).
 
 #### Tier-1 Judge Verdicts (Plan 076)
 
+Tier-0 scanner first (plan 079): run `bun scripts/evasion-scan.ts --files
+<changed-files> [--pins <pins.json>]` before the judge. It closes the
+byte-fact evasion classes: `invisible chars, homoglyphs, env bypasses,
+case swaps`. Exit 1 blocks loudly; the JSON findings ride the verdict
+batch as evidence. Unanswered evasion questions flag Tier 2, never
+silent.
+
 Run the judge first-pass before the reviewer's judgment pass. It judges the
 review's content-fact scenarios (report-vs-diff, docs-vs-code, pin validity,
 claim truthfulness) and feeds the rendered table into the reviewer's prompt —

@@ -547,6 +547,20 @@ Harness modes `sieve`, `initextract`, `plandag`, `auditbatch` report
 fixture accuracy per surface (gate: `scripts/bench-intake-triage.ts` +
 `tests/bench-plan078.test.ts`).
 
+**The evasion-resistant oracle** (plan 079) — the Tier-0 scanner
+`scripts/evasion-scan.ts` closes the byte-fact evasion classes:
+`invisible chars, confusable homoglyphs, env-bypass reads of pinned names,
+case-normalization diff`. Evidence is byte-offset; exit 1 blocks loud
+(gate: `tests/evasion-scan.test.ts`). The scanner runs before the judge;
+every `reviewVerdicts` batch carries the evasion questions plus the scanner
+evidence. An absent answer is a loud Tier-2 flag (gate:
+`tests/evasion-pack.test.ts`). `agents/reviewer.md` folds the
+oracle-binding disclosure rule within the ≤170-line budget (gate:
+`tests/prompt-doctrine.test.ts`). Harness mode `evasion` reports per-mode
+agreement across the exact/normalized/semantic oracle bindings — converging
+agreement across varied oracles is earned, across identical bindings it is
+not (gate: `tests/bench-plan079.test.ts`).
+
 ## Dispatcher and auto-gate
 
 **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's

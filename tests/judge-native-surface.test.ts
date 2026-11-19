@@ -205,7 +205,10 @@ describe("native array-of-objects verdicts (plan 077 T1)", () => {
     await reviewVerdictsBatched(backend, SCENARIOS, "d");
     const schema: any = calls[0].schema;
     const keys = Object.keys(schema.properties);
-    expect(keys).toEqual(["verdicts"]);
+    // plan 20261119-079 T2: the evasion questions ride every batch as ONE
+    // nested question — the verdicts stay ONE native array question, no
+    // flat {id}_verdict keys (the flat-key ban below is untouched).
+    expect(keys.slice().sort()).toEqual(["evasion", "verdicts"]);
     expect(schema.properties.verdicts.type).toBe("array");
     expect(schema.properties.verdicts.items.type).toBe("object");
     expect(schema.properties.verdicts.items.properties.verdict.enum).toEqual(REVIEW_VERDICTS);

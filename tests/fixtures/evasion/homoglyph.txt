@@ -1,0 +1,1 @@
+const cаche = "cache"; // cаche looks like cache — first 'a' is U+0430
