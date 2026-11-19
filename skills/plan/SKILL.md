@@ -132,6 +132,18 @@ scan, quality judgment) at SHIP. Do NOT create plan-level "verify" or
 6. **Plans end at build tasks (+ optional docs task)** — final verification is
    `/review`'s job, not a plan task
 
+### Depends on Edges (Plan-Time DAG Extraction)
+
+The `Depends On` edges can be extracted before spec drafting: run
+`bun scripts/bench-intake-triage.ts plandag --plan <draft-plan-file>` (the
+plan-DAG harness mode; position bias is controlled natively on the edges
+question). The rendered table is CONFIRMATION material — the OWNER confirms
+or corrects every edge, and a wrong edge is reported, never silently
+accepted. JUDGE SKIPPED → derive the edges by hand as usual. After the
+plan is written, plan-check validates the confirmed edges
+(`validatePlanDag` in the extension) — a mismatch is reported, named per
+task.
+
 ### Task ordering
 
 ```text

@@ -124,10 +124,22 @@ project's
    docs-policy, registry, ADR index), tree domains from the approved
    Phase 3 tree, gates in run order (at minimum the charter's
    `scripts/agents-lint.sh`). Brownfield (`/init --adopt`): there are no
-   interview facts — DERIVE the draft: read the build manifests
+   interview facts — run the extractor first: `bun scripts/init-extract.ts
+   --root .` makes ONE batched judge call that drafts the profile commands,
+   tree domains, stack detection, charter pointers, and the gate-questions
+   into DRAFT files. Drafts land at `.workflows/profile.json.draft`,
+   `.workflows/AGENTS.md.draft`, and `.workflows/charter-pointers.draft.md`.
+   The gate-questions are booleans: "test command present" and "no key
+   material in charter". The extractor then runs the deterministic lints on
+   the drafts (profile-lint + agents-lint + check-tree) and reports pass or
+   fail per path. Draft-by-judge, verify-by-gate — the judge never writes
+   final files. A lint failure BLOCKS loudly — correct the draft before
+   presenting. JUDGE SKIPPED (no key / endpoint down / below
+   floor) → derive by hand:
+   read the build manifests
    (`Cargo.toml`, `package.json`, `pyproject.toml`) for test/lint/build
    commands, list the top-level dirs as tree-domain candidates, pick
-   pointer targets that exist on disk — then PRESENT the draft to the
+   pointer targets that exist on disk. Then PRESENT the draft to the
    owner for correction BEFORE linting. Then RUN
    `bash scripts/profile-lint.sh .workflows/profile.json` — a lint
    failure BLOCKS the handoff: fix before presenting (every pointer and

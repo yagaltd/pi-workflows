@@ -1,0 +1,6 @@
+{
+  "name": "messy-ts",
+  "scripts": {
+    "test": "definitely-missing-cmd-078 test"
+  }
+}
