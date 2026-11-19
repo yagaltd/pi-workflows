@@ -1427,3 +1427,53 @@ describe("prompt doctrine — reviewer tier-map restructure (plan 20261117-076 P
     expect(slice).toContain("JUDGE SKIPPED");
   });
 });
+
+// --- plan 20261119-079 T3 — the oracle-binding disclosure rule ---
+// Five MorphNSH review passes reported unearned agreements (a zero-width
+// separator, an env bypass, a case swap) — all one disease: oracle binding
+// too weak, blind spots correlated across passes. The cure in reviewer.md is
+// FOLDED into the existing Tier-2 verification section (subtract-first, no
+// new section; the ≤170-line accretion budget holds), and the doctrine line
+// is pinned verbatim so it cannot drift.
+describe("prompt doctrine — oracle-binding disclosure (plan 20261119-079 T3)", () => {
+  test("the doctrine line is pinned verbatim: an oracle is only worth its binding", () => {
+    expect(REVIEWER).toContain("An oracle is only worth what its binding.");
+  });
+
+  test("oracle strength is a standing Tier-2 audit question (zero-width / env bypass / case swap)", () => {
+    const tier2 = REVIEWER.slice(REVIEWER.indexOf("## Tier 2"));
+    expect(tier2).toContain("oracle");
+    expect(tier2).toContain("zero-width");
+    expect(tier2).toContain("env bypass");
+    expect(tier2).toContain("case swap");
+    expect(tier2).toContain("unaudited agreement is a finding");
+  });
+
+  test("every accepted agreement states what the oracle bound to (matcher + normalization)", () => {
+    const tier2 = REVIEWER.slice(REVIEWER.indexOf("## Tier 2"));
+    expect(tier2).toContain("what the oracle bound to");
+    expect(tier2).toContain("normalization");
+  });
+
+  test("the rule is FOLDED into the existing Tier-2 section — no new section appended", () => {
+    const headings = REVIEWER.match(/^## .*/gm) ?? [];
+    // the tier-map structure is unchanged: Step 0, 0b, Tier 0/1/2,
+    // Output, Rules — the fold adds zero headings. The two fenced report
+    // template lines (## Verdict / ## Verification) are counted apart.
+    const templates = headings.filter(
+      (h) => h.startsWith("## Verdict") || h.startsWith("## Verification")
+    );
+    expect(templates).toHaveLength(2);
+    expect(headings.length - templates.length).toBe(7);
+    expect(REVIEWER.indexOf("An oracle is only worth what its binding.")).toBeGreaterThan(
+      REVIEWER.indexOf("## Tier 2")
+    );
+    expect(REVIEWER.indexOf("An oracle is only worth what its binding.")).toBeLessThan(
+      REVIEWER.indexOf("## Output")
+    );
+  });
+
+  test("the accretion budget holds with the fold (≤170 lines, was 160)", () => {
+    expect(REVIEWER.split("\n").length).toBeLessThanOrEqual(170);
+  });
+});

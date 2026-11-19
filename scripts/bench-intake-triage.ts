@@ -113,6 +113,7 @@ import {
   type ReportClaim,
   type SessionTurn,
 } from "../extensions/index.ts";
+import { foldNormalized, scanText, type EvasionFinding } from "./evasion-scan.ts";
 
 export interface TriageFixture {
   id: string;
@@ -1968,6 +1969,263 @@ async function cmdAuditBatch(argv: string[]): Promise<number> {
   return 0;
 }
 
+/* ── evasion mode (plan 20261119-079 T4): oracle variation between passes ──
+ *  The five MorphNSH passes agreed where they should not — blind spots
+ *  correlated across passes because every pass bound the SAME oracle. The
+ *  harness now varies the binding per pass — exact / normalized
+ *  (NFKC+casefold) / semantic (judge, on Tier-0 scanner evidence) — and
+ *  reports per-mode agreement: converging agreement across VARIED oracles
+ *  is earned; across identical bindings it is not. The fixture slice
+ *  includes the evasion classes that beat the five passes (zero-width
+ *  separator, homoglyph, case swap, env bypass): exact-mode PASSES the
+ *  zero-width case, the normalized/scanner bindings CATCH it — the
+ *  correlation trap, demonstrated deterministically. */
+
+export type OracleMode = "exact" | "normalized" | "semantic";
+export const ORACLE_MODES: OracleMode[] = ["exact", "normalized", "semantic"];
+
+export interface OracleFixture {
+  id: string;
+  /** The pass's agreement claim — the report's quote of the pin. */
+  claim: string;
+  /** The pin: the exact form the spec binds. */
+  pinned: string;
+  /** What the report CLAIMS the diff binds (the claim surface the exact
+   *  oracle reads — the diff never enters it). */
+  claimed: string;
+  /** What the diff ACTUALLY binds — the byte truth. */
+  actual: string;
+  /** Ground truth: is the candidate compliant with the pin? */
+  compliant: boolean;
+  /** The evasion class; absent for the clean pair. */
+  evasion?: "zero-width" | "homoglyph" | "case-swap" | "env-read";
+  /** Pinned names for the scanner's env-bypass scan (env-read fixture). */
+  pins?: string[];
+}
+
+export const ORACLE_FIXTURES: OracleFixture[] = [
+  {
+    id: "o01",
+    claim: "the pin alpha-beta holds on the diff",
+    pinned: "alpha-beta",
+    claimed: "alpha-beta",
+    actual: "alpha-beta",
+    compliant: true,
+  },
+  {
+    id: "o02",
+    claim: "the pin alpha-beta holds on the diff",
+    pinned: "alpha-beta",
+    claimed: "alpha-beta",
+    actual: "alpha\u200B-beta", // the zero-width separator beat pass one
+    compliant: false,
+    evasion: "zero-width",
+  },
+  {
+    id: "o03",
+    claim: "the pin cache holds on the diff",
+    pinned: "cache",
+    claimed: "cache",
+    actual: "c\u0430che", // first 'a' is CYRILLIC SMALL LETTER A
+    compliant: false,
+    evasion: "homoglyph",
+  },
+  {
+    id: "o04",
+    claim: "the pin RootRule holds on the diff",
+    pinned: "RootRule",
+    claimed: "RootRule",
+    actual: "rootrule", // the root rule swapped cases
+    compliant: false,
+    evasion: "case-swap",
+  },
+  {
+    id: "o05",
+    claim: "the key is config-supplied (no env reads)",
+    pinned: "config-only (no env reads)",
+    claimed: "config-only (no env reads)",
+    actual: 'const key = process.env.TYPELLM_API_KEY;', // the env bypass
+    compliant: false,
+    evasion: "env-read",
+    pins: ["TYPELLM_API_KEY"],
+  },
+];
+
+/** The Tier-0 scanner (plan 079 Task 1) over each fixture's ACTUAL binding
+ *  — the byte facts that feed the semantic mode as evidence. */
+export interface OracleScan {
+  id: string;
+  findings: EvasionFinding[];
+}
+
+export function scannerOverFixtures(fixtures: OracleFixture[] = ORACLE_FIXTURES): OracleScan[] {
+  return fixtures.map((f) => ({ id: f.id, findings: scanText(f.actual, f.pins) }));
+}
+
+/** One-line renderer for a scanner finding — the evidence the judge reads. */
+function renderScanFinding(f: EvasionFinding): string {
+  if (f.kind === "invisible-char") return `invisible-char ${f.codepoint} @byte ${f.byteOffset}`;
+  if (f.kind === "confusable") return `confusable ${f.codepoint}->'${f.foldsTo}' @byte ${f.byteOffset}`;
+  if (f.kind === "env-bypass")
+    return `env-bypass ${f.pin ? `pin '${f.pin}'` : "unbound"} ${f.site}${f.caseVariant ? " (CASE-VARIANT)" : ""}`;
+  if (f.kind === "case-diff") return `case-diff ${f.detail}`;
+  return `scan-error ${f.detail}`;
+}
+
+function oracleEvidence(f: OracleFixture, findings: EvasionFinding[]): string {
+  const scanLines = findings.length
+    ? findings.map(renderScanFinding).join("; ")
+    : "none (clean scan)";
+  return `Claimed binding: ${f.claimed}\nActual diff binding: ${f.actual}\nScanner findings: ${scanLines}`;
+}
+
+export interface OracleVerdict {
+  id: string;
+  mode: OracleMode;
+  /** Does THIS oracle accept the pair (agree with the pass's claim)? */
+  agreement: boolean;
+  /** What the mode bound to — the report names it (the doctrine). */
+  binding: string;
+  /** The skip reason when the semantic judge skipped (LOUD, never an agreement). */
+  skipReason?: string;
+}
+
+/** Run the three oracle bindings over the fixture slice. exact binds the
+ *  CLAIM surface only (claimed === pinned — the diff never enters);
+ *  normalized binds the ACTUAL diff text under NFKC+casefold; semantic is
+ *  the judge on the seam, riding the scanner evidence. A semantic skip is
+ *  LOUD: no agreement, reason carried. */
+export async function evalOracleModes(
+  backend: JudgeBackend,
+  fixtures: OracleFixture[] = ORACLE_FIXTURES
+): Promise<OracleVerdict[]> {
+  const scans = scannerOverFixtures(fixtures);
+  const rows: OracleVerdict[] = [];
+  for (const f of fixtures) {
+    const findings = scans.find((s) => s.id === f.id)?.findings ?? [];
+    rows.push({
+      id: f.id,
+      mode: "exact",
+      agreement: f.claimed === f.pinned,
+      binding: "claimed === pinned (exact string; the diff never enters)",
+    });
+    rows.push({
+      id: f.id,
+      mode: "normalized",
+      agreement: foldNormalized(f.actual) === foldNormalized(f.pinned),
+      binding: "NFKC+casefold(actual) === NFKC+casefold(pinned)",
+    });
+    const v = await backend.classify(
+      REVIEW_VERDICT_SCHEMA,
+      scenarioInput({ id: f.id, claim: f.claim }, oracleEvidence(f, findings))
+    );
+    if (v.skipped) {
+      rows.push({
+        id: f.id,
+        mode: "semantic",
+        agreement: false,
+        binding: "judge (semantic, on scanner evidence)",
+        skipReason: v.reason ?? "judge skipped (unspecified)",
+      });
+      continue;
+    }
+    rows.push({
+      id: f.id,
+      mode: "semantic",
+      agreement: v.value?.verdict === "pass",
+      binding: "judge (semantic, on scanner evidence)",
+    });
+  }
+  return rows;
+}
+
+/** The recorded oracle backend: replays the slice's ground truth keyed on
+ *  the exact scenario input (claim + scanner evidence). Deterministic,
+ *  keyless, network-free; unknown input is a LOUD skip. */
+export function recordedOracleBackend(): JudgeBackend {
+  const scans = scannerOverFixtures();
+  const byInput = new Map(
+    ORACLE_FIXTURES.map((f) => [
+      scenarioInput(
+        { id: f.id, claim: f.claim },
+        oracleEvidence(f, scans.find((s) => s.id === f.id)?.findings ?? [])
+      ),
+      f,
+    ])
+  );
+  return {
+    name: "typellm-recorded-oracle",
+    async classify(_schema, input) {
+      const f = byInput.get(input);
+      if (!f)
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "recorded oracle replay: input is not in the oracle fixture slice",
+        };
+      return {
+        skipped: false,
+        bucket: null,
+        value: { verdict: f.compliant ? "pass" : "fail", confidence: 0.9, evidence: `recorded:${f.id}` },
+        confidence: 0.9,
+      };
+    },
+  };
+}
+
+/** The variation report: per-fixture, per-mode agreement + the verdict —
+ *  UNEARNED (a non-compliant fixture accepted somewhere, with the blind
+ *  spot named), EARNED (converging acceptance across VARIED bindings on a
+ *  compliant fixture), or DIVERGENT. */
+export function oracleVariationReport(fixtures: OracleFixture[], rows: OracleVerdict[]): string[] {
+  const lines: string[] = [
+    "oracle variation between passes (plan 20261119-079 T4) — per-mode agreement:",
+    "doctrine: converging agreement across VARIED oracles = earned; across identical bindings = not",
+  ];
+  for (const f of fixtures) {
+    const of = (m: OracleMode) => rows.find((r) => r.id === f.id && r.mode === m);
+    const ex = of("exact");
+    const no = of("normalized");
+    const se = of("semantic");
+    const cell = (r?: OracleVerdict) => (r?.agreement ? "ACCEPT" : "reject");
+    const accepts = [ex?.agreement, no?.agreement, se?.agreement].filter(Boolean).length;
+    const label = f.evasion ?? "clean";
+    const base = `${f.id} ${label}: exact=${cell(ex)} normalized=${cell(no)} semantic=${cell(se)}`;
+    if (!f.compliant && accepts > 0) {
+      const blindSpot =
+        accepts === [ex?.agreement].filter(Boolean).length
+          ? "exact-only acceptance — the exact binding never reads the actual diff"
+          : "correlated blind spot across the accepting bindings — named by the judge";
+      lines.push(`${base} → UNEARNED agreement (${f.evasion} evasion; ${blindSpot})`);
+    } else if (f.compliant && accepts === ORACLE_MODES.length) {
+      lines.push(`${base} → EARNED (converging acceptance across VARIED oracles)`);
+    } else {
+      lines.push(
+        `${base} → DIVERGENT (bindings disagree${se?.skipReason ? `; semantic skipped: ${se.skipReason}` : ""})`
+      );
+    }
+  }
+  return lines;
+}
+
+async function cmdEvasion(argv: string[]): Promise<number> {
+  const live = argv.includes("--live");
+  const backend = live ? liveBackend() : recordedOracleBackend();
+  const scans = scannerOverFixtures();
+  const total = scans.reduce((n, s) => n + s.findings.length, 0);
+  console.log(
+    `evasion mode (plan 20261119-079 T4) — Tier-0 scanner over the oracle fixtures + the variation report — ${live ? "LIVE typellm" : "recorded fixtures"}`
+  );
+  console.log(
+    `scanner: ${total} finding(s) across ${scans.length} fixture(s) (byte facts; the evasion fixtures are EXPECTED to be caught)`
+  );
+  for (const s of scans) for (const f of s.findings) console.log(`  ${s.id}: ${renderScanFinding(f)}`);
+  const rows = await evalOracleModes(backend);
+  for (const line of oracleVariationReport(ORACLE_FIXTURES, rows)) console.log(line);
+  return 0;
+}
+
 async function main(argv: string[]): Promise<number> {
   const [cmd, ...rest] = argv;
   switch (cmd) {
@@ -2005,9 +2263,11 @@ async function main(argv: string[]): Promise<number> {
       return await cmdPlanDag(rest);
     case "auditbatch":
       return await cmdAuditBatch(rest);
+    case "evasion":
+      return await cmdEvasion(rest);
     default:
       console.error(
-        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>] | sieve [--live] [--ask <proposal ask>] | initextract [--live] [--root <dir>] | plandag [--live] [--plan <file>] | auditbatch [--live] [--candidates <file>]"
+        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>] | sieve [--live] [--ask <proposal ask>] | initextract [--live] [--root <dir>] | plandag [--live] [--plan <file>] | auditbatch [--live] [--candidates <file>] | evasion [--live]"
       );
       return 2;
   }

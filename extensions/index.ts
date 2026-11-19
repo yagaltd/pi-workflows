@@ -2173,6 +2173,11 @@ export interface ReviewVerdictResult {
   skippedAll: boolean;
   backend: string;
   reason?: string;
+  /** The evasion-detection pack's assessment (plan 20261119-079 T2). A
+   *  skip, an abstention, or an invalid payload leaves the questions
+   *  UNANSWERED — `unanswered: true` is the loud Tier-2 flag, never a
+   *  silent pass. */
+  evasion?: EvasionAssessment;
 }
 
 /** The judge's input for one scenario: the claim AND the diff summary — the
@@ -2281,6 +2286,18 @@ export function renderVerdictTable(result: ReviewVerdictResult): string {
     lines.push(
       `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 (the judge never closes a review alone)`
     );
+  // plan 20261119-079 T2: the evasion pack renders LOUDLY — unanswered
+  // questions flag Tier 2 (never a guess); answered values surface for the
+  // reviewer's oracle-binding audit.
+  const ev = result.evasion;
+  if (ev?.unanswered)
+    lines.push(
+      `EVASION QUESTIONS UNANSWERED (${ev.reason ?? "unspecified"}) — Tier 2 must audit the oracle binding`
+    );
+  else if (ev)
+    lines.push(
+      `EVASION VERDICTS: invisible_chars=${ev.invisibleChars} env_bypass=${ev.envBypass} normalization_equivalent=${ev.normalizationEquivalent} oracle_binding_stated=${ev.oracleBindingStated}`
+    );
   lines.push(`TIER-1 VERDICT TABLE (backend ${result.backend})`);
   lines.push("| scenario | verdict | confidence | evidence |");
   lines.push("|---|---|---|---|");
@@ -2295,6 +2312,129 @@ export function renderVerdictTable(result: ReviewVerdictResult): string {
     lines.push(`| ${r.scenario} | ${verdictCell} | ${r.confidence} |${ev}`);
   }
   return lines.join("\n");
+}
+
+/* ── 9d. Judge evasion-detection pack (plan 20261119-079 Task 2) ──
+ *  Every reviewVerdicts batch gains the evasion questions — the four
+ *  typed questions below — plus the scanner-evidence section on the batch
+ *  input. The five MorphNSH passes agreed where they should not: a
+ *  zero-width separator, an env bypass, a case swap — all one disease
+ *  (weak oracle binding). The judge is now asked about evasion directly,
+ *  on byte-fact evidence; an unanswered evasion question is a loud
+ *  Tier-2 flag, never a guess. The verdict contract is unchanged. */
+
+/** Evasion-detection questions (plan 20261119-079 Task 2). Evidence-
+ *  quoted; when the scanner did not run the judge ABSTAINS rather than
+ *  guesses, and the unanswered assessment is the loud Tier-2 flag. */
+export const EVASION_INSTRUCTIONS =
+  "Answer from the evidence, quoting it. When the scanner did not run or the " +
+  "evidence cannot decide it, ABSTAIN (omit the answer) rather than guess — an " +
+  "unanswered evasion question is a loud Tier-2 flag, never a guess.";
+
+export const EVASION_QUESTIONS = {
+  invisible_chars: {
+    type: "integer",
+    minimum: 0,
+    description:
+      "How many invisible/zero-width characters does the evidence show " +
+      "(U+200B-200D, U+FEFF, U+2060-2064, variation selectors, tag chars)? " +
+      EVASION_INSTRUCTIONS,
+  },
+  env_bypass: {
+    type: "boolean",
+    description:
+      "Does any pinned literal have a runtime bypass path (an env read that " +
+      "could override pinned behavior) in the evidence? " + EVASION_INSTRUCTIONS,
+  },
+  normalization_equivalent: {
+    type: "boolean",
+    description:
+      "Are the pinned strings equivalent only under NFKC+casefold " +
+      "normalization — i.e. an exact-match oracle would miss them? " +
+      EVASION_INSTRUCTIONS,
+  },
+  oracle_binding_stated: {
+    type: "boolean",
+    description:
+      "Does the evidence state WHAT the oracle bound to (the exact matcher + " +
+      "normalization)? An oracle is only worth what its binding. " +
+      EVASION_INSTRUCTIONS,
+  },
+} as const;
+
+/** The judge's evasion answer, parsed LOUDLY: any absent or invalid field
+ *  leaves that question null and the whole assessment `unanswered` with the
+ *  reason named — flagged for Tier 2, never a silent pass. */
+export interface EvasionAssessment {
+  invisibleChars: number | null;
+  envBypass: boolean | null;
+  normalizationEquivalent: boolean | null;
+  oracleBindingStated: boolean | null;
+  /** LOUD: the questions were not (fully) answered — Tier 2 must audit
+   *  the oracle binding itself. */
+  unanswered: boolean;
+  reason?: string;
+}
+
+function parseEvasionAnswer(
+  value: Record<string, unknown> | undefined,
+  whyDefault: string
+): EvasionAssessment {
+  const ev = value?.evasion;
+  const base: EvasionAssessment = {
+    invisibleChars: null,
+    envBypass: null,
+    normalizationEquivalent: null,
+    oracleBindingStated: null,
+    unanswered: true,
+    reason: `${whyDefault} — evasion questions unanswered`,
+  };
+  if (!ev || typeof ev !== "object" || Array.isArray(ev)) return base;
+  const e = ev as Record<string, unknown>;
+  const num = e.invisible_chars;
+  const invisibleChars = typeof num === "number" && Number.isInteger(num) && num >= 0 ? num : null;
+  const boolOf = (v: unknown) => (typeof v === "boolean" ? v : null);
+  const envBypass = boolOf(e.env_bypass);
+  const normalizationEquivalent = boolOf(e.normalization_equivalent);
+  const oracleBindingStated = boolOf(e.oracle_binding_stated);
+  const missing: string[] = [];
+  if (invisibleChars === null) missing.push("invisible_chars");
+  if (envBypass === null) missing.push("env_bypass");
+  if (normalizationEquivalent === null) missing.push("normalization_equivalent");
+  if (oracleBindingStated === null) missing.push("oracle_binding_stated");
+  if (missing.length)
+    return {
+      ...base,
+      ...(invisibleChars !== null ? { invisibleChars } : {}),
+      ...(envBypass !== null ? { envBypass } : {}),
+      ...(normalizationEquivalent !== null ? { normalizationEquivalent } : {}),
+      ...(oracleBindingStated !== null ? { oracleBindingStated } : {}),
+      reason: `evasion answer incomplete (absent/invalid: ${missing.join(", ")}) — evasion questions unanswered`,
+    };
+  return {
+    invisibleChars,
+    envBypass,
+    normalizationEquivalent,
+    oracleBindingStated,
+    unanswered: false,
+  };
+}
+
+/** The batch input's evasion-evidence section: scanner findings when the
+ *  caller ran the Tier-0 scanner (plan 079 Task 1); otherwise the LOUD
+ *  absence-of-scanner instruction that orders abstention. */
+function evasionEvidenceBlock(evidence?: string): string {
+  if (evidence && evidence.trim())
+    return `EVASION EVIDENCE (deterministic scanner — byte facts; bind to these, quote them):\n${evidence.trim()}\n\n`;
+  return "EVASION EVIDENCE: the scanner did not run — ABSTAIN on the evasion questions rather than guess.\n\n";
+}
+
+/** Fold an evasion assessment across a runner's calls: the first ANSWERED
+ *  assessment wins; when every call left the questions unanswered, the
+ *  first reason surfaces — loud, never silent. */
+function foldEvasion(assessments: EvasionAssessment[]): EvasionAssessment | undefined {
+  if (!assessments.length) return undefined;
+  return assessments.find((a) => !a.unanswered) ?? assessments[0];
 }
 
 /* ── 9c. Batched-DAG review judging (plan 20261117-076 Phase 3, TypeLLM-only) ──
@@ -2357,6 +2497,12 @@ export interface BatchedVerdictOptions {
   /** Per-scenario evidence override (scenario id → its evidence text);
    *  defaults every scenario to the shared diff summary. */
   evidence?: Record<string, string>;
+  /** The Tier-0 scanner's findings (scripts/evasion-scan.ts output, plan
+   *  20261119-079 Task 1) — byte facts that ride the batch input as
+   *  evidence so the judge verdicts on evasion against the scanner, not
+   *  its own reading. Absent → the input says the scanner did not run and
+   *  orders abstention on the evasion questions. */
+  evasionEvidence?: string;
 }
 
 /** Batched result: the Phase-2 verdict result PLUS the mechanics the harness
@@ -2440,7 +2586,10 @@ function chunkScenarios(
  *  array-of-objects question — per-scenario rows {id, verdict, confidence,
  *  evidence} with native minItems/maxItems (≤200, the endpoint cap) and
  *  NATIVE position-bias control {return_probabilities, permutations} on the
- *  question. Nothing REQUIRED at the object level: a missing/short array
+ *  question. Plan 20261119-079 T2: the same schema carries the EVASION
+ *  questions (nested object, transport-expressible) — nothing REQUIRED at
+ *  the object level, so an omitted evasion answer is the honest abstention
+ *  and parses as the loud unanswered flag. Nothing REQUIRED at the verdict-array level: a missing/short array
  *  degrades the scenarios it does not cover, loudly, one per missing id —
  *  never the whole call. */
 export function batchVerdictSchema(scenarioIds: string[]): object {
@@ -2477,6 +2626,16 @@ export function batchVerdictSchema(scenarioIds: string[]): object {
           },
           required: ["id", "verdict"],
         },
+      },
+      // plan 20261119-079 T2: the evasion questions ride every batch.
+      evasion: {
+        type: "object",
+        description:
+          "Answer the evasion-detection questions from the scanner evidence in " +
+          "the input. An oracle is only worth what its binding.",
+        properties: { ...EVASION_QUESTIONS },
+        required: [],
+        additionalProperties: false,
       },
     },
     required: [],
@@ -2607,15 +2766,19 @@ export async function reviewVerdictsBatched(
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const evidenceOf = (id: string) => opts?.evidence?.[id] ?? diffSummary;
   const header = batchHeader();
+  const evasionBlock = evasionEvidenceBlock(opts?.evasionEvidence);
   // Fit the files once against the tightest chunk (the largest one) so every
   // call body stays inside the window.
-  const chunks0 = chunkScenarios(scenarios, evidenceOf, header.length, window);
+  const chunks0 = chunkScenarios(scenarios, evidenceOf, header.length + evasionBlock.length, window);
   const largestBlocks = Math.max(
     0,
     ...chunks0.map((c) => c.reduce((n, s) => n + scenarioBlock(s, evidenceOf(s.id)).length, 0))
   );
-  const filesBlock = fitFilesBlock(opts?.files ?? [], window - header.length - largestBlocks);
-  const prefix = header + filesBlock;
+  const filesBlock = fitFilesBlock(
+    opts?.files ?? [],
+    window - header.length - evasionBlock.length - largestBlocks
+  );
+  const prefix = header + evasionBlock + filesBlock;
   const prefixLength = prefix.length;
   const chunks = chunks0.length > 1 ? chunkScenarios(scenarios, evidenceOf, prefixLength, window) : chunks0;
 
@@ -2623,11 +2786,18 @@ export async function reviewVerdictsBatched(
   let anyUsable = false;
   let firstSkipReason: string | undefined;
   const usage = usageAccumulator();
+  const evasionReads: EvasionAssessment[] = [];
   for (const chunk of chunks) {
     const ids = chunk.map((s) => s.id);
     const input = prefix + chunk.map((s) => scenarioBlock(s, evidenceOf(s.id))).join("");
     const v = await backend.classify(batchVerdictSchema(ids), input);
     usage.add(v.usage);
+    evasionReads.push(
+      parseEvasionAnswer(
+        v.value,
+        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion"
+      )
+    );
     if (v.skipped) {
       const why = v.reason ?? "judge skipped (unspecified)";
       firstSkipReason ??= why;
@@ -2642,6 +2812,7 @@ export async function reviewVerdictsBatched(
   const results = scenarios.map((s) => byId.get(s.id)!).filter(Boolean);
   const skippedAll = !anyUsable && scenarios.length > 0;
   const usageOut = usage.value();
+  const evasion = foldEvasion(evasionReads);
   return {
     results,
     deepRead: results.filter((r) => r.verdict === "uncertain").map((r) => r.scenario),
@@ -2650,6 +2821,7 @@ export async function reviewVerdictsBatched(
     ...(skippedAll && firstSkipReason !== undefined ? { reason: firstSkipReason } : {}),
     calls: chunks.length,
     chunks: chunks.length,
+    ...(evasion !== undefined ? { evasion } : {}),
     ...(usageOut !== undefined ? { usage: usageOut } : {}),
   };
 }
@@ -2794,10 +2966,12 @@ export async function reviewVerdictsDag(
 
   // 2. Execute sub-judgments in the DAG's own order, each fed earlier verdicts.
   const header = batchHeader();
+  const evasionBlock = evasionEvidenceBlock(opts?.evasionEvidence);
   const order = executionOrder(groups);
   const byId = new Map<string, ScenarioVerdict>();
   let anyUsable = false;
   const usage = usageAccumulator();
+  const evasionReads: EvasionAssessment[] = [];
   for (const group of order) {
     const ids = group.scenarios;
     const executed = [...byId.values()];
@@ -2810,15 +2984,24 @@ export async function reviewVerdictsDag(
       const s = scenarios.find((x) => x.id === id)!;
       return n + scenarioBlock(s, evidenceOf(id)).length;
     }, 0);
-    const filesBlock = fitFilesBlock(opts?.files ?? [], window - header.length - contextSection.length - blocksLength);
+    const filesBlock = fitFilesBlock(
+      opts?.files ?? [],
+      window - header.length - evasionBlock.length - contextSection.length - blocksLength
+    );
     const input =
-      header + contextSection + filesBlock +
+      header + evasionBlock + contextSection + filesBlock +
       ids
         .map((id) => scenarioBlock(scenarios.find((x) => x.id === id)!, evidenceOf(id)))
         .join("");
     calls++;
     const v = await backend.classify(batchVerdictSchema(ids), input);
     usage.add(v.usage);
+    evasionReads.push(
+      parseEvasionAnswer(
+        v.value,
+        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion"
+      )
+    );
     if (v.skipped) {
       const why = v.reason ?? "judge skipped (unspecified)";
       firstSkipReason ??= why;
@@ -2834,6 +3017,7 @@ export async function reviewVerdictsDag(
   const results = scenarios.map((s) => byId.get(s.id)!).filter(Boolean);
   const skippedAll = !anyUsable && scenarios.length > 0;
   const usageOut = usage.value();
+  const evasion = foldEvasion(evasionReads);
   return {
     results,
     deepRead: results.filter((r) => r.verdict === "uncertain").map((r) => r.scenario),
@@ -2842,6 +3026,7 @@ export async function reviewVerdictsDag(
     ...(skippedAll && firstSkipReason !== undefined ? { reason: firstSkipReason } : {}),
     calls,
     chunks: order.length,
+    ...(evasion !== undefined ? { evasion } : {}),
     ...(usageOut !== undefined ? { usage: usageOut } : {}),
     ...(degraded !== undefined ? { degraded } : {}),
   };

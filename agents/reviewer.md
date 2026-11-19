@@ -82,6 +82,13 @@ Read the diff with judgment on what no scenario can decide:
 - Any contradiction: report vs diff, spec vs diff, docs-vs-code.
 - The spec's intent: does the change fulfill its goal, not just its letter?
 - Deviations: anything the spec forbids or fails to disclose.
+- Oracle binding (plan 079): audit oracle strength before accepting an
+  agreement — would this oracle catch a zero-width separator, an env bypass,
+  a case swap? Every agreement you accept states what the oracle bound to
+  (matcher + normalization); run the Tier-0 scanner
+  (`bun scripts/evasion-scan.ts --files <diff files>`) and audit its
+  findings first. An unaudited agreement is a finding.
+  An oracle is only worth what its binding.
 
 Uncertain-only deep-read never means judge-only review: Tier 2 always runs.
 Findings from the six judgment questions land in the verdict block like any

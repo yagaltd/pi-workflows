@@ -1,0 +1,2 @@
+plain ASCII rule line: alpha-beta, cache, all pinned names literal.
+No invisible characters, no lookalikes, no env reads here.
