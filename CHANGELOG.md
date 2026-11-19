@@ -1,3 +1,29 @@
+## 2026-11-19 — v0.15.17: the evasion-resistant oracle — plan 079 complete (four tasks)
+
+- **Tier-0 evasion scanner** (`scripts/evasion-scan.ts`): invisible-character
+  byte scan (U+200B–200D, FEFF, 2060, 2061–2064, variation selectors, tag/plane-14+),
+  confusable homoglyph detection (curated cyrillic map + NFKC-fold rule for
+  fullwidth/math), env-bypass scan (pin→read-site pairs, case-variant reads
+  caught), case-normalization diff (exact vs NFKC+casefold). CLI: JSON findings
+  + human lines, exit 1 on any finding / 0 clean. Deterministic, no key — a
+  zero-width separator is a byte fact, and scripts close byte facts.
+- **Judge evasion-detection pack** (§9d): every review batch gains
+  {invisible_chars, env_bypass, normalization_equivalent, oracle_binding_stated};
+  scanner evidence rides the batch input; absent scanner → the judge ABSTAINS
+  (loud); partial/invalid assessments surface with reasons.
+- **Oracle-binding disclosure** (reviewer Tier 2, folded within the ≤170 pin):
+  every agreement states what the oracle bound to; the standing audit question —
+  "would this oracle catch a zero-width separator / env bypass / case swap?";
+  an unaudited agreement is a finding. Doctrine line pinned verbatim:
+  **"An oracle is only worth what its binding."**
+- **Oracle variation modes** (harness): exact / normalized / semantic — the
+  correlation trap demonstrated: the zero-width fixture is exact-ACCEPT /
+  normalized-REJECT / semantic-REJECT → UNEARNED (exact-only acceptance).
+  Converging agreement across varied oracles is earned; across identical
+  oracles it is not.
+- Evasion fixtures: all four classes detected, clean inputs silent.
+- 721 tests — 721 pass / 0 fail on the merged tree; drift + docs-lint CLEAN.
+
 ## 2026-11-19 — v0.15.16: the judge seam everywhere — plan 078 complete (four tasks)
 
 - **Sieve on the seam (T1)**: the 073 proposal-entry sieve gains its code surface
