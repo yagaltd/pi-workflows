@@ -78,9 +78,12 @@ unreviewed counts + first evidence line per confirmed finding.`
 
 ## Phase 3: DISTILL (orchestrator)
 
-Optional pre-distill verification (plan 078): `bun scripts/bench-intake-triage.ts auditbatch --files <changed-files>` runs the
-findings through `auditBatchVerdicts` + `renderAuditDigest` (JudgeBackend seam) — pre-verified rows digest for the owner,
-uncertain/schema-invalid rows route back to the agent. Advisory only: exit 0 always; the orchestrator's distill stays the authority.
+```bash
+# optional pre-distill verification (plan 078): judge seam, advisory only
+bun scripts/bench-intake-triage.ts auditbatch --files <changed-files>
+# pre-verified rows digest to the owner; uncertain rows route to the agent
+# advisory only: exit 0 always; the orchestrator distill stays the authority
+```
 
 ```markdown
 # Audit: <scope> — <PASS | N FINDINGS>
