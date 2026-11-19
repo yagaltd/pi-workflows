@@ -1,3 +1,33 @@
+## 2026-11-19 — v0.15.16: the judge seam everywhere — plan 078 complete (four tasks)
+
+- **Sieve on the seam (T1)**: the 073 proposal-entry sieve gains its code surface
+  ON the JudgeBackend seam — `SIEVE_SCHEMA` (four forced cells + standalone),
+  `sieveOutcome` (byte-identical doctrine outcome rules incl. severe-precedence),
+  `sieveProposal` (same key chain, floor 0.6, loud below-floor routing),
+  `renderSieveVerdict` (doctrine table grammar). Finding of record: 073 was
+  doctrine-only — the orchestrator answered by hand; nothing was deleted.
+- **/init --adopt brownfield extractor (T2)**: `scripts/init-extract.ts` — one
+  batched classify call drafts {profileCommands (nullable — null = not detectable,
+  never invented), treeDomains, stackDetection+reviewSkills, charterPointers} +
+  boolean gate-questions (testCommandPresent, noKeyMaterialInCharter +
+  deterministic KEY_SHAPE backstop) → writes DRAFT files only → runs
+  profile-lint + agents-lint + check-tree per path, lint failure exit 1 (blocks
+  loudly); judge-skip exit 1 with reason → hand-derivation path. Draft-by-judge,
+  verify-by-gate. Fixture repos: clean-ts + messy-ts, 2/2 accuracy.
+- **/plan-time DAG extraction (T3)**: `extractPlanDag` (native position-bias:
+  probabilities.permutations=4) — unknown-task/duplicate/cycle/schema-invalid =
+  FINDINGS, edges stay visible; owner CONFIRM framing; `validatePlanDag`/
+  `parsePlanDeps` (TASK 1≡TASK_1 normalization, N-M ranges) validate confirmed
+  edges AFTER against the written plan.
+- **/audit batch verdicts (T4)**: `auditBatchVerdicts` + `renderAuditDigest` —
+  boolean confirmed + enum P0-P3 + integer evidenceCount ≥1 + fileRefs, one batch
+  per 128K window; pre-verified rows digest to the owner; uncertain rows route to
+  the agent; prompts/audit.md Phase 3 wires the advisory pre-distill verification.
+- **Harness**: +4 modes (sieve 6/6, initextract 2/2, plandag 2/2, auditbatch 5/5);
+  076/077 regression modes 100%.
+- 671 tests — 662 pass / 9 skip / 0 fail; drift + docs-lint CLEAN, budgets NOT
+  raised; all doctrine pins (T9-T14, sieve-gate) green verbatim.
+
 ## 2026-11-18 — v0.15.15: the judge-extraction suite — plan 077 complete (six tasks)
 
 - **T1 native-surface transport**: nullable output types (architectural abstention
