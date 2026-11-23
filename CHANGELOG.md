@@ -1,4 +1,4 @@
-## 2026-11-23 — v0.15.18: WIP batch gate — plan 080 complete (seven tasks)
+## 2026-11-23 — v0.15.18: WIP batch gate — plan 20261122-080 complete (seven tasks)
 
 - **WIP state**: `.workflows/wip/<batch>.json` is the source of truth for an
   active unshipped batch; commit trailers are linkage only.

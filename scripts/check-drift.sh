@@ -104,7 +104,10 @@ durable_knowledge() {
     [ -n "$entry" ] || continue
     path="${entry#!}"
     # .workflows/wip/** is runtime batch state, not durable knowledge; section 13 audits it.
-    case "$path" in .workflows/wip*) continue ;; esac
+    # plan.md and specs/ are live-plan state: valid only while a plan is open.
+    # After SHIP they are archived, so absence is not drift. Archive coverage
+    # (section 11) guards the durable copies.
+    case "$path" in .workflows/wip*|.workflows/plan.md|.workflows/specs/*) continue ;; esac
     count=$((count + 1))
     tracked=$(git ls-files -- "$path" | head -n1)
     if [ -n "$tracked" ]; then

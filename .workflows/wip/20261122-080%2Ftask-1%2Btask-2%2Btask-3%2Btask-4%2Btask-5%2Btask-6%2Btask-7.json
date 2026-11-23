@@ -11,7 +11,7 @@
   ],
   "root_cause": "Close plan 080 with executable WIP batch proof",
   "verdict": ".workflows/reviews/plan-080-final.md",
-  "status": "ready-to-ship",
+  "status": "shipped",
   "created_at": "2026-11-23T00:00:00.000Z",
   "task_ids": [
     "task-1",

@@ -14,9 +14,9 @@ SHIP. Verdict and scope proof are required before the final commit.
 
 ## Context
 
-- `/fix` stops before commit but emits no machine-readable batch identity.
-- `/review` SHIP commits and archives without a WIP verdict/scope check.
-- `/refactor` has per-step commit advice that contradicts its later STOP.
+- the fix skill stops before commit but emits no machine-readable batch identity.
+- the review skill SHIP commits and archives without a WIP verdict/scope check.
+- the refactor skill has per-step commit advice that contradicts its later STOP.
 - `pre-commit` and `mise run ci` share `scripts/check-drift.sh`.
 - `scripts/wf.sh` is the single launcher behind `.mise/tasks/*`.
 - `/init` generates namespaced `wf:*` tasks without touching root mise config.
@@ -25,10 +25,10 @@ SHIP. Verdict and scope proof are required before the final commit.
 
 ## Decisions
 
-- **WIP identity is tracked state**: `.workflows/wip/<batch>.json` is the
+- **WIP identity is tracked state**: .workflows/wip/<batch>.json is the
   source of truth. Commit trailers are linkage only.
-- **`/fix` emits at STOP**: no agent commits; the human approves the commit.
-- **`/review` consumes with proof**: final `ok:true` verdict and scope
+- **the fix skill emits at STOP**: no agent commits; the human approves the commit.
+- **the review skill consumes with proof**: final `ok:true` verdict and scope
   containment are required before SHIP.
 - **One gate point**: check-drift section 13 (`wip`) is consumed by
   pre-commit and `mise run ci`. check-tree stays WARN.
@@ -39,7 +39,7 @@ SHIP. Verdict and scope proof are required before the final commit.
 
 ## Refactor assessment (mandatory)
 
-- **Scan**: `/fix`, `/review`, `/refactor`, pre-commit, `mise run ci`, and
+- **Scan**: the fix skill, the review skill, the refactor skill, pre-commit, `mise run ci`, and
   `dispatchNext` partly cover the flow. No WIP parser or state dir exists.
 - **Verdict**: `extend` — one parser, one state whitelist, one check-drift
   section, one mise task, one init task, thin flow wiring.
@@ -49,10 +49,10 @@ SHIP. Verdict and scope proof are required before the final commit.
 
 Docs impact:
 - `docs/architecture.md` — add the WIP lifecycle and single gate surface.
-- `docs/canon.md` — place WIP state under `.workflows/wip/**`; it is not a
+- `docs/canon.md` — place WIP state under the .workflows/wip state directory; it is not a
   new plan/spec/review type.
-- CHANGELOG: v0.15.18 — WIP batch gate: executable WIP identity, `/fix`
-  emit, `/review` verdict+scope consume, `/refactor` commit resolution,
+- CHANGELOG: v0.15.18 — WIP batch gate: executable WIP identity, the fix skill
+  emit, the review skill verdict+scope consume, the refactor skill commit resolution,
   pre-commit/mise-ci and dispatcher blocks — plan 20261122-080.
 
 `README.md` stays neutral: no command table change is required.
@@ -62,9 +62,9 @@ Docs impact:
 | Task | Agent | Goal | Bottleneck | Testing | Wave | Depends On |
 |------|-------|------|------------|---------|------|------------|
 | TASK 1 | worker | WIP parser + command wiring | 🔴 BLOCKING | example-based | 1 | — |
-| TASK 2 | worker | `/fix` emits WIP | ⚪ STANDARD | prompt pin | 2 | TASK 1 |
-| TASK 3 | worker | `/review` consumes proof | 🟠 VERIFICATION_HEAVY | fixtures | 2 | TASK 1 |
-| TASK 4 | worker | `/refactor` WIP commits | ⚪ STANDARD | prompt pin | 2 | TASK 1 |
+| TASK 2 | worker | the fix skill emits WIP | ⚪ STANDARD | prompt pin | 2 | TASK 1 |
+| TASK 3 | worker | the review skill consumes proof | 🟠 VERIFICATION_HEAVY | fixtures | 2 | TASK 1 |
+| TASK 4 | worker | the refactor skill WIP commits | ⚪ STANDARD | prompt pin | 2 | TASK 1 |
 | TASK 5 | worker | check-drift + pre-commit | 🟠 VERIFICATION_HEAVY | fixture | 2 | TASK 1 |
 | TASK 6 | worker | Dispatcher WIP block | 🟠 VERIFICATION_HEAVY | fixture | 3 | TASK 1 |
 | TASK 7 | worker | Docs + mise/init pins | ⚪ STANDARD | docs-lint | 4 | TASK 2-6 |
@@ -80,7 +80,7 @@ Docs impact:
 - **Verify**: bun test tests/wip.test.ts && node scripts/wip.mjs status --repo .
 - **Status**: ✅ DONE
 
-### TASK 2 (Tier B ⚪): `/fix` emits WIP state at STOP
+### TASK 2 (Tier B ⚪): the fix skill emits WIP state at STOP
 - **Agent**: worker
 - **Depends On**: TASK 1
 - **Wave**: 2
@@ -90,7 +90,7 @@ Docs impact:
 - **Verify**: bun test tests/fix-wip.test.ts
 - **Status**: ✅ DONE
 
-### TASK 3 (Tier B 🟠): `/review` consumes verdict and scope
+### TASK 3 (Tier B 🟠): the review skill consumes verdict and scope
 - **Agent**: worker
 - **Depends On**: TASK 1
 - **Wave**: 2
@@ -100,7 +100,7 @@ Docs impact:
 - **Verify**: bun test tests/review-wip.test.ts
 - **Status**: ✅ DONE
 
-### TASK 4 (Tier B ⚪): `/refactor` WIP state resolves commit contradiction
+### TASK 4 (Tier B ⚪): the refactor skill WIP state resolves commit contradiction
 - **Agent**: worker
 - **Depends On**: TASK 1
 - **Wave**: 2
