@@ -24,6 +24,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { checkTree } from "./check-tree.mjs";
 import {
   extractAdoptDraft,
@@ -37,6 +38,73 @@ export type { AdoptDraft } from "../extensions/index.ts";
 
 /** Consumer-side destination for the generated pi-workflows task bridge. */
 export const INIT_MISE_FRAGMENT_PATH = "mise/conf.d/pi-workflows.toml";
+
+/** Markers make the injected persona replaceable without owning the file. */
+export const INIT_PERSONA_BEGIN = "<!-- pi-workflows:begin main-agent persona -->";
+export const INIT_PERSONA_END = "<!-- pi-workflows:end main-agent persona -->";
+
+const PACKAGE_ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const APPEND_SYSTEM_NEGATION = "!.pi/APPEND_SYSTEM.md";
+const WIP_NEGATION = "!.workflows/wip/";
+const WIP_CONTENTS_IGNORE = ".workflows/wip/**";
+const WIP_CONTENTS_NEGATION = `!${WIP_CONTENTS_IGNORE}`;
+
+/** Read the canonical persona verbatim from the installed package. */
+export function readCanonicalPersona(root: string = PACKAGE_ROOT): string {
+  return fs.readFileSync(path.join(root, "agents", "orchestrator.md"), "utf8");
+}
+
+/** Wrap the full persona text; never emit a relative pointer to its source. */
+export function buildInitPersonaFragment(personaText: string): string {
+  const text = personaText.endsWith("\n") ? personaText : `${personaText}\n`;
+  return `${INIT_PERSONA_BEGIN}\n${text}${INIT_PERSONA_END}\n`;
+}
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Append the fragment or replace only its marked block, preserving user text. */
+export function mergeAppendSystem(existing: string | null, fragment: string): string {
+  const normalized = fragment.endsWith("\n") ? fragment : `${fragment}\n`;
+  if (existing == null || existing.trim() === "") return normalized;
+
+  const marked = new RegExp(
+    `${escapeRegExp(INIT_PERSONA_BEGIN)}[\\s\\S]*?${escapeRegExp(INIT_PERSONA_END)}\\r?\\n?`,
+  );
+  if (marked.test(existing)) return existing.replace(marked, normalized);
+
+  const separator = existing.endsWith("\n\n") ? "" : existing.endsWith("\n") ? "\n" : "\n\n";
+  return `${existing}${separator}${normalized}`;
+}
+
+/** Keep unrelated ignore rules, make the negations effective, stay idempotent. */
+export function mergeInitGitignore(existing: string | null): string {
+  const source = existing ?? "";
+  const lines = source.length ? source.replace(/\r\n/g, "\n").split("\n") : [];
+  if (lines.at(-1) === "") lines.pop();
+
+  for (let i = 0; i < lines.length; i++) if (lines[i] === ".pi/") lines[i] = ".pi/*";
+  const needsContentsNegation = lines.includes(WIP_CONTENTS_IGNORE);
+  const merged = lines.filter(
+    (line) =>
+      line !== APPEND_SYSTEM_NEGATION &&
+      line !== WIP_NEGATION &&
+      line !== WIP_CONTENTS_NEGATION,
+  );
+
+  const piIndex = merged.lastIndexOf(".pi/*");
+  if (piIndex >= 0) merged.splice(piIndex + 1, 0, APPEND_SYSTEM_NEGATION);
+  else merged.push(APPEND_SYSTEM_NEGATION);
+
+  const workflowsIndex = merged.lastIndexOf(".workflows/*");
+  if (workflowsIndex >= 0) merged.splice(workflowsIndex + 1, 0, WIP_NEGATION);
+  else merged.push(WIP_NEGATION);
+
+  // A consumer's later `.workflows/wip/**` ignore outranks the directory
+  // negation, so re-include the files after it as well.
+  if (needsContentsNegation) merged.push(WIP_CONTENTS_NEGATION);
+  return merged.join("\n") + "\n";
+}
 
 /** Deterministic fragment content: only namespaced wrappers over the launcher. */
 const INIT_WF_TASKS = [

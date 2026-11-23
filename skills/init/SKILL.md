@@ -222,6 +222,17 @@ project's
    define `check`/`verify`, do not create a legacy task manifest, and do not
    replace the repo's own tasks. Record the path in the handoff and the
    `.workflows/LOG.md` recommendation (LOG writes stay gate-only).
+
+   **Persona bridge: main-agent persona (gate: owner approval):**
+   When the installed package's canonical `agents/orchestrator.md` is present,
+   read it with `readCanonicalPersona()` and, after the owner approves the
+   generated paths, write `.pi/APPEND_SYSTEM.md` with
+   `mergeAppendSystem(existing, buildInitPersonaFragment(personaText))`.
+   Merge the consumer `.gitignore` with `mergeInitGitignore(existing)` so
+   `!.pi/APPEND_SYSTEM.md` and `!.workflows/wip/` survive broad ignore rules.
+   Never overwrite unrelated `.pi/APPEND_SYSTEM.md` content, edit root
+   `mise.toml`, define repo `check`/`verify`, or change the persona source.
+   Report both generated paths in the handoff; LOG writes stay gate-only.
 8. **Docs consolidation**: triage loose root-level `*.md`
    design/roadmap/refactor notes using the Phase 3 TREE listing. Greenfield:
    there are typically none — state that and skip this step cleanly.
