@@ -41,6 +41,7 @@ import {
   recordArgvs,
   renderDiagramView,
   diagramViewMessage,
+  produceGeneratedViewMessage,
   DIAGRAM_VIEW_TYPE,
   type GateRunner,
   type WaveChild,
@@ -2074,6 +2075,43 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
     });
     expect(unreadable.image).toBeNull();
     expect(unreadable.text).toContain(ALT);
+  });
+
+  test("test_generated_view_message_has_producer", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t8-view-"));
+    const descriptor = {
+      surface: "closeout",
+      policy: { diagram: true },
+      diagram: { svgPath: "/tmp/pi-workflows-075/plan.svg", pngPath: PNG, altText: ALT },
+      text: PROSE,
+    };
+    try {
+      fs.mkdirSync(path.join(dir, ".workflows"));
+      fs.writeFileSync(path.join(dir, ".workflows", "generated-view.json"), JSON.stringify(descriptor));
+      const produced = produceGeneratedViewMessage(dir);
+      expect(produced).not.toBeNull();
+      expect(produced!.customType).toBe(DIAGRAM_VIEW_TYPE);
+      expect(produced!.content).toContain(PROSE);
+      expect(produced!.details.diagram).toEqual(descriptor.diagram);
+      expect(produced!.details.surface).toBe("closeout");
+
+      const handlers: Record<string, ((ev: any, ctx: any) => Promise<any>)[]> = {};
+      register({
+        on: (ev: string, fn: any) => (handlers[ev] ??= []).push(fn),
+        registerTool: () => undefined,
+        registerMessageRenderer: () => undefined,
+      } as any);
+      const injected: any[] = [];
+      for (const hook of handlers.before_agent_start ?? []) {
+        const result = await hook({ cwd: dir, prompt: "status" }, {});
+        if (result?.message?.customType === DIAGRAM_VIEW_TYPE) injected.push(result.message);
+      }
+      expect(injected.length).toBe(1);
+      expect(injected[0].content).toContain(PROSE);
+      expect(injected[0].details.diagram.pngPath).toBe(PNG);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("test_image_hook_no_policy_logic", () => {

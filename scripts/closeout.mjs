@@ -23,6 +23,7 @@ import { renderDiagram } from "./open-diagram-render.mjs";
 
 const SECTIONS = ["Shipped", "Deviations", "Discoveries", "Deferred", "Watch"];
 const DIAGRAM_HEADER = "### Generated view";
+export const GENERATED_VIEW_FILE = "generated-view.json";
 
 /**
  * @cc [label:closeout-output] artifact-block-removable
@@ -77,11 +78,15 @@ export function gather({ plan, journal, proofs, lessons, golden, queue = ".workf
   let m;
   while ((m = re.exec(text)) !== null) {
     const body = text.slice(m.index + m[0].length).split(/^###\s+TASK\s+\d+/m)[0].split(/^## /m)[0];
+    const wave = /\*\*Wave\*\*:\s*([^\n]+)/.exec(body)?.[1]?.trim() ?? null;
+    const dependsOn = /\*\*Depends On\*\*:\s*([^\n]+)/.exec(body)?.[1] ?? "";
     tasks.push({
       id: `task-${m[1]}`,
       tier: /Tier ([ABC])/.exec(m[2])?.[1] ?? "?",
       title: m[3].split("—")[0].trim(),
       status: /Status\*\*:\s*✅/.test(body) ? "done" : /Status\*\*:\s*❌/.test(body) ? "failed" : "pending",
+      wave,
+      dependencies: (dependsOn.match(/task\s*\d+/gi) ?? []).length,
     });
   }
 
@@ -105,6 +110,8 @@ export function gather({ plan, journal, proofs, lessons, golden, queue = ".workf
     planId,
     planFile: plan,
     tasks,
+    waves: new Set(tasks.map((t) => t.wave).filter(Boolean)).size,
+    dependencies: tasks.reduce((n, t) => n + t.dependencies, 0),
     shipped: tasks.filter((t) => t.status === "done"),
     deviations: marker(notes, "DEVIATION"),
     discoveries: marker(notes, "DISCOVERY"),
@@ -165,6 +172,8 @@ function closeoutPolicyInput(g) {
     fields: 6,
     artifact: "closeout-next-moves",
     tasks: g.tasks.length,
+    dependencies: g.dependencies ?? 0,
+    waves: g.waves ?? 0,
     statusMix: new Set(g.tasks.map((t) => t.status)).size,
   };
 }
@@ -172,7 +181,11 @@ function closeoutPolicyInput(g) {
 function diagramPaths(g) {
   const dir = g.planFile ? path.dirname(g.planFile) : os.tmpdir();
   const base = `closeout-${g.planId}`;
-  return { specPath: path.join(dir, `${base}.mmd`), out: path.join(dir, base) };
+  return {
+    specPath: path.join(dir, `${base}.mmd`),
+    out: path.join(dir, base),
+    viewPath: path.join(dir, GENERATED_VIEW_FILE),
+  };
 }
 
 /**
@@ -182,22 +195,49 @@ function diagramPaths(g) {
  * substituted for them.
  */
 /**
+ * @cc [label:closeout-output] report-before-renderer
+ * The canonical report is emitted before any renderer call and is returned even
+ * when rendering fails; the failure is reported loudly beside the intact text.
+ */
+/**
  * @cc [label:closeout-output] policy-only-diagram-gate
  * Close-out calls TASK 1 policy once and renders only on its diagram positive;
  * otherwise the explicit --diagram mermaid text fallback is preserved.
  */
-export async function renderCloseout(g, { diagram = false, policy = decideOutputPolicy, renderer = renderDiagram, specPath, out } = {}) {
-  if (!diagram) return renderReport(g);
+export async function renderCloseout(g, { diagram = false, policy = decideOutputPolicy, renderer = renderDiagram, specPath, out, onReport, onRendererError } = {}) {
+  const report = renderReport(g);
+  if (!diagram) return report;
   if (!policy(closeoutPolicyInput(g)).diagram) return renderReport(g, { diagram: true });
 
-  const paths = diagramPaths(g);
-  const spec = specPath ?? paths.specPath;
-  if (!specPath) fs.writeFileSync(spec, `---\ntitle: Close-out — ${g.planId}\n---\n${mermaid(g)}\n`);
-  const artifact = await renderer({
-    spec: { path: spec, title: `Close-out — ${g.planId}`, subtitle: "Task delivery status" },
-    out: out ?? paths.out,
-  });
-  return `${renderReport(g)}\n\n${diagramArtifact(artifact)}`;
+  // The canonical text is emitted before the renderer is invoked: a render
+  // failure must never take the report down with it.
+  onReport?.(report);
+  try {
+    const paths = diagramPaths(g);
+    const spec = specPath ?? paths.specPath;
+    if (!specPath) fs.writeFileSync(spec, `---\ntitle: Close-out — ${g.planId}\n---\n${diagramSpec(g)}\n`);
+    const artifact = await renderer({
+      spec: { path: spec, title: `Close-out — ${g.planId}`, subtitle: "Task delivery status" },
+      out: out ?? paths.out,
+    });
+    fs.writeFileSync(paths.viewPath, JSON.stringify({
+      surface: "closeout",
+      policy: { diagram: true },
+      diagram: { svgPath: artifact.svgPath, pngPath: artifact.pngPath, altText: artifact.altText },
+      text: report,
+    }));
+    return `${report}\n\n${diagramArtifact(artifact)}`;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    if (onRendererError) onRendererError(error);
+    else console.error(`OPEN DIAGRAM RENDER FAILED: ${detail}`);
+    return report;
+  }
+}
+
+/** Fence-free Mermaid spec for the renderer; `mermaid()` keeps the text form. */
+export function diagramSpec(g) {
+  return mermaid(g).replace(/^```mermaid\n|\n```$/g, "");
 }
 
 export function mermaid(g) {
@@ -249,7 +289,16 @@ export async function main(argv, { ask: askFn = ask, policy = decideOutputPolicy
   const g = gather(opts);
 
   if (opts.cmd === "report") {
-    console.log(await renderCloseout(g, { diagram: opts.diagram, policy, renderer }));
+    const report = renderReport(g);
+    let emittedReport = false;
+    const text = await renderCloseout(g, {
+      diagram: opts.diagram,
+      policy,
+      renderer,
+      onReport: (canonical) => { console.log(canonical); emittedReport = true; },
+    });
+    if (!emittedReport) console.log(text);
+    else if (text.startsWith(report) && text.length > report.length) console.log(text.slice(report.length).trim());
     return 0;
   }
   if (opts.cmd === "judge") {

@@ -123,6 +123,39 @@ describe("format chooser (plan 20261123-075)", () => {
     expect(emitted.note).toContain("generated views, never gates");
   });
 
+  test("test_chooser_cli_binds_policy_inputs", async () => {
+    const file = tempContentFile();
+    const capture = () => {
+      const outs: string[] = [];
+      const errs: string[] = [];
+      return { outs, errs, out: (s: string) => outs.push(s), err: { write: (s: string) => errs.push(s) } };
+    };
+
+    const positive = capture();
+    const positiveCode = await main(
+      ["choose", "--for", "closeout", "--content-file", file, "--tasks", "8", "--dependencies", "5", "--waves", "3"],
+      { ask: stubAsk("none", "loop"), ...positive },
+    );
+    expect(positiveCode).toBe(0);
+    expect(positive.errs.join("")).toBe("");
+    const earned = JSON.parse(positive.outs.join(""));
+    expect(earned.policy).toEqual({ table: false, diagram: true });
+    expect(earned.artifact).toBe("mermaid");
+    expect(earned.diagram).toBe(true);
+    expect(earned.judgeSuggestion.artifact).toBe("none");
+
+    const negative = capture();
+    await main(
+      ["choose", "--for", "closeout", "--content-file", file, "--tasks", "4"],
+      { ask: stubAsk("mermaid", "loop", 0.99), ...negative },
+    );
+    const denied = JSON.parse(negative.outs.join(""));
+    expect(denied.policy).toEqual({ table: false, diagram: false });
+    expect(denied.artifact).toBe("none");
+    expect(denied.diagram).toBe(false);
+    expect(denied.judgeSuggestion.artifact).toBe("mermaid");
+  });
+
   test("chooser rejects unknown boundaries and missing content files", async () => {
     expect(parseArgs(["choose", "--for", "casual-chat", "--content-file", "x"]).error).toContain("--for must be one of");
     expect(parseArgs(["choose", "--for", "closeout"]).error).toContain("--content-file is required");

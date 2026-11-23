@@ -3,6 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { gather, main, mermaid, renderCloseout, renderReport, settleJudge, settleQuestions, stripDiagramArtifact } from "../scripts/closeout.mjs";
+import { decideOutputPolicy } from "../scripts/output-policy.mjs";
+import { renderDiagram } from "../scripts/open-diagram-render.mjs";
 import { requireLiveState } from "./state-helpers";
 
 const PLAN = `# Plan: fixture closeout (055)
@@ -261,6 +263,97 @@ describe("closeout (plan 20261025-028)", () => {
     expect(run.code).toBe(0);
     expect(run.text.replace(/\r/g, "")).toBe(fallback);
     expect(calls.length).toBe(0);
+  });
+
+  test("test_closeout_real_renderer_accepts_spec", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "co-real-"));
+    const planPath = path.join(dir, "plan.md");
+    const task = (n: number, wave: number, depends: string) =>
+      `### TASK ${n} (Tier B): shipped ${n} — src/${n}.ts\n- **Status**: ✅ DONE\n- **Wave**: ${wave}\n- **Depends On**: ${depends}\n`;
+    fs.writeFileSync(
+      planPath,
+      `# Plan: shaped closeout\n\n> Plan ID: 20261123-075\n\n## Tasks\n\n` +
+        [task(1, 1, "none"), task(2, 1, "TASK 1"), task(3, 2, "TASK 1"), task(4, 2, "TASK 2")].join("\n") +
+        `\n## Execution Notes\n`,
+    );
+    const g = gather({
+      plan: planPath,
+      journal: path.join(dir, "journal.jsonl"),
+      proofs: path.join(dir, "proofs.jsonl"),
+      lessons: path.join(dir, "lessons.jsonl"),
+      golden: 11,
+    });
+    const policyCalls: unknown[] = [];
+    const policy = (input: unknown) => {
+      policyCalls.push(input);
+      return decideOutputPolicy(input as Record<string, unknown>);
+    };
+    const calls: string[][] = [];
+    const run = async (args: string[]) => {
+      calls.push(args);
+      const target = args[args.indexOf("-o") + 1];
+      fs.writeFileSync(`${target}.svg`, "<svg />");
+      fs.writeFileSync(`${target}.png`, "PNG");
+      return {
+        status: 0,
+        stdout: `wrote ${target}.svg, ${target}.png: 900 x 320 px; smallest text 11 px; 0 layout problem(s)\n`,
+        stderr: "",
+      };
+    };
+    const renderer = (input: any) => renderDiagram({ ...input, run });
+    const report = await renderCloseout(g, { diagram: true, policy, renderer });
+
+    expect(policyCalls.length).toBe(1);
+    const input = policyCalls[0] as { tasks: number; waves: number; dependencies: number; diagram?: boolean };
+    expect(input.tasks).toBe(4);
+    expect(input.waves).toBeGreaterThanOrEqual(2);
+    expect(input.dependencies).toBeGreaterThanOrEqual(2);
+    expect(decideOutputPolicy(input).diagram).toBe(true);
+    expect(calls.length).toBe(1);
+    const specText = fs.readFileSync(calls[0][2], "utf8");
+    expect(specText.startsWith("```")).toBe(false);
+    expect(specText).toContain("graph LR");
+    expect(specText).not.toContain("```mermaid");
+    expect(report).toContain("### Shipped");
+    expect(report.indexOf("### Shipped")).toBeLessThan(report.indexOf("### Generated view"));
+    expect(report).toContain(`${calls[0][4]}.png`);
+  });
+
+  test("test_closeout_report_precedes_renderer_failure", async () => {
+    const { g } = diagramFixture();
+    const report = renderReport(g);
+    const printed: string[] = [];
+    const failures: string[] = [];
+    const throwing = async () => { throw new Error("renderer exploded"); };
+    const text = await renderCloseout(g, {
+      diagram: true,
+      policy: policyStub(true),
+      renderer: throwing,
+      onReport: (value: string) => printed.push(value),
+      onRendererError: (error: unknown) => failures.push(String(error)),
+    });
+    expect(printed.join("")).toBe(report);
+    expect(printed.join("").indexOf("### Shipped")).toBeLessThan(printed.join("").indexOf("### Watch"));
+    expect(failures.join("")).toContain("renderer exploded");
+    expect(text).toBe(report);
+
+    const stderrs: string[] = [];
+    const origErr = console.error;
+    console.error = (...a: unknown[]) => stderrs.push(a.map(String).join(" "));
+    try {
+      const run = await captureLog(() =>
+        main(
+          ["report", "--plan", path.join(g.planFile), "--diagram"],
+          { policy: policyStub(true), renderer: throwing },
+        ),
+      );
+      expect(run.code).toBe(0);
+      expect(run.text).toContain("### Shipped");
+      expect(run.text).not.toContain("### Generated view");
+    } finally {
+      console.error = origErr;
+    }
+    expect(stderrs.join("\n")).toContain("renderer exploded");
   });
 
   const planLive = requireLiveState(".workflows/plan.md", "closeout report on the live plan exits 0 and prints the Shipped Deviations Discoveries Deferred and Watch section headers");

@@ -13,11 +13,14 @@
 // Usage:
 //   node scripts/format-chooser.mjs choose --for <closeout|plan-approval|challenge|brainstorm-graduation>
 //                                          --content-file <file> [--audit <file>]
+//                                          [--tasks N] [--dependencies N] [--waves N]
+//                                          [--rows N] [--fields N] [--fix-loop] ...
 // Exit: 0 always (advisory) · 2 usage.
 
 import fs from "node:fs";
 import { ask } from "./judge.mjs";
 import { decideOutputPolicy } from "./output-policy.mjs";
+import { parsePolicyArgs } from "./output-policy-cli.mjs";
 
 export const BOUNDARIES = ["closeout", "plan-approval", "challenge", "brainstorm-graduation"];
 export const ARTIFACTS = ["none", "table", "mermaid", "html"];
@@ -116,11 +119,14 @@ export async function choose({ boundary, content, auditFile, policy, ask: askFn 
 }
 
 export async function main(argv, { ask: askFn = ask, err = process.stderr, out = (s) => console.log(s), policy } = {}) {
-  const { opts, error } = parseArgs(argv);
+  const { input: policyInput, rest, error: policyError } = parsePolicyArgs(argv);
+  if (policyError) { err.write(`usage error: ${policyError}\n`); return 2; }
+  const { opts, error } = parseArgs(rest);
   if (error) { err.write(`usage error: ${error}\n`); return 2; }
   if (!fs.existsSync(opts.contentFile)) { err.write(`usage error: content file not found: ${opts.contentFile}\n`); return 2; }
   const content = fs.readFileSync(opts.contentFile, "utf8");
-  const c = await choose({ boundary: opts.for, content, ...(opts.audit ? { auditFile: opts.audit } : {}), ...(policy ? { policy } : {}), ask: askFn });
+  const effectivePolicy = policy ?? (Object.keys(policyInput).length ? decideOutputPolicy(policyInput) : undefined);
+  const c = await choose({ boundary: opts.for, content, ...(opts.audit ? { auditFile: opts.audit } : {}), ...(effectivePolicy ? { policy: effectivePolicy } : {}), ask: askFn });
   if (c.skipped) err.write(`FORMAT CHOOSER SKIPPED (${c.reason})\n`);
   out(JSON.stringify({ ...c, note: "advisory — the agent may overrule with a stated reason; html artifacts are generated views, never gates" }));
   return 0;

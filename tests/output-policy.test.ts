@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
 import { decideOutputPolicy } from "../scripts/output-policy.mjs";
+import { main as policyCliMain } from "../scripts/output-policy-cli.mjs";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const MODULE = path.join(ROOT, "scripts", "output-policy.mjs");
@@ -73,6 +74,42 @@ describe("output policy (plan 20261123-075)", () => {
     const both = decideOutputPolicy({ rows: 3, fields: 3, tasks: 4, dependencies: 2, components: 3, links: 2 });
     expect(both.table).toBe(true);
     expect(both.diagram).toBe(true);
+  });
+
+  test("test_policy_cli_emits_json", async () => {
+    const capture = () => {
+      const out: string[] = [];
+      const errors: string[] = [];
+      return {
+        out,
+        errors,
+        stdout: { write: (s: string) => out.push(s) },
+        stderr: { write: (s: string) => errors.push(s) },
+      };
+    };
+
+    const explicit = capture();
+    const explicitCode = await policyCliMain(
+      ["--tasks", "4", "--dependencies", "2", "--waves", "2", "--rows", "3", "--fields", "3"],
+      explicit,
+    );
+    expect(explicitCode).toBe(0);
+    expect(explicit.errors.join("")).toBe("");
+    const decision = JSON.parse(explicit.out.join(""));
+    expect(Object.keys(decision).sort()).toEqual([...KEYS].sort());
+    for (const key of KEYS) expect(typeof decision[key]).toBe("boolean");
+    expect(decision.diagram).toBe(true);
+    expect(decision.table).toBe(true);
+
+    const empty = capture();
+    expect(await policyCliMain([], empty)).toBe(0);
+    expect(JSON.parse(empty.out.join(""))).toEqual({
+      prose: true,
+      statusTokens: true,
+      table: false,
+      diagram: false,
+    });
+    expect(fs.readFileSync(MODULE, "utf8")).not.toMatch(/process\.(env|argv)|node:child_process|console\./);
   });
 
   test("test_output_policy_never_image_only", () => {

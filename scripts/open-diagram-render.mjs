@@ -24,6 +24,11 @@ function runOpenDiagram(args) {
 }
 
 /**
+ * @cc [label:diagram-render] cli-path-override
+ * OPEN_DIAGRAM_CLI selects the executable for each render; the verified local
+ * path is only a default, so another installation can be used without a code edit.
+ */
+/**
  * @cc [label:diagram-render,id:layout-problems-rejected] layout-problems-rejected
  * Any layout problem reported by open-diagram rejects the render with the
  * problem named; no partial artifact-and-metrics result is returned.
@@ -47,7 +52,10 @@ export async function renderDiagram({ spec, out, run = runOpenDiagram }) {
   }
   if (!out || typeof out !== "string") throw new Error("renderDiagram: out is required (path without extension)");
 
-  const invocation = await run([OPEN_DIAGRAM_CLI, "draw", specPath, "-o", out]);
+  // Environment override is read per call so the default runner can be
+  // pointed at a different installation without changing this module.
+  const cli = process.env.OPEN_DIAGRAM_CLI?.trim() || OPEN_DIAGRAM_CLI;
+  const invocation = await run([cli, "draw", specPath, "-o", out]);
   const status = invocation?.status ?? 0;
   const stdout = invocation?.stdout ?? "";
   const stderr = invocation?.stderr ?? "";

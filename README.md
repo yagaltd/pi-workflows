@@ -162,11 +162,15 @@ additive generated view: it carries alt text, never replaces judge-readable
 text or the follow-up table.
 
 This plan adds no new judge call, no new `TypeLLM` path, and no change to
-dispatched-verdict semantics. Entry points (all arguments forwarded):
-`mise run output-policy` and `mise run open-diagram-render`, backed by
-`bash scripts/wf.sh output-policy` and `bash scripts/wf.sh open-diagram-render`.
-The launcher resolves the package root from its own path, not the caller's
-working directory.
+dispatched-verdict semantics. The pure policy module does no file or network
+access; the wrapper `scripts/output-policy-cli.mjs` takes explicit flags
+(`--tasks 4`, `--waves 2`), prints the four-boolean JSON decision, and works
+with no input. `mise run output-policy` and `bash scripts/wf.sh output-policy`
+invoke that wrapper; `mise run open-diagram-render` and
+`bash scripts/wf.sh open-diagram-render` invoke the renderer through the same
+root-resolving launcher. `OPEN_DIAGRAM_CLI` overrides the external
+open-diagram executable; the verified local Python environment path is only
+the default and no package dependency is added.
 
 ## The Reply-Style Companion
 
