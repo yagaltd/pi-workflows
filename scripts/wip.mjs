@@ -22,6 +22,7 @@ const STATE_KEYS = [
 const TASK_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const BATCH_ID_RE =
   /^([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*(?:[+,][A-Za-z0-9][A-Za-z0-9._-]*)*)$/;
+const VERDICT_MTIME_TOLERANCE_MS = 1000;
 
 function emit(payload, code = 0) {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -324,7 +325,10 @@ function checkVerdict(state, repo) {
   } catch {
     return { error: `missing verdict file for WIP batch ${state.id}: ${state.verdict}` };
   }
-  if (stats.mtimeMs < Date.parse(state.created_at)) {
+  // Filesystem mtime can be coarser than the millisecond precision of created_at;
+  // a verdict written in the same clock tick can appear earlier. Bound the
+  // tolerance to one second so clearly older verdicts still fail.
+  if (stats.mtimeMs + VERDICT_MTIME_TOLERANCE_MS < Date.parse(state.created_at)) {
     return { error: `stale verdict for WIP batch ${state.id}: ${state.verdict} predates created_at` };
   }
   const missing = parseVerdictFile(text, file, state.task_ids);

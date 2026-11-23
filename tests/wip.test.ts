@@ -9,6 +9,9 @@ const WIP = path.join(ROOT, "scripts", "wip.mjs");
 const BATCH = "20261122-080/task-1";
 const MULTI_BATCH = "20261122-080/task-1+task-2";
 const CREATED_AT = "2026-11-22T00:00:00.000Z";
+const COARSE_CREATED_AT = "2026-01-01T00:00:00.500Z";
+const COARSE_MTIME = "2026-01-01T00:00:00.000Z";
+const STALE_CREATED_AT = "2026-01-01T00:01:00.000Z";
 const tempDirs: string[] = [];
 
 function fixtureRepo(files: Record<string, string> = {}): string {
@@ -69,6 +72,13 @@ function writeVerdict(repo: string, body: string, name = "task-1.md"): string {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, body);
   return path.relative(repo, target);
+}
+
+function setVerdictMtime(repo: string, verdict: string, iso: string): void {
+  const ms = Date.parse(iso);
+  const target = path.join(repo, verdict);
+  fs.utimesSync(target, ms / 1000, ms / 1000);
+  expect(fs.statSync(target).mtimeMs).toBe(ms);
 }
 
 function start(repo: string, id: string, extra: string[] = []) {
@@ -223,6 +233,16 @@ describe("wip state CLI", () => {
     expect(ready(repo, BATCH, verdict).status).toBe(0);
   });
 
+  test("test_wip_ready_accepts_coarse_mtime_in_same_second_as_created_at", () => {
+    const repo = fixtureRepo();
+    expect(start(repo, BATCH, ["--created-at", COARSE_CREATED_AT]).status).toBe(0);
+    const verdict = writeVerdict(repo, "- Verdict: **ok: true** — final\n");
+    setVerdictMtime(repo, verdict, COARSE_MTIME);
+    const result = ready(repo, BATCH, verdict);
+    expect(result.status).toBe(0);
+    expect(readState(repo, BATCH)).toMatchObject({ status: "ready-to-ship", verdict });
+  });
+
   test("test_wip_ready_requires_every_task_id_in_one_file", () => {
     const repo = fixtureRepo();
     expect(start(repo, MULTI_BATCH).status).toBe(0);
@@ -244,8 +264,8 @@ describe("wip state CLI", () => {
   test("test_wip_rejects_stale_verdict", () => {
     const repo = fixtureRepo();
     const verdict = writeVerdict(repo, "- Verdict: **ok: true** — final\n");
-    const future = new Date(Date.now() + 60_000).toISOString();
-    expect(start(repo, BATCH, ["--created-at", future]).status).toBe(0);
+    setVerdictMtime(repo, verdict, COARSE_MTIME);
+    expect(start(repo, BATCH, ["--created-at", STALE_CREATED_AT]).status).toBe(0);
     const result = ready(repo, BATCH, verdict);
     expect(result.status).toBe(1);
     expect(String(json(result).reason)).toMatch(/stale|older/i);
