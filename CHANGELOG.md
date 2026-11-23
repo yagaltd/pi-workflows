@@ -80,7 +80,7 @@
 - 592 pass / 9 skip / 0 fail (+58 tests); drift + docs-lint CLEAN, lint budgets
   not raised.
 
-## 2026-11-18 — v0.15.14: batched-DAG review judging — the default mode (plan 076 Phase 3)
+## 2026-11-18 — v0.15.14: batched-DAG review judging — the default mode (plan 20261117-076 Phase 3)
 
 - **Batch**: one call carries ALL scenarios + real file contents within the
   context window; deterministic whole-scenario chunking (a failed chunk marks ITS
@@ -104,7 +104,7 @@
 - 26 new tests (batch 13, DAG 7, calibration 3, harness 4); contract schemas,
   parse contract, render table untouched.
 
-## 2026-11-18 — v0.15.13: the accretion cure — reviewer tier-map + judge verdicts (plan 076 Phase 2)
+## 2026-11-18 — v0.15.13: the accretion cure — reviewer tier-map + judge verdicts (plan 20261117-076 Phase 2)
 
 - **reviewer.md 214→160 lines (−25%)**: the serial 5-command pipeline and 12-field
   report template are gone; three tiers remain — Tier 0 gate citations (one line,
@@ -126,7 +126,7 @@
 - Zero pinned-string amendments (T7/T13/050/067/068 verbatim); parse contract
   byte-compatible; docs-lint budgets improved (residual 1104→1097).
 
-## 2026-11-18 — v0.15.12: the judge tier begins — TypeLLM intake triage at ship (plan 076 Phase 1)
+## 2026-11-18 — v0.15.12: the judge tier begins — TypeLLM intake triage at ship (plan 20261117-076 Phase 1)
 
 - **JudgeBackend seam + TypeLLM transport** (extensions/index.ts §9): schema-driven
   `POST /v1/generate` (`typellm-latest`), key env-side (`TYPELLM_API_KEY` →
