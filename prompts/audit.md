@@ -80,7 +80,7 @@ unreviewed counts + first evidence line per confirmed finding.`
 
 ```bash
 # optional pre-distill verification (plan 078): judge seam, advisory only
-bun scripts/bench-intake-triage.ts auditbatch --files <changed-files>
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" bench auditbatch --files <changed-files>
 # pre-verified rows digest to the owner; uncertain rows route to the agent
 # advisory only: exit 0 always; the orchestrator distill stays the authority
 ```

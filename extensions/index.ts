@@ -95,8 +95,17 @@
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { fileURLToPath } from "url";
 import { createHash } from "crypto";
 import { execSync, spawnSync } from "child_process";
+
+// The launcher is the package's one command surface. Compute its absolute path
+// from THIS module (extensions/ parent), never from cwd; a caller may override
+// it for a foreign checkout. No command/tool is registered here.
+const PACKAGE_ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+if (!process.env.PI_WORKFLOWS_BIN) {
+  process.env.PI_WORKFLOWS_BIN = path.join(PACKAGE_ROOT, "scripts", "wf.sh");
+}
 
 
 /**

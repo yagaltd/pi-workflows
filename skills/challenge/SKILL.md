@@ -19,7 +19,8 @@ Before asking questions, gather existing knowledge:
    decisions
 4. Check for `.workflows/CONTEXT-MAP.md` for multi-context repos
 5. Use `find`/`grep` to explore relevant source code
-6. Run `node scripts/lessons.mjs list` — the lessons ledger (plan
+6. Run `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" lessons list`
+   — the `lessons.mjs list` ledger (plan
    20261026-031). The grill carries one extra check: does the plan
    contradict an active lesson? A contradiction without a recorded
    revisit-reason is a finding. Provenance trust filter: `from_untrusted`
@@ -119,8 +120,11 @@ one.
 
 ## Phase 5 addendum — format chooser (plan 20261026-032)
 
-At PRESENT FINAL STATE, one advisory call:
-`node scripts/format-chooser.mjs choose --for challenge --content-file <final-state.md>`
+At PRESENT FINAL STATE, one advisory call
+(`format-chooser.mjs choose --for challenge`):
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" format-chooser choose \
+--for challenge --content-file <final-state.md>`
+
 A visual pick generates the view via the diagram-design doctrine; `none`
 keeps prose. Overrule needs a stated reason. HTML is a generated view —
 never a gate, regenerable from the md source.

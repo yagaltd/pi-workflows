@@ -34,6 +34,20 @@ agents:
 test:
     bun test
 
+# Thin just wrappers over the one launcher — no second command vocabulary.
+
+judge *args:
+    ./scripts/wf.sh judge {{args}}
+
+lessons *args:
+    ./scripts/wf.sh lessons {{args}}
+
+bench *args:
+    ./scripts/wf.sh bench {{args}}
+
+archive-check *args:
+    ./scripts/wf.sh archive-check {{args}}
+
 flow slug:
     node scripts/flow-validate.mjs .workflows/flows/{{slug}}.json
     node scripts/flow-run.mjs .workflows/flows/{{slug}}.json

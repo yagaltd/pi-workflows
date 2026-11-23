@@ -78,7 +78,9 @@ the topic. Contents over time:
   invalidated · 💤 parked. A branch changes status ONLY on evidence, never
   on vibes.
 - Markmap tooling is retired. At graduation the format chooser decides the
-  artifact: `node scripts/format-chooser.mjs choose --for brainstorm-graduation --content-file research/<slug>/ledger.md`
+  artifact: `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" format-chooser choose \
+  --for brainstorm-graduation --content-file research/<slug>/ledger.md`
+  (`format-chooser.mjs choose --for brainstorm-graduation`)
   — a visual pick (html/mermaid) generates a concept view via the
   diagram-design doctrine (tree/loop/nested fit concept maps); `none` keeps
   prose. HTML is a generated view — never hand-edited, never a gate,

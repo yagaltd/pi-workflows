@@ -31,12 +31,13 @@ Ordered, short-circuit on fail.
    ```
    For each probe the reviewer runs, record it as a proof. Reviewer records
    are token-gated: read the token from `.workflows/proofs/.reviewer-token`
-   (run `node scripts/proof-ledger.mjs init` first if it's missing) and pass
+   (run `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" proof-ledger init`
+   (`proof-ledger.mjs init`) first if it's missing) and pass
    `--reviewer-token <value>` on every reviewer record — unmatched records
    refuse:
    ```bash
    REVIEWER_TOKEN=$(cat .workflows/proofs/.reviewer-token)
-   node scripts/proof-ledger.mjs record --plan <id> --task <t> --runner reviewer --reviewer-token "$REVIEWER_TOKEN" --kind replayable --verify "<probe>"
+   bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" proof-ledger record --plan <id> --task <t> --runner reviewer --reviewer-token "$REVIEWER_TOKEN" --kind replayable --verify "<probe>"
    ```
    (use `--kind not_replayable` for prose/one-shot checks).
   Cite-check: spot-check that factual claims in doc-producing tasks carry

@@ -102,7 +102,8 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
    pointers to detail docs (e.g. `Test: npm test` · `Tests detail:
    tests/README.md`) — never command inventories; nested AGENTS.md files
    don't auto-load (pi walks up from cwd only). Then RUN
-   `bash scripts/agents-lint.sh AGENTS.md` — a lint failure BLOCKS the
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" agents-lint AGENTS.md`
+   — a lint failure BLOCKS the
    handoff: fix before presenting. The charter's review pointers cite the
    installed domain-skill family matching the DETECTED stack (Phase 1 TREE):
    Rust → the Rust skill family (rust-review, rust-best-practices,
@@ -124,8 +125,9 @@ project's
    docs-policy, registry, ADR index), tree domains from the approved
    Phase 3 tree, gates in run order (at minimum the charter's
    `scripts/agents-lint.sh`). Brownfield (`/init --adopt`): there are no
-   interview facts — run the extractor first: `bun scripts/init-extract.ts
-   --root .` makes ONE batched judge call that drafts the profile commands,
+   interview facts — run the extractor first:
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" init-extract --root .`
+   makes ONE batched judge call that drafts the profile commands,
    tree domains, stack detection, charter pointers, and the gate-questions
    into DRAFT files. Drafts land at `.workflows/profile.json.draft`,
    `.workflows/AGENTS.md.draft`, and `.workflows/charter-pointers.draft.md`.
@@ -141,7 +143,8 @@ project's
    commands, list the top-level dirs as tree-domain candidates, pick
    pointer targets that exist on disk. Then PRESENT the draft to the
    owner for correction BEFORE linting. Then RUN
-   `bash scripts/profile-lint.sh .workflows/profile.json` — a lint
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" profile-lint`
+   `.workflows/profile.json` — a lint
    failure BLOCKS the handoff: fix before presenting (every pointer and
    tree path must exist on disk; a fictional path is a bug).
 3. **CONTEXT.md**: seed `.workflows/CONTEXT.md` from Phase 1-2 decisions
@@ -241,7 +244,8 @@ contract
    the handoff). The fresh project now carries its charter (probed
    in step 6), its `.workflows/profile.json`, CONTEXT.md, and the README
    skeleton — and
-   any later session can `/restart` (it runs `bash scripts/resume-digest.sh`)
+   any later session can `/restart`
+   (it runs `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" resume-digest`)
    to rebuild state before continuing.
 
 ## Rules
