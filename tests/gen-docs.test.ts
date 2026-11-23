@@ -89,9 +89,10 @@ describe("gen-docs (plan 20261104-060 T2)", () => {
     }
 
     const prose = readme.replace(generated ?? "", "");
-    for (const token of ["[[Done]]", "[[Decision]]", "[[Pending]]", "[[Failed]]", "[[Unverified]]"]) {
+    for (const token of ["Done", "Decision", "Pending", "Failed", "Unverified"]) {
       expect(prose).toContain(token);
     }
+    expect(prose).toContain("templates/STATUS-VOCABULARY.md");
     for (const fragment of [
       "decideOutputPolicy",
       "canonical prose",
