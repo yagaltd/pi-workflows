@@ -2,7 +2,7 @@
 
 > Plan ID: 20261122-080
 > Created: 2026-11-22
-> Status: APPROVED
+> Status: DONE
 > Owner: Aurel
 > Scope: WIP batch state, emit/consume wiring, gate enforcement, dispatch block
 
@@ -78,7 +78,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-1.spec`
 - **Allowed**: scripts/wip.mjs, tests/wip.test.ts, scripts/wf.sh, .mise/tasks/wip, .gitignore
 - **Verify**: bun test tests/wip.test.ts && node scripts/wip.mjs status --repo .
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 2 (Tier B ⚪): `/fix` emits WIP state at STOP
 - **Agent**: worker
@@ -88,7 +88,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-2.spec`
 - **Allowed**: skills/fix/SKILL.md, tests/fix-wip.test.ts
 - **Verify**: bun test tests/fix-wip.test.ts
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 3 (Tier B 🟠): `/review` consumes verdict and scope
 - **Agent**: worker
@@ -98,7 +98,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-3.spec`
 - **Allowed**: skills/review/SKILL.md, tests/review-wip.test.ts
 - **Verify**: bun test tests/review-wip.test.ts
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 4 (Tier B ⚪): `/refactor` WIP state resolves commit contradiction
 - **Agent**: worker
@@ -108,7 +108,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-4.spec`
 - **Allowed**: skills/refactor/SKILL.md, tests/refactor-wip.test.ts
 - **Verify**: bun test tests/refactor-wip.test.ts
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 5 (Tier B 🟠): check-drift §13 and pre-commit validation
 - **Agent**: worker
@@ -118,7 +118,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-5.spec`
 - **Allowed**: .githooks/pre-commit, scripts/check-drift.sh, tests/wip-gate.test.ts
 - **Verify**: bun test tests/wip-gate.test.ts && bash scripts/check-drift.sh --only wip
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 6 (Tier B 🟠): Dispatcher blocks active WIP
 - **Agent**: worker
@@ -127,7 +127,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-6.spec`
 - **Allowed**: extensions/index.ts, tests/wip-dispatch.test.ts
 - **Verify**: bun test tests/wip-dispatch.test.ts tests/extension.test.ts
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ### TASK 7 (Tier B ⚪): Docs and mise/init surface pins
 - **Agent**: worker
@@ -136,7 +136,7 @@ Docs impact:
 - **Contract path**: `.workflows/specs/task-7.spec`
 - **Allowed**: docs/architecture.md, docs/canon.md, scripts/init-extract.ts, skills/init/SKILL.md, tests/wip-docs.test.ts, tests/mise-tasks.test.ts
 - **Verify**: bun test tests/wip-docs.test.ts tests/mise-tasks.test.ts && bash scripts/docs-lint.sh
-- **Status**: ⬜ PENDING
+- **Status**: ✅ DONE
 
 ## Ledger Resolution
 

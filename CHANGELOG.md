@@ -1,3 +1,17 @@
+## 2026-11-23 — v0.15.18: WIP batch gate — plan 080 complete (seven tasks)
+
+- **WIP state**: `.workflows/wip/<batch>.json` is the source of truth for an
+  active unshipped batch; commit trailers are linkage only.
+- **Emit and consume**: `/fix` and `/refactor` emit WIP state at STOP;
+  `/review` requires a fresh, task-bound `ok:true` verdict and scope proof
+  before SHIP, stages only verified files, then ships after commit.
+- **Gates**: check-drift §13 and pre-commit block unreviewed WIP,
+  stale verdicts, and out-of-scope staged files; `mise run ci` inherits it.
+- **Dispatcher**: `dispatchNext` returns `wip-active` before selecting a new
+  task and stays read-only.
+- **Command surface**: `mise run wip` wraps `scripts/wf.sh`; `/init`
+  generates namespaced `wf:wip` tasks without editing repo root config.
+
 ## 2026-11-19 — v0.15.17: the evasion-resistant oracle — plan 079 complete (four tasks)
 
 - **Tier-0 evasion scanner** (`scripts/evasion-scan.ts`): invisible-character
