@@ -6,6 +6,9 @@ node_modules/
 .workflows/*
 .workflows/pii/
 !.workflows/LOG.md
+!.workflows/plan.md
+!.workflows/specs/
+!.workflows/wip/
 !.workflows/CONTEXT.md
 !.workflows/ideas.md
 !.workflows/tree.json
