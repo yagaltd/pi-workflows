@@ -266,12 +266,21 @@ Document the fix to prevent recurrence.
        Test: <regression test added>
    ```
 
-2. **If the pattern is systemic** (same mistake could exist elsewhere):
+2. **Emit the WIP batch before the handoff** (gate: `scripts/wip.mjs status`):
+   Call `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" wip start` with
+   `--id "<PlanID>/<task-id>"`, `--kind fix`, `--scope` from the fix's Allowed Changes,
+   and `--root-cause` set to the diagnosed cause. The id
+   suffix becomes `task_ids` in the state file, which starts as
+   `awaiting-review`. The approved commit may carry `WIP-Batch` as linkage
+   only — trailers never create WIP state; they never update WIP state
+   (gate: `scripts/wip.mjs message`).
+
+3. **If the pattern is systemic** (same mistake could exist elsewhere):
    - `grep` for similar patterns in the codebase
    - Flag them to the human: "This same pattern exists in `<files>`. Should I
      fix those too?"
 
-3. **Present to the human**:
+4. **Present to the human**:
    ```text
    ## Fixed: <bug>
 

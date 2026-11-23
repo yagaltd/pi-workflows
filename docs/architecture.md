@@ -561,6 +561,35 @@ agreement across the exact/normalized/semantic oracle bindings — converging
 agreement across varied oracles is earned, across identical bindings it is
 not (gate: `tests/bench-plan079.test.ts`).
 
+## WIP Batch Lifecycle
+
+A WIP batch id is `<PlanID>/<task-ids>`; its suffix becomes `task_ids`.
+State lives at `.workflows/wip/<batch>.json` with the id encoded in the
+filename, and commit trailers are linkage only (gate: `scripts/wip.mjs`,
+`tests/wip.test.ts`).
+
+```text
+emit (awaiting-review) → ready
+→ verify (verified_files) → ship after commit → shipped
+```
+
+- **Emit**: `/fix` and `/refactor` hand off one batch per task at their STOP
+  with a scope from Allowed Changes (gate: `skills/fix/SKILL.md`,
+  `skills/refactor/SKILL.md`).
+- **Active**: `dispatch_next` blocks the next task, naming the batch and the
+  `/review` remedy; unreadable state blocks safely (gate:
+  `tests/wip-dispatch.test.ts`).
+- **Consume**: `/review` calls `wip ready --verdict` with one current review
+  file, then `wip verify --scope-file`; every `task_ids` entry needs a fresh
+  final `ok:true` marker in that one file, and verification writes
+  normalized `verified_files` (gate: `tests/review-wip.test.ts`).
+- **Shipped**: `/review` calls `wip ship` only after the commit succeeds;
+  pre-commit and `mise run ci` inherit section 13 through
+  `scripts/check-drift.sh` (gate: `tests/wip-gate.test.ts`).
+  Section 13 rejects a batch pending review or staged files outside
+  `verified_files`; a clean tree with ready-to-ship state passes (gate:
+  `tests/wip-gate.test.ts`). `check-tree.mjs` stays WARN.
+
 ## Dispatcher and auto-gate
 
 **Dispatcher** — `/next` and `/auto-next` are thin triggers. The extension's

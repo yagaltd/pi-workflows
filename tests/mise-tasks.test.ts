@@ -18,6 +18,7 @@ const REQUIRED_TASKS = [
   "lessons",
   "bench",
   "archive-check",
+  "wip",
 ] as const;
 const ARG_TASKS = ["judge", "lessons", "bench", "archive-check"] as const;
 const LEGACY = "j" + "ust";
@@ -106,7 +107,13 @@ describe("mise file-task command surface", () => {
     expect(read("mise.toml")).toBe(before);
 
     const names = [...fragment.matchAll(/^\[tasks\."([^"]+)"\]$/gm)].map((m) => m[1]);
-    expect([...names].sort()).toEqual(["wf:archive-check", "wf:bench", "wf:judge", "wf:lessons"]);
+    expect([...names].sort()).toEqual([
+      "wf:archive-check",
+      "wf:bench",
+      "wf:judge",
+      "wf:lessons",
+      "wf:wip",
+    ]);
     for (const name of names) expect(name.startsWith("wf:")).toBe(true);
     expect(fragment).not.toMatch(/^\[tools\]/m);
     expect(fragment).not.toMatch(/^\[tasks\.(?:check|verify)\]$/m);

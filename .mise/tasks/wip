@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Manage WIP batch state through the shared launcher"
+# Usage: mise run wip -- <args...>
+set -euo pipefail
+
+./scripts/wf.sh wip "$@"

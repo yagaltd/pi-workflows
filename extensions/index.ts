@@ -98,6 +98,8 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { createHash } from "crypto";
 import { execSync, spawnSync } from "child_process";
+import { readWipStatus, wipBlockResult } from "../scripts/wip.mjs";
+export { readWipStatus, wipBlockResult };
 
 // The launcher is the package's one command surface. Compute its absolute path
 // from THIS module (extensions/ parent), never from cwd; a caller may override
@@ -697,10 +699,23 @@ export function buildRegistry(
 export type DispatchNextResult = NextResult & { eligible: DispatchTask[] };
 
 /** Gather the dispatcher inputs from the repo at cwd and resolve the next
- *  task — the tool's execute, fs at the edges only. READ-ONLY: plan,
- *  registry, verdict files and specs are read, never written. Inert without
- *  a live plan: a structured ok:false (no-plan), not an error. */
+ *  task — the tool's execute, fs at the edges only. An active WIP batch blocks
+ *  before selection through the read-only wip status helper. READ-ONLY: plan,
+ *  registry, verdict files, WIP state and specs are read, never written. Inert
+ *  without a live plan: a structured ok:false (no-plan), not an error. */
 export function dispatchNext(opts: { cwd: string }): DispatchNextResult {
+  let wipBlock: ReturnType<typeof wipBlockResult>;
+  try {
+    wipBlock = wipBlockResult(readWipStatus(opts.cwd));
+  } catch (error) {
+    return {
+      ok: false,
+      blocked: "wip-active",
+      reason: `unreadable WIP state: ${String(error)} — resolve WIP state with /review before dispatching`,
+      eligible: [],
+    };
+  }
+  if (wipBlock) return wipBlock;
   const readText = (p: string): string | null => {
     try {
       return fs.readFileSync(p, "utf8");
@@ -5117,7 +5132,7 @@ export default function register(pi: any): void {
     name: "dispatch_next",
     label: "Dispatch next task",
     description:
-      "Deterministic /next dispatcher. Reads .workflows/plan.md, agents/registry.md and .workflows/reviews/*.md, then returns the BINDING next task. ok:true → { task, pack, gateCommands, eligible }: send pack verbatim as the worker's task text, run gateCommands before the verdict, and treat eligible (the earliest wave's members) as parallel-eligible when it has more than one entry. ok:false → { blocked, reason }: surface the reason to the human and stop (no-pending = plan complete). Read-only; without a live plan it returns ok:false with blocked 'no-plan'.",
+      "Deterministic /next dispatcher. Reads .workflows/plan.md, agents/registry.md, .workflows/reviews/*.md and WIP state, then returns the BINDING next task. An active WIP batch blocks first with blocked 'wip-active' and names the /review remedy. ok:true → { task, pack, gateCommands, eligible }: send pack verbatim as the worker's task text, run gateCommands before the verdict, and treat eligible (the earliest wave's members) as parallel-eligible when it has more than one entry. ok:false → { blocked, reason }: surface the reason to the human and stop (no-pending = plan complete). Read-only; without a live plan it returns ok:false with blocked 'no-plan'.",
     parameters: {
       type: "object",
       properties: {},

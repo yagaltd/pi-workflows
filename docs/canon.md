@@ -24,6 +24,7 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 | `.workflows/archive/**` | decision records | Closed plans, with rationale |
 | `.workflows/decisions/**` | decision records | Standing `DEC-xxx` rulings |
 | `.workflows/specs/**` | executable contracts | Per-task contracts, ephemeral |
+| `.workflows/wip/**` | runtime batch state | WIP; not a new doc type |
 
 ## Rules
 

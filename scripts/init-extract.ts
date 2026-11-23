@@ -44,6 +44,7 @@ const INIT_WF_TASKS = [
   { verb: "lessons", description: "Run the pi-workflows lessons ledger through the shared launcher" },
   { verb: "bench", description: "Run the pi-workflows intake-triage benchmark through the shared launcher" },
   { verb: "archive-check", description: "Check pi-workflows archive bundles through the shared launcher" },
+  { verb: "wip", description: "Manage WIP batches through the shared launcher" },
 ] as const;
 
 export function buildInitMiseFragment(): string {
