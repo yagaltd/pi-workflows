@@ -11,7 +11,11 @@ import {
   compareBaseline,
   docsExpired,
   main,
+  runOnce,
 } from "../scripts/eval-golden.mjs";
+import { buildSection, readCommands, readPrompts } from "../scripts/gen-docs.mjs";
+
+const ROOT = path.resolve(import.meta.dir, "..");
 
 describe("classify (run-twice rule)", () => {
   test("agreement is stable", () => {
@@ -122,4 +126,87 @@ describe("main end-to-end (temp cases + baseline lifecycle)", () => {
     const accepted = await main(["--cases-dir", tmp, "--baseline", bl, "--accept-flip", "d1"]);
     expect(accepted).toBe(0);
   });
+});
+
+function docsGateFixture(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "docs-release-gate-"));
+  fs.mkdirSync(path.join(dir, "scripts"));
+  fs.mkdirSync(path.join(dir, "prompts"));
+  for (const script of ["docs-lint.sh", "gen-docs.mjs"]) {
+    fs.copyFileSync(path.join(ROOT, "scripts", script), path.join(dir, "scripts", script));
+  }
+  fs.copyFileSync(path.join(ROOT, "README.md"), path.join(dir, "README.md"));
+  const promptsDir = path.join(ROOT, "prompts");
+  for (const file of fs.readdirSync(promptsDir)) {
+    if (file.endsWith(".md")) fs.copyFileSync(path.join(promptsDir, file), path.join(dir, "prompts", file));
+  }
+  const budget = JSON.parse(fs.readFileSync(path.join(ROOT, "scripts", "docs-lint-baseline.json"), "utf8"));
+  for (const section of Object.values(budget.sections) as Array<{ files: Record<string, number> }>) {
+    delete section.files["README.md"]; // simulate the pre-edit budget: too low for the new prose
+  }
+  fs.writeFileSync(path.join(dir, "scripts", "docs-lint-baseline.json"), JSON.stringify(budget, null, 2) + "\n");
+  return dir;
+}
+
+function docsLint(dir: string, ...args: string[]) {
+  return spawnSync("bash", ["scripts/docs-lint.sh", ...args], { cwd: dir, encoding: "utf8", env: process.env });
+}
+
+describe("release drift gates (plan 20261123-075)", () => {
+  test("test_release_drift_gates_clean", async () => {
+    const goldenDir = path.join(ROOT, ".workflows", "evals", "golden");
+    const casePath = path.join(goldenDir, "archive-002-output-format-plan-id.json");
+    const recorded = JSON.parse(fs.readFileSync(casePath, "utf8"));
+    for (const key of ["id", "kind", "tags", "recorded", "expected"]) {
+      expect(recorded).toHaveProperty(key);
+    }
+    expect(recorded.id).toBe("archive-002-output-format-plan-id");
+    expect(recorded.recorded.planId).toBe("20261123-075");
+    expect(runOnce(recorded).ok).toBe(true); // recorded replay only — no live judge call
+
+    const baselinePath = path.join(ROOT, ".workflows", "evals", "baseline.jsonl");
+    const baselineBefore = fs.readFileSync(baselinePath, "utf8");
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "eval-release-"));
+    const scratchBaseline = path.join(scratch, "baseline.jsonl");
+    fs.copyFileSync(baselinePath, scratchBaseline);
+    expect(await main(["--cases-dir", goldenDir, "--baseline", scratchBaseline])).toBe(0);
+    expect(fs.readFileSync(baselinePath, "utf8")).toBe(baselineBefore); // the committed baseline stays untouched
+    expect(fs.existsSync(path.join(scratch, "baseline.last.jsonl"))).toBe(true);
+
+    const dir = docsGateFixture();
+    try {
+      const readmePath = path.join(dir, "README.md");
+      const readme = fs.readFileSync(readmePath, "utf8");
+      expect(readCommands(readme)).toBe(buildSection(readPrompts(path.join(dir, "prompts"))));
+
+      const stale = docsLint(dir);
+      expect(stale.status).not.toBe(0);
+      expect(stale.stdout + stale.stderr).toContain("above the budget");
+      expect(stale.stdout + stale.stderr).toContain("README.md");
+
+      const tampered = readme.replace("<!-- generated:commands:end -->", "| `/not-a-prompt` | fabricated |\n<!-- generated:commands:end -->");
+      expect(tampered).not.toBe(readme);
+      fs.writeFileSync(readmePath, tampered);
+      const drift = docsLint(dir);
+      expect(drift.status).not.toBe(0);
+      expect(drift.stdout + drift.stderr).toContain("gen-docs: README commands section drifted");
+
+      const restore = spawnSync("node", ["scripts/gen-docs.mjs", "--root", dir], { cwd: dir, encoding: "utf8", env: process.env });
+      expect(restore.status).toBe(0);
+      expect(readCommands(fs.readFileSync(readmePath, "utf8"))).toBe(buildSection(readPrompts(path.join(dir, "prompts"))));
+
+      const write = docsLint(dir, "--write-baseline");
+      expect(write.status).toBe(0);
+      const clean = docsLint(dir);
+      expect(clean.status).toBe(0);
+      expect(clean.stdout).toContain("CLEAN");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+
+    const drift = spawnSync("bash", ["scripts/check-drift.sh"], { cwd: ROOT, encoding: "utf8", env: process.env });
+    expect(drift.status).toBe(0);
+    expect(drift.stdout).toContain("CLEAN — no drift.");
+  }, 90_000);
 });

@@ -37,6 +37,27 @@ restart, `/restart` rebuilds state from the repo-resolved resume digest (the
 repo you stand in — `bash scripts/resume-digest.sh` or the installed package
 copy) before anything dispatches.
 
+## Output format policy (plan 20261123-075)
+
+The deterministic `decideOutputPolicy` (`scripts/output-policy.mjs`) is the
+single source of truth for artifact form. It feeds
+`scripts/format-chooser.mjs` (advisory judge input only), then `/status`
+(`prompts/status.md`), close-out (`scripts/closeout.mjs`, including the
+mandatory next-moves table), and the pi TUI renderer. The flow is policy →
+chooser → status/close-out → renderer, not a new judging path: this plan adds
+no new judge call, no new TypeLLM path, and no change to dispatched-verdict
+semantics (gate: tests/output-policy.test.ts).
+
+Canonical prose plus display-only status tokens are always present, even for
+empty or partial input; an image is never the only output (gate:
+tests/output-policy.test.ts). A table is earned when `>=3` rows share `>=3`
+comparable fields or the artifact is the close-out/next-moves table. A diagram
+is earned when `>=4` tasks AND (`>=2` dependencies OR `>=2` waves OR `>=2`
+status mix), OR a fix loop or state machine must be understood — gate: tests/output-policy.test.ts — OR `>=3`
+components with `>=2` meaningful links benefit from a shared view.
+PNG/SVG comes from the injectable `open-diagram` renderer with measurements
+and alt text; it is a generated view additive to the text — never a replacement — gate: tests/open-diagram-render.test.ts — for judge-readable prose or the follow-up table.
+
 ## Gates — verdict gating: no model marks its own work done
 
 Each worker task goes through checkpoints that agents cannot skip — the engine
