@@ -1,3 +1,15 @@
+## 2026-11-23 — v0.15.19: persona wiring + WIP freshness fix
+
+- **`/init --adopt` persona bridge**: generated `.pi/APPEND_SYSTEM.md` now embeds
+  the canonical main-agent persona with idempotent markers; unrelated existing
+  content is preserved.
+- **Consumer upgrade wiring**: `/init` merges `.gitignore` so
+  `.pi/APPEND_SYSTEM.md` and `.workflows/wip/` survive broad ignore rules.
+  Root `mise.toml`, repo `check`/`verify`, and the persona source stay untouched.
+- **WIP freshness**: verdict validation tolerates coarse filesystem mtime
+  within one second while continuing to reject genuinely stale verdicts;
+  the intermittent ready-verdict test is fixed deterministically.
+
 ## 2026-11-23 — v0.15.18: WIP batch gate — plan 20261122-080 complete (seven tasks)
 
 - **WIP state**: `.workflows/wip/<batch>.json` is the source of truth for an
