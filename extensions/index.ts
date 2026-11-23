@@ -4933,6 +4933,30 @@ export function diagramViewMessage(input: DiagramViewInput) {
     details: { policy: input.policy, diagram: input.diagram },
   };
 }
+
+/** Runtime descriptor written by the close-out renderer (plan 20261123-075 TASK 8). */
+export const GENERATED_VIEW_FILE = "generated-view.json";
+
+/**
+ * Turn a shipped surface's generated-view descriptor into the message the
+ * renderer above consumes. The policy result and artifact come from that
+ * surface; this function adds no decision logic.
+ */
+export function produceGeneratedViewMessage(cwd: string): ReturnType<typeof diagramViewMessage> | null {
+  try {
+    const file = path.join(cwd, ".workflows", GENERATED_VIEW_FILE);
+    if (!fs.existsSync(file)) return null;
+    const d = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (d?.policy?.diagram !== true || typeof d?.diagram?.pngPath !== "string") return null;
+    const text = typeof d.text === "string" ? d.text : "";
+    return {
+      ...diagramViewMessage({ policy: d.policy, diagram: d.diagram, text }),
+      details: { surface: d.surface ?? "closeout", policy: d.policy, diagram: d.diagram },
+    };
+  } catch {
+    return null;
+  }
+}
 // end additive diagram view
 
 export default function register(pi: any, deps: { tui?: any; settings?: any } = {}): void {
@@ -5430,6 +5454,24 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
         display: true,
       },
     };
+  });
+
+  // Producer for the generated-view renderer: a shipped close-out run writes
+  // .workflows/generated-view.json; the next agent turn carries its canonical
+  // prose and artifact details as a DIAGRAM_VIEW_TYPE message. One message per
+  // descriptor, and text-only hosts simply display the prose.
+  let lastGeneratedViewKey = "";
+  pi.on("before_agent_start", async (event: any) => {
+    try {
+      const message = produceGeneratedViewMessage(event?.cwd || process.cwd());
+      if (!message) return undefined;
+      const key = JSON.stringify(message);
+      if (key === lastGeneratedViewKey) return undefined;
+      lastGeneratedViewKey = key;
+      return { message };
+    } catch {
+      return undefined;
+    }
   });
 
   // Additive generated-view renderer (plan 20261123-075 TASK 4). Pi's

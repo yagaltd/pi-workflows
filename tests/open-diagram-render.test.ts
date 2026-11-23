@@ -82,6 +82,41 @@ describe("open-diagram renderer seam (plan 20261123-075)", () => {
     await expect(renderDiagram({ spec: { path: spec, title: TITLE }, out, run: tiny.run })).rejects.toThrow(/9\.5 px.*10 px/);
   });
 
+  test("test_renderer_cli_path_override", async () => {
+    const { spec, out } = fixture();
+    const stub = path.join(fixture().dir, "open-diagram-stub");
+    fs.writeFileSync(
+      stub,
+      [
+        "#!/usr/bin/env bash",
+        "target=''",
+        "while [ $# -gt 0 ]; do",
+        "  if [ \"$1\" = '-o' ]; then target=\"$2\"; shift 2; else shift; fi",
+        "done",
+        "printf '<svg />\\n' > \"$target.svg\"",
+        "printf 'PNG' > \"$target.png\"",
+        "printf 'wrote %s.svg, %s.png: 640 x 240 px; smallest text 12 px; 0 layout problem(s)\\n' \"$target\" \"$target\"",
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    const previous = process.env.OPEN_DIAGRAM_CLI;
+    process.env.OPEN_DIAGRAM_CLI = stub;
+    try {
+      const result = await renderDiagram({ spec: { path: spec, title: TITLE }, out });
+      expect(fs.existsSync(result.svgPath)).toBe(true);
+      expect(fs.existsSync(result.pngPath)).toBe(true);
+      expect(result.widthPx).toBe(640);
+      expect(result.heightPx).toBe(240);
+      expect(result.smallestTextPx).toBe(12);
+      expect(result.layoutProblems).toBe(0);
+      expect(result.altText).toContain(TITLE);
+    } finally {
+      if (previous === undefined) delete process.env.OPEN_DIAGRAM_CLI;
+      else process.env.OPEN_DIAGRAM_CLI = previous;
+    }
+  });
+
   test("test_render_cli_prints_json_and_rejects_bad_args", async () => {
     const { spec, out } = fixture();
     const { run } = stubRunner();

@@ -61,6 +61,17 @@ never a replacement for judge-readable text (gate:
 `tests/open-diagram-render.test.ts`); it stays additive beside the follow-up
 table.
 
+`scripts/output-policy-cli.mjs` parses explicit policy flags and prints the
+four-boolean JSON decision, leaving the pure module free of file and network
+access (gate: `tests/output-policy.test.ts`). The format-chooser CLI binds the
+same flags to that policy (gate: `tests/format-chooser.test.ts`).
+`OPEN_DIAGRAM_CLI` selects the external renderer executable; its local Python
+environment path is only a default (gate:
+`tests/open-diagram-render.test.ts`). Close-out writes a fence-free diagram
+spec, emits canonical text before rendering, and records a generated-view
+descriptor that the extension turns into a `DIAGRAM_VIEW_TYPE` message (gates:
+`tests/closeout.test.ts`, `tests/extension.test.ts`).
+
 ## Gates — verdict gating: no model marks its own work done
 
 Each worker task goes through checkpoints that agents cannot skip — the engine

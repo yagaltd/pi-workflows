@@ -28,7 +28,7 @@ subcommands:
   profile-lint     scripts/profile-lint.sh
   resume-digest    scripts/resume-digest.sh
   wip              scripts/wip.mjs
-  output-policy    scripts/output-policy.mjs
+  output-policy    scripts/output-policy-cli.mjs
   open-diagram-render scripts/open-diagram-render.mjs
 EOF
 }
@@ -61,7 +61,7 @@ case "$cmd" in
   profile-lint)   exec bash    "$root/scripts/profile-lint.sh"        "$@" ;;
   resume-digest)  exec bash    "$root/scripts/resume-digest.sh"       "$@" ;;
   wip)            exec node    "$root/scripts/wip.mjs"              "$@" ;;
-  output-policy) exec node "$root/scripts/output-policy.mjs" "$@" ;;
+  output-policy) exec node "$root/scripts/output-policy-cli.mjs" "$@" ;;
   open-diagram-render) exec node "$root/scripts/open-diagram-render.mjs" "$@" ;;
   *) usage; exit 2 ;;
 esac

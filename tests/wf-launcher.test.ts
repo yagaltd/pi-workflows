@@ -93,10 +93,10 @@ describe("wf launcher contract", () => {
   test("test_release_launcher_wiring", () => {
     const source = fs.readFileSync(LAUNCHER, "utf8");
     for (const [name, script] of [
-      ["output-policy", "output-policy.mjs"],
+      ["output-policy", "output-policy-cli.mjs"],
       ["open-diagram-render", "open-diagram-render.mjs"],
     ]) {
-      expect(source).toMatch(new RegExp(`^  ${name}\\s+scripts/${name}\\.mjs$`, "m"));
+      expect(source).toMatch(new RegExp(`^  ${name}\\s+scripts/${script}$`, "m"));
       expect(source).toContain(`${name}) exec node "$root/scripts/${script}" "$@"`);
 
       const taskPath = path.join(ROOT, ".mise", "tasks", name);
@@ -111,7 +111,17 @@ describe("wf launcher contract", () => {
 
     const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "wf-release-"));
     try {
-      expect(run(["output-policy"], elsewhere).status).toBe(0);
+      const bare = run(["output-policy"], elsewhere);
+      expect(bare.status).toBe(0);
+      expect(JSON.parse(bare.stdout)).toEqual({
+        prose: true,
+        statusTokens: true,
+        table: false,
+        diagram: false,
+      });
+      const shaped = run(["output-policy", "--tasks", "4", "--waves", "2"], elsewhere);
+      expect(shaped.status).toBe(0);
+      expect(JSON.parse(shaped.stdout).diagram).toBe(true);
       const render = run(["open-diagram-render"], elsewhere);
       expect(render.status).toBe(2);
       expect(render.stderr).toContain("usage error: --spec is required");

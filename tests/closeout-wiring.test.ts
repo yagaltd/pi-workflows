@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -47,6 +48,24 @@ describe("closeout wiring (plan 20261025-028)", () => {
     expect(calls.policy.length).toBe(0);
     expect(calls.renderer.length).toBe(0);
     expect(proseOnly.text).not.toContain(artifact.svgPath);
+  });
+
+  test("test_final_review_integration_gates", () => {
+    const root = path.resolve(import.meta.dir, "..");
+    const source = (rel: string) => fs.readFileSync(path.join(root, rel), "utf8");
+    const policyCli = source("scripts/output-policy-cli.mjs");
+    expect(policyCli).toContain("decideOutputPolicy");
+    expect(source("scripts/output-policy.mjs")).not.toMatch(/process\.(env|argv)|node:fs|console\./);
+    expect(source("scripts/wf.sh")).toContain("output-policy-cli.mjs");
+    expect(source(".mise/tasks/output-policy")).toContain("wf.sh output-policy");
+    expect(source("scripts/format-chooser.mjs")).toContain("parsePolicyArgs");
+    expect(source("scripts/open-diagram-render.mjs")).toContain("OPEN_DIAGRAM_CLI");
+    const closeout = source("scripts/closeout.mjs");
+    expect(closeout).toContain("graph LR");
+    expect(closeout).toContain("generated-view.json");
+    expect(closeout).toContain("onReport");
+    expect(source("extensions/index.ts")).toContain("produceGeneratedViewMessage");
+    expect(source("README.md")).toContain("OPEN_DIAGRAM_CLI");
   });
 
   const planLive = requireLiveState(".workflows/plan.md", "closeout runs against the live plan and emits exit 0 with the Shipped Deviations Discoveries Deferred and Watch sections");
