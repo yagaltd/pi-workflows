@@ -143,15 +143,15 @@ User prompts (not `/commands`) under a live plan with tasks get one judge classi
 
 Decision outputs get the artifact a human decision needs — `node scripts/format-chooser.mjs choose --for <closeout|plan-approval|challenge|brainstorm-graduation> --content-file <output.md>`: two advisory judge questions. Q1 picks the form — `none` (prose, the correct default) · table · mermaid · html; Q2 names the diagram family. Closed boundary set; the agent may overrule with a stated reason; a skipped judge fails open to prose. HTML artifacts are generated views — never hand-edited, never gates.
 
-## Output format policy
+## Output Format Policy
 
 `scripts/output-policy.mjs` (`decideOutputPolicy`) is the deterministic
-source of truth. Canonical prose plus display-only status tokens (`[[Done]]`,
-`[[Decision]]`, `[[Pending]]`, `[[Failed]]`, `[[Unverified]]`) are always
-present; no reply is image-only. Tokens decorate chat only, never a tracked
-file. The policy flows to `scripts/format-chooser.mjs`, `/status`, close-out,
-and the TUI renderer; the chooser's judge answers stay advisory and fail open
-to prose.
+source of truth. Canonical prose plus display-only status tokens — Done,
+Decision, Pending, Failed, Unverified — always stand; no reply is image-only.
+Tokens decorate chat only, never a tracked file; the mapping of record lives
+in `templates/STATUS-VOCABULARY.md`. The policy flows to
+`scripts/format-chooser.mjs`, `/status`, close-out, and the TUI renderer;
+the chooser's judge answers stay advisory and fail open to prose.
 
 A table is earned when `>=3` rows share `>=3` comparable fields, and it is
 mandatory for the close-out/next-moves table. A diagram is earned when `>=4`
@@ -161,11 +161,12 @@ meaningful links must be seen together. PNG/SVG from `open-diagram` is an
 additive generated view: it carries alt text, never replaces judge-readable
 text or the follow-up table.
 
-This plan adds no new judge call, no new TypeLLM path, and no change to
+This plan adds no new judge call, no new `TypeLLM` path, and no change to
 dispatched-verdict semantics. Entry points (all arguments forwarded):
 `mise run output-policy` and `mise run open-diagram-render`, backed by
 `bash scripts/wf.sh output-policy` and `bash scripts/wf.sh open-diagram-render`.
-The launcher resolves the package root from its own path, not the caller's cwd.
+The launcher resolves the package root from its own path, not the caller's
+working directory.
 
 ## The Reply-Style Companion
 
