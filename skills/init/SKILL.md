@@ -200,12 +200,28 @@ project's
    REPORT the native pinning and OFFER consolidation into `mise.toml`
    (never forced). On approval: run `mise install`, then verify each
    runtime resolves with `mise exec -- <runtime> --version`. Boundaries:
-   NEVER delete existing version files; NEVER upgrade runtimes just to
+   NEVER delete existing version files; NEVER upgrade runtimes only to
    enable mise; NEVER silently replace another tool manager. mise
    missing → SKIP LOUDLY: REPORT it, OFFER installation
    (`curl https://mise.run | sh`), then continue Phase 5 without a
    `mise.toml` — init never blocks on mise, and the phase never aborts.
    Report the mise-absent skip loudly in the handoff.
+
+   **Task bridge: pi-workflows wrappers (gate: owner approval):**
+   DETECT a consumer `mise` installation (`mise --version`) and an existing
+   configuration (`mise.toml`, `mise/config.toml`, `mise/conf.d/`). If `mise`
+   is absent, REPORT `pi-workflows mise tasks SKIPPED (mise absent)`, OFFER
+   opt-in installation, and do not install anything or write the fragment.
+   If present, WRITE `mise/conf.d/pi-workflows.toml` (use the existing
+   directory layout when one exists) from `buildInitMiseFragment()` in
+   `scripts/init-extract.ts`. The emitted tables are `[tasks."wf:judge"]`,
+   `[tasks."wf:lessons"]`, `[tasks."wf:bench"]`, and
+   `[tasks."wf:archive-check"]`. Each task calls
+   `"$PI_WORKFLOWS_BIN" <verb> "$@"`.
+   Boundaries (gate: owner approval): do not edit the root `mise.toml`, do not
+   define `check`/`verify`, do not create a legacy task manifest, and do not
+   replace the repo's own tasks. Record the path in the handoff and the
+   `.workflows/LOG.md` recommendation (LOG writes stay gate-only).
 8. **Docs consolidation**: triage loose root-level `*.md`
    design/roadmap/refactor notes using the Phase 3 TREE listing. Greenfield:
    there are typically none — state that and skip this step cleanly.
@@ -238,7 +254,8 @@ project's
 10. **Hand off**: present the summary — including BOTH the model-policy
    outcome (the owner's registry picks and their provenance) AND the
    dev-environment outcome (mise.toml written and verified, native
-   pinning reported, or the loud mise-absent skip) — and point at `/plan` — its
+   pinning reported, the generated `mise/conf.d/pi-workflows.toml` path, or
+   the loud mise-absent skip) — and point at `/plan` — its
 contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter (probed

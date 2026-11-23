@@ -1,6 +1,7 @@
 {
   "roots": [
     ".githooks",
+    ".mise",
     "agents",
     "asset",
     "diagrams",
@@ -22,7 +23,6 @@
     "CONTRACTS",
     "LICENSE",
     "README.md",
-    "justfile",
     "mise.toml",
     "package.json"
   ],

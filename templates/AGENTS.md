@@ -8,6 +8,8 @@
 
 ## CORE (binding)
 
+- Command entrypoint: repo-root `.mise/tasks` file tasks;
+  use `mise run <task>` for gates.
 - Containment: work only within your task's Allowed Changes; anything else is reported, never fixed.
 - Commits: workers never commit, merge, or push; a gate commits after review passes.
 - Refactor first: extend existing structure before adding new surface.
@@ -24,6 +26,7 @@
 
 - Project overview (what this is, who it serves): `<placeholder>`
 - Build and test (commands, fixtures): `<placeholder>`
+  (prefer `mise run <task>` file tasks when present)
 - Architecture and docs index (map, ADRs): `<placeholder>`
 - Conventions (style, docs policy): `<placeholder>`
 

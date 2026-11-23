@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Run the full local gate chain"
+# Usage: mise run ci
+set -euo pipefail
+
+./scripts/check-drift.sh
+./scripts/docs-lint.sh
+./scripts/agents-lint.sh AGENTS.md
+bun test

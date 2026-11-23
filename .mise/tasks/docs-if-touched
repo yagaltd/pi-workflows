@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Run docs gates when doc surfaces changed"
+# Usage: mise run docs-if-touched
+set -euo pipefail
+
+if git diff --name-only HEAD -- docs/ prompts/ skills/ agents/ README.md CHANGELOG.md | grep -q .; then
+  mise run docs
+fi

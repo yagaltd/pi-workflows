@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run the judge through the shared launcher"
+# Usage: mise run judge -- <args...>
+set -euo pipefail
+
+./scripts/wf.sh judge "$@"

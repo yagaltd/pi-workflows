@@ -147,25 +147,22 @@ describe("prompt doctrine — /init model policy + catalog-first resolution (T3,
 });
 
 // T5 — plan 20261102-052: eval orchestration wiring + doctrine.
-// Pins the justfile eval recipe, the .workflows/evals whitelist, and the
+// Pins the mise eval file task, the .workflows/evals whitelist, and the
 // Eval kaizen triggers section in agents/execution-doctrine.md.
 
-const JUSTFILE = fs.readFileSync("justfile", "utf8");
+const EVAL_TASK = fs.readFileSync(".mise/tasks/eval", "utf8");
+const CI_TASK = fs.readFileSync(".mise/tasks/ci", "utf8");
 const GITIGNORE = fs.readFileSync(".gitignore", "utf8");
 const DOCTRINE = fs.readFileSync("agents/execution-doctrine.md", "utf8");
 
 describe("eval wiring + doctrine (T5, plan 20261102-052)", () => {
-  test("justfile has a standalone eval recipe running eval-orchestration.mjs", () => {
-    const m = JUSTFILE.indexOf("eval:");
-    expect(m).toBeGreaterThan(-1);
-    const slice = JUSTFILE.slice(m, m + 200);
-    expect(slice).toContain("node scripts/eval-orchestration.mjs");
+  test("mise eval file task runs eval-orchestration.mjs", () => {
+    expect(EVAL_TASK).toContain("node scripts/eval-orchestration.mjs");
   });
 
-  test("eval recipe is NOT part of the ci recipe (judge costs stay out of CI)", () => {
-    const ci = JUSTFILE.slice(JUSTFILE.indexOf("ci:"), JUSTFILE.indexOf("ci-lite:"));
-    expect(ci).toContain("./scripts/check-drift.sh");
-    expect(ci).not.toContain("eval-orchestration");
+  test("eval is NOT part of the ci file task (judge costs stay out of CI)", () => {
+    expect(CI_TASK).toContain("./scripts/check-drift.sh");
+    expect(CI_TASK).not.toContain("eval-orchestration");
   });
 
   test(".gitignore whitelists .workflows/evals/ right after the .workflows/* block", () => {
@@ -247,10 +244,10 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
     expect(slice).toContain("mise exec -- <runtime> --version");
   });
 
-  test("three boundaries: never delete existing version files, never upgrade runtimes just to enable it, never silently replace another tool manager", () => {
+  test("three boundaries: never delete existing version files, never upgrade runtimes only to enable it, never silently replace another tool manager", () => {
     const slice = devSlice();
     expect(slice).toContain("NEVER delete existing version files");
-    expect(slice).toContain("NEVER upgrade runtimes just to enable mise");
+    expect(slice).toContain("NEVER upgrade runtimes only to enable mise");
     expect(slice).toContain("NEVER silently replace another tool manager");
   });
 
@@ -714,11 +711,7 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
   test("test_gates_stay_green", () => {
     // Static pin of the gate wiring; the gates themselves run in the task
     // verify line (`bun test && bash scripts/check-drift.sh`).
-    const justfile = fs.readFileSync("justfile", "utf8");
-    const ci = justfile.slice(
-      justfile.indexOf("ci:"),
-      justfile.indexOf("ci-lite:"),
-    );
+    const ci = CI_TASK;
     expect(ci).toContain("./scripts/check-drift.sh");
     expect(ci).toContain("bun test");
     const rule = reviewerDomainSkillsRuleT1();
@@ -836,11 +829,7 @@ describe("prompt doctrine — ledger wiring (T2, plan 20261117-067)", () => {
   test("test_gates_stay_green", () => {
     // Static pin of the gate wiring; the gates themselves run in the task
     // verify line (`bun test && bash scripts/check-drift.sh`).
-    const justfile = fs.readFileSync("justfile", "utf8");
-    const ci = justfile.slice(
-      justfile.indexOf("ci:"),
-      justfile.indexOf("ci-lite:"),
-    );
+    const ci = CI_TASK;
     expect(ci).toContain("./scripts/check-drift.sh");
     expect(ci).toContain("bun test");
     // the table template exists and is still the format of record
