@@ -39,6 +39,9 @@ import {
   verdictTable,
   fallbackNote,
   recordArgvs,
+  renderDiagramView,
+  diagramViewMessage,
+  DIAGRAM_VIEW_TYPE,
   type GateRunner,
   type WaveChild,
 } from "../extensions/index";
@@ -1967,6 +1970,135 @@ describe("verdict automation units", () => {
       "record", "--plan", "20260101-038", "--task", "task-2", "--event", "failed",
     ]);
     expect(recordArgvs({ planId: "p", taskId: "t", verify: "v", contractPath: "s", ok: true }).journal).toContain("done");
+  });
+});
+
+describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
+  const PROSE = "Task 1 done [[Done]]\nTask 2 pending [[Pending]]";
+  const ALT = "Diagram: four tasks across two waves";
+  const PNG = "/tmp/pi-workflows-075/plan.png";
+  const settings = { terminal: { showImages: true, imageWidthCells: 137, images: "auto" } };
+
+  class FakeImage {
+    args: any[];
+    constructor(...args: any[]) { this.args = args; }
+  }
+  class FakeText {
+    constructor(public text: string, public pad: number, public indent: number) {}
+  }
+  class FakeBox {
+    children: any[] = [];
+    constructor(public pad: number, public spacing: number, public bg: any) {}
+    addChild(child: any) { this.children.push(child); }
+  }
+
+  const input = (overrides: Record<string, any> = {}) => ({
+    policy: { diagram: true },
+    diagram: { pngPath: PNG, altText: ALT },
+    text: PROSE,
+    ...overrides,
+  });
+  const deps = { settings, Image: FakeImage as any, readImage: () => "BASE64" };
+
+  test("test_image_hook_renders_component", () => {
+    const view = renderDiagramView(input(), deps);
+    const image = view.image as FakeImage;
+    expect(image).toBeInstanceOf(FakeImage);
+    expect(image.args[0]).toBe("BASE64");
+    expect(image.args[3].filename).toBe(PNG);
+    expect(image.args[3].maxWidthCells).toBe(137);
+    expect(image.args[3].maxWidthCells).not.toBe(60); // no hard-coded cell width
+    expect(view.text.startsWith(PROSE)).toBe(true);
+    expect(view.text).not.toContain("!" + "[" + "](" + PNG + ")");
+
+    // The registered message renderer uses the same hook with Pi's components.
+    const renderers: Record<string, any> = {};
+    register(
+      {
+        on: () => undefined,
+        registerTool: () => undefined,
+        registerMessageRenderer: (type: string, renderer: any) => { renderers[type] = renderer; },
+        getSettings: () => settings,
+      } as any,
+      { tui: { Image: FakeImage, Text: FakeText, Box: FakeBox } }
+    );
+    const renderer = renderers[DIAGRAM_VIEW_TYPE];
+    expect(typeof renderer).toBe("function");
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "t4-image-"));
+    const realPng = path.join(dir, "plan.png");
+    fs.writeFileSync(realPng, "png bytes");
+    try {
+      const box = renderer(
+        diagramViewMessage(input({ diagram: { pngPath: realPng, altText: ALT } })),
+        { expanded: false, outputPad: 1 },
+        { bg: (_key: string, text: string) => text, fg: (_key: string, text: string) => text }
+      );
+      const renderedImage = box.children.find((c: any) => c instanceof FakeImage);
+      const renderedText = box.children.find((c: any) => c instanceof FakeText);
+      expect(renderedImage.args[3].filename).toBe(realPng);
+      expect(renderedImage.args[3].maxWidthCells).toBe(137);
+      expect(renderedText.text.startsWith(PROSE)).toBe(true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("test_image_hook_includes_alt_text", () => {
+    const view = renderDiagramView(input(), deps);
+    expect((view.image as FakeImage).args[3].altText).toBe(ALT);
+    expect((view.image as any).altText).toBe(ALT);
+    expect(view.text).toContain(ALT);
+    const alreadyAlt = `${PROSE}\n${ALT}`;
+    expect(renderDiagramView(input({ text: alreadyAlt }), deps).text).toBe(alreadyAlt);
+    expect(diagramViewMessage(input()).content).toContain(ALT);
+  });
+
+  test("test_image_hook_text_fallback", () => {
+    for (const terminal of [
+      { showImages: false, imageWidthCells: 137, images: "auto" },
+      { showImages: true, imageWidthCells: 137, images: false },
+    ]) {
+      const view = renderDiagramView(input(), {
+        ...deps,
+        settings: { terminal },
+      });
+      expect(view.image).toBeNull();
+      expect(view.text.startsWith(PROSE)).toBe(true);
+      expect(view.text).toContain("[[Done]]");
+      expect(view.text).toContain("[[Pending]]");
+      expect(view.text).toContain(ALT);
+    }
+    const unreadable = renderDiagramView(input(), {
+      ...deps,
+      readImage: () => { throw new Error("no image bytes"); },
+    });
+    expect(unreadable.image).toBeNull();
+    expect(unreadable.text).toContain(ALT);
+  });
+
+  test("test_image_hook_no_policy_logic", () => {
+    const suggested = { diagram: true };
+    const policyOff = renderDiagramView(
+      input({ policy: { diagram: false }, judgeSuggestion: suggested }),
+      deps
+    );
+    expect(policyOff.image).toBeNull();
+    expect(policyOff.text).toContain(PROSE);
+    const noPolicy = renderDiagramView(
+      input({ policy: null, judgeSuggestion: suggested }),
+      deps
+    );
+    expect(noPolicy.image).toBeNull();
+
+    const source = fs.readFileSync(path.join(import.meta.dir, "..", "extensions", "index.ts"), "utf8");
+    expect(source).not.toContain("!" + "[" + "](");
+    const start = source.indexOf("// 10. Additive diagram view");
+    const end = source.indexOf("// end additive diagram view", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const hook = source.slice(start, end);
+    expect(hook).not.toMatch(/output-policy|format-chooser|decideOutputPolicy|chooseFormat/);
+    expect(hook).not.toMatch(/threshold|judge|verdict|suggestion/i);
   });
 });
 
