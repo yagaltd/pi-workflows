@@ -4851,7 +4851,91 @@ export function renderAuditDigest(r: AuditBatchResult): string {
   return lines.join("\n");
 }
 
-export default function register(pi: any): void {
+// 10. Additive diagram view (plan 20261123-075 TASK 4): consume upstream
+// results as inputs. The text stream is the canonical surface; the image is
+// an extra TUI component beside it, never a replacement for it.
+export const DIAGRAM_VIEW_TYPE = "pi-workflows-generated-view";
+
+export interface DiagramViewInput {
+  /** Upstream policy result; only its `diagram` flag is consulted. */
+  policy?: { diagram?: boolean } | null;
+  /** Upstream renderer result: generated PNG path and its alt text. */
+  diagram?: { pngPath?: string; altText?: string } | null;
+  /** Canonical prose, including status tokens; emitted byte-for-byte. */
+  text: string;
+}
+
+export interface DiagramViewDeps {
+  /** Effective settings, normally pi.getSettings(). */
+  settings?: any;
+  /** Pi's built-in Image component constructor. */
+  Image?: new (...args: any[]) => any;
+  theme?: any;
+  /** Base64 PNG bytes for `diagram.pngPath` (defaults to a local read). */
+  readImage?: (filePath: string) => string;
+}
+
+export interface DiagramView {
+  text: string;
+  image: any | null;
+}
+
+export function renderDiagramView(
+  input: DiagramViewInput,
+  deps: DiagramViewDeps = {}
+): DiagramView {
+  const prose = typeof input.text === "string" ? input.text : "";
+  const alt = typeof input.diagram?.altText === "string" ? input.diagram.altText : "";
+  const text =
+    alt && !prose.includes(alt)
+      ? `${prose}${prose.endsWith("\n") ? "" : "\n"}${alt}`
+      : prose;
+  const pngPath = typeof input.diagram?.pngPath === "string" ? input.diagram.pngPath : "";
+  const terminal = deps.settings?.terminal;
+  const enabled = terminal?.showImages !== false && terminal?.images !== false;
+
+  if (input.policy?.diagram !== true || !pngPath || !enabled || !deps.Image) {
+    return { text, image: null };
+  }
+  try {
+    const base64 = deps.readImage
+      ? deps.readImage(pngPath)
+      : fs.readFileSync(pngPath).toString("base64");
+    if (!base64) return { text, image: null };
+    const width = terminal?.imageWidthCells;
+    const hasWidth = typeof width === "number" && Number.isFinite(width) && width > 0;
+    const options: Record<string, any> = { filename: pngPath };
+    if (alt) options.altText = alt;
+    if (hasWidth) options.maxWidthCells = width;
+    const image = new deps.Image(
+      base64,
+      "image/png",
+      deps.theme ?? { fallbackColor: (s: string) => s },
+      options
+    );
+    if (image && typeof image === "object") {
+      image.path = pngPath;
+      image.altText = alt;
+      if (hasWidth) image.widthCells = width;
+    }
+    return { text, image };
+  } catch {
+    return { text, image: null };
+  }
+}
+
+/** Message payload for surfaces with an approved generated view to display. */
+export function diagramViewMessage(input: DiagramViewInput) {
+  return {
+    customType: DIAGRAM_VIEW_TYPE,
+    content: renderDiagramView(input).text,
+    display: true,
+    details: { policy: input.policy, diagram: input.diagram },
+  };
+}
+// end additive diagram view
+
+export default function register(pi: any, deps: { tui?: any; settings?: any } = {}): void {
   const agentsDir = path.join(__dirname, "..", "agents");
   const readFile = (name: string): string | null => {
     const p = path.join(agentsDir, `${name}.md`);
@@ -5347,4 +5431,43 @@ export default function register(pi: any): void {
       },
     };
   });
+
+  // Additive generated-view renderer (plan 20261123-075 TASK 4). Pi's
+  // components load lazily so text-only hosts never need the TUI package.
+  if (typeof pi.registerMessageRenderer === "function") {
+    let tui: any = deps.tui ?? null;
+    if (!tui) {
+      void import("@earendil-works/pi-tui")
+        .then((mod) => { tui = mod; })
+        .catch(() => { tui = null; });
+    }
+    pi.registerMessageRenderer(DIAGRAM_VIEW_TYPE, (message: any, options: any, theme: any) => {
+      const details = message?.details ?? {};
+      const view = renderDiagramView(
+        {
+          policy: details.policy,
+          diagram: details.diagram,
+          text: message?.content ?? "",
+        },
+        {
+          settings: deps.settings ?? (typeof pi.getSettings === "function" ? pi.getSettings() : undefined),
+          Image: tui?.Image,
+          theme,
+        }
+      );
+      const pad = options?.outputPad ?? 0;
+      const textComponent = tui?.Text
+        ? new tui.Text(view.text, 0, 0)
+        : { render: () => [view.text], invalidate: () => {} };
+      if (!view.image || !tui?.Box) return textComponent;
+      const box = new tui.Box(
+        pad,
+        1,
+        (t: string) => theme?.bg?.("customMessageBg", t) ?? t
+      );
+      box.addChild(textComponent);
+      box.addChild(view.image);
+      return box;
+    });
+  }
 }
