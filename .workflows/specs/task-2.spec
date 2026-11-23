@@ -1,7 +1,7 @@
 spec: task
 name: fix-wip-emit
 tags: [wip, fix, doctrine]
-verify: "bun test teststhe fix skill-wip.test.ts"
+verify: "bun test tests/fix-wip.test.ts"
 max-rounds: 2
 ---
 
@@ -22,8 +22,8 @@ commits; it hands the human a batch identity and scope.
 
 ### Allowed Changes
 - .workflows/specs/task-2.spec
-- skillsthe fix skill/SKILL.md
-- teststhe fix skill-wip.test.ts
+- skills/fix/SKILL.md
+- tests/fix-wip.test.ts
 
 ### Forbidden
 - scripts/**
@@ -40,7 +40,7 @@ commits; it hands the human a batch identity and scope.
 
 Scenario: fix emits WIP state at STOP
   Test: test_fix_phase9_emits_wip_start
-  Given skillsthe fix skill/SKILL.md Phase 9
+  Given skills/fix/SKILL.md Phase 9
   When the skill text is read
   Then it contains a `wip start` launcher call
   And the call sets scope from Allowed Changes

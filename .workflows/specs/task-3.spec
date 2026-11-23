@@ -1,7 +1,7 @@
 spec: task
 name: review-wip-consume
 tags: [wip, review, gate]
-verify: "bun test teststhe review skill-wip.test.ts"
+verify: "bun test tests/review-wip.test.ts"
 max-rounds: 2
 ---
 
@@ -22,8 +22,8 @@ scope proof before the final commit, then mark the batch shipped.
 
 ### Allowed Changes
 - .workflows/specs/task-3.spec
-- skillsthe review skill/SKILL.md
-- teststhe review skill-wip.test.ts
+- skills/review/SKILL.md
+- tests/review-wip.test.ts
 
 ### Forbidden
 - scripts/**
@@ -40,7 +40,7 @@ scope proof before the final commit, then mark the batch shipped.
 
 Scenario: review verifies WIP before SHIP
   Test: test_review_stage3_runs_wip_verify
-  Given skillsthe review skill/SKILL.md Stage 3
+  Given skills/review/SKILL.md Stage 3
   When the skill text is read
   Then a `wip verify` launcher call appears before the SHIP commit
 

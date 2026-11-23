@@ -21,14 +21,14 @@ WIP state plus a human-approved commit; the final commit remains `the review ski
 
 ### Allowed Changes
 - .workflows/specs/task-4.spec
-- skillsthe refactor skill/SKILL.md
+- skills/refactor/SKILL.md
 - teststhe refactor skill-wip.test.ts
 
 ### Forbidden
 - scripts/**
 - extensions/index.ts
 - skills/fix/SKILL.md
-- skillsthe review skill/SKILL.md
+- skills/review/SKILL.md
 - .githooks/**
 - .workflows/plan.md
 - docs/**
@@ -39,7 +39,7 @@ WIP state plus a human-approved commit; the final commit remains `the review ski
 
 Scenario: refactor step uses WIP state
   Test: test_refactor_step_emits_wip_state
-  Given the per-step commit advice in skillsthe refactor skill/SKILL.md
+  Given the per-step commit advice in skills/refactor/SKILL.md
   When the skill text is read
   Then it contains a `wip start` launcher call
 
