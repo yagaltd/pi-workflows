@@ -50,7 +50,9 @@ Gather enough context to plan well.
    - If there's an existing exploration doc: read it
    - If there's an existing codebase: grep/find the relevant areas
 3. **What are the constraints?** Stack, dependencies, timeline, risk tolerance.
-4. **What did we already learn?** Run `node scripts/lessons.mjs list`
+4. **What did we already learn?** Run
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" lessons list`
+   (`lessons.mjs list`)
    (the lessons ledger — plan 20261026-031). Valid and speculative lessons
    inform task shape; `failed` lessons warn. The draft cites every applied
    lesson id in Execution Notes (`lessons: les-<planId>-task-N` lines).
@@ -135,7 +137,8 @@ scan, quality judgment) at SHIP. Do NOT create plan-level "verify" or
 ### Depends on Edges (Plan-Time DAG Extraction)
 
 The `Depends On` edges can be extracted before spec drafting: run
-`bun scripts/bench-intake-triage.ts plandag --plan <draft-plan-file>` (the
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" bench plandag \
+--plan <draft-plan-file>` (the
 plan-DAG harness mode; position bias is controlled natively on the edges
 question). The rendered table is CONFIRMATION material — the OWNER confirms
 or corrects every edge, and a wrong edge is reported, never silently
@@ -309,7 +312,7 @@ declaration at SHIP).
 - Plan ID is assigned once at bootstrap: NNN = (entries in `.workflows/archive/done` + `.workflows/archive/superseded`) + 1, zero-padded to 3. Never reuse a Plan ID.
 - `/idea` and `/plan` refuse to overwrite a live plan (DRAFT/APPROVED/IN PROGRESS) — route it to `/review` (ship → `archive/done/`) or `/abort` (abandon → `archive/superseded/`) first.
 - SHIP (`/review`, all tasks ✅) → set Status: DONE and move the bundle (plan.md + specs/ + reviews/ + CONTEXT.snapshot.md) to `.workflows/archive/done/<PlanID>-<slug>/`.
-- SHIP gate: run `bash scripts/check-archive.sh <archive-target-dir>` before the bundle move — a missing declared Docs impact path or a CHANGELOG without the Plan ID refuses the archive (templates/PROPOSAL-FORMAT.md).
+- SHIP gate: run `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" archive-check <archive-target-dir>` before the bundle move — a missing declared Docs impact path or a CHANGELOG without the Plan ID refuses the archive (templates/PROPOSAL-FORMAT.md).
 - `/abort` → Status: SUPERSEDED, bundle to `.workflows/archive/superseded/<PlanID>-<slug>/` with reason.
 - `.workflows/CONTEXT.md`, `docs/adr/`, `knowledge/`, `LOG.md` are never archived — durable knowledge outlives every plan.
 
@@ -536,7 +539,9 @@ full waves before the tooling caught it — every review round paid a
 lifecycle-skip tax.
 
 **Selector syntax lint (mechanical, after the parse-lint)**: once a spec
-parses, run `bash scripts/check-spec-selectors.sh <spec...>` (with no args it
+parses, run the launcher:
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" spec-selectors <spec...>`
+(with no args it
 lints `.workflows/specs/*.spec`; an absent directory is clean). It is
 parse-only — `bash -n` on every `Test:` selector plus grep-flag sanity (-A/-B/-C
 numeric, pattern non-empty, `-f` path present) — and never executes a selector
@@ -596,7 +601,7 @@ kinds: the five are the contract's full defect surface.
 ### Step 2 — run the judge (one call per contract)
 
 ```bash
-node scripts/judge.mjs ask --questions .workflows/reviews/preflight-<task-id>.json --audit .workflows/reviews/judge-<plan-id>.md
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" judge ask --questions .workflows/reviews/preflight-<task-id>.json --audit .workflows/reviews/judge-<plan-id>.md
 ```
 
 Five questions per call stays far under the client's 64-question cap (the
@@ -755,7 +760,8 @@ Decisions meant to outlive the plan belong in the decision index
 (`.workflows/decisions/`):
 
 ```bash
-node scripts/decisions.mjs record --id DEC-00N --title "..." --rule "..." --scope "..." --decided-by <plan-id> --revisit "..."
+# decisions.mjs record
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" decisions record --id DEC-00N --title "..." --rule "..." --scope "..." --decided-by <plan-id> --revisit "..."
 ```
 
 Reference them from the plan with `adr: DEC-00N` — the SHIP gate
@@ -765,8 +771,10 @@ recording why its revisit-when condition fired.
 
 ## Phase 4 addendum — format chooser (plan 20261026-032)
 
-Before the approval ask, one advisory call:
-`node scripts/format-chooser.mjs choose --for plan-approval --content-file .workflows/plan.md`
+Before the approval ask, one advisory call
+(`format-chooser.mjs choose --for plan-approval`):
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" format-chooser choose \
+--for plan-approval --content-file .workflows/plan.md`
 A visual pick (html/mermaid) generates the decision view via the
 diagram-design doctrine; `none` keeps prose. Overrule needs a stated
 reason. plan.md stays the source of truth; HTML is a generated view —

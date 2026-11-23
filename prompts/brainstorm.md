@@ -44,7 +44,7 @@ report as text. ✅/❌ branch statuses only on cited evidence ([R#]/[S#]).
 Update the ledger after every meaningful exchange — the ledger is the
 memory, the chat is not. Nothing outside `.workflows/research/<slug>/`
 (+ `knowledge/` at graduation). Visuals at graduation: run the format
-chooser (`node scripts/format-chooser.mjs choose --for brainstorm-graduation --content-file <ledger.md>`); a visual pick generates a concept view via the diagram-design doctrine — HTML is a generated view, never a gate.
+chooser (`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" format-chooser choose --for brainstorm-graduation --content-file <ledger.md>`); a visual pick generates a concept view via the diagram-design doctrine — HTML is a generated view, never a gate.
 
 **Intake exit-rail**: when the session converges on concrete, productizable
 requirements (typically at CONVERGE/EXIT), emit them as marked requirement

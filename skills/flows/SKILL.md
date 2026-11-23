@@ -56,7 +56,9 @@ fails the step; an unavailable judge is a loud `skipped`.
 Before dispatching on a user query, classify it against the live plan:
 
 ```bash
-node scripts/intent-guard.mjs --query "..." [--threshold 0.85]
+# intent-guard.mjs
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" intent-guard \
+  --query "..." [--threshold 0.85]
 ```
 
 Routes: `proceed` (related ≥ threshold) · `amend` (route to /amend) ·
@@ -67,8 +69,8 @@ Routes: `proceed` (related ≥ threshold) · `amend` (route to /amend) ·
 ## Run
 
 ```bash
-node scripts/flow-run.mjs .workflows/flows/two-phase-tdd.json            # control plane
-node scripts/flow-run.mjs .workflows/flows/two-phase-tdd.json --dry-run  # gates printed, not run
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" flow-run .workflows/flows/two-phase-tdd.json            # control plane
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" flow-run .workflows/flows/two-phase-tdd.json --dry-run  # gates printed, not run
 ```
 
 Packs land in `.workflows/flows/runs/<slug>/pack-<id>.txt` — dispatch them

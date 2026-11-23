@@ -26,7 +26,10 @@ violations; only this pass sees the whole change set.
 
 ## Stage 1: Mechanical Verification
 
-The evidence verdict is computed from recorded proofs — reviewer probes must be recorded proofs (`node scripts/proof-ledger.mjs record ...`), not prose claims.
+The evidence verdict is computed from recorded proofs — reviewer probes
+must be recorded proofs
+(`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" proof-ledger record ...`),
+not prose claims.
 
 First, run the full verification suite (same as `/verify`):
 
@@ -95,7 +98,9 @@ Per `templates/DOCS-POLICY.md` (pi-workflows package):
 ### Layer 5: Golden evals (flip-watching)
 
 ```bash
-node scripts/eval-golden.mjs --baseline .workflows/evals/baseline.jsonl
+# eval-golden.mjs --baseline .workflows/evals/baseline.jsonl
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" eval-golden \
+  --baseline .workflows/evals/baseline.jsonl
 ```
 
 Replays the golden set (`.workflows/evals/golden/`); every case runs twice
@@ -118,7 +123,8 @@ scan-only, artifacts under `.bug-hunter/`), scoped to the review diff. If
 the bug-hunter skill is not installed, skip with a note.
 
 Optional: a judge-based PII + secrets advisory pass on changed data/doc
-files — `node scripts/pii-scan.mjs --plan <id>`. The secrets gate is
+files — `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" pii-scan --plan <id>`.
+The secrets gate is
 judge-based (gitleaks retired — owner decision 2026-11-02): credential-
 shape questions, a per-file likely-credentials verdict, and
 `suspicious-redacted-name` redaction signals all land as findings in the
@@ -130,7 +136,8 @@ exit 0, no gate semantics).
 
 #### Tier-1 Judge Verdicts (Plan 076)
 
-Tier-0 scanner first (plan 079): run `bun scripts/evasion-scan.ts --files
+Tier-0 scanner first (plan 079): run
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" evasion-scan --files
 <changed-files> [--pins <pins.json>]` before the judge. It closes the
 byte-fact evasion classes: `invisible chars, homoglyphs, env bypasses,
 case swaps`. Exit 1 blocks loudly; the JSON findings ride the verdict
@@ -144,7 +151,8 @@ per-task reviewer subagent or this Stage-2 pass. The reviewer still runs
 ALWAYS. Command:
 
 ```bash
-bun scripts/bench-intake-triage.ts verdicts \
+# bench-intake-triage.ts verdicts
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" bench verdicts \
   --scenarios <scenarios.json> --diff <diff-summary.txt>
 ```
 
@@ -183,15 +191,16 @@ Include human callouts (new deps, auth changes, migrations).
 
 Intake triage (plan `20261117-076`): worker findings are classified
 `queued/batched/closed/done` via the judge seam —
-`bun scripts/bench-intake-triage.ts triage --findings <file.json>` —
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" bench triage`
+`--findings <file.json>` —
 confidence-gated (floor 0.6); a judge skip or a below-floor verdict stays
 in the default path and prints `JUDGE SKIPPED` loudly. Surface the verdict
 and confidence in the ship output.
 
 Claim verification (plan `077`): worker reports reach the orchestrator as a
 **compact verified digest**, not prose. The review flow calls
-`bun scripts/bench-intake-triage.ts claims --report <claims.json> --turns
-<turns.json>`. The caller extracts the report's claims (claim, type,
+`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" bench claims --report`
+`<claims.json> --turns <turns.json>`. The caller extracts the report's claims (claim, type,
 session-turn pointer) and supplies the worker's session turns — the session
 file's entry order, one entry per line. In-extension transcript access is
 limited, so this is the flow-level seam (the plan's wiring note names the
@@ -228,7 +237,9 @@ On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
    ```bash
    mkdir -p .workflows/archive/done
    ```
-   Before the move: run `bash scripts/check-archive.sh <archive-target-dir>` —
+   Before the move, run the archive check
+   (`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" archive-check`
+   `<archive-target-dir>`) —
 it refuses the archive (non-zero) when a declared Docs impact path is missing or
 CHANGELOG lacks the Plan ID.
    Move (not copy) into `.workflows/archive/done/<PlanID>-<slug>/`:
@@ -239,20 +250,26 @@ CHANGELOG lacks the Plan ID.
    - copy of `.workflows/CONTEXT.md` as `CONTEXT.snapshot.md`
 4. **Distill lessons** (plan 20261025-026):
    ```bash
-   node scripts/lessons.mjs distill --plan-file .workflows/archive/done/<PlanID>-<slug>/plan.md --reviews-dir .workflows/archive/done/<PlanID>-<slug>/reviews --plan-id <PlanID> --ledger .workflows/lessons/lessons.jsonl
+   # lessons.mjs distill
+   bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" lessons distill --plan-file .workflows/archive/done/<PlanID>-<slug>/plan.md --reviews-dir .workflows/archive/done/<PlanID>-<slug>/reviews --plan-id <PlanID> --ledger .workflows/lessons/lessons.jsonl
    ```
    Idempotent per (planId, taskId); provenance computed from `.workflows/proofs/proofs.jsonl`.
 5. **Close-out + settle judge** (plan 20261025-028): generate and judge the
    close-out, then render it in the chat — before any next-task move.
    ```bash
-   node scripts/closeout.mjs report --plan .workflows/plan.md --diagram
-   node scripts/closeout.mjs judge --plan .workflows/plan.md
+   # closeout.mjs report / closeout.mjs judge
+   bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" closeout report \
+     --plan .workflows/plan.md --diagram
+   bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" closeout judge \
+     --plan .workflows/plan.md
    ```
    Order matters: write the Execution Notes markers (`DEVIATION:` /
    `DISCOVERY:` / `DEFERRED:`, each with implication) BEFORE the judge call —
    the judge reads the report the markers produce. Then one format-chooser
    call (plan 20261026-032):
-   `node scripts/format-chooser.mjs choose --for closeout --content-file <report.md>`
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" format-chooser choose \
+   --for closeout --content-file <report.md>`
+   (`format-chooser.mjs choose --for closeout`)
    — a visual pick generates the artifact via the diagram-design doctrine;
    `none` means prose stands. Overrule needs a stated reason; HTML is a
    generated view, never a gate. The settle judge is advisory: findings
@@ -260,7 +277,9 @@ CHANGELOG lacks the Plan ID.
    wait for the owner's ack before the next task.
 6. **Decision index check** (plan 20261025-027):
    ```bash
-   node scripts/decisions.mjs check --plan .workflows/plan.md
+   # decisions.mjs check
+   bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" decisions check \
+     --plan .workflows/plan.md
    ```
    New standing decisions made by this plan get a `record` entry; every
    `adr:` reference in the live plan must resolve.
