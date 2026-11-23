@@ -130,6 +130,17 @@ Present to the human:
 
 ## Phase 2: EXECUTE
 
+Emit ONE WIP batch once per task before the first step (gate: `scripts/wip.mjs status`):
+
+```bash
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" wip start \
+  --id "<PlanID>/<task-id>" \
+  --kind refactor \
+  --scope "<Allowed Changes>" \
+  --root-cause "<why this structural change is needed>"
+```
+
+Do not emit another batch for a step: the id would collide after step 1.
 Apply changes step by step. Each step must leave the code in a working state.
 
 For each step:
@@ -148,12 +159,9 @@ For each step:
    - Adjust the approach
    - Try again. Do NOT accumulate broken state.
 
-4. **Commit the step** (optional but recommended for safety):
-   ```bash
-   git add -A && git commit -m "refactor: <step N> — <what changed>"
-   ```
-
-This gives you a clean rollback point for every step.
+The changes stay uncommitted; WIP state plus the deterministic checks are the
+rollback point for every step. The human decides keep or rollback at the Phase
+4 STOP.
 
 ## Phase 3: VERIFY
 
@@ -256,11 +264,15 @@ Show the human what changed.
 🛑 **STOP HERE.** Wait for human approval.
 Human decides: keep or rollback.
 
+The final SHIP commit belongs to `/review` after WIP proof and human approval
+(gate: `skills/review/SKILL.md` Stage 3).
+
 ## Rules
 
 - **Behavior must not change**: If behavior changes, it's not a refactoring — it's a feature or a fix. Use the right workflow.
-- **Steps, not leaps**: One refactoring move at a time. Verify after each. Small
-  commits.
+- **Steps, not leaps**: One refactoring move at a time. Verify after each.
+  Record one WIP batch per task; no commits before human approval (gate:
+  `scripts/wip.mjs status`).
 - **Never refactor on red**: If tests are failing, fix first. Refactor second.
 - **Test coverage is your safety net**: If the code you're refactoring has no
   tests, write characterization tests FIRST (tests that capture current

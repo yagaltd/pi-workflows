@@ -9,6 +9,7 @@ node_modules/
 !.workflows/plan.md
 !.workflows/specs/
 !.workflows/wip/
+!.workflows/wip/**
 !.workflows/CONTEXT.md
 !.workflows/ideas.md
 !.workflows/tree.json

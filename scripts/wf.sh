@@ -27,6 +27,7 @@ subcommands:
   init-extract     scripts/init-extract.ts
   profile-lint     scripts/profile-lint.sh
   resume-digest    scripts/resume-digest.sh
+  wip              scripts/wip.mjs
 EOF
 }
 
@@ -57,5 +58,6 @@ case "$cmd" in
   init-extract)   exec bun     "$root/scripts/init-extract.ts"        "$@" ;;
   profile-lint)   exec bash    "$root/scripts/profile-lint.sh"        "$@" ;;
   resume-digest)  exec bash    "$root/scripts/resume-digest.sh"       "$@" ;;
+  wip)            exec node    "$root/scripts/wip.mjs"              "$@" ;;
   *) usage; exit 2 ;;
 esac

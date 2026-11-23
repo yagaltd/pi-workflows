@@ -215,15 +215,47 @@ loudly. Advisory routing only — the judge never closes a review alone.
 
 On PASS, present the verdict and ask: **ship?** (commit + archive). On approval:
 
+**WIP proof gate first** (gate: `scripts/wip.mjs ready` and `scripts/wip.mjs verify`):
+
+```bash
+changed_files="$(mktemp "${TMPDIR:-/tmp}/changed-files.XXXXXX.txt")"
+git diff --name-only HEAD > "$changed_files"
+VERDICT_FILE="<specific-current-review-file>.md"
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" wip ready \
+  --id "<PlanID>/<task-ids>" --verdict "$VERDICT_FILE"
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" wip verify \
+  --id "<PlanID>/<task-ids>" --scope-file "$changed_files"
+```
+
+Use the one current review file, never a verdict directory scan. A final
+`ok:true` verdict is required for every task id in the WIP batch; every
+changed code file must be contained in WIP-Scope. A failure blocks SHIP and
+names the missing proof — the task id without a final verdict or the
+out-of-scope file. On success, `wip verify` writes normalized `verified_files`
+into the WIP state.
+
+Stage ONLY the `verified_files` printed by `wip verify`:
+
+```bash
+git add -- <each verified file>
+```
+
+Never stage the whole tree; an unstaged or out-of-scope file must not enter
+the commit (gate: `scripts/check-drift.sh` section 13).
+
 1. Commit the verified work (never merge, never push unless the human
    explicitly asks):
    ```bash
-   git add -A && git commit -m "<PlanID>: <goal>"
+   git commit -m "<PlanID>: <goal>" -m "WIP-Batch: <PlanID>/<task-ids>"
    ```
    **CHANGELOG.md first**: append the Layer-4 drafted entry (Plan ID,
    date, user-facing changes — curated, user's perspective) BEFORE the
    commit so it ships inside it. The orchestrator writes it; workers
    never touch CHANGELOG.md (single-writer doctrine).
+   After the commit succeeds, call
+   `bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" wip ship --id "<PlanID>/<task-ids>"`;
+   this marks the batch `shipped` only after the successful commit. If the
+   commit fails, do not ship (gate: `scripts/wip.mjs status`).
    The posted ship report ends with the follow-up table
    (`templates/FOLLOW-UP-TABLE.md`, including `Origin`) — mandatory, bounded;
    the full rule lives in `agents/registry.md`.

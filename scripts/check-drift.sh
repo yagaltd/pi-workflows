@@ -5,22 +5,23 @@
 # preference. Run from anywhere; operates on the repo it lives in.
 #
 # Usage: ./scripts/check-drift.sh   (or bash scripts/check-drift.sh)
-#        bash scripts/check-drift.sh --only <archive|durable> [--root <dir>]
+#        bash scripts/check-drift.sh --only <archive|durable|wip> [--root <dir>]
 # Exit 0 = clean · non-zero = drift found (each violation printed)
 #
-# `--only` + `--root` are the test seam for sections 11-12 (plan 20261117-064
+# `--only` + `--root` are the test seam for sections 11-13 (plan 20261117-064
 # TASK 3): they run one section against a fixture tree instead of the whole
 # gate. The full run takes no arguments and audits this repo.
 
 set -uo pipefail
 
+SELF_DIR="$(cd -P -- "$(dirname "$0")" && pwd)" || exit 2
 ONLY=""
 ROOT_DIR=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --only) ONLY="${2:-}"; shift 2 || shift ;;
     --root) ROOT_DIR="$(cd "${2:-.}" && pwd)"; shift 2 || shift ;;
-    *) echo "usage: bash scripts/check-drift.sh [--only archive|durable] [--root <dir>]" >&2; exit 2 ;;
+    *) echo "usage: bash scripts/check-drift.sh [--only archive|durable|wip] [--root <dir>]" >&2; exit 2 ;;
   esac
 done
 
@@ -102,6 +103,8 @@ durable_knowledge() {
   while IFS=: read -r ln entry; do
     [ -n "$entry" ] || continue
     path="${entry#!}"
+    # .workflows/wip/** is runtime batch state, not durable knowledge; section 13 audits it.
+    case "$path" in .workflows/wip*) continue ;; esac
     count=$((count + 1))
     tracked=$(git ls-files -- "$path" | head -n1)
     if [ -n "$tracked" ]; then
@@ -128,11 +131,98 @@ durable_knowledge() {
   return 0
 }
 
+# ── 13. WIP batch — verdict + scope proof before the final commit ─────────────
+# WIP state is runtime (.workflows/wip/**), never durable knowledge. A malformed
+# state always fails. An awaiting-review batch is unreviewed; a ready-to-ship
+# batch must carry verified_files and every staged file must be one of them.
+# A clean tree with ready-to-ship state passes (mise run ci), and shipped or
+# absent batches pass loudly as skips.
+wip_gate() {
+  local wip_dir=".workflows/wip" out status batch active state_file verified_file scope_file staged
+  echo "== 13. WIP batch: verdict + scope proof before SHIP =="
+  if [ ! -d "$wip_dir" ]; then
+    echo "skip: $wip_dir absent (fresh clone — no active WIP batch); WIP gate skipped (loud)"
+    return 0
+  fi
+  if ! out=$(node "$SELF_DIR/wip.mjs" status --repo "$PWD" 2>&1); then
+    echo "$out" | sed 's/^/DRIFT: WIP gate: /' >&2
+    err "malformed or ambiguous WIP state — section 13 refuses an unreadable batch"
+    return 0
+  fi
+  active=$(node -e 'const s=JSON.parse(process.argv[1]); process.stdout.write(s.active ? s.status : "")' "$out" 2>/dev/null) || active=""
+  batch=$(node -e 'const s=JSON.parse(process.argv[1]); process.stdout.write(s.id || "")' "$out" 2>/dev/null) || batch=""
+  if [ -z "$active" ]; then
+    echo "skip: no active WIP batch (shipped or fresh clone); WIP gate skipped (loud)"
+    return 0
+  fi
+  if [ "$active" = "shipped" ]; then
+    ok "WIP batch $batch is shipped — nothing to verify"
+    return 0
+  fi
+  if [ "$active" = "awaiting-review" ]; then
+    err "WIP batch $batch is unreviewed (awaiting-review) — run wip ready with the current verdict before SHIP"
+    return 0
+  fi
+  if [ "$active" != "ready-to-ship" ]; then
+    err "WIP batch $batch has unknown active status $active — expected ready-to-ship"
+    return 0
+  fi
+  state_file=$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]) + ".json")' "$batch" 2>/dev/null) || state_file=""
+  verified_file="$(mktemp)" || { err "cannot create temp verified-file list for the WIP gate"; return 0; }
+  scope_file="$(mktemp)" || { rm -f "$verified_file"; err "cannot create temp scope file for the WIP gate"; return 0; }
+  if ! out=$(node -e '
+const fs = require("fs");
+const s = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+if (!Array.isArray(s.verified_files)) process.exit(2);
+process.stdout.write(s.verified_files.join("\n") + "\n");
+' "$wip_dir/$state_file" 2>&1); then
+    echo "$out" | sed 's/^/DRIFT: WIP gate: /' >&2
+    err "cannot read verified_files for WIP batch $batch"
+    rm -f "$verified_file" "$scope_file"
+    return 0
+  fi
+  printf '%s\n' "$out" > "$verified_file"
+  if ! grep -q . "$verified_file"; then
+    err "unconsumed SHIP batch $batch has no verified_files — run wip verify before commit"
+    rm -f "$verified_file" "$scope_file"
+    return 0
+  fi
+  if ! out=$(node -e '
+const fs = require("fs");
+const s = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+const norm = (p) => String(p).replace(/^\.\//, "");
+const bad = s.verified_files.filter((p) => !s.scope.some((a) => p === norm(a) || p.startsWith(norm(a) + "/")));
+if (bad.length) { console.error(bad.join("\n")); process.exit(1); }
+' "$wip_dir/$state_file" 2>&1); then
+    echo "$out" | sed 's/^/DRIFT: WIP gate: /' >&2
+    err "verified_files for WIP batch $batch are outside WIP-Scope"
+    rm -f "$verified_file" "$scope_file"
+    return 0
+  fi
+  if git rev-parse --git-dir >/dev/null 2>&1; then
+    git diff --cached --name-only > "$scope_file"
+  else
+    : > "$scope_file"
+  fi
+  while IFS= read -r staged; do
+    [ -n "$staged" ] || continue
+    if ! grep -Fxq -- "$staged" "$verified_file"; then
+      err "staged file $staged is not in verified_files for WIP batch $batch — out-of-scope staged file"
+      rm -f "$verified_file" "$scope_file"
+      return 0
+    fi
+  done < "$scope_file"
+  ok "WIP batch proof is clean (verified_files present; staged files contained)"
+  rm -f "$verified_file" "$scope_file"
+  return 0
+}
+
 if [ -n "$ONLY" ]; then
   case "$ONLY" in
     archive) archive_coverage; exit "$FAIL" ;;
     durable) durable_knowledge; exit "$FAIL" ;;
-    *) echo "unknown section: $ONLY (known: archive, durable)" >&2; exit 2 ;;
+    wip) wip_gate; exit "$FAIL" ;;
+    *) echo "unknown section: $ONLY (known: archive, durable, wip)" >&2; exit 2 ;;
   esac
 fi
 
@@ -255,6 +345,10 @@ echo
 
 # 12. durable knowledge — whitelisted .workflows paths are git-tracked (plan 20261117-064)
 durable_knowledge
+echo
+
+# 13. WIP batch — verdict + scope proof before the final commit (plan 20261122-080)
+wip_gate
 echo
 
 if [ "$FAIL" -eq 0 ]; then
