@@ -18,6 +18,26 @@ ls .workflows/docs/adr/*.md 2>/dev/null | wc -l | tr -d ' '
 ls .workflows/archive/done .workflows/archive/superseded 2>/dev/null || echo "No archived plans"
 ```
 
+## Output Format (TASK 1 Policy)
+
+Use the policy result from `decideOutputPolicy` as given: this prompt owns no
+thresholds, chooser logic, or judge call. Assemble the report in this order:
+
+1. Prepend a short prose summary (one or two sentences) - plan goal,
+   done/total tasks, and the next action or blocker - before the `## Plan:`
+   header.
+2. On the line below it, show only the display-only status tokens that apply:
+   `[[Done]]`, `[[Decision]]`, `[[Pending]]`, `[[Failed]]`, `[[Unverified]]`.
+   Tokens decorate the reply only; never write them into `.workflows/plan.md`
+   or any tracked file. Prose summary and tokens are always present.
+3. Then render the canonical Markdown status report below, starting at
+   `## Plan:` and ending at `### Blocked:`, unchanged and in this order.
+4. Only when the policy result has `diagram: true` and a generated artifact
+   with alt text is available, append that image with its alt text after the
+   complete text report. The text report stays complete and readable without
+   it; with no diagram positive, emit no image reference at all. A diagram is
+   an additive generated view, never a replacement for the text.
+
 Header: `## Plan: <goal> · <PlanID> · Status: <status>`, plus an archive line
 listing prior plan ids (`archived: 3 done, 1 superseded` or `none`).
 
