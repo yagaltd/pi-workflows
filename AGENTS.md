@@ -19,6 +19,7 @@ Only speak to me in English. No Exceptions.
 ## POINTERS
 
 - Agent roles and dispatch policy (orchestrator, worker, reviewer): `agents/registry.md`
+- Main-agent persona (injected via `.pi/APPEND_SYSTEM.md`): `agents/orchestrator.md`
 - Project command entrypoint: repo-root `.mise/tasks` file tasks wrap scripts/ — `mise run docs` for doc-drift checks (see also skills/flows/SKILL.md)
 - Docs canon (doc types, doc-drift rules): `docs/canon.md`
 - Docs policy (README/CHANGELOG discipline): `templates/DOCS-POLICY.md`

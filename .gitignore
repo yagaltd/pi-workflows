@@ -1,5 +1,6 @@
 node_modules/
-.pi/
+.pi/*
+!.pi/APPEND_SYSTEM.md
 *.tgz
 .DS_Store
 .workflows/*
