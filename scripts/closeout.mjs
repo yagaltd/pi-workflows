@@ -15,9 +15,29 @@
 // Exit: report 0 · judge 0 (advisory) · 2 usage.
 
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { ask } from "./judge.mjs";
+import { decideOutputPolicy } from "./output-policy.mjs";
+import { renderDiagram } from "./open-diagram-render.mjs";
 
 const SECTIONS = ["Shipped", "Deviations", "Discoveries", "Deferred", "Watch"];
+const DIAGRAM_HEADER = "### Generated view";
+
+/**
+ * @cc [label:closeout-output] artifact-block-removable
+ * A generated-view block is appended after the canonical report and contains
+ * only the artifact paths and alt text; removing it restores the exact text.
+ */
+export function diagramArtifact({ svgPath, pngPath, altText }) {
+  return [DIAGRAM_HEADER, `![${altText}](${svgPath})`, `PNG: ${pngPath}`].join("\n");
+}
+
+export function stripDiagramArtifact(reportText) {
+  const marker = `\n\n${DIAGRAM_HEADER}\n`;
+  const at = reportText.indexOf(marker);
+  return at < 0 ? reportText : reportText.slice(0, at);
+}
 
 export function parseArgs(argv) {
   const o = { cmd: null, plan: ".workflows/plan.md", journal: ".workflows/journal.jsonl", proofs: ".workflows/proofs/proofs.jsonl", lessons: ".workflows/lessons/lessons.jsonl", queue: ".workflows/queue.json", golden: 11, diagram: false, reportFile: null, audit: null };
@@ -83,6 +103,7 @@ export function gather({ plan, journal, proofs, lessons, golden, queue = ".workf
 
   return {
     planId,
+    planFile: plan,
     tasks,
     shipped: tasks.filter((t) => t.status === "done"),
     deviations: marker(notes, "DEVIATION"),
@@ -138,6 +159,47 @@ export function renderReport(g, { diagram = false } = {}) {
   return out.join("\n");
 }
 
+function closeoutPolicyInput(g) {
+  return {
+    rows: g.queue?.length ?? 0,
+    fields: 6,
+    artifact: "closeout-next-moves",
+    tasks: g.tasks.length,
+    statusMix: new Set(g.tasks.map((t) => t.status)).size,
+  };
+}
+
+function diagramPaths(g) {
+  const dir = g.planFile ? path.dirname(g.planFile) : os.tmpdir();
+  const base = `closeout-${g.planId}`;
+  return { specPath: path.join(dir, `${base}.mmd`), out: path.join(dir, base) };
+}
+
+/**
+ * @cc [label:closeout-output] text-first-additive-diagram
+ * The five text sections and the six-column Next moves table are emitted by
+ * renderReport unchanged; an approved diagram is appended after them, never
+ * substituted for them.
+ */
+/**
+ * @cc [label:closeout-output] policy-only-diagram-gate
+ * Close-out calls TASK 1 policy once and renders only on its diagram positive;
+ * otherwise the explicit --diagram mermaid text fallback is preserved.
+ */
+export async function renderCloseout(g, { diagram = false, policy = decideOutputPolicy, renderer = renderDiagram, specPath, out } = {}) {
+  if (!diagram) return renderReport(g);
+  if (!policy(closeoutPolicyInput(g)).diagram) return renderReport(g, { diagram: true });
+
+  const paths = diagramPaths(g);
+  const spec = specPath ?? paths.specPath;
+  if (!specPath) fs.writeFileSync(spec, `---\ntitle: Close-out — ${g.planId}\n---\n${mermaid(g)}\n`);
+  const artifact = await renderer({
+    spec: { path: spec, title: `Close-out — ${g.planId}`, subtitle: "Task delivery status" },
+    out: out ?? paths.out,
+  });
+  return `${renderReport(g)}\n\n${diagramArtifact(artifact)}`;
+}
+
 export function mermaid(g) {
   const lines = ["```mermaid", "graph LR"];
   let prev = null;
@@ -160,8 +222,14 @@ export const settleQuestions = [
   { id: "decision_brief_present", question: "Does the Next moves section carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)? An explicitly empty queue — the line 'queue empty — nothing open' — is a valid brief and counts as yes.", schema: { type: "string", enum: ["yes", "no"] } },
 ];
 
+/**
+ * @cc [label:closeout-judge] report-text-only-input
+ * The settle judge receives canonical report text only, once: artifact paths,
+ * alt text and renderer metrics never enter the five settle questions.
+ */
 export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) {
-  const questions = settleQuestions.map((q) => ({ id: q.id, question: `${q.question}\n\nREPORT:\n${reportText.slice(0, 4000)}`, schema: q.schema }));
+  const text = stripDiagramArtifact(reportText).slice(0, 4000);
+  const questions = settleQuestions.map((q) => ({ id: q.id, question: `${q.question}\n\nREPORT:\n${text}`, schema: q.schema }));
   const r = await askFn({ questions, auditFile: audit });
   if (!r || r.skipped) {
     return { status: "skipped", reason: "judge unavailable (NO-JUDGE degradation)", findings: [] };
@@ -175,13 +243,13 @@ export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) 
   return { status: findings.length ? "findings" : "pass", findings, answers: rows };
 }
 
-export async function main(argv, { ask: askFn = ask } = {}) {
+export async function main(argv, { ask: askFn = ask, policy = decideOutputPolicy, renderer = renderDiagram } = {}) {
   const { opts, error } = parseArgs(argv);
   if (error) { console.error(`usage error: ${error}`); return 2; }
   const g = gather(opts);
 
   if (opts.cmd === "report") {
-    console.log(renderReport(g, { diagram: opts.diagram }));
+    console.log(await renderCloseout(g, { diagram: opts.diagram, policy, renderer }));
     return 0;
   }
   if (opts.cmd === "judge") {
