@@ -1,0 +1,3 @@
+{"ts":"20261119T10:00Z","plan":"079","kind":"fork","task":"T2","node":"w79-t2","label":"judge-pack worker","branch":"subagents/run79/task_1"}
+{"ts":"20261119T10:05Z","plan":"079","kind":"ask_parent","id":"esc-t5","task":"T5","question":"Approve resume after proof failure?","via":"worker w79-t5"}
+{"ts":"20261119T10:10Z","plan":"079","kind":"answer","id":"ans-t5","answersId":"esc-t5","text":"Resume granted; keep Kani gate blocking."}

@@ -1,0 +1,1561 @@
+diff --git a/prototype/poc/README.md b/prototype/poc/README.md
+new file mode 100644
+index 0000000..dae6e9b
+--- /dev/null
++++ b/prototype/poc/README.md
+@@ -0,0 +1,109 @@
++# Plan-level manager view (PoC)
++
++A static chat tree for the human manager: what the plan is, which tasks are
++done, what each worker did, which review layers passed, and what still needs a
++human. **source = plan/verdict/LOG state, not transcript; tool calls are
++evidence; this renders in any chat, chips only color in a TUI session**.
++
++No new screen, no TUI, no click handling. If a branch is unclear, ask a
++follow-up (`--detail <id>`) instead of adding interaction.
++
++## Sample manager tree (verbatim)
++
++Run `bun prototype/poc/cli.ts`:
++
++```text
++Plan 079 — Evasion oracle [[In progress]] · ship v0.15.18
++├── T1 Tier-0 evasion scanner [[Done]] · mechanical ✓ · typed ok · agent ok
++├── T2 judge evasion question pack [[Fixed]] · mechanical ✓ · typed ok · agent ok:false → fixed
++│   └── Fork: judge-pack worker [[Fixed]]
++├── T3 oracle-binding disclosure rule [[Done]] · mechanical ✓ · agent ok
++├── T4 oracle variation between passes [[Done]] · typed ok · Kani proofs passed · agent ok
++├── T5 proof gate resume [[Needs you]] · Kani pending · Owner gate blocked
++│   └── Approve resume after proof failure? [[Needs you]]
++│       └── Resume granted [[Done]]
++└── T6 docs sweep [[Done]] · agent ok
++```
++
++10 lines for a 6-task plan. Every line is a human phrase; command output,
++counts and tool names appear only in evidence. Pills (`[[Done]]`,
++`[[Needs you]]`, `[[Fixed]]`, …) are derived from each node's status.
++
++## Contract
++
++`extractPlan(sources)` in `extract.ts` is pure: no IO, no clock, no transcript.
++Inputs: `planText`, `logText`, `reviewFiles[]`, `proofText`, `journalText`.
++Output: `{ id, title, status, shipTarget?, nodes[], edges[] }`.
++
++Every node has `{ id, kind, summary, detail, status, evidence[] }` plus optional
++`parent`, `owner`, `answersId`. Summaries are ≤60 chars and contain no tool
++names, command output or counts. Kinds:
++
++- `plan` — root: plan id, status, ship target.
++- `task` — `T1…`, title and status from the plan's `TASK` blocks.
++- `worker` — owner/worker discovered in the plan or fork records.
++- `mechanical`, `typed`, `kani`, `agent-review` — verification layers attached
++  to a task **only when a verdict or proof exists**; displayed inline in that
++  review-chain order (`mechanical → typed → Kani → agent review`).
++- `escalation` + `decision` — a human question and its answer/approval. The
++  answer carries `answersId` pointing at the escalation, plus an `answers`
++  edge back to it.
++- `branch` — fork/subagent, with a `fork` edge from its task.
++- `pending` / `blocked` — open gates (e.g. a pending proof or owner block).
++
++Tool calls and raw verdict lines live in `evidence[]`; they are never nodes and
++never appear in the default tree.
++
++## CLI
++
++```sh
++bun prototype/poc/cli.ts                    # manager tree (default)
++bun prototype/poc/cli.ts --verbose          # tree + evidence sources
++bun prototype/poc/cli.ts --json             # machine-readable graph
++bun prototype/poc/cli.ts --detail T2        # follow-up: "what happened with T2?"
++bun prototype/poc/cli.ts --detail decision-T5
++bun prototype/poc/cli.ts --sources <dir>    # plan.md/LOG.md/reviews/proofs/journal
++```
++
++`--detail` prints the node's full detail, evidence and links. Nodes resolve by
++id (`T2`, `decision-T5`) or short alias (`esc-t5`, `ans-t5`).
++
++## Fixtures and tests
++
++`fixtures/` is a redacted synthesized composite grounded in repo docs:
++task titles from `.workflows/proposals/20261119-plan-079-evasion-resistant-oracle.md`,
++status/task grammar from archived plans (`20261117-074`), verdict phrasing from
++`.workflows/reviews/task-2.md` and `fix-round-074.md`, and the judge tier names
++from plan 076–078 LOG entries. Absolute paths, tokens and emails are absent;
++the tests assert that. The Kani lines are synthetic because this worktree has
++no Kani output — the parser accepts both JSONL proof rows and Kani-style text.
++
++`bun test prototype/poc` covers task count/order/status, ≤60-char summaries,
++layer-only-with-evidence, Kani-from-proofs, the answer→escalation link,
++fork/pending/blocked nodes, determinism, tree length, tool-call hiding and
++detail follow-ups. TDD: these tests were red (`Cannot find module './extract.ts'`)
++before the extractor existed, then green (12 pass / 0 fail).
++
++## Limitations
++
++- This worktree has no live `.workflows/plan.md`, `journal.jsonl` or
++  `.workflows/proofs/`; the CLI therefore defaults to fixtures. `--sources`
++  accepts a directory with the same filenames for real artifacts.
++- The parser targets the canonical pi-workflows plan/review grammar; novel
++  prose layouts yield no node rather than a fabricated one.
++- The known repo-wide `check-tree` WARN is out of scope for this PoC.
++
++## Live-data validation and chip proof
++
++The live `.workflows` is read-only. `bun prototype/poc/cli.ts --sources
++/home/aurel/Documents/github/pi-workflows/.workflows` renders plan 076: an
++inline blockquote `Status: APPROVED`, zero `### TASK` blocks, three evidence-backed
++phase bullets from the plan + LOG, the post-phase-1 human gate and its owner
++answer. `proofs.jsonl` has no Kani rows, so no Kani layer is rendered.
++
++`realdata.test.ts` asserts those facts against the live files; `chips.test.ts`
++feeds the live tree to the installed pi-emphasis `createPalette`/`decorate`
++and checks ANSI, Nerd caps and that no `[[token]]` survives. Run
++`bun prototype/poc/chips.ts | cat -v` to see the decorated bytes. In this
++herdr/rpc session there is no `reply_style` section, so raw `[[...]]` appears
++in chat; a fresh pi TUI session with the extension loaded renders pills.
+diff --git a/prototype/poc/chips.test.ts b/prototype/poc/chips.test.ts
+new file mode 100644
+index 0000000..0dfefc3
+--- /dev/null
++++ b/prototype/poc/chips.test.ts
+@@ -0,0 +1,39 @@
++/** Prove the pi-emphasis transformer turns the real tree's pills into colored chips. */
++import { describe, expect, test } from "bun:test";
++import { CORE_WORDS, decorateTree, escapeBytes, realTree } from "./chips.ts";
++
++const tree = realTree();
++const decorated = decorateTree(tree);
++
++describe("pi-emphasis decoration of the live manager tree", () => {
++  test("the input really is the live tree with the expected pills", () => {
++    expect(tree).toContain("Plan 076");
++    expect(tree).toContain("[[Done]]");
++    expect(tree).toContain("[[Needs you]]");
++    for (const [, label] of tree.matchAll(/\[\[([^\]]+)\]\]/g)) {
++      expect(CORE_WORDS.has(label)).toBe(true);
++    }
++  });
++
++  test("decorated output carries ANSI foreground and background/color sequences", () => {
++    expect(decorated).toMatch(/\x1b\[38;/);
++    expect(decorated).toMatch(/\x1b\[48;|\x1b\[7m/);
++    // Failures print escaped bytes so ANSI never has to survive the chat transport.
++    expect(escapeBytes(decorated)).toContain("\\x1b[");
++  });
++
++  test("round caps U+E0B6/U+E0B4 are emitted when roundCaps is on", () => {
++    expect(decorated).toContain("\ue0b6");
++    expect(decorated).toContain("\ue0b4");
++  });
++
++  test("tree connectors are colored", () => {
++    expect(decorated).toMatch(/<dim>[├└]──<\/>/);
++  });
++
++  test("no literal [[Done]] or [[Needs you]] (nor any [[ token) survives", () => {
++    expect(decorated).not.toContain("[[Done]]");
++    expect(decorated).not.toContain("[[Needs you]]");
++    expect(decorated).not.toContain("[[");
++  });
++});
+diff --git a/prototype/poc/chips.ts b/prototype/poc/chips.ts
+new file mode 100644
+index 0000000..b66b5bc
+--- /dev/null
++++ b/prototype/poc/chips.ts
+@@ -0,0 +1,62 @@
++/**
++ * Deterministic proof of the pi-emphasis render path for the LIVE manager tree.
++ * The extension is imported read-only from its installed path; no extension or
++ * .workflows file is written. Run `bun prototype/poc/chips.ts | cat -v`.
++ */
++import {
++  createPalette, decorate, VOCABULARY, type ThemeLike,
++} from "/home/aurel/.pi/agent/git/github.com/johnlindquist/pi-emphasis/index.ts";
++
++export const REAL_SOURCES = "/home/aurel/Documents/github/pi-workflows/.workflows";
++
++/** The exact ThemeLike fixture shape used by pi-emphasis/test/emphasis.test.ts. */
++export const fakeTheme = {
++  fg: (color: string, text: string) => `<${color}>${text}</>`,
++  getFgAnsi: (color: string) => `\x1b[38;fg-${color}m`,
++  getBgAnsi: (color: string) => `\x1b[48;bg-${color}m`,
++} as unknown as ThemeLike;
++
++/** Run the real CLI, so the decorated string is the user-facing default tree. */
++export function realTree(): string {
++  const proc = Bun.spawnSync({
++    cmd: ["bun", "prototype/poc/cli.ts", "--sources", REAL_SOURCES],
++    cwd: process.cwd(),
++    stdout: "pipe",
++    stderr: "pipe",
++  });
++  if (proc.exitCode !== 0) throw new Error(new TextDecoder().decode(proc.stderr));
++  return new TextDecoder().decode(proc.stdout).trimEnd();
++}
++
++export function decorateTree(tree = realTree()): string {
++  const palette = createPalette(fakeTheme);
++  palette.roundCaps = true; // pinned: Nerd Font caps are on in the proof
++  return decorate(tree, palette);
++}
++
++/** Show escape bytes instead of relying on chat/terminal ANSI passthrough. */
++export const escapeBytes = (s: string): string => s
++  .replace(/\u00a0/g, "\\u00a0")
++  .replace(/\u001b/g, "\\x1b")
++  .replace(/\ue0b6/g, "\\ue0b6")
++  .replace(/\ue0b4/g, "\\ue0b4");
++
++/** Only the core VOCABULARY words are legal pill labels in the PoC renderer. */
++export const CORE_WORDS = new Set(Object.values(VOCABULARY).flatMap((v) => v.core));
++
++if (import.meta.main) {
++  const tree = realTree();
++  const decorated = decorateTree(tree);
++  console.log("RAW TREE (verbatim):");
++  console.log(tree);
++  console.log("\nDECORATED TREE (escaped bytes):");
++  console.log(escapeBytes(decorated));
++  const labels = [...tree.matchAll(/\[\[([^\]]+)\]\]/g)].map((m) => m[1]);
++  console.log("\nASSERTION INPUTS:");
++  console.log(`pills in raw tree: ${JSON.stringify(labels)}`);
++  console.log(`all pill words in VOCABULARY core: ${labels.every((l) => CORE_WORDS.has(l))}`);
++  console.log(`ANSI fg present: ${/\x1b\[38;/.test(decorated)}; ANSI bg present: ${/\x1b\[48;|^\x1b\[\d+m\x1b\[7m/m.test(decorated)}`);
++  console.log(`caps U+E0B6: ${decorated.includes("\ue0b6")}; U+E0B4: ${decorated.includes("\ue0b4")}`);
++  console.log(`tree connectors colored: ${/<dim>[├└]──<\/>/.test(decorated)}`);
++  console.log(`literal [[ absent: ${!decorated.includes("[[")}`);
++}
+diff --git a/prototype/poc/cli.ts b/prototype/poc/cli.ts
+new file mode 100644
+index 0000000..4afb5b0
+--- /dev/null
++++ b/prototype/poc/cli.ts
+@@ -0,0 +1,87 @@
++#!/usr/bin/env bun
++/** CLI for the plan-level manager view. Default output is a static chat tree. */
++
++import { existsSync, readFileSync, readdirSync } from "node:fs";
++import { join } from "node:path";
++import { extractPlan, type PlanSources } from "./extract.ts";
++import { renderDetail, renderEvidence, renderTree } from "./render.ts";
++
++const USAGE = `Usage: bun prototype/poc/cli.ts [options]
++  (default)          short manager tree from the redacted fixtures
++  --verbose          tree + evidence sources (tool calls live here)
++  --json             full machine-readable graph
++  --detail <id>      full detail for one node (e.g. T2, decision-T5)
++  --sources <dir>    read plan.md/LOG.md/reviews/proofs/journal from <dir>`;
++
++function readUrl(url: URL): string {
++  return readFileSync(url, "utf8");
++}
++
++function loadFixtures(): PlanSources {
++  const dir = new URL("./fixtures/", import.meta.url);
++  return {
++    planText: readUrl(new URL("plan-079.md", dir)),
++    logText: readUrl(new URL("log-079.md", dir)),
++    reviewFiles: [
++      { path: ".workflows/reviews/task-1-079.md", text: readUrl(new URL("reviews/task-1-079.md", dir)) },
++      { path: ".workflows/reviews/task-2-079.md", text: readUrl(new URL("reviews/task-2-079.md", dir)) },
++      { path: ".workflows/reviews/task-3-079.md", text: readUrl(new URL("reviews/task-3-079.md", dir)) },
++      { path: ".workflows/reviews/task-4-079.md", text: readUrl(new URL("reviews/task-4-079.md", dir)) },
++      { path: ".workflows/reviews/task-6-079.md", text: readUrl(new URL("reviews/task-6-079.md", dir)) },
++    ],
++    proofText: readUrl(new URL("proofs/proofs-079.jsonl", dir)),
++    journalText: readUrl(new URL("journal-079.jsonl", dir)),
++  };
++}
++
++function loadSources(dir: string): PlanSources {
++  const read = (name: string) => readFileSync(join(dir, name), "utf8");
++  const reviewDir = join(dir, "reviews");
++  const proofDir = join(dir, "proofs");
++  const reviewFiles = existsSync(reviewDir)
++    ? readdirSync(reviewDir).filter((f) => f.endsWith(".md")).sort()
++      .map((f) => ({ path: join(reviewDir, f), text: readFileSync(join(reviewDir, f), "utf8") }))
++    : [];
++  const proofFiles = existsSync(proofDir)
++    ? readdirSync(proofDir).filter((f) => f.endsWith(".jsonl") || f.endsWith(".md")).sort()
++    : [];
++  return {
++    planText: read("plan.md"),
++    logText: existsSync(join(dir, "LOG.md")) ? read("LOG.md") : "",
++    reviewFiles,
++    proofText: proofFiles.map((f) => readFileSync(join(proofDir, f), "utf8")).join("\n"),
++    journalText: ["journal.jsonl", "journal.md"]
++      .filter((f) => existsSync(join(dir, f)))
++      .map(read).join("\n"),
++  };
++}
++
++const args = process.argv.slice(2);
++let mode: "tree" | "verbose" | "json" | "detail" = "tree";
++let ref = "";
++let sourceDir = "";
++for (let i = 0; i < args.length; i++) {
++  const arg = args[i];
++  if (arg === "--verbose") mode = "verbose";
++  else if (arg === "--json") mode = "json";
++  else if (arg === "--detail") {
++    ref = args[++i] ?? "";
++    if (!ref) { console.error("Missing node id after --detail"); process.exit(1); }
++    mode = "detail";
++  } else if (arg === "--sources") {
++    sourceDir = args[++i] ?? "";
++    if (!sourceDir) { console.error("Missing directory after --sources"); process.exit(1); }
++  } else if (arg === "--help" || arg === "-h") {
++    console.log(USAGE);
++    process.exit(0);
++  } else {
++    console.error(`Unknown argument: ${arg}\n${USAGE}`);
++    process.exit(1);
++  }
++}
++
++const graph = extractPlan(sourceDir ? loadSources(sourceDir) : loadFixtures());
++if (mode === "json") console.log(JSON.stringify(graph, null, 2));
++else if (mode === "detail") console.log(renderDetail(graph, ref));
++else if (mode === "verbose") console.log(`${renderTree(graph)}\n\n${renderEvidence(graph)}`);
++else console.log(renderTree(graph));
+diff --git a/prototype/poc/extract.test.ts b/prototype/poc/extract.test.ts
+new file mode 100644
+index 0000000..4b4a31d
+--- /dev/null
++++ b/prototype/poc/extract.test.ts
+@@ -0,0 +1,190 @@
++import { describe, expect, test } from "bun:test";
++import { readFileSync } from "node:fs";
++import { extractPlan, type PlanSources } from "./extract.ts";
++import { renderDetail, renderTree } from "./render.ts";
++
++const fixtureDir = new URL("./fixtures/", import.meta.url);
++const read = (name: string) => readFileSync(new URL(name, fixtureDir), "utf8");
++
++function sources(): PlanSources {
++  return {
++    planText: read("plan-079.md"),
++    logText: read("log-079.md"),
++    reviewFiles: [
++      { path: ".workflows/reviews/task-1-079.md", text: read("reviews/task-1-079.md") },
++      { path: ".workflows/reviews/task-2-079.md", text: read("reviews/task-2-079.md") },
++      { path: ".workflows/reviews/task-3-079.md", text: read("reviews/task-3-079.md") },
++      { path: ".workflows/reviews/task-4-079.md", text: read("reviews/task-4-079.md") },
++      { path: ".workflows/reviews/task-6-079.md", text: read("reviews/task-6-079.md") },
++    ],
++    proofText: read("proofs/proofs-079.jsonl"),
++    journalText: read("journal-079.jsonl"),
++  };
++}
++
++const graph = () => extractPlan(sources());
++const node = (g: ReturnType<typeof graph>, id: string) => {
++  const found = g.nodes.find((n) => n.id === id);
++  if (!found) throw new Error(`missing node ${id}`);
++  return found;
++};
++
++describe("plan-level extraction", () => {
++  test("root carries plan identity, status and ship target", () => {
++    const g = graph();
++    const plan = g.nodes.find((n) => n.kind === "plan")!;
++    expect(plan.id).toBe("plan-079");
++    expect(plan.summary).toBe("Evasion oracle");
++    expect(plan.status).toBe("in-progress");
++    expect(g.shipTarget).toBe("v0.15.18");
++    expect(plan.evidence.length).toBeGreaterThan(0);
++  });
++
++  test("task count, order, titles and statuses come from the plan", () => {
++    const tasks = graph().nodes.filter((n) => n.kind === "task");
++    expect(tasks.map((n) => n.id)).toEqual(["T1", "T2", "T3", "T4", "T5", "T6"]);
++    expect(tasks.map((n) => n.summary)).toEqual([
++      "Tier-0 evasion scanner",
++      "judge evasion question pack",
++      "oracle-binding disclosure rule",
++      "oracle variation between passes",
++      "proof gate resume",
++      "docs sweep",
++    ]);
++    expect(tasks.map((n) => n.status)).toEqual([
++      "done", "fixed", "done", "done", "needs-you", "done",
++    ]);
++  });
++
++  test("worker nodes record who did the work", () => {
++    const g = graph();
++    const workers = g.nodes.filter((n) => n.kind === "worker");
++    expect(workers.map((n) => n.id)).toContain("worker-T2");
++    expect(node(g, "worker-T2").summary).toContain("worker");
++    expect(node(g, "T2").owner).toContain("w79-t2");
++    expect(g.edges).toContainEqual({ from: "T2", to: "worker-T2", kind: "contains" });
++  });
++
++  test("verification layers appear only with evidence, in review-chain order", () => {
++    const g = graph();
++    const layers = (id: string) =>
++      g.nodes.filter(
++        (n) => n.parent === id &&
++          ["mechanical", "typed", "kani", "agent-review"].includes(n.kind),
++      );
++    expect(layers("T1").map((n) => n.kind)).toEqual(["mechanical", "typed", "agent-review"]);
++    expect(layers("T1").map((n) => n.summary)).toEqual(["mechanical ✓", "typed ok", "agent ok"]);
++    expect(layers("T2").map((n) => n.kind)).toEqual(["mechanical", "typed", "agent-review"]);
++    expect(layers("T3").map((n) => n.kind)).toEqual(["mechanical", "agent-review"]);
++    expect(layers("T4").map((n) => n.kind)).toEqual(["typed", "kani", "agent-review"]);
++    expect(layers("T6").map((n) => n.kind)).toEqual(["agent-review"]);
++    expect(node(g, "agent-review-T2").summary).toBe("agent ok:false → fixed");
++    expect(node(g, "typed-T4").summary).toBe("typed ok");
++  });
++
++  test("Kani layer reads proofs when present and vanishes without them", () => {
++    const g = graph();
++    expect(node(g, "kani-T4").summary).toBe("Kani proofs passed");
++    expect(node(g, "kani-T4").status).toBe("done");
++    expect(node(g, "kani-T5").summary).toBe("Kani pending");
++    expect(node(g, "kani-T5").status).toBe("pending");
++    expect(node(g, "kani-T4").detail).toContain("proof obligations");
++    const withoutProofs = extractPlan({ ...sources(), proofText: "" });
++    expect(withoutProofs.nodes.filter((n) => n.kind === "kani")).toHaveLength(0);
++  });
++
++  test("human escalation carries the question and the approval links back to it", () => {
++    const g = graph();
++    const escalation = node(g, "escalation-T5");
++    expect(escalation.kind).toBe("escalation");
++    expect(escalation.status).toBe("needs-you");
++    expect(escalation.summary).toBe("Approve resume after proof failure?");
++
++    const approval = node(g, "decision-T5");
++    expect(approval.kind).toBe("decision");
++    expect(approval.summary).toBe("Resume granted");
++    expect(approval.status).toBe("done");
++    expect(approval.answersId).toBe("escalation-T5");
++    expect(g.edges).toContainEqual({
++      from: "decision-T5", to: "escalation-T5", kind: "answers",
++    });
++  });
++
++  test("forks and open gates become branch, pending and blocked nodes", () => {
++    const g = graph();
++    const branch = g.nodes.find((n) => n.kind === "branch")!;
++    expect(branch.summary).toBe("Fork: judge-pack worker");
++    expect(g.edges).toContainEqual({ from: "T2", to: branch.id, kind: "fork" });
++    expect(node(g, "pending-T5").kind).toBe("pending");
++    expect(node(g, "pending-T5").summary).toBe("Kani proof pending");
++    expect(node(g, "blocked-T5").kind).toBe("blocked");
++    expect(node(g, "blocked-T5").summary).toBe("Owner gate blocked");
++  });
++
++  test("every node is a small, evidenced human shape and output is deterministic", () => {
++    const g = graph();
++    for (const n of g.nodes) {
++      expect(n.id).toBeTruthy();
++      expect(n.summary.length).toBeGreaterThan(0);
++      expect(n.summary.length).toBeLessThanOrEqual(60);
++      expect(n.detail.length).toBeGreaterThan(0);
++      expect(n.evidence.length).toBeGreaterThan(0);
++      expect(["done", "in-progress", "fixed", "failed", "needs-you", "blocked", "pending", "unknown"])
++        .toContain(n.status);
++    }
++    expect(JSON.stringify(graph())).toBe(JSON.stringify(g));
++  });
++
++  test("fixtures contain no absolute paths, tokens or email addresses", () => {
++    for (const name of [
++      "plan-079.md", "log-079.md", "journal-079.jsonl", "proofs/proofs-079.jsonl",
++      "reviews/task-1-079.md", "reviews/task-2-079.md",
++    ]) {
++      const text = read(name);
++      expect(text).not.toMatch(/\/home\/|\/Users\//);
++      expect(text).not.toMatch(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/);
++      expect(text).not.toMatch(/sk-[A-Za-z0-9]{8,}|TYPELLM_API_KEY\s*=/);
++    }
++  });
++});
++
++describe("manager tree rendering", () => {
++  test("default tree is short, pill-shaped and hides evidence/tool calls", () => {
++    const lines = renderTree(graph()).trimEnd().split("\n");
++    expect(lines.length).toBeLessThanOrEqual(20);
++    expect(lines[0]).toContain("Plan 079 — Evasion oracle [[In progress]]");
++    expect(lines[0]).toContain("ship v0.15.18");
++    expect(renderTree(graph())).toContain("├──");
++    expect(renderTree(graph())).toContain("└──");
++    expect(lines[1]).toContain("T1 Tier-0 evasion scanner [[Done]] · mechanical ✓ · typed ok · agent ok");
++    expect(lines.join("\n")).toContain("T4 oracle variation between passes [[Done]] · typed ok · Kani proofs passed · agent ok");
++    expect(lines.join("\n")).toContain("[[Needs you]]");
++    expect(lines.join("\n")).toContain("Approve resume after proof failure?");
++    for (const toolish of ["bash", "grep", "bun test", "agent-spec", "toolCall", "readFileSync", "721/0", "0.91"]) {
++      expect(lines.join("\n")).not.toContain(toolish);
++    }
++  });
++
++  test("review chain order is mechanical → typed → Kani → agent review", () => {
++    const t4 = renderTree(graph()).split("\n").find((l) => l.includes("T4 "))!;
++    const positions = ["mechanical", "typed", "Kani", "agent"].map((s) => t4.indexOf(s));
++    expect(positions[0]).toBe(-1); // no mechanical evidence on T4
++    expect(t4.indexOf("typed ok")).toBeLessThan(t4.indexOf("Kani proofs passed"));
++    expect(t4.indexOf("Kani proofs passed")).toBeLessThan(t4.indexOf("agent ok"));
++    const t1 = renderTree(graph()).split("\n").find((l) => l.includes("T1 "))!;
++    expect(t1.indexOf("mechanical ✓")).toBeLessThan(t1.indexOf("typed ok"));
++    expect(t1.indexOf("typed ok")).toBeLessThan(t1.indexOf("agent ok"));
++  });
++
++  test("detail answers a follow-up without leaking other tasks' evidence", () => {
++    const detail = renderDetail(graph(), "T2");
++    expect(detail).toContain("T2 — judge evasion question pack [[Fixed]]");
++    expect(detail).toContain("Status: fixed");
++    expect(detail).toContain("agent ok:false → fixed");
++    expect(detail).toContain("Evidence:");
++    expect(detail).toContain("reviews/task-2-079.md");
++    expect(detail).toContain("worker-T2");
++    expect(detail).not.toContain("reviews/task-1-079.md");
++    expect(renderDetail(graph(), "decision-T5")).toContain("Answers: escalation-T5");
++  });
++});
+diff --git a/prototype/poc/extract.ts b/prototype/poc/extract.ts
+new file mode 100644
+index 0000000..6a1b798
+--- /dev/null
++++ b/prototype/poc/extract.ts
+@@ -0,0 +1,668 @@
++/**
++ * Plan-level manager view — pure extraction from plan/verdict/LOG state.
++ *
++ * No transcript parsing, no IO, no clocks. Every node has a short human
++ * summary; command output and tool calls stay in evidence[].
++ */
++
++export type Status =
++  | "done" | "in-progress" | "fixed" | "failed" | "approved"
++  | "needs-you" | "blocked" | "pending" | "unknown";
++
++export type NodeKind =
++  | "plan" | "task" | "phase" | "worker" | "mechanical" | "typed" | "kani"
++  | "agent-review" | "decision" | "escalation" | "branch"
++  | "pending" | "blocked";
++
++export interface Evidence {
++  source: string;
++  label: string;
++  text?: string;
++}
++
++export interface GraphNode {
++  id: string;
++  kind: NodeKind;
++  summary: string;
++  detail: string;
++  status: Status;
++  /** Raw source phrasing when the status has no pill of its own (e.g. APPROVED). */
++  statusText?: string;
++  evidence: Evidence[];
++  parent?: string;
++  owner?: string;
++  answersId?: string;
++}
++
++export interface GraphEdge {
++  from: string;
++  to: string;
++  kind: "contains" | "answers" | "fork";
++}
++
++export interface PlanGraph {
++  id: string;
++  title: string;
++  status: Status;
++  shipTarget?: string;
++  nodes: GraphNode[];
++  edges: GraphEdge[];
++}
++
++export interface ReviewFile {
++  path: string;
++  text: string;
++}
++
++export interface PlanSources {
++  planText: string;
++  logText?: string;
++  reviewFiles?: ReviewFile[];
++  proofText?: string;
++  journalText?: string;
++}
++
++export const LAYER_ORDER: NodeKind[] = ["mechanical", "typed", "kani", "agent-review"];
++// Only words from pi-emphasis VOCABULARY.core. A status without a word is
++// shown as raw source text, never as an invented pill.
++export const STATUS_PILL: Partial<Record<Status, string>> = {
++  done: "Done",
++  "in-progress": "In progress",
++  fixed: "Fixed",
++  failed: "Failed",
++  "needs-you": "Needs you",
++  blocked: "Blocked",
++  pending: "Pending",
++  unknown: "Unverified",
++};
++
++const NODE_RANK: Record<NodeKind, number> = {
++  plan: 0, task: 1, phase: 1, worker: 2, mechanical: 3, typed: 4, kani: 5,
++  "agent-review": 6, branch: 7, pending: 8, blocked: 9,
++  escalation: 10, decision: 11,
++};
++
++const compact = (s: string) => s.replace(/\s+/g, " ").trim();
++const short = (s: string, max = 60): string => {
++  const t = compact(s);
++  return t.length <= max ? t : `${t.slice(0, max - 1).trimEnd()}…`;
++};
++const sentence = (s: string) => short(compact(s).split(/[;.]/)[0].replace(/[*\s]+$/, ""));
++const cap = (s: string) => (s ? s[0].toUpperCase() + s.slice(1) : s);
++const lineAt = (text: string, index: number) => `${index + 1}`;
++
++function taskNumber(id: string): number {
++  return Number.parseInt(id.replace(/\D/g, ""), 10) || 0;
++}
++
++function statusFrom(text: string): Status {
++  if (/fix round|\bfixed\b|ok:false\s*→\s*fixed/i.test(text)) return "fixed";
++  if (/needs owner|needs you|awaiting (owner|approval)|awaiting review/i.test(text)) return "needs-you";
++  if (/\bblocked\b/i.test(text)) return "blocked";
++  if (/\b(failed|rejected|ok:false)\b/i.test(text)) return "failed";
++  if (/\b(done|shipped|complete|ok:true|verified|passed)\b/i.test(text)) return "done";
++  if (/in progress|executing|running|active/i.test(text)) return "in-progress";
++  if (/\b(pending|queued|draft|planned)\b/i.test(text)) return "pending";
++  return "unknown";
++}
++
++interface TaskDraft {
++  id: string;
++  title: string;
++  status: Status;
++  owner?: string;
++  statusLine: number;
++  headingLine: number;
++}
++
++/** A phased plan (like live plan 076) has bullets, not ### TASK blocks. */
++function parsePhases(
++  planText: string, logText: string, planId: string,
++): { nodes: GraphNode[]; edges: GraphEdge[] } {
++  const lines = planText.split(/\r?\n/);
++  const logLines = logText.split(/\r?\n/);
++  const planDigits = planId.replace(/\D/g, "");
++  const phases: { id: string; n: number; summary: string; line: number }[] = [];
++  lines.forEach((line, i) => {
++    const match = line.match(/^[-*]\s+\*\*Phase\s+(\d+)(?:\s+\([^)]*\))?\s*\*\*:\s*(.*)$/i);
++    if (!match) return;
++    const body = match[2].replace(/\*\*/g, "");
++    const title = sentence(body.replace(/\s*\([^)]*\).*$/, ""));
++    phases.push({ id: `P${match[1]}`, n: Number(match[1]), summary: `Phase ${match[1]}: ${title}`, line: i + 1 });
++  });
++  if (!phases.length) return { nodes: [], edges: [] };
++
++  const nodes: GraphNode[] = [];
++  const edges: GraphEdge[] = [];
++  const logAt = (pattern: RegExp) => {
++    const i = logLines.findIndex((line) => pattern.test(line));
++    return i < 0 ? undefined : { source: `LOG.md:${i + 1}`, text: logLines[i] };
++  };
++
++  for (const phase of phases) {
++    const shipped = logAt(new RegExp(`PLAN\\s+${planDigits}\\s+PHASE\\s+${phase.n}\\s+SHIPPED\\b`, "i"));
++    const evidence: Evidence[] = [{
++      source: `plan:${phase.line}`,
++      label: "phase bullet",
++      text: compact(lines[phase.line - 1]),
++    }];
++    if (shipped) evidence.push({ source: shipped.source, label: "phase shipped", text: compact(shipped.text) });
++    nodes.push({
++      id: phase.id,
++      kind: "phase",
++      summary: phase.summary,
++      detail: `${phase.summary}; ${shipped ? "shipped per LOG" : "no shipped LOG entry"}`,
++      status: shipped ? "done" : "unknown",
++      parent: planId,
++      evidence,
++    });
++    edges.push({ from: planId, to: phase.id, kind: "contains" });
++  }
++
++  // The plan's explicit human gate is an escalation; a later LOG approval is its answer.
++  const gateIndex = lines.findIndex((l) => /^##\s+Post-.*gate/i.test(l));
++  if (gateIndex >= 0) {
++    const questionLine = lines.findIndex((l, i) => i > gateIndex && l.trim() && !/^#{1,6}\s/.test(l));
++    if (questionLine >= 0) {
++      const question = sentence(lines[questionLine]);
++      nodes.push({
++        id: "escalation-P1",
++        kind: "escalation",
++        summary: question,
++        detail: `Human gate from plan: ${question}`,
++        status: "needs-you",
++        parent: "P1",
++        evidence: [{ source: `plan:${questionLine + 1}`, label: "human gate", text: compact(lines[questionLine]) }],
++      });
++      edges.push({ from: "P1", to: "escalation-P1", kind: "contains" });
++      const approval = logAt(new RegExp(`PLAN\\s+${planDigits}\\s+PHASE\\s+2\\s+APPROVED\\b`, "i"));
++      if (approval) {
++        nodes.push({
++          id: "decision-P1",
++          kind: "decision",
++          summary: short(`Phase 2 approved${approval.text.match(/owner\s+"[^"]+"/i)?.[0] ? ` (${approval.text.match(/owner\s+"([^"]+)"/i)![1]})` : ""}`),
++          detail: `Owner answer to the post-phase-1 gate: ${compact(approval.text)}`,
++          status: "done",
++          parent: "P1",
++          answersId: "escalation-P1",
++          evidence: [{ source: approval.source, label: "owner answer", text: compact(approval.text) }],
++        });
++        edges.push({ from: "decision-P1", to: "escalation-P1", kind: "answers" });
++      }
++    }
++  }
++  return { nodes, edges };
++}
++
++interface ReviewDraft {
++  taskId: string;
++  path: string;
++  line: number;
++  layer: "mechanical" | "typed" | "agent-review";
++  text: string;
++}
++
++function parsePlan(planText: string): {
++  id: string;
++  title: string;
++  summary: string;
++  status: Status;
++  shipTarget?: string;
++  tasks: TaskDraft[];
++  nodes: GraphNode[];
++  edges: GraphEdge[];
++} {
++  const lines = planText.split(/\r?\n/);
++  const headingIndex = lines.findIndex((l) => /^#\s+\S/.test(l));
++  const heading = headingIndex >= 0 ? compact(lines[headingIndex].replace(/^#+\s*/, "")) : "Plan";
++  const digits = [...heading.matchAll(/\b(\d{3})\b/g)].map((m) => m[1]);
++  const statusLine = lines.find((l) => /^>\s*(?:.*\bStatus:\s*\S)/i.test(l)) ?? "";
++  const statusText = compact(statusLine.match(/\bStatus:\s*([^·;]+)/i)?.[1] ?? "");
++  const status: Status = /\bapproved\b/i.test(statusText) ? "approved" : statusFrom(statusText);
++  const shipLine = lines.find((l) => /^>\s*Ship target:/i.test(l) || /\bShip target:\s*v\d/i.test(l))
++    ?? lines.find((l) => /shipped\s+v\d/i.test(l)) ?? "";
++  const shipTarget = compact(shipLine).match(/v\d+(?:\.\d+)*\+?/)?.[0];
++
++  const afterDash = heading.match(/^Plan\s*[:#]?\s*\d*\s*[—–-]\s*(.+)$/i);
++  const afterColon = heading.match(/^Plan:\s*(.+?)\s*\(\d+\)$/i);
++  const rawSummary = afterDash?.[1] ?? afterColon?.[1]
++    ?? heading.replace(/^Plan\s*[:#]?\s*/i, "").replace(/\s*\(\d+\)\s*$/, "");
++  const summary = short(cap(compact(rawSummary)));
++  const planId = `plan-${digits.at(-1) ?? "000"}`;
++
++  const planNode: GraphNode = {
++    id: planId,
++    kind: "plan",
++    summary,
++    detail: `${heading}; status ${statusText || "unknown"}`
++      + (shipTarget ? `; ship target ${shipTarget}` : ""),
++    status,
++    ...(statusText ? { statusText } : {}),
++    evidence: [
++      {
++        source: `plan:${lineAt(planText, headingIndex)}`,
++        label: "plan heading",
++        text: heading,
++      },
++      ...(statusLine
++        ? [{ source: `plan:${lines.indexOf(statusLine) + 1}`, label: "plan status", text: compact(statusLine) }]
++        : []),
++    ],
++  };
++
++  const tasks: TaskDraft[] = [];
++  lines.forEach((line, i) => {
++    const match = line.match(/^###\s+TASK\s+(\d+[a-z]?)\b[^:]*:\s*(.*)$/i)
++      ?? line.match(/^###\s+TASK\s+(\d+[a-z]?)\s+[—–-]\s*(.*)$/i);
++    if (!match) return;
++    const nextHeading = lines.findIndex((l, j) => j > i && /^#{1,3}\s+\S/.test(l));
++    const end = nextHeading < 0 ? lines.length : nextHeading;
++    const body = lines.slice(i, end);
++    const statusRaw = body.find((l) => /\*\*Status\*\*:/i.test(l)) ?? "";
++    const ownerRaw = body.find((l) => /\*\*Owner\*\*:/i.test(l)) ?? "";
++    tasks.push({
++      id: `T${match[1]}`,
++      title: short(compact(match[2])),
++      status: statusFrom(statusRaw),
++      owner: ownerRaw ? compact(ownerRaw.replace(/^.*\*\*Owner\*\*:\s*/i, "")) : undefined,
++      statusLine: i + body.indexOf(statusRaw) + 1,
++      headingLine: i + 1,
++    });
++  });
++
++  const nodes: GraphNode[] = [planNode];
++  const edges: GraphEdge[] = [];
++  for (const task of tasks) {
++    nodes.push({
++      id: task.id,
++      kind: "task",
++      summary: task.title,
++      detail: `${task.id} ${task.title}; plan status ${task.status}`
++        + (task.owner ? `; owner ${task.owner}` : ""),
++      status: task.status,
++      owner: task.owner,
++      parent: planId,
++      evidence: [
++        {
++          source: `plan:${task.headingLine}`,
++          label: "task heading",
++          text: compact(lines[task.headingLine - 1]),
++        },
++        {
++          source: `plan:${task.statusLine}`,
++          label: "task status",
++          text: compact(lines[task.statusLine - 1]),
++        },
++      ],
++    });
++    edges.push({ from: planId, to: task.id, kind: "contains" });
++  }
++
++  return { id: planId, title: heading, summary, status, shipTarget, tasks, nodes, edges };
++}
++
++function parseReviews(reviewFiles: ReviewFile[]): ReviewDraft[] {
++  const drafts: ReviewDraft[] = [];
++  for (const file of reviewFiles ?? []) {
++    const taskId = compact(file.path).match(/task[-_]?(\d+[a-z]?)/i)?.[1];
++    if (!taskId) continue;
++    file.text.split(/\r?\n/).forEach((line, i) => {
++      let layer: ReviewDraft["layer"] | undefined;
++      if (/^\s*[-*]?\s*mechanical\b/i.test(line)) layer = "mechanical";
++      else if (/^\s*[-*]?\s*typed\b/i.test(line)) layer = "typed";
++      else if (/^\s*[-*]?\s*agent review\b/i.test(line) || /verdict:/i.test(line)) layer = "agent-review";
++      if (layer) {
++        drafts.push({ taskId: `T${taskId}`, path: file.path, line: i + 1, layer, text: compact(line) });
++      }
++    });
++  }
++  return drafts;
++}
++
++function reviewVerdict(text: string): { status: Status; phrase: string } {
++  const found = [...text.matchAll(/ok\s*[:=]\s*(true|false)/gi)].map((m) => m[1].toLowerCase());
++  const anyFalse = found.includes("false");
++  const laterTrue = found.indexOf("true") > found.indexOf("false") && found.includes("false");
++  if (anyFalse && (laterTrue || /fix round|fixed/i.test(text))) {
++    return { status: "fixed", phrase: "ok:false → fixed" };
++  }
++  if (anyFalse) return { status: "failed", phrase: "ok:false" };
++  return { status: "done", phrase: "ok" };
++}
++
++function layerSummary(kind: NodeKind, phrase: string): string {
++  if (kind === "mechanical") return phrase === "ok" ? "mechanical ✓" : `mechanical ${phrase}`;
++  if (kind === "typed") return phrase === "ok" ? "typed ok" : `typed ${phrase} → fix round`;
++  return phrase === "ok" ? "agent ok" : `agent ${phrase}`;
++}
++
++export function extractPlan(sources: PlanSources): PlanGraph {
++  const plan = parsePlan(sources.planText);
++  const nodes = [...plan.nodes];
++  const edges = [...plan.edges];
++  const byId = new Map(nodes.map((n) => [n.id, n]));
++  const taskIds = new Set(plan.tasks.map((t) => t.id));
++  const add = (node: GraphNode, edge?: GraphEdge) => {
++    if (!byId.has(node.id)) {
++      nodes.push(node);
++      byId.set(node.id, node);
++    }
++    if (edge) edges.push(edge);
++    return byId.get(node.id)!;
++  };
++  if (!plan.tasks.length) {
++    const phased = parsePhases(sources.planText, sources.logText ?? "", plan.id);
++    for (const node of phased.nodes) add(node);
++    for (const edge of phased.edges) edges.push(edge);
++  }
++  const evidenceToTask = (taskId: string, ev: Evidence) => {
++    const task = byId.get(taskId);
++    if (task && !task.evidence.some((e) => e.source === ev.source && e.label === ev.label)) {
++      task.evidence.push(ev);
++    }
++  };
++
++  // Workers named in the plan are discovery, not transcript inference.
++  for (const task of plan.tasks) {
++    const owner = task.owner;
++    if (!owner || !/worker|w\d+-/i.test(owner)) continue;
++    const workerId = compact(owner.replace(/^worker\s+/i, ""));
++    add(
++      {
++        id: `worker-${task.id}`,
++        kind: "worker",
++        summary: short(workerId),
++        detail: `Worked on ${task.id} ${task.title}`,
++        status: task.status,
++        parent: task.id,
++        owner: workerId,
++        evidence: [{
++          source: `plan:${task.statusLine}`,
++          label: "owner assignment",
++          text: `Owner: ${owner}`,
++        }],
++      },
++      { from: task.id, to: `worker-${task.id}`, kind: "contains" },
++    );
++  }
++
++  // Mechanical gates → typed decision/judge → agent review, only when a verdict exists.
++  for (const review of parseReviews(sources.reviewFiles ?? [])) {
++    if (!taskIds.has(review.taskId)) continue;
++    const verdict = reviewVerdict(review.text);
++    const id = `${review.layer}-${review.taskId}`;
++    const ev: Evidence = {
++      source: `${review.path}:${review.line}`,
++      label: `${review.layer} verdict`,
++      text: review.text,
++    };
++    evidenceToTask(review.taskId, ev);
++    const layer = add(
++      {
++        id,
++        kind: review.layer,
++        summary: layerSummary(review.layer, verdict.phrase),
++        detail: `${cap(review.layer)} verdict for ${review.taskId}: ${verdict.phrase}`,
++        status: verdict.status,
++        parent: review.taskId,
++        evidence: [ev],
++      },
++      { from: review.taskId, to: id, kind: "contains" },
++    );
++    if (review.layer === "mechanical" && verdict.status === "failed") layer.evidence[0].text = review.text;
++  }
++
++  // Kani proofs come from proof state, never from a transcript.
++  const proofText = sources.proofText ?? "";
++  proofText.split(/\r?\n/).forEach((line, i) => {
++    if (!line.trim()) return;
++    let task: string | undefined;
++    let result: Status | undefined;
++    let detail: string | undefined;
++    try {
++      const row = JSON.parse(line) as {
++        task?: string; tool?: string; result?: string; detail?: string; checks?: number;
++      };
++      if (!/kani/i.test(row.tool ?? "")) return;
++      task = row.task;
++      detail = row.detail ?? (row.checks !== undefined ? "proof checks recorded" : "proof recorded");
++      result = /verified|passed|ok/i.test(row.result ?? "") ? "done"
++        : /failed|error/i.test(row.result ?? "") ? "failed" : "pending";
++    } catch {
++      const match = line.match(/\b(T\d+[a-z]?).*\bkani\b.*\b(verified|passed|pending|failed)\b/i);
++      if (!match) return;
++      task = match[1];
++      result = statusFrom(match[2]);
++      detail = compact(line);
++    }
++    const taskId = task ? `T${task.replace(/^T/i, "")}` : "";
++    if (!taskIds.has(taskId) || !result) return;
++    const id = `kani-${taskId}`;
++    const summary = result === "done" ? "Kani proofs passed"
++      : result === "failed" ? "Kani proofs failed" : "Kani pending";
++    const proofEv: Evidence = {
++      source: `.workflows/proofs/proofs-079.jsonl:${i + 1}`,
++      label: "proof result",
++      text: compact(line),
++    };
++    evidenceToTask(taskId, proofEv);
++    add(
++      {
++        id,
++        kind: "kani",
++        summary,
++        detail: `Kani proof state for ${taskId}: ${detail ?? result}`,
++        status: result,
++        parent: taskId,
++        evidence: [proofEv],
++      },
++      { from: taskId, to: id, kind: "contains" },
++    );
++    if (result === "pending") {
++      add(
++        {
++          id: `pending-${taskId}`,
++          kind: "pending",
++          summary: "Kani proof pending",
++          detail: `Kani proof for ${taskId} has no passing result yet`,
++          status: "pending",
++          parent: taskId,
++          evidence: [{
++            source: `.workflows/proofs/proofs-079.jsonl:${i + 1}`,
++            label: "open proof gate",
++            text: compact(line),
++          }],
++        },
++        { from: taskId, to: `pending-${taskId}`, kind: "contains" },
++      );
++    }
++  });
++
++  // LOG + journal: forks, escalations, answers, open gates. Deduplicated by id.
++  const questionById = new Map<string, { taskId: string; question: string; source: string; text: string }>();
++  const answerById = new Map<string, { id: string; taskId: string; answer: string; source: string; text: string }>();
++  const logText = sources.logText ?? "";
++  const journalText = sources.journalText ?? "";
++
++  logText.split(/\r?\n/).forEach((line, i) => {
++    const source = `log:${i + 1}`;
++    const need = line.match(/NEEDS OWNER\s+(esc-(\w+)):\s*(.+)/i);
++    if (need) {
++      questionById.set(need[1], {
++        taskId: `T${need[2].replace(/\D/g, "")}`,
++        question: sentence(need[3]),
++        source,
++        text: compact(line),
++      });
++    }
++    const answer = line.match(/OWNER ANSWER\s+(esc-(\w+)):\s*(.+)/i);
++    if (answer) {
++      answerById.set(answer[1], {
++        id: answer[1], taskId: `T${answer[2].replace(/\D/g, "")}`,
++        answer: sentence(answer[3]), source, text: compact(line),
++      });
++    }
++    const fork = line.match(/\bFORK\s+\S+\s*→\s*branch\s+(\S+)\s*\(([^)]+)\)/i);
++    const taskFromFork = compact(line).match(/\bT(\d+[a-z]?)\b/)?.[0];
++    if (fork && taskFromFork && taskIds.has(taskFromFork)) {
++      const id = `branch-${taskFromFork}`;
++      add(
++        {
++          id,
++          kind: "branch",
++          summary: short(`Fork: ${fork[2]}`),
++          detail: `Subagent branch ${fork[1]} for ${taskFromFork}`,
++          status: byId.get(taskFromFork)?.status ?? "unknown",
++          parent: taskFromFork,
++          evidence: [{ source, label: "fork record", text: compact(line) }],
++        },
++        { from: taskFromFork, to: id, kind: "fork" },
++      );
++      const worker = byId.get(`worker-${taskFromFork}`);
++      if (worker) {
++        worker.summary = short(fork[2]);
++        worker.evidence.push({ source, label: "worker fork", text: compact(line) });
++      }
++    }
++    const blocked = compact(line).match(/\b(T\d+[a-z]?) blocked on owner:\s*(.+)/i);
++    if (blocked && taskIds.has(blocked[1])) addGate(blocked[1], "blocked", blocked[2], source, line);
++  });
++
++  journalText.split(/\r?\n/).forEach((line, i) => {
++    if (!line.trim()) return;
++    let row: Record<string, unknown>;
++    try { row = JSON.parse(line) as Record<string, unknown>; } catch { return; }
++    const source = `journal:${i + 1}`;
++    const taskId = typeof row.task === "string" ? `T${row.task.replace(/^T/i, "")}` : "";
++    if (row.kind === "fork" && taskIds.has(taskId)) {
++      const label = typeof row.label === "string" ? row.label : String(row.node ?? "worker");
++      const id = `branch-${taskId}`;
++      add(
++        {
++          id,
++          kind: "branch",
++          summary: short(`Fork: ${label}`),
++          detail: `Subagent branch ${String(row.branch ?? "recorded")} for ${taskId}`,
++          status: byId.get(taskId)?.status ?? "unknown",
++          parent: taskId,
++          evidence: [{ source, label: "fork record", text: compact(line) }],
++        },
++        { from: taskId, to: id, kind: "fork" },
++      );
++      const worker = byId.get(`worker-${taskId}`);
++      if (worker) {
++        worker.summary = short(label);
++        worker.evidence.push({ source, label: "worker fork", text: compact(line) });
++      } else {
++        add(
++          {
++            id: `worker-${taskId}`,
++            kind: "worker",
++            summary: short(label),
++            detail: `Worked on ${taskId}`,
++            status: byId.get(taskId)?.status ?? "unknown",
++            parent: taskId,
++            evidence: [{ source, label: "worker fork", text: compact(line) }],
++          },
++          { from: taskId, to: `worker-${taskId}`, kind: "contains" },
++        );
++      }
++    }
++    if (row.kind === "ask_parent" && taskIds.has(taskId)) {
++      const id = typeof row.id === "string" ? row.id : `esc-${taskId.toLowerCase()}`;
++      questionById.set(id, {
++        taskId,
++        question: sentence(String(row.question ?? "Human decision needed")),
++        source,
++        text: compact(line),
++      });
++    }
++    if (row.kind === "answer" && typeof row.answersId === "string") {
++      answerById.set(row.answersId, {
++        id: row.answersId,
++        taskId: taskIds.has(taskId) ? taskId : `T${row.answersId.replace(/\D/g, "")}`,
++        answer: sentence(String(row.text ?? "Approved")),
++        source,
++        text: compact(line),
++      });
++    }
++  });
++
++  for (const task of plan.tasks) {
++    if (task.status === "blocked" && !byId.has(`blocked-${task.id}`)) {
++      addGate(task.id, "blocked", "owner approval", `plan:${task.statusLine}`, `Status: ${task.status}`);
++    }
++  }
++
++  function addGate(taskId: string, kind: "pending" | "blocked", reason: string, source: string, raw: string) {
++    const id = `${kind}-${taskId}`;
++    const existing = byId.get(id);
++    if (existing) {
++      existing.evidence.push({ source, label: "open gate", text: compact(raw) });
++      return existing;
++    }
++    return add(
++      {
++        id,
++        kind,
++        summary: kind === "blocked" ? "Owner gate blocked" : "Gate pending",
++        detail: `${cap(kind)} on ${taskId}: ${reason}`,
++        status: kind,
++        parent: taskId,
++        evidence: [{ source, label: "open gate", text: compact(raw) }],
++      },
++      { from: taskId, to: id, kind: "contains" },
++    );
++  }
++
++  for (const [id, q] of questionById) {
++    if (!taskIds.has(q.taskId)) continue;
++    const escalationId = `escalation-${q.taskId}`;
++    add(
++      {
++        id: escalationId,
++        kind: "escalation",
++        summary: short(q.question),
++        detail: `Escalation ${id} from ${q.taskId}: ${q.question}`,
++        status: "needs-you",
++        parent: q.taskId,
++        evidence: [{ source: q.source, label: "escalation", text: q.text }],
++      },
++      { from: q.taskId, to: escalationId, kind: "contains" },
++    );
++  }
++
++  for (const [id, a] of answerById) {
++    const escalationId = `escalation-${a.taskId}`;
++    if (!byId.has(escalationId)) continue;
++    const decisionId = `decision-${a.taskId}`;
++    add(
++      {
++        id: decisionId,
++        kind: "decision",
++        summary: short(a.answer),
++        detail: `Human answer to ${id}: ${a.answer}`,
++        status: "done",
++        parent: a.taskId,
++        answersId: escalationId,
++        evidence: [{ source: a.source, label: "human answer", text: a.text }],
++      },
++      { from: decisionId, to: escalationId, kind: "answers" },
++    );
++  }
++
++  nodes.sort((a, b) => {
++    const rank = NODE_RANK[a.kind] - NODE_RANK[b.kind];
++    if (rank !== 0) return rank;
++    return taskNumber(a.id) - taskNumber(b.id) || a.id.localeCompare(b.id);
++  });
++
++  return {
++    id: plan.id,
++    title: plan.title,
++    status: plan.status,
++    ...(plan.shipTarget ? { shipTarget: plan.shipTarget } : {}),
++    nodes,
++    edges,
++  };
++}
+diff --git a/prototype/poc/fixtures/journal-079.jsonl b/prototype/poc/fixtures/journal-079.jsonl
+new file mode 100644
+index 0000000..d965482
+--- /dev/null
++++ b/prototype/poc/fixtures/journal-079.jsonl
+@@ -0,0 +1,3 @@
++{"ts":"20261119T10:00Z","plan":"079","kind":"fork","task":"T2","node":"w79-t2","label":"judge-pack worker","branch":"subagents/run79/task_1"}
++{"ts":"20261119T10:05Z","plan":"079","kind":"ask_parent","id":"esc-t5","task":"T5","question":"Approve resume after proof failure?","via":"worker w79-t5"}
++{"ts":"20261119T10:10Z","plan":"079","kind":"answer","id":"ans-t5","answersId":"esc-t5","text":"Resume granted; keep Kani gate blocking."}
+diff --git a/prototype/poc/fixtures/log-079.md b/prototype/poc/fixtures/log-079.md
+new file mode 100644
+index 0000000..840496e
+--- /dev/null
++++ b/prototype/poc/fixtures/log-079.md
+@@ -0,0 +1,8 @@
++20261119 PLAN 079 APPROVED (owner "go") — six tasks, evasion oracle.
++20261119 T1 worker w79-t1 done; verdict in reviews/task-1-079.md.
++20261119 T2 agent review ok:false → fix round; worker w79-t2 re-dispatched.
++20261119 FORK w79-t2 → branch subagents/run79/task_1 (judge-pack worker).
++20261119 T4 Kani proofs recorded in .workflows/proofs/proofs-079.jsonl.
++20261119 T5 blocked on owner: Kani proof gate needs a resume decision.
++20261119 NEEDS OWNER esc-t5: Approve resume after proof failure?
++20261119 OWNER ANSWER esc-t5: Resume granted; keep Kani gate blocking.
+diff --git a/prototype/poc/fixtures/plan-079.md b/prototype/poc/fixtures/plan-079.md
+new file mode 100644
+index 0000000..d9d8315
+--- /dev/null
++++ b/prototype/poc/fixtures/plan-079.md
+@@ -0,0 +1,37 @@
++# Plan 079 — evasion oracle
++
++> Plan ID: 20261119-079
++> Created: 20261119
++> Owner: Aurel
++> Status: IN PROGRESS (proof gate open, owner approval pending)
++> Ship target: v0.15.18
++
++Synthesized composite: task titles follow the shipped plan-079 proposal; the status,
++task and review shapes follow the canonical pi-workflows plan grammar. Paths and
++identifiers are redacted; no transcript, key material or absolute paths.
++
++## Tasks
++
++### TASK 1 (Tier B): Tier-0 evasion scanner
++- **Status**: ✅ DONE
++- **Owner**: worker w79-t1
++
++### TASK 2 (Tier B): judge evasion question pack
++- **Status**: ✅ DONE (agent fix round)
++- **Owner**: worker w79-t2
++
++### TASK 3 (Tier B): oracle-binding disclosure rule
++- **Status**: ✅ DONE
++- **Owner**: worker w79-t3
++
++### TASK 4 (Tier B): oracle variation between passes
++- **Status**: ✅ DONE
++- **Owner**: worker w79-t4
++
++### TASK 5 (Tier B): proof gate resume
++- **Status**: 🟡 BLOCKED (awaiting owner approval)
++- **Owner**: worker w79-t5
++
++### TASK 6 (Tier A): docs sweep
++- **Status**: ✅ DONE
++- **Owner**: orchestrator-inline
+diff --git a/prototype/poc/fixtures/proofs/proofs-079.jsonl b/prototype/poc/fixtures/proofs/proofs-079.jsonl
+new file mode 100644
+index 0000000..4bf12f5
+--- /dev/null
++++ b/prototype/poc/fixtures/proofs/proofs-079.jsonl
+@@ -0,0 +1,2 @@
++{"plan":"079","task":"T4","tool":"kani","result":"verified","checks":4,"detail":"all proof obligations discharged"}
++{"plan":"079","task":"T5","tool":"kani","result":"pending","detail":"proof gate waits on owner decision"}
+diff --git a/prototype/poc/fixtures/reviews/task-1-079.md b/prototype/poc/fixtures/reviews/task-1-079.md
+new file mode 100644
+index 0000000..6f9b62b
+--- /dev/null
++++ b/prototype/poc/fixtures/reviews/task-1-079.md
+@@ -0,0 +1,7 @@
++# Review — task-1 (plan 079)
++
++## Round 1
++- Verdict: **ok: true**
++- Mechanical: agent-spec 5/5 PASS; bun test 721/0; drift CLEAN
++- Typed decision: oracle_binding_stated ok=true (confidence 0.91)
++- Agent review: ok:true — pins bind real files
+diff --git a/prototype/poc/fixtures/reviews/task-2-079.md b/prototype/poc/fixtures/reviews/task-2-079.md
+new file mode 100644
+index 0000000..11e4a87
+--- /dev/null
++++ b/prototype/poc/fixtures/reviews/task-2-079.md
+@@ -0,0 +1,7 @@
++# Review — task-2 (plan 079)
++
++## Round 1
++- Verdict: **ok: false** → fixed → ok: true (round 2)
++- Mechanical: agent-spec 5/5 PASS
++- Typed decision: env_bypass ok=true
++- Agent review: ok:false → fix round; round 2 ok:true
+diff --git a/prototype/poc/fixtures/reviews/task-3-079.md b/prototype/poc/fixtures/reviews/task-3-079.md
+new file mode 100644
+index 0000000..2e47388
+--- /dev/null
++++ b/prototype/poc/fixtures/reviews/task-3-079.md
+@@ -0,0 +1,6 @@
++# Review — task-3 (plan 079)
++
++## Round 1
++- Verdict: ok:true
++- Mechanical: check-archive CLEAN; drift CLEAN
++- Agent review: ok:true
+diff --git a/prototype/poc/fixtures/reviews/task-4-079.md b/prototype/poc/fixtures/reviews/task-4-079.md
+new file mode 100644
+index 0000000..fe598ab
+--- /dev/null
++++ b/prototype/poc/fixtures/reviews/task-4-079.md
+@@ -0,0 +1,6 @@
++# Review — task-4 (plan 079)
++
++## Round 1
++- Verdict: ok:true
++- Typed decision: normalization_equivalent ok=true
++- Agent review: ok:true
+diff --git a/prototype/poc/fixtures/reviews/task-6-079.md b/prototype/poc/fixtures/reviews/task-6-079.md
+new file mode 100644
+index 0000000..39952cd
+--- /dev/null
++++ b/prototype/poc/fixtures/reviews/task-6-079.md
+@@ -0,0 +1,5 @@
++# Review — task-6 (plan 079)
++
++## Round 1
++- Verdict: ok:true
++- Agent review: ok:true
+diff --git a/prototype/poc/realdata.test.ts b/prototype/poc/realdata.test.ts
+new file mode 100644
+index 0000000..9044931
+--- /dev/null
++++ b/prototype/poc/realdata.test.ts
+@@ -0,0 +1,94 @@
++/** Validation against the LIVE .workflows state (read-only, never written). */
++import { describe, expect, test } from "bun:test";
++import { existsSync, readFileSync, readdirSync } from "node:fs";
++import { join } from "node:path";
++import { extractPlan, type PlanSources } from "./extract.ts";
++import { renderDetail, renderTree, resolveNode } from "./render.ts";
++
++const REAL = "/home/aurel/Documents/github/pi-workflows/.workflows";
++const read = (name: string) => readFileSync(join(REAL, name), "utf8");
++
++function realSources(): PlanSources {
++  const reviewDir = join(REAL, "reviews");
++  const proofDir = join(REAL, "proofs");
++  const reviewFiles = existsSync(reviewDir)
++    ? readdirSync(reviewDir).filter((f) => f.endsWith(".md")).sort()
++      .map((f) => ({ path: join(reviewDir, f), text: readFileSync(join(reviewDir, f), "utf8") }))
++    : [];
++  const proofFiles = existsSync(proofDir)
++    ? readdirSync(proofDir).filter((f) => f.endsWith(".jsonl") || f.endsWith(".md")).sort()
++    : [];
++  return {
++    planText: read("plan.md"),
++    logText: read("LOG.md"),
++    reviewFiles,
++    proofText: proofFiles.map((f) => readFileSync(join(proofDir, f), "utf8")).join("\n"),
++    journalText: ["journal.jsonl", "journal.md"].filter((f) => existsSync(join(REAL, f))).map(read).join("\n"),
++  };
++}
++
++const sources = realSources();
++const graph = extractPlan(sources);
++const tree = renderTree(graph);
++const node = (id: string) => {
++  const found = graph.nodes.find((n) => n.id === id);
++  if (!found) throw new Error(`missing node ${id}`);
++  return found;
++};
++
++describe("live plan 076", () => {
++  test("identity and inline blockquote status come from plan.md:1 and :3", () => {
++    expect(sources.planText.split("\n")[0]).toContain("20261117-076");
++    expect(sources.planText.split("\n")[2]).toContain("Status: APPROVED");
++    expect(graph.id).toBe("plan-076");
++    expect(node("plan-076").status).toBe("approved");
++    expect(node("plan-076").evidence.map((e) => e.source)).toContain("plan:3");
++    expect(renderDetail(graph, "plan-076")).toContain("status APPROVED");
++    expect(tree).toContain("Plan 076");
++  });
++
++  test("plan.md has zero TASK blocks; its three phase bullets render with LOG evidence", () => {
++    expect(sources.planText).not.toMatch(/^###\s+TASK\s/mi);
++    expect(graph.nodes.filter((n) => n.kind === "task")).toHaveLength(0);
++    const phases = graph.nodes.filter((n) => n.kind === "phase");
++    expect(phases.map((n) => n.id)).toEqual(["P1", "P2", "P3"]);
++    for (const phase of phases) {
++      expect(phase.status).toBe("done");
++      expect(phase.evidence.some((e) => e.source.startsWith("plan:"))).toBe(true);
++      expect(phase.evidence.some((e) => /LOG\.md:\d+/.test(e.source))).toBe(true);
++      expect(tree).toContain(`${phase.id} `);
++    }
++    expect(sources.logText).toMatch(/20261118 PLAN 076 PHASE 1 SHIPPED/);
++    expect(node("P1").evidence.map((e) => e.source)).toContain("LOG.md:371");
++    expect(node("P3").evidence.map((e) => e.source)).toContain("LOG.md:381");
++  });
++
++  test("the post-phase-1 gate is a needs-you node with an evidenced owner answer", () => {
++    expect(node("escalation-P1").status).toBe("needs-you");
++    expect(node("escalation-P1").evidence.map((e) => e.source)).toContain("plan:37");
++    expect(node("decision-P1").status).toBe("done");
++    expect(node("decision-P1").answersId).toBe("escalation-P1");
++    expect(node("decision-P1").evidence.map((e) => e.source)).toContain("LOG.md:373");
++    expect(tree).toContain("[[Needs you]]");
++    expect(tree).toContain("[[Done]]");
++  });
++
++  test("detail follow-ups resolve phase gate aliases and print no blank status", () => {
++    expect(resolveNode(graph, "esc-p1")?.id).toBe("escalation-P1");
++    expect(resolveNode(graph, "decision-p1")?.id).toBe("decision-P1");
++    expect(renderDetail(graph, "P1")).toContain("LOG.md:371");
++    expect(renderDetail(graph, "plan-076").split("\n")[0]).not.toMatch(/\s$/);
++  });
++
++  test("no Kani layer is fabricated from proofs.jsonl (it has no Kani rows)", () => {
++    expect(sources.proofText).not.toMatch(/kani/i);
++    expect(graph.nodes.filter((n) => n.kind === "kani")).toHaveLength(0);
++    expect(tree).not.toContain("Kani");
++  });
++
++  test("a review verdict from an older plan is not borrowed into plan 076", () => {
++    expect(read("reviews/task-2.md")).toContain("ok: true");
++    expect(graph.nodes.filter((n) => n.kind === "agent-review")).toHaveLength(0);
++    expect(tree).not.toContain("task-2.md");
++  });
++});
+diff --git a/prototype/poc/render.ts b/prototype/poc/render.ts
+new file mode 100644
+index 0000000..a4d616b
+--- /dev/null
++++ b/prototype/poc/render.ts
+@@ -0,0 +1,129 @@
++/** Static chat-tree renderer for the plan-level manager view. */
++
++import {
++  LAYER_ORDER, STATUS_PILL,
++  type GraphEdge, type GraphNode, type PlanGraph,
++} from "./extract.ts";
++
++const CHILD_ORDER: Record<string, number> = {
++  worker: 0, mechanical: 1, typed: 2, kani: 3, "agent-review": 4,
++  branch: 5, pending: 6, blocked: 7, escalation: 8, decision: 9,
++};
++
++const num = (id: string) => Number.parseInt(id.replace(/\D/g, ""), 10) || 0;
++const pill = (status: GraphNode["status"]) => {
++  const word = STATUS_PILL[status];
++  return word ? `[[${word}]]` : "";
++};
++
++function sortedChildren(graph: PlanGraph, id: string): GraphNode[] {
++  return graph.nodes
++    .filter((n) => n.parent === id)
++    .sort((a, b) => (CHILD_ORDER[a.kind] ?? 99) - (CHILD_ORDER[b.kind] ?? 99) || a.id.localeCompare(b.id));
++}
++
++export function resolveNode(graph: PlanGraph, ref: string): GraphNode | undefined {
++  const target = ref.trim().toLowerCase();
++  const direct = graph.nodes.find((n) => n.id.toLowerCase() === target);
++  if (direct) return direct;
++  const alias = graph.nodes.find((n) =>
++    n.summary.toLowerCase() === target || n.id.toLowerCase().endsWith(`-${target}`));
++  if (alias) return alias;
++  const digits = target.replace(/\D/g, "");
++  if (/^(esc|escalation)/.test(target) && digits) {
++    return graph.nodes.find((n) => n.id === `escalation-T${digits}` || n.id === `escalation-P${digits}`);
++  }
++  if (/^(ans|approval|decision)/.test(target) && digits) {
++    return graph.nodes.find((n) => n.id === `decision-T${digits}` || n.id === `decision-P${digits}`);
++  }
++  return undefined;
++}
++
++export function renderTree(graph: PlanGraph): string {
++  const plan = graph.nodes.find((n) => n.kind === "plan") ?? graph.nodes[0];
++  if (!plan) return "(empty plan)";
++  const planNumber = graph.id.replace(/^plan-/, "");
++  const statusWord = pill(plan.status)
++    || (plan.statusText ? `(${plan.statusText.split(/[\s(]/)[0]})` : "");
++  const lines = [
++    `Plan ${planNumber} — ${plan.summary}${statusWord ? ` ${statusWord}` : ""}`
++      + (graph.shipTarget ? ` · ship ${graph.shipTarget}` : ""),
++  ];
++  const tasks = graph.nodes
++    .filter((n) => n.kind === "task")
++    .sort((a, b) => num(a.id) - num(b.id));
++  // A phased plan has no TASK blocks; its evidence-backed phase bullets are the rows.
++  const rows = tasks.length ? tasks : graph.nodes
++    .filter((n) => n.kind === "phase")
++    .sort((a, b) => num(a.id) - num(b.id));
++
++  rows.forEach((task, index) => {
++    const children = sortedChildren(graph, task.id);
++    const layers = LAYER_ORDER.flatMap((kind) => children.filter((c) => c.kind === kind));
++    const gates = children.filter((c) => (c.kind === "pending" || c.kind === "blocked")
++      && !layers.some((l) => c.summary.split(" ")[0] === l.summary.split(" ")[0]));
++    const chips = [...layers, ...gates].map((c) => c.summary);
++    const lastTask = index === rows.length - 1;
++    lines.push(
++      `${lastTask ? "└──" : "├──"} ${task.id} ${task.summary} ${pill(task.status)}`
++        + (chips.length ? ` · ${chips.join(" · ")}` : ""),
++    );
++
++    // Workers stay in evidence/detail; forks and human asks are visible in the tree.
++    const visible = children.filter((c) => c.kind === "branch" || c.kind === "escalation");
++    visible.forEach((child, childIndex) => {
++      renderChild(child, `${lastTask ? "    " : "│   "}`, childIndex === visible.length - 1);
++    });
++  });
++
++  return lines.join("\n");
++
++  function renderChild(node: GraphNode, prefix: string, isLast: boolean) {
++    const answer = graph.nodes.find((n) => n.answersId === node.id);
++    lines.push(`${prefix}${isLast ? "└──" : "├──"} ${node.summary} ${pill(node.status)}`);
++    if (answer) {
++      lines.push(`${prefix}${isLast ? "    " : "│   "}└── ${answer.summary} ${pill(answer.status)}`);
++    }
++  }
++}
++
++export function renderEvidence(graph: PlanGraph): string {
++  const lines = ["Evidence (hidden in the default tree):"];
++  for (const node of graph.nodes) {
++    lines.push(`- ${node.id} [${node.kind}] ${node.evidence.map((e) => e.source).join(", ")}`);
++  }
++  return lines.join("\n");
++}
++
++export function renderDetail(graph: PlanGraph, ref: string): string {
++  const node = resolveNode(graph, ref);
++  if (!node) return `Unknown node: ${ref}`;
++  const lines = [
++    `${node.id} — ${node.summary} ${pill(node.status)}`.trimEnd(),
++    `Status: ${node.status}`,
++    ...(node.owner ? [`Owner: ${node.owner}`] : []),
++    `Detail: ${node.detail}`,
++    ...(node.parent ? [`Parent: ${node.parent}`] : []),
++    ...(node.answersId ? [`Answers: ${node.answersId}`] : []),
++    "Evidence:",
++    ...node.evidence.map((e) => `  - ${e.source} — ${e.label}${e.text ? ` — ${e.text}` : ""}`),
++  ];
++  const children = sortedChildren(graph, node.id);
++  if (children.length) {
++    lines.push("Children:");
++    for (const child of children) {
++      lines.push(`  - ${child.id} (${child.kind}) — ${child.summary} ${pill(child.status)}`);
++    }
++  }
++  const links = graph.edges.filter(
++    (e: GraphEdge) => (e.kind === "answers" && (e.from === node.id || e.to === node.id))
++      || (e.kind === "fork" && (e.from === node.id || e.to === node.id)),
++  );
++  if (links.length) {
++    lines.push("Links:");
++    for (const link of links) {
++      lines.push(`  - ${link.from} —${link.kind}→ ${link.to}`);
++    }
++  }
++  return lines.join("\n");
++}

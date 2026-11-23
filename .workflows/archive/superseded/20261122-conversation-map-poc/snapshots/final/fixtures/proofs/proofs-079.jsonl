@@ -1,0 +1,2 @@
+{"plan":"079","task":"T4","tool":"kani","result":"verified","checks":4,"detail":"all proof obligations discharged"}
+{"plan":"079","task":"T5","tool":"kani","result":"pending","detail":"proof gate waits on owner decision"}

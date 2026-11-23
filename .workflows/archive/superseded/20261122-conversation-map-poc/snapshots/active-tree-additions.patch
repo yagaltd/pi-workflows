@@ -1,0 +1,22 @@
+diff --git i/.workflows/CONTEXT.md w/.workflows/CONTEXT.md
+index 8e3c2c6..7fe1839 100644
+--- i/.workflows/CONTEXT.md
++++ w/.workflows/CONTEXT.md
+@@ -1,6 +1,8 @@
+ # Domain Memory — pi-workflows
+ 
+ ## Glossary
++- **subway map**: the conversation-tree visualization — vertical node/edge strip (turns, forks, edits, gates, pending) rendered beside/over the transcript; nodes clickable, details scroll in the main pane.
++- **settle-judge**: the async formatting pattern — deterministic heuristics first; a cheap typed call (`models.classify()`/flash-class) only on uncertain nodes, fired on turn settle; placeholder-then-patch so display never blocks; cache by (entryId, textHash, rubricVersion).
+ - **abort-as-failure-signal**: when a needs-gated reviewer node auto-aborts (upstream worker failed/blocked), no verdict exists; the orchestrator treats the abort itself as the failure signal and inspects the worker output directly.
+ - **verification policy**: registry table mapping task traits (docs / standard / security-concurrency-parsing-external-input) to reviewer model+thinking; scales reviewer cost, never its existence.
+ 
+diff --git i/.workflows/LOG.md w/.workflows/LOG.md
+index fdc903d..0a968e2 100644
+--- i/.workflows/LOG.md
++++ w/.workflows/LOG.md
+@@ -393,3 +393,4 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
+ 20261119 PLAN 079 QUEUED (owner diagnosis: "confidence bought too cheaply" — five MorphNSH review passes, five unearned agreements: unpinned divergences, zero-width separator, env-var pin bypass, case swap; all one disease = weak oracle binding, correlated blind spots): the evasion-resistant oracle — T1 Tier-0 evasion scanner (zero-width/bidi/confusables/env-bypass/case-norm, deterministic, pre-judge), T2 judge evasion-detection question pack (batched: invisible_chars number, env_bypass boolean, normalization_equivalent boolean, oracle_binding_stated boolean — scanner output as evidence), T3 oracle-binding disclosure rule (every agreement states its binding; unaudited agreement = finding), T4 oracle variation between passes (permute the oracle, not just the questions). Proposal .workflows/proposals/20261119-plan-079-evasion-resistant-oracle.md. First target: MorphNSH's review harness (T1 catches the zero-width separator on pass one).
+ 
+ 20261119 PLAN 079 SHIPPED (v0.15.17): the evasion-resistant oracle — Tier-0 scanner (invisible chars/homoglyphs/env-bypass/case-norm; exit 1 blocks loudly), judge evasion pack (abstains without scanner evidence), oracle-binding disclosure (reviewer ≤170 held, doctrine line pinned), oracle variation modes (correlation trap demoed: zero-width exact-ACCEPT/normalized-REJECT = UNEARNED). MorphNSH first target: the scanner catches the zero-width separator on pass one. Suite 721/0 on merged tree.
++20261120 EXPLORE conversation-map-tui — PROCEED (phased): V1 extension-only (getTree()+tail extractor <50ms rebuild, /map clickable overlay + setWidget live strip, heuristic→classify() cascade judge async-on-settle), V2 5-line upstreamable transcriptScrollView exposure for clean click-to-scroll, V3 ~20-line chat-viewport.ts fork = the 70-30 split. Split-pane impossible via extension API; typellm only labels nodes (graph build stays deterministic). Knowledge: .workflows/knowledge/explore-20261120-conversation-map-tui.md.
