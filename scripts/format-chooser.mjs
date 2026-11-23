@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// format-chooser — the output-artifact chooser (plan 20261026-032).
-// Two advisory questions, one judge call: does this output need a visual
-// artifact (none/table/mermaid/html), and which diagram type fits?
-// The chooser suggests; the agent decides. Audited via judge.mjs ask
-// (the single judge client, DEC-001). Fail-open to none (prose).
+// format-chooser — the output-artifact chooser (plan 20261123-075).
+// The deterministic output policy decides the artifact form; one judge call
+// supplies advisory diagram-family input and confidence. The chooser
+// suggests; the agent decides. Audited via judge.mjs ask (the single judge
+// client, DEC-001). Fail-open to none (prose).
 //
 // Ladder doctrine (source: diagram-design SKILL.md §2): prose is rung 1;
 // a visual is earned only when the reader learns more from it than from
@@ -17,9 +17,11 @@
 
 import fs from "node:fs";
 import { ask } from "./judge.mjs";
+import { decideOutputPolicy } from "./output-policy.mjs";
 
 export const BOUNDARIES = ["closeout", "plan-approval", "challenge", "brainstorm-graduation"];
 export const ARTIFACTS = ["none", "table", "mermaid", "html"];
+const POLICY_DIAGRAM_FORM = "mermaid"; // canonical diagram form; html stays a generated view
 const TYPE_GROUPS = {
   "data-flow": "bottleneck, fan-in, queue depth, finite capacity",
   flowchart: "decision logic with branches",
@@ -71,30 +73,56 @@ export function readVerdict(r) {
   const rows = Array.isArray(r?.verdict) ? r.verdict : [];
   const artifactRow = rows.find((x) => x.id === "artifact") ?? {};
   const typeRow = rows.find((x) => x.id === "type") ?? {};
+  const reason = [artifactRow.reason, typeRow.reason, r?.reason].find((x) => typeof x === "string") ?? null;
   return {
     artifact: ARTIFACTS.includes(artifactRow.verdict) ? artifactRow.verdict : "none",
     artifactConfidence: typeof artifactRow.confidence === "number" ? artifactRow.confidence : null,
     type: TYPE_GROUPS[typeRow.verdict] ? typeRow.verdict : null,
     typeConfidence: typeof typeRow.confidence === "number" ? typeRow.confidence : null,
+    reason,
   };
 }
 
-export async function choose({ boundary, content, auditFile, ask: askFn = ask }) {
+/**
+ * @cc [label:output-policy] policy-authoritative-artifact
+ * Only the deterministic policy result may select table or diagram forms; judge answers stay advisory.
+ */
+/**
+ * @cc [label:output-policy] chooser-fail-open-to-prose
+ * An unavailable judge yields artifact none with a loud skip even on a policy visual positive.
+ */
+export async function choose({ boundary, content, auditFile, policy, ask: askFn = ask }) {
+  const decision = policy ?? decideOutputPolicy();
+  const policyFlags = { table: decision.table === true, diagram: decision.diagram === true };
   const r = await askFn({ questions: buildQuestions(boundary, content), ...(auditFile ? { auditFile } : {}) });
   if (!r || r.skipped) {
-    return { boundary, artifact: "none", skipped: true, reason: "judge unavailable — prose stands (ladder rung 1)" };
+    return { boundary, policy: policyFlags, artifact: "none", diagram: false, skipped: true, reason: "judge unavailable — prose stands (ladder rung 1)" };
   }
-  return { boundary, ...readVerdict(r), skipped: false };
+  const verdict = readVerdict(r);
+  const artifact = policyFlags.table ? "table" : policyFlags.diagram ? POLICY_DIAGRAM_FORM : "none";
+  const { artifact: judgeArtifact, artifactConfidence, type, typeConfidence, reason } = verdict;
+  return {
+    boundary,
+    policy: policyFlags,
+    artifact,
+    diagram: artifact === POLICY_DIAGRAM_FORM,
+    artifactConfidence,
+    type,
+    typeConfidence,
+    reason,
+    judgeSuggestion: { artifact: judgeArtifact, artifactConfidence, type, typeConfidence, reason },
+    skipped: false,
+  };
 }
 
-export async function main(argv, { ask: askFn = ask, err = process.stderr } = {}) {
+export async function main(argv, { ask: askFn = ask, err = process.stderr, out = (s) => console.log(s), policy } = {}) {
   const { opts, error } = parseArgs(argv);
   if (error) { err.write(`usage error: ${error}\n`); return 2; }
   if (!fs.existsSync(opts.contentFile)) { err.write(`usage error: content file not found: ${opts.contentFile}\n`); return 2; }
   const content = fs.readFileSync(opts.contentFile, "utf8");
-  const c = await choose({ boundary: opts.for, content, ...(opts.audit ? { auditFile: opts.audit } : {}), ask: askFn });
+  const c = await choose({ boundary: opts.for, content, ...(opts.audit ? { auditFile: opts.audit } : {}), ...(policy ? { policy } : {}), ask: askFn });
   if (c.skipped) err.write(`FORMAT CHOOSER SKIPPED (${c.reason})\n`);
-  console.log(JSON.stringify({ ...c, note: "advisory — the agent may overrule with a stated reason; html artifacts are generated views, never gates" }));
+  out(JSON.stringify({ ...c, note: "advisory — the agent may overrule with a stated reason; html artifacts are generated views, never gates" }));
   return 0;
 }
 
