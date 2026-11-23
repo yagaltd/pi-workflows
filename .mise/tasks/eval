@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run advisory eval orchestration"
+# Usage: mise run eval
+set -euo pipefail
+
+node scripts/eval-orchestration.mjs

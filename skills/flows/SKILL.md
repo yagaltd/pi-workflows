@@ -79,7 +79,7 @@ toolchain is a loud `skipped`, never a pass.
 
 Doc-gate rule: task packs whose Allowed Changes touch a doc surface —
 docs/, prompts/, skills/, agents/, README.md, CHANGELOG.md — set `verify`
-to include `just docs` alongside the task's own test command, so doc-drift
+to include `mise run docs` alongside the task's own test command, so doc-drift
 is caught in the same verify pass (`scripts/check-drift.sh`).
 
 SHIP still runs the golden eval

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Run the lessons ledger through the shared launcher"
+# Usage: mise run lessons -- <args...>
+set -euo pipefail
+
+./scripts/wf.sh lessons "$@"

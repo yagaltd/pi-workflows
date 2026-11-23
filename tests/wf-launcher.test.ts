@@ -115,20 +115,21 @@ describe("wf launcher contract", () => {
     expect(r.stdout + r.stderr).toContain("archive-check");
   });
 
-  test("justfile exposes judge/lessons/bench/archive-check through the launcher", () => {
-    const justfile = fs.readFileSync(path.join(ROOT, "justfile"), "utf8");
+  test("mise file tasks expose judge/lessons/bench/archive-check through the launcher", () => {
     for (const cmd of ["judge", "lessons", "bench", "archive-check"]) {
-      expect(justfile).toMatch(new RegExp(`^${cmd}(?: \\*args)?:[\\s\\S]*?\\./scripts/wf\\.sh ${cmd}\\b`, "m"));
+      const task = fs.readFileSync(path.join(ROOT, ".mise", "tasks", cmd), "utf8");
+      expect(task).toContain(`./scripts/wf.sh ${cmd} "$@"`);
     }
   });
 
-  test("just --list includes the four recipes when just is installed", () => {
-    const probe = spawnSync("just", ["--version"], { encoding: "utf8" });
+  test("mise tasks ls includes the launcher-backed file tasks when mise is installed", () => {
+    const probe = spawnSync("mise", ["--version"], { encoding: "utf8" });
     if (probe.error || probe.status !== 0) return;
-    const listed = spawnSync("just", ["--list"], { cwd: ROOT, encoding: "utf8" });
+    const listed = spawnSync("mise", ["tasks", "ls", "--json"], { cwd: ROOT, encoding: "utf8" });
     expect(listed.status).toBe(0);
+    const names = JSON.parse(listed.stdout).map((task: { name: string }) => task.name);
     for (const cmd of ["judge", "lessons", "bench", "archive-check"]) {
-      expect(listed.stdout).toMatch(new RegExp(`^\\s+${cmd}\\b`, "m"));
+      expect(names).toContain(cmd);
     }
   });
 
@@ -153,7 +154,7 @@ describe("wf launcher contract", () => {
   test("mise.toml remains the tool pin only — no tasks added", () => {
     const mise = fs.readFileSync(path.join(ROOT, "mise.toml"), "utf8");
     expect(createHash("sha256").update(mise).digest("hex")).toBe(
-      "158becdc150098cff393d99d6a6752b13193d2a92584753803c4f9ec3515ca27",
+      "36a657c4fa4076e44c44e972bd687e2c7fd32e00689ce29a423b81257947044a",
     );
     expect(mise).not.toMatch(/^\[tasks\]/m);
   });

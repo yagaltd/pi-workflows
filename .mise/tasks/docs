@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Check documentation drift and lint docs"
+# Usage: mise run docs
+set -euo pipefail
+
+./scripts/check-drift.sh
+./scripts/docs-lint.sh

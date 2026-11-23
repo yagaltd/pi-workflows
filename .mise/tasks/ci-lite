@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Run the state-free CI gate subset"
+# Usage: mise run ci-lite
+set -euo pipefail
+
+./scripts/check-drift.sh
+./scripts/docs-lint.sh
+./scripts/agents-lint.sh AGENTS.md

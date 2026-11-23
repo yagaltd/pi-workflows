@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Lint the project charter"
+# Usage: mise run agents
+set -euo pipefail
+
+./scripts/agents-lint.sh AGENTS.md
