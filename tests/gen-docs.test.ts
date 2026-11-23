@@ -2,8 +2,9 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildTable, main, parseFrontmatter, readCommands } from "../scripts/gen-docs.mjs";
+import { buildSection, buildTable, main, parseFrontmatter, readCommands, readPrompts } from "../scripts/gen-docs.mjs";
 
+const ROOT = path.resolve(import.meta.dir, "..");
 const MARK_START = "<!-- generated:commands:start -->";
 const MARK_END = "<!-- generated:commands:end -->";
 
@@ -74,5 +75,58 @@ describe("gen-docs (plan 20261104-060 T2)", () => {
     expect(readme.indexOf(MARK_START)).toBeLessThan(readme.indexOf(MARK_END));
     // readCommands finds the marker-delimited block
     expect(readCommands(readme)).toContain("/alpha");
+  });
+
+  test("test_release_generated_docs_clean", () => {
+    const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+    const generated = readCommands(readme);
+    expect(generated).toBe(buildSection(readPrompts(path.join(ROOT, "prompts"))));
+
+    const rows = [...(generated ?? "").matchAll(/^\| `\/([a-z-]+)` \|/gm)].map((m) => m[1]);
+    expect(rows.length).toBeGreaterThan(10);
+    for (const name of rows) {
+      expect(fs.existsSync(path.join(ROOT, "prompts", `${name}.md`))).toBe(true);
+    }
+
+    const prose = readme.replace(generated ?? "", "");
+    for (const token of ["[[Done]]", "[[Decision]]", "[[Pending]]", "[[Failed]]", "[[Unverified]]"]) {
+      expect(prose).toContain(token);
+    }
+    for (const fragment of [
+      "decideOutputPolicy",
+      "canonical prose",
+      ">=3",
+      ">=4",
+      ">=2",
+      "fix loop",
+      "state machine",
+      "alt text",
+      "generated view",
+      "mise run output-policy",
+      "mise run open-diagram-render",
+      "bash scripts/wf.sh output-policy",
+      "bash scripts/wf.sh open-diagram-render",
+    ]) {
+      expect(prose.toLowerCase(), `README prose missing: ${fragment}`).toContain(fragment.toLowerCase());
+    }
+
+    const architecture = fs.readFileSync(path.join(ROOT, "docs", "architecture.md"), "utf8").replace(/\s+/g, " ");
+    const flow = ["decideOutputPolicy", "format-chooser.mjs", "/status", "closeout.mjs", "TUI renderer"];
+    let cursor = -1;
+    for (const fragment of flow) {
+      const at = architecture.indexOf(fragment, cursor + 1);
+      expect(at, `architecture flow missing or out of order: ${fragment}`).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+    for (const statement of [
+      "no new judge call",
+      "no new TypeLLM path",
+      "no change to dispatched-verdict semantics",
+      "fix loop",
+      "state machine",
+      "alt text",
+    ]) {
+      expect(architecture, `architecture missing: ${statement}`).toContain(statement);
+    }
   });
 });

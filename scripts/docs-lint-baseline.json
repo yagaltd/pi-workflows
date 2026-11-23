@@ -3,7 +3,7 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 342,
+      "total": 343,
       "files": {
         "AGENTS.md": 11,
         "README.md": 44,
@@ -17,7 +17,7 @@
         "agents/spec-drafter.md": 6,
         "agents/tester.md": 3,
         "agents/worker.md": 15,
-        "docs/architecture.md": 28,
+        "docs/architecture.md": 30,
         "prompts/abort.md": 5,
         "prompts/add.md": 2,
         "prompts/audit.md": 2,
@@ -43,7 +43,7 @@
         "skills/init/SKILL.md": 1,
         "skills/optimize/SKILL.md": 7,
         "skills/plan/SKILL.md": 36,
-        "skills/refactor/SKILL.md": 6,
+        "skills/refactor/SKILL.md": 5,
         "skills/review/SKILL.md": 14,
         "templates/ADR-FORMAT.md": 3,
         "templates/AGENTS.md": 3,
@@ -59,7 +59,7 @@
       "files": {}
     },
     "harper-cli": {
-      "total": 1102,
+      "total": 1113,
       "files": {
         "ADR-FORMAT.md": 9,
         "ADR.md": 1,
@@ -70,7 +70,7 @@
         "DOCS-POLICY.md": 34,
         "FOLLOW-UP-TABLE.md": 24,
         "PROPOSAL-FORMAT.md": 3,
-        "README.md": 47,
+        "README.md": 50,
         "REVIEW_GUIDELINES.md": 1,
         "SKILL.md": 381,
         "STATUS-VOCABULARY.md": 7,
@@ -78,7 +78,7 @@
         "abort.md": 9,
         "add.md": 7,
         "amend.md": 1,
-        "architecture.md": 60,
+        "architecture.md": 68,
         "audit.md": 8,
         "auto-next.md": 6,
         "brainstorm.md": 5,

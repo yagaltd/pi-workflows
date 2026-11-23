@@ -1,0 +1,16 @@
+{
+  "id": "archive-002-output-format-plan-id",
+  "kind": "archive",
+  "tags": [
+    "release",
+    "output-policy",
+    "changelog"
+  ],
+  "recorded": {
+    "planId": "20261123-075",
+    "changelogMentions": true
+  },
+  "expected": {
+    "ship": "pass"
+  }
+}

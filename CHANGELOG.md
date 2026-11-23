@@ -1,3 +1,9 @@
+## 2026-11-23 — v0.15.20: adaptive output format — plan 20261123-075 complete (seven tasks)
+
+- plan 20261123-075: adaptive output format — deterministic text-first policy with earned diagrams
+- Canonical prose and display-only status tokens always stand; tables and open-diagram views are earned by the policy thresholds, never image-only.
+- Launcher + mise entrypoints for `output-policy` and `open-diagram-render`; README, architecture, docs-lint budget, golden replay, and archive-gate entry updated.
+
 ## 2026-11-23 — v0.15.19: persona wiring + WIP freshness fix
 
 - **`/init --adopt` persona bridge**: generated `.pi/APPEND_SYSTEM.md` now embeds

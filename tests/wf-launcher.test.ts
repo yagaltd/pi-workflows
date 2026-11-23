@@ -62,6 +62,8 @@ const COMMANDS = [
   "init-extract",
   "profile-lint",
   "resume-digest",
+  "output-policy",
+  "open-diagram-render",
 ];
 
 describe("wf launcher contract", () => {
@@ -86,6 +88,41 @@ describe("wf launcher contract", () => {
     const source = fs.readFileSync(LAUNCHER, "utf8");
     for (const cmd of COMMANDS) expect(source).toMatch(new RegExp(`\\b${cmd}\\)`));
     expect(source).not.toMatch(/(^|\n)\s*(node|bun|bash)[^\n]*scripts\/[a-z-]+\.mjs\s*\([^)]*\)\s*\{/);
+  });
+
+  test("test_release_launcher_wiring", () => {
+    const source = fs.readFileSync(LAUNCHER, "utf8");
+    for (const [name, script] of [
+      ["output-policy", "output-policy.mjs"],
+      ["open-diagram-render", "open-diagram-render.mjs"],
+    ]) {
+      expect(source).toMatch(new RegExp(`^  ${name}\\s+scripts/${name}\\.mjs$`, "m"));
+      expect(source).toContain(`${name}) exec node "$root/scripts/${script}" "$@"`);
+
+      const taskPath = path.join(ROOT, ".mise", "tasks", name);
+      const task = fs.readFileSync(taskPath, "utf8");
+      expect(task.startsWith("#!/usr/bin/env bash\n")).toBe(true);
+      expect(fs.statSync(taskPath).mode & 0o111).not.toBe(0);
+      expect(task).toContain("set -euo pipefail");
+      expect(task).toMatch(/^#MISE description="[^"]+"$/m);
+      expect(task).toMatch(new RegExp(`^# Usage: mise run ${name}`, "m"));
+      expect(task).toContain(`./scripts/wf.sh ${name} "$@"`);
+    }
+
+    const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), "wf-release-"));
+    try {
+      expect(run(["output-policy"], elsewhere).status).toBe(0);
+      const render = run(["open-diagram-render"], elsewhere);
+      expect(render.status).toBe(2);
+      expect(render.stderr).toContain("usage error: --spec is required");
+      expect(render.stderr).not.toMatch(/MODULE_NOT_FOUND|ENOENT/);
+      const unknown = run(["no-such-subcommand"]);
+      expect(unknown.status).toBe(2);
+      expect(unknown.stderr).toContain("usage");
+    } finally {
+      fs.rmSync(elsewhere, { recursive: true, force: true });
+    }
+    expect(fs.readFileSync(path.join(ROOT, "mise.toml"), "utf8")).not.toMatch(/^\[tasks\]/m);
   });
 
   test("launcher resolves the package root from its own path, not the cwd", () => {
@@ -138,7 +175,9 @@ describe("wf launcher contract", () => {
     const probe = spawnSync("bun", ["--version"], { encoding: "utf8" });
     if (probe.error || probe.status !== 0) return;
 
-    const fresh = spawnSync("bun", ["-e", script], { cwd: os.tmpdir(), encoding: "utf8" });
+    const inherited = { ...process.env };
+    delete inherited.PI_WORKFLOWS_BIN; // a caller override must not leak into the fresh probe
+    const fresh = spawnSync("bun", ["-e", script], { cwd: os.tmpdir(), encoding: "utf8", env: inherited });
     expect(fresh.status).toBe(0);
     expect(fresh.stdout.trim()).toBe(LAUNCHER);
 

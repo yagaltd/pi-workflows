@@ -19,8 +19,10 @@ const REQUIRED_TASKS = [
   "bench",
   "archive-check",
   "wip",
+  "output-policy",
+  "open-diagram-render",
 ] as const;
-const ARG_TASKS = ["judge", "lessons", "bench", "archive-check"] as const;
+const ARG_TASKS = ["judge", "lessons", "bench", "archive-check", "output-policy", "open-diagram-render"] as const;
 const LEGACY = "j" + "ust";
 const LEGACY_MANIFEST = LEGACY + "file";
 
