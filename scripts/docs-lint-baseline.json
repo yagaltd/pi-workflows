@@ -3,15 +3,16 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 337,
+      "total": 342,
       "files": {
         "AGENTS.md": 11,
         "README.md": 44,
         "agents/dispatch-shapes.md": 18,
         "agents/execution-doctrine.md": 16,
+        "agents/orchestrator.md": 8,
         "agents/quality-reviewer.md": 3,
         "agents/registry.md": 13,
-        "agents/reviewer.md": 8,
+        "agents/reviewer.md": 6,
         "agents/scout.md": 2,
         "agents/spec-drafter.md": 6,
         "agents/tester.md": 3,
@@ -30,7 +31,7 @@
         "prompts/status.md": 1,
         "prompts/verify.md": 8,
         "skills/add-feature/SKILL.md": 13,
-        "skills/brainstorm/SKILL.md": 2,
+        "skills/brainstorm/SKILL.md": 1,
         "skills/brainstorm/references/resume-protocol.md": 1,
         "skills/challenge/SKILL.md": 1,
         "skills/docs-check/SKILL.md": 3,
@@ -58,7 +59,7 @@
       "files": {}
     },
     "harper-cli": {
-      "total": 1104,
+      "total": 1102,
       "files": {
         "ADR-FORMAT.md": 9,
         "ADR.md": 1,
@@ -95,13 +96,14 @@
         "ledger-format.md": 9,
         "next.md": 6,
         "optimize.md": 18,
+        "orchestrator.md": 2,
         "prototype.md": 7,
         "quality-reviewer.md": 22,
         "refactor.md": 1,
         "registry.md": 42,
         "restart.md": 1,
         "resume-protocol.md": 2,
-        "reviewer.md": 20,
+        "reviewer.md": 16,
         "scout.md": 6,
         "spec-drafter.md": 13,
         "status.md": 15,
