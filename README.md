@@ -124,13 +124,15 @@ for a detected Rust stack; the existing parser reads it without a new branch
 (gate: `tests/flow-gates-mise.test.ts`):
 
 ```toml
-check = "cargo metadata --locked --no-deps --format-version 1 >/dev/null && cargo tree --locked --workspace -e normal,build --target all >/dev/null && cargo clippy --locked --workspace --all-targets -- -D warnings && { if command -v cargo-deny >/dev/null 2>&1; then cargo deny --config deny.toml --locked check; else echo 'SKIP: cargo-deny absent — install with cargo install cargo-deny --locked' >&2; fi; } && { if command -v deslop-please >/dev/null 2>&1; then deslop-please --allow .deslop-please.allow; else echo 'SKIP: deslop-please absent — install deslop-please (needs rust-analyzer: rustup component add rust-analyzer)' >&2; fi; }"
+check = "cargo metadata --no-deps --format-version 1 >/dev/null && cargo tree --locked --workspace -e normal,build --target all >/dev/null && cargo clippy --locked --workspace --all-targets -- -D warnings && { if command -v cargo-deny >/dev/null 2>&1; then cargo deny --config deny.toml --locked check; else echo 'SKIP: cargo-deny absent — install with cargo install cargo-deny --locked' >&2; fi; } && { if command -v deslop-please >/dev/null 2>&1; then deslop-please; else echo 'SKIP: deslop-please absent — install deslop-please (needs rust-analyzer: rustup component add rust-analyzer)' >&2; fi; }"
 ```
 
-The chain runs `cargo metadata`, `cargo tree`, `cargo clippy`, then optional
-`cargo deny` and `deslop-please`. An absent optional tool writes `SKIP` with
-an install hint to `stderr` and the chain continues; findings exit 1 (gate:
-`tests/mise-tasks.test.ts`).
+The chain runs `cargo metadata` without `--locked` first to bootstrap
+`Cargo.lock` in a fresh workspace, then locked `cargo tree`, `cargo clippy`,
+optional `cargo deny` and `deslop-please`. No `--allow` flag or generated
+allow file is needed — allow lists are owner-managed and tree-declared.
+An absent optional tool writes `SKIP` with an install hint to `stderr` and the
+chain continues; findings exit 1 (gate: `tests/mise-tasks.test.ts`).
 Crate-boundary claims must name `rust-crate-architecture`; gate: `docs/canon.md`
 The four-skill Rust family covers the rest: `rust-review`,
 `rust-best-practices`, `rust-port`.

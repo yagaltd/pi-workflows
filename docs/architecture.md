@@ -122,16 +122,19 @@ For a detected Rust stack, `/init` emits a flat `check` assignment so the
 `tests/flow-gates-mise.test.ts`). The Rust structural gate runs in order:
 
 ```text
-cargo metadata --locked --no-deps --format-version 1
+cargo metadata --no-deps --format-version 1
 cargo tree --locked --workspace -e normal,build --target all
 cargo clippy --locked --workspace --all-targets -- -D warnings
 cargo deny --config deny.toml --locked check
-deslop-please --allow .deslop-please.allow
+deslop-please
 ```
 
-The first three commands always run; the last two are guarded by
-`command -v`. An absent optional tool writes `SKIP` with an install hint to
-`stderr` and the chain continues; findings from an installed tool exit 1
+The first command runs without `--locked` to bootstrap `Cargo.lock` in a fresh
+workspace; every command after it uses `--locked`. No `--allow` flag or
+generated allow file is needed: allow lists are owner-managed and
+tree-declared (gate: `tests/flow-gates-mise.test.ts`). The last two commands are
+guarded by `command -v`. An absent optional tool writes `SKIP` with an install
+hint to `stderr` and the chain continues; findings from an installed tool exit 1
 (gate: `tests/mise-tasks.test.ts`). Crate-boundary decisions use the
 four-skill Rust family: `rust-review`, `rust-best-practices`, `rust-port`,
 `rust-crate-architecture` (gate: `agents/reviewer.md`).

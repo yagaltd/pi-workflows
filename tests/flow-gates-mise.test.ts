@@ -227,7 +227,8 @@ exit 0
 `;
 
   const DESLOP_ARGV_STUB = `#!/bin/bash
-printf '%s\n' "$*" >> "$DESLOP_LOG"
+# Log the executable with its arguments: a zero-argument call is still a call.
+printf 'deslop-please %s\n' "$*" >> "$DESLOP_LOG"
 exit 0
 `;
 
@@ -271,6 +272,9 @@ exit 0
       ? fs.readFileSync(deslopLog, "utf8").trim()
       : "";
     expect(argv, "an installed deslop-please must actually run").not.toBe("");
+    expect(argv, "the real CLI takes no arguments when no allow list is declared").toBe(
+      "deslop-please"
+    );
     // No owner-managed allow file exists here: the check must not point a
     // --allow flag at a file that is not there (and must not invent one).
     expect(argv).not.toMatch(/--allow(?:[=\s]|$)/);

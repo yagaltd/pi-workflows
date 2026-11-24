@@ -680,7 +680,7 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
     expect(slice).toContain('verify = "bun test"');
     // plan 20261124-081: the Rust check is a flat chain starting at metadata.
     expect(slice).toContain(
-      'check = "cargo metadata --locked --no-deps --format-version 1',
+      'check = "cargo metadata --no-deps --format-version 1',
     );
     expect(slice).toContain('verify = "cargo test"');
   });
@@ -1481,8 +1481,8 @@ describe("prompt doctrine — oracle-binding disclosure (plan 20261119-079 T3)",
 
 // --- plan 20261124-081 TASK 1 — Rust structural gate doctrine wiring ---
 // The canonical mandate is pinned verbatim in the three Rust-only doctrine
-// placements; the universal template carries only a generic conditional
-// pointer so non-Rust charters stay unchanged. deslop-please is a CLI, never a
+// placements; the universal template carries no Rust pointer so non-Rust
+// charters stay unchanged. deslop-please is a CLI, never a
 // Pi skill: the installed-skill allowlist gains rust-crate-architecture only.
 const RUST_GATE_SENTENCE =
   "Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).";
@@ -1652,10 +1652,8 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
   test("test_rust_gate_template_policy", () => {
     const template = read081("templates/AGENTS.md");
     const project = norm081(template.slice(template.indexOf("## PROJECT")));
-    expect(project).toMatch(/Rust projects?/);
-    expect(project).toContain("structural gate");
-    expect(project).toMatch(/cargo\/Rust/);
-    expect(project).toContain("init doctrine");
+    expect(project).not.toMatch(/Rust|cargo\/Rust|structural gate|init doctrine/i);
+    expect(project).toContain("`<placeholder>`");
     expect(project).not.toContain(RUST_GATE_SENTENCE);
     expect(project).not.toContain("deslop-please");
 
@@ -1673,7 +1671,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
   test("test_rust_gate_generated_check_shape", () => {
     const check = rustCheckLine081();
     const metadata = check.indexOf(
-      "cargo metadata --locked --no-deps --format-version 1",
+      "cargo metadata --no-deps --format-version 1",
     );
     const tree = check.indexOf(
       "cargo tree --locked --workspace -e normal,build --target all",
@@ -1682,14 +1680,15 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
       "cargo clippy --locked --workspace --all-targets -- -D warnings",
     );
     const deny = check.indexOf("cargo deny --config deny.toml --locked check");
-    const deslop = check.indexOf(
-      "deslop-please --allow .deslop-please.allow",
-    );
+    const deslop = check.indexOf("then deslop-please;");
     expect(metadata, "check must start with cargo metadata").toBe(0);
     expect(tree).toBeGreaterThan(metadata);
     expect(clippy).toBeGreaterThan(tree);
     expect(deny).toBeGreaterThan(clippy);
     expect(deslop, "guarded deslop-please must end the chain").toBeGreaterThan(deny);
+    expect(check, "no --allow dependency on an owner-managed file").not.toContain(
+      "--allow",
+    );
     // optional tools are guarded and their absence is loud, never silent
     expect(check).toContain("command -v cargo-deny");
     expect(check).toContain("command -v deslop-please");
@@ -1702,8 +1701,8 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
   });
 
   test("test_rust_gate_non_rust_unchanged", () => {
-    // CORE stays stack-neutral and the universal template carries only a
-    // generic conditional pointer; the literal mandate is Rust-only doctrine.
+    // CORE stays stack-neutral and the universal template carries no Rust
+    // pointer; the literal mandate is Rust-only doctrine.
     const template081 = read081("templates/AGENTS.md");
     const core081 = norm081(
       template081.slice(
@@ -1715,9 +1714,8 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     const project081 = norm081(
       template081.slice(template081.indexOf("## PROJECT")),
     );
-    expect(project081).toMatch(/Rust projects?/);
-    expect(project081).toContain("structural gate");
-    expect(project081).toContain("init doctrine");
+    expect(project081).not.toMatch(/Rust|cargo\/Rust|structural gate|init doctrine/i);
+    expect(project081).toContain("`<placeholder>`");
     expect(project081).not.toContain(RUST_GATE_SENTENCE);
     const nested = domainSkillsNestedSlice081();
     expect(nested).not.toContain(RUST_GATE_SENTENCE);
@@ -1752,7 +1750,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(WORKER).toContain(BUDGET);
     // the wired suite is the one that must stay green: the mandate landed in
     // the three Rust-only doctrine placements without growing the prompt
-    // surface; the universal template keeps a generic conditional pointer
+    // surface; the universal template stays Rust-free
     for (const p of RUST_GATE_PLACEMENTS.filter(
       (p) => p !== "templates/AGENTS.md",
     ))
@@ -1763,7 +1761,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     const templateProject081 = norm081(
       template081.slice(template081.indexOf("## PROJECT")),
     );
-    expect(templateProject081).toContain("init doctrine");
+    expect(templateProject081).not.toMatch(/Rust|structural gate|init doctrine/i);
     expect(templateProject081).not.toContain(RUST_GATE_SENTENCE);
   });
 
@@ -1771,15 +1769,15 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     const changed = changedPaths081();
     // Plan 20261124-081 TASK 3 owns the docs surface; its README, architecture,
     // canon, and regenerated budget are legitimate churn, not TASK 1 drift.
+    // TASK 4 owns the live judge schema, extractor, init doctrine, universal
+    // template, docs and budgets; those are legitimate churn as well.
     const forbidden = [
       "CHANGELOG.md",
-      "extensions/index.ts",
       "scripts/profile-lint.sh",
       "scripts/flow-gates.mjs",
       "scripts/check-tree.mjs",
       "scripts/agents-lint.sh",
       "scripts/docs-lint.sh",
-      "scripts/init-extract.ts",
       ".deslop-please.allow",
     ];
     expect(
@@ -1792,6 +1790,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     ).toEqual([]);
     // the boundary check is non-vacuous: the contracted wiring landed
     expect(changed).toContain(TEST_FILE_081);
+    expect(changed).toContain("extensions/index.ts");
     for (const p of RUST_GATE_PLACEMENTS) expect(changed).toContain(p);
     expect(fs.existsSync(".deslop-please.allow")).toBe(false);
   });

@@ -183,13 +183,14 @@ project's
    package manifest) and the runner (`vitest`, `node --test`, `bun test`,
    from that manifest or the test script). Examples: bun/TS projects →
    `check = "bunx tsc --noEmit"`, `verify = "bun test"`; rust projects →
-   `check = "cargo metadata --locked --no-deps --format-version 1 >/dev/null && cargo tree --locked --workspace -e normal,build --target all >/dev/null && cargo clippy --locked --workspace --all-targets -- -D warnings && { if command -v cargo-deny >/dev/null 2>&1; then cargo deny --config deny.toml --locked check; else echo 'SKIP: cargo-deny absent — install with cargo install cargo-deny --locked' >&2; fi; } && { if command -v deslop-please >/dev/null 2>&1; then deslop-please --allow .deslop-please.allow; else echo 'SKIP: deslop-please absent — install deslop-please (needs rust-analyzer: rustup component add rust-analyzer)' >&2; fi; }"`, `verify = "cargo test"`;
+   `check = "cargo metadata --no-deps --format-version 1 >/dev/null && cargo tree --locked --workspace -e normal,build --target all >/dev/null && cargo clippy --locked --workspace --all-targets -- -D warnings && { if command -v cargo-deny >/dev/null 2>&1; then cargo deny --config deny.toml --locked check; else echo 'SKIP: cargo-deny absent — install with cargo install cargo-deny --locked' >&2; fi; } && { if command -v deslop-please >/dev/null 2>&1; then deslop-please; else echo 'SKIP: deslop-please absent — install deslop-please (needs rust-analyzer: rustup component add rust-analyzer)' >&2; fi; }"`, `verify = "cargo test"`;
    vanilla JS (`eslint` + `node --test`) → `check = "bunx eslint ."`,
    `verify = "node --test"`; python → the project's lint/test commands.
-   The Rust chain guards optional tools: if `cargo-deny` or `deslop-please`
-   is absent, print a loud SKIP with an install hint to `stderr` and continue;
-   a findings exit (1) fails the gate. Never add `--update-allow` or generate
-   an allow file.
+   The Rust chain runs non-locked `cargo metadata` first to bootstrap
+   `Cargo.lock`; every following cargo command uses `--locked`. Optional tools
+   `cargo-deny` and `deslop-please` are guarded: if absent, print a loud SKIP
+   with an install hint to `stderr` and continue; a findings exit (1) fails
+   the gate. Never add `--update-allow`, `--allow`, or generate an allow file.
    If no linter is detectable, `check` stays ABSENT and the handoff says
    so plainly — leave the gate out rather than invent one. These tasks are the
    executable charter: gates and review run them (see scripts/flow-gates.mjs),
