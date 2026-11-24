@@ -1576,31 +1576,17 @@ function changedPaths081(): string[] {
     "--exclude-standard",
   ]);
   // The extension commits worker diffs before the reviewer runs, so the
-  // contracted wiring lives in HEAD, not in the dirty tree. Walk the recent
-  // first-parent merges and use the oldest one that landed the contracted
-  // placements as the branch base; diffing it to HEAD covers both the wiring
-  // commit and any fix-round commits stacked on top (plain or merged). A
-  // merge touching only the test file is not the wiring landing.
-  let base: string | null = null;
-  for (const sha of gitPaths081([
-    "rev-list",
-    "--first-parent",
-    "--max-count=6",
-    "HEAD",
-  ])) {
-    const parents = gitOutput081(["show", "-s", "--format=%P", sha])
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
-    if (parents.length < 2) continue;
-    const merged = gitPaths081(["diff", "--name-only", `${sha}^1`, sha, "--"]);
-    if (RUST_GATE_PLACEMENTS.every((p) => merged.includes(p)))
-      base = `${sha}^1`;
-  }
-  const committed = [
-    ...gitPaths081(["diff", "--name-only", "HEAD~1", "HEAD", "--"]),
-    ...(base ? gitPaths081(["diff", "--name-only", base, "HEAD", "--"]) : []),
-  ];
+  // contracted wiring lives in HEAD, not in the dirty tree. Collect every
+  // path touched across the whole plan delta from its known base: a commit
+  // window misses late task wiring, and a tree diff alone misses files whose
+  // net change is zero (e.g. the universal template round-trip).
+  const committed = gitPaths081([
+    "log",
+    "--format=",
+    "--name-only",
+    "2a938e0..HEAD",
+    "--",
+  ]);
   return [...new Set([...committed, ...dirty, ...untracked])];
 }
 
