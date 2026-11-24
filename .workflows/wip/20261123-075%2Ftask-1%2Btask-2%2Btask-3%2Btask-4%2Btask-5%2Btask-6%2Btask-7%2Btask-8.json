@@ -1,0 +1,53 @@
+{
+  "id": "20261123-075/task-1+task-2+task-3+task-4+task-5+task-6+task-7+task-8",
+  "kind": "ship",
+  "scope": [
+    ".workflows"
+  ],
+  "root_cause": "plan 20261123-075 complete with final review pass",
+  "verdict": ".workflows/reviews/plan-20261123-075.md",
+  "status": "shipped",
+  "created_at": "2026-11-24T00:47:34.319Z",
+  "task_ids": [
+    "task-1",
+    "task-2",
+    "task-3",
+    "task-4",
+    "task-5",
+    "task-6",
+    "task-7",
+    "task-8"
+  ],
+  "verified_files": [
+    ".workflows/CONTEXT.md",
+    ".workflows/evals/baseline.jsonl",
+    ".workflows/evals/baseline.last.jsonl",
+    ".workflows/LOG.md",
+    ".workflows/plan.md",
+    ".workflows/reviews/judge-20261123-075.md",
+    ".workflows/reviews/plan-20261123-075.md",
+    ".workflows/reviews/preflight-task-1.json",
+    ".workflows/reviews/preflight-task-2.json",
+    ".workflows/reviews/preflight-task-3.json",
+    ".workflows/reviews/preflight-task-4.json",
+    ".workflows/reviews/preflight-task-5.json",
+    ".workflows/reviews/preflight-task-6.json",
+    ".workflows/reviews/preflight-task-7.json",
+    ".workflows/reviews/task-1.md",
+    ".workflows/reviews/task-2.md",
+    ".workflows/reviews/task-3.md",
+    ".workflows/reviews/task-4.md",
+    ".workflows/reviews/task-5.md",
+    ".workflows/reviews/task-6.md",
+    ".workflows/reviews/task-7.md",
+    ".workflows/reviews/task-8.md",
+    ".workflows/specs/task-1.spec",
+    ".workflows/specs/task-2.spec",
+    ".workflows/specs/task-3.spec",
+    ".workflows/specs/task-4.spec",
+    ".workflows/specs/task-5.spec",
+    ".workflows/specs/task-6.spec",
+    ".workflows/specs/task-7.spec",
+    ".workflows/specs/task-8.spec"
+  ]
+}
