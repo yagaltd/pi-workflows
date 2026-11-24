@@ -91,6 +91,17 @@ needed and costs nothing otherwise.
 **Budget**: keep the project's AGENTS.md under ~50 lines. If it grows,
 move detail to pointer targets and keep the rules.
 
+**Conditional domain gates**: a stack-specific mandate is a PROJECT rule,
+never CORE — CORE stays stack-neutral, so a non-Rust charter stays unchanged.
+For a detected Rust stack (greenfield or `/init --adopt`), the PROJECT block
+carries this verbatim gate (the rule and its gate reference live together):
+
+Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).
+
+Gate: the generated Rust `check` task chains the metadata/tree/clippy/deny
+commands with a guarded `deslop-please`; an absent optional tool prints a loud
+SKIP to stderr and continues.
+
 **Enforcement**: `scripts/agents-lint.sh` is the AGENTS.md gate
 
 Scaffold kinds live in `.workflows/profile.json`; template files are per-project

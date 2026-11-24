@@ -406,7 +406,9 @@ describe("prompt doctrine — executable charter, mise tasks (T10, plan 20261104
     // real per-stack examples pinned, not placeholder filler
     expect(slice).toContain("bunx tsc --noEmit");
     expect(slice).toContain("bun test");
-    expect(slice).toContain("cargo clippy -- -D warnings");
+    // plan 20261124-081: the Rust example is the flat guarded chain, not the
+    // former bare clippy command.
+    expect(slice).toContain("cargo clippy --locked --workspace --all-targets -- -D warnings");
     expect(slice).toContain("cargo test");
   });
 
@@ -670,7 +672,10 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
     const slice = initDevEnvironmentSliceT1();
     expect(slice).toContain('check = "bunx tsc --noEmit"');
     expect(slice).toContain('verify = "bun test"');
-    expect(slice).toContain('check = "cargo clippy -- -D warnings"');
+    // plan 20261124-081: the Rust check is a flat chain starting at metadata.
+    expect(slice).toContain(
+      'check = "cargo metadata --locked --no-deps --format-version 1',
+    );
     expect(slice).toContain('verify = "cargo test"');
   });
 
@@ -1657,10 +1662,19 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
   });
 
   test("test_rust_gate_non_rust_unchanged", () => {
-    // The generic template and the non-Rust families carry no gate sentence.
-    expect(norm081(read081("templates/AGENTS.md"))).not.toContain(
-      RUST_GATE_SENTENCE,
+    // CORE stays stack-neutral: the mandate is conditional and belongs in
+    // PROJECT only (the four-placement pin requires it in the template).
+    const template081 = read081("templates/AGENTS.md");
+    const core081 = norm081(
+      template081.slice(
+        template081.indexOf("## CORE"),
+        template081.indexOf("## POINTERS"),
+      ),
     );
+    expect(core081).not.toContain(RUST_GATE_SENTENCE);
+    expect(
+      norm081(template081.slice(template081.indexOf("## PROJECT"))),
+    ).toContain(RUST_GATE_SENTENCE);
     const nested = domainSkillsNestedSlice081();
     expect(nested).not.toContain(RUST_GATE_SENTENCE);
     expect(nested).not.toContain("deslop-please");
