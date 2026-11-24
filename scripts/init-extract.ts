@@ -49,6 +49,17 @@ const WIP_NEGATION = "!.workflows/wip/";
 const WIP_CONTENTS_IGNORE = ".workflows/wip/**";
 const WIP_CONTENTS_NEGATION = `!${WIP_CONTENTS_IGNORE}`;
 
+/** Owner-confirmed installed Rust skills + the canonical gate rule drafted
+ *  into Rust charters. The gate itself is a CLI, never an installed skill. */
+const RUST_REVIEW_SKILLS = [
+  "rust-review",
+  "rust-best-practices",
+  "rust-port",
+  "rust-crate-architecture",
+];
+const RUST_GATE_SENTENCE =
+  "Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).";
+
 /** Read the canonical persona verbatim from the installed package. */
 export function readCanonicalPersona(root: string = PACKAGE_ROOT): string {
   return fs.readFileSync(path.join(root, "agents", "orchestrator.md"), "utf8");
@@ -294,7 +305,7 @@ export function recordedAdoptBackend(_root?: string): JudgeBackend {
       if (!Object.keys(commands).length && !treeDomains.length)
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no manifests or directories in the context" };
       const stackDetection = cargo
-        ? { stack: "Rust (cargo)", reviewSkills: ["rust-review", "rust-best-practices", "rust-port"] }
+        ? { stack: "Rust (cargo)", reviewSkills: [...RUST_REVIEW_SKILLS] }
         : pkg
           ? {
               stack: files.includes("bun.lockb") || files.includes("bunfig.toml")
@@ -360,6 +371,12 @@ function draftGates(root: string, draft: AdoptDraft): string[] {
   return [...gates].sort();
 }
 
+/** The Rust structural-gate draft needs BOTH signals: a Cargo manifest on
+ *  disk and a resolved Rust stack in the judge draft. */
+function isRustAdoptDraft(root: string, draft: AdoptDraft): boolean {
+  return fs.existsSync(path.join(root, "Cargo.toml")) && /rust/i.test(draft.stackDetection.stack);
+}
+
 /** Fill ONE template pointer slot with the first existing candidate, else
  *  leave the <placeholder> (agents-lint FAILS — the loud floor). */
 function fillSlot(template: string, label: string, candidates: string[], root: string): string {
@@ -406,6 +423,7 @@ function buildCharterDraft(root: string, draft: AdoptDraft): string {
       `- Review pointers cite the ${draft.stackDetection.stack} skill family: ${
         draft.stackDetection.reviewSkills.join(", ") || "none — stack not detectable, skip the citation"
       }.`,
+      ...(isRustAdoptDraft(root, draft) ? [`- ${RUST_GATE_SENTENCE}`] : []),
     ].join("\n")
   );
   return charter.trimEnd() + "\n";
@@ -432,6 +450,9 @@ export function writeAdoptDrafts(root: string, draft: AdoptDraft, outDir?: strin
     pointers: Object.fromEntries(draft.charterPointers.map((p) => [slug(p.name), p.path])),
     tree: Object.fromEntries(draft.treeDomains.map((t) => [t.name, t.path])),
     gates: draftGates(root, draft),
+    ...(isRustAdoptDraft(root, draft)
+      ? { architectureGate: { tool: "deslop-please", requires: "rust-analyzer" } }
+      : {}),
     scaffolds: { kinds: {} },
     meta: {
       generated_by: "init-extract draft — judge-drafted, lint-verified; NOT final config",
