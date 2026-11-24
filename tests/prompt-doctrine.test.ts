@@ -1763,6 +1763,8 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
 
   test("test_rust_gate_no_forbidden_changes", () => {
     const changed = changedPaths081();
+    // Plan 20261124-081 TASK 3 owns the docs surface; its README, architecture,
+    // canon, and regenerated budget are legitimate churn, not TASK 1 drift.
     const forbidden = [
       "CHANGELOG.md",
       "extensions/index.ts",
@@ -1772,10 +1774,6 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
       "scripts/agents-lint.sh",
       "scripts/docs-lint.sh",
       "scripts/init-extract.ts",
-      "README.md",
-      "docs/architecture.md",
-      "docs/canon.md",
-      "scripts/docs-lint-baseline.json",
       ".deslop-please.allow",
     ];
     expect(
