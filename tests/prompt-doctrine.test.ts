@@ -617,6 +617,7 @@ const INSTALLED_SKILLS = new Set([
   "rust-review",
   "rust-best-practices",
   "rust-port",
+  "rust-crate-architecture",
   "modern-web-guidance",
   "web-perf",
   "audit",
@@ -1464,5 +1465,269 @@ describe("prompt doctrine — oracle-binding disclosure (plan 20261119-079 T3)",
 
   test("the accretion budget holds with the fold (≤170 lines, was 160)", () => {
     expect(REVIEWER.split("\n").length).toBeLessThanOrEqual(170);
+  });
+});
+
+// --- plan 20261124-081 TASK 1 — Rust structural gate doctrine wiring ---
+// The canonical mandate is pinned verbatim as the contract for all four
+// placements. deslop-please is a CLI, never a Pi skill: the installed-skill
+// allowlist gains rust-crate-architecture only.
+const RUST_GATE_SENTENCE =
+  "Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).";
+const PHASE5_SKIP_RULE =
+  "When the stack is not yet known (greenfield, pre-detection), skip the Rust gate sentence and the review-pointer family citation — do not guess.";
+const RUST_GATE_PLACEMENTS = [
+  "agents/reviewer.md",
+  "skills/init/SKILL.md",
+  "templates/AGENTS.md",
+  "templates/DOCS-POLICY.md",
+];
+const RUST_SKILL_FAMILY = [
+  "rust-review",
+  "rust-best-practices",
+  "rust-port",
+  "rust-crate-architecture",
+];
+const norm081 = (s: string) => s.replace(/\s+/g, " ");
+const read081 = (p: string) => fs.readFileSync(p, "utf8");
+const TEST_FILE_081 = "tests/prompt-doctrine.test.ts";
+
+function step1Slice081(): string {
+  const m = INIT_T1.indexOf("1. **Charter**");
+  expect(m).toBeGreaterThan(-1);
+  const end = INIT_T1.indexOf("2. **Profile**", m);
+  expect(end).toBeGreaterThan(m);
+  return INIT_T1.slice(m, end);
+}
+
+function step7Slice081(): string {
+  const m = INIT_T1.indexOf("**Dev environment (mise)**");
+  expect(m).toBeGreaterThan(-1);
+  const end = INIT_T1.indexOf("**Model policy**", m);
+  expect(end).toBeGreaterThan(m);
+  return INIT_T1.slice(m, end);
+}
+
+// The nested domain-skills slice is the Domain skills bullet plus its
+// indented bullets; a gate sentence folded into that slice is a violation.
+function domainSkillsNestedSlice081(): string {
+  const start = REVIEWER.indexOf("- Domain skills:");
+  expect(start).toBeGreaterThan(-1);
+  const lines = REVIEWER.slice(start).split("\n");
+  let endLine = 1;
+  while (
+    endLine < lines.length &&
+    (lines[endLine].startsWith("  ") || lines[endLine].trim() === "")
+  )
+    endLine++;
+  return REVIEWER.slice(
+    start,
+    start + lines.slice(0, endLine).join("\n").length,
+  );
+}
+
+function rustCheckLine081(): string {
+  const candidates = step7Slice081()
+    .split("\n")
+    .filter((line) => line.includes("check = \"") && line.includes("cargo"));
+  expect(candidates.length, "expected ONE flat Rust check line").toBe(1);
+  const match = candidates[0].match(/check = "([^"\n]+)"/);
+  expect(match).not.toBeNull();
+  return match![1];
+}
+
+function topHeadingCount081(): number {
+  const headings = REVIEWER.match(/^## .*/gm) ?? [];
+  // Verdict / Verification are inside the fenced report template, not headings
+  // of the prompt itself (same accounting as the tier-map accretion pin).
+  const templates = headings.filter(
+    (h) => h.startsWith("## Verdict") || h.startsWith("## Verification"),
+  );
+  return headings.length - templates.length;
+}
+
+function changedPaths081(): string[] {
+  const diff = spawnSync("git", ["diff", "--name-only", "HEAD", "--"], {
+    encoding: "utf8",
+  });
+  expect(diff.status, diff.stderr).toBe(0);
+  const untracked = spawnSync(
+    "git",
+    ["ls-files", "--others", "--exclude-standard"],
+    { encoding: "utf8" },
+  );
+  expect(untracked.status, untracked.stderr).toBe(0);
+  return [...diff.stdout.split("\n"), ...untracked.stdout.split("\n")].filter(
+    Boolean,
+  );
+}
+
+describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)", () => {
+  test("test_rust_gate_doctrine_strings", () => {
+    const source = read081(TEST_FILE_081);
+    expect(source).toContain(RUST_GATE_SENTENCE);
+    expect(source).toContain(PHASE5_SKIP_RULE);
+    // rust-crate-architecture is installed; deslop-please is a CLI, not a skill
+    expect(INSTALLED_SKILLS.has("rust-crate-architecture")).toBe(true);
+    expect(INSTALLED_SKILLS.has("deslop-please")).toBe(false);
+  });
+
+  test("test_rust_gate_reviewer_slice", () => {
+    const sentenceIdx = REVIEWER.indexOf(RUST_GATE_SENTENCE);
+    const rulesIdx = REVIEWER.indexOf("## Rules");
+    const domainIdx = REVIEWER.indexOf("- Domain skills:");
+    const nested = domainSkillsNestedSlice081();
+    expect(rulesIdx).toBeGreaterThan(-1);
+    expect(sentenceIdx, "canonical gate sentence missing from reviewer.md").toBeGreaterThan(-1);
+    expect(sentenceIdx).toBeGreaterThan(rulesIdx);
+    expect(sentenceIdx).toBeGreaterThan(domainIdx);
+    expect(sentenceIdx).toBeGreaterThanOrEqual(domainIdx + nested.length);
+    expect(nested).not.toContain(RUST_GATE_SENTENCE);
+
+    const rustLine =
+      REVIEWER.split("\n").find((line) => /^\s*-\s*Rust:/.test(line)) ?? "";
+    let cursor = -1;
+    for (const skill of RUST_SKILL_FAMILY) {
+      const next = rustLine.indexOf(`\`${skill}\``, cursor + 1);
+      expect(next, `Rust domain-skills line is missing \`${skill}\``).toBeGreaterThan(cursor);
+      cursor = next;
+    }
+
+    // accretion: fold into Rules, never add a heading or blow the budget
+    expect(topHeadingCount081()).toBe(7);
+    expect(REVIEWER.split("\n").length).toBeLessThanOrEqual(170);
+  });
+
+  test("test_rust_gate_init_charter", () => {
+    const step1 = norm081(step1Slice081());
+    expect(step1).toContain(RUST_GATE_SENTENCE);
+    for (const skill of RUST_SKILL_FAMILY) expect(step1).toContain(skill);
+    expect(step1).toContain(PHASE5_SKIP_RULE);
+    // generated Rust check is referenced from the charter and stays flat
+    expect(rustCheckLine081()).toContain("deslop-please");
+  });
+
+  test("test_rust_gate_template_policy", () => {
+    const template = read081("templates/AGENTS.md");
+    const project = norm081(template.slice(template.indexOf("## PROJECT")));
+    expect(project).toMatch(/Rust projects?/);
+    expect(project).toContain("structural gate");
+    expect(project).toContain("deslop-please");
+
+    const policy = read081("templates/DOCS-POLICY.md");
+    const start = policy.indexOf("## AGENTS.md (project)");
+    const end = policy.indexOf("## CHANGELOG entry shape", start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const section = norm081(policy.slice(start, end));
+    expect(section).toMatch(/conditional domain gate/i);
+    expect(section).toContain("PROJECT");
+    expect(section).toContain("never CORE");
+  });
+
+  test("test_rust_gate_generated_check_shape", () => {
+    const check = rustCheckLine081();
+    const metadata = check.indexOf(
+      "cargo metadata --locked --no-deps --format-version 1",
+    );
+    const tree = check.indexOf(
+      "cargo tree --locked --workspace -e normal,build --target all",
+    );
+    const clippy = check.indexOf(
+      "cargo clippy --locked --workspace --all-targets -- -D warnings",
+    );
+    const deny = check.indexOf("cargo deny --config deny.toml --locked check");
+    const deslop = check.indexOf(
+      "deslop-please --allow .deslop-please.allow",
+    );
+    expect(metadata, "check must start with cargo metadata").toBe(0);
+    expect(tree).toBeGreaterThan(metadata);
+    expect(clippy).toBeGreaterThan(tree);
+    expect(deny).toBeGreaterThan(clippy);
+    expect(deslop, "guarded deslop-please must end the chain").toBeGreaterThan(deny);
+    // optional tools are guarded and their absence is loud, never silent
+    expect(check).toContain("command -v cargo-deny");
+    expect(check).toContain("command -v deslop-please");
+    expect(check).toMatch(/SKIP/);
+    expect(check).toContain(">&2");
+    expect(check).not.toContain("--update-allow");
+    const step7 = norm081(step7Slice081());
+    expect(step7).toMatch(/SKIP/i);
+    expect(step7).toContain("stderr");
+  });
+
+  test("test_rust_gate_non_rust_unchanged", () => {
+    // The generic template and the non-Rust families carry no gate sentence.
+    expect(norm081(read081("templates/AGENTS.md"))).not.toContain(
+      RUST_GATE_SENTENCE,
+    );
+    const nested = domainSkillsNestedSlice081();
+    expect(nested).not.toContain(RUST_GATE_SENTENCE);
+    expect(nested).not.toContain("deslop-please");
+    const cited = [...nested.matchAll(/`([a-z0-9][a-z0-9-]*)`/g)].map(
+      (m) => m[1],
+    );
+    expect(cited.length).toBeGreaterThan(0);
+    expect(cited.filter((name) => !INSTALLED_SKILLS.has(name))).toEqual([]);
+    // pre-existing installed-skill pins survive the Rust-family extension
+    expect(INSTALLED_SKILLS.has("rust-crate-architecture")).toBe(true);
+    expect(INSTALLED_SKILLS.has("deslop-please")).toBe(false);
+    expect(REVIEWER).not.toContain("unsafe-checker");
+    expect(INIT_T1).not.toContain("unsafe-checker");
+    const step1 = norm081(step1Slice081());
+    expect(step1).toContain("modern-web-guidance");
+    expect(step1).toContain("security-audit");
+  });
+
+  test("test_rust_gate_accretion_guard", () => {
+    const lint = spawnSync(
+      "bash",
+      ["scripts/agents-lint.sh", "templates/AGENTS.md"],
+      { encoding: "utf8" },
+    );
+    expect(lint.status, lint.stdout + lint.stderr).toBe(0);
+    // existing accretion pins still hold after the fold
+    expect(REVIEWER.split("\n").length).toBeLessThanOrEqual(170);
+    expect(topHeadingCount081()).toBe(7);
+    expect(REVIEWER).toContain(BUDGET);
+    expect(REVIEWER).toContain(CITE);
+    expect(WORKER).toContain(BUDGET);
+    // the wired suite is the one that must stay green: mandate landed in all
+    // four placements without growing the prompt surface
+    for (const p of RUST_GATE_PLACEMENTS)
+      expect(norm081(read081(p)), `mandate missing from ${p}`).toContain(
+        RUST_GATE_SENTENCE,
+      );
+  });
+
+  test("test_rust_gate_no_forbidden_changes", () => {
+    const changed = changedPaths081();
+    const forbidden = [
+      "CHANGELOG.md",
+      "extensions/index.ts",
+      "scripts/profile-lint.sh",
+      "scripts/flow-gates.mjs",
+      "scripts/check-tree.mjs",
+      "scripts/agents-lint.sh",
+      "scripts/docs-lint.sh",
+      "scripts/init-extract.ts",
+      "README.md",
+      "docs/architecture.md",
+      "docs/canon.md",
+      "scripts/docs-lint-baseline.json",
+      ".deslop-please.allow",
+    ];
+    expect(
+      changed.filter(
+        (p) =>
+          forbidden.includes(p) ||
+          /\.allow$/.test(p) ||
+          p.startsWith(".mise/tasks/"),
+      ),
+    ).toEqual([]);
+    // the boundary check is non-vacuous: the contracted wiring landed
+    expect(changed).toContain(TEST_FILE_081);
+    for (const p of RUST_GATE_PLACEMENTS) expect(changed).toContain(p);
+    expect(fs.existsSync(".deslop-please.allow")).toBe(false);
   });
 });
