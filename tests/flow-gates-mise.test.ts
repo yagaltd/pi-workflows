@@ -20,10 +20,55 @@ const NO_TASKS = `[tools]
 bun = "1.3.0"
 `;
 
+const ROOT = path.resolve(import.meta.dir, "..");
+
 function tmpRepo(miseToml) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "flow-gates-mise-"));
   fs.writeFileSync(path.join(dir, "mise.toml"), miseToml);
   return dir;
+}
+
+// Plan 20261124-081 TASK 3: the generated Rust check is the flat one-line
+// double-quoted assignment in the init doctrine. The flow-gates parser is
+// deliberately minimal; this test pins that no multiline/table syntax creeps
+// into the generated task.
+function generatedRustCheck() {
+  const source = fs.readFileSync(path.join(ROOT, "skills", "init", "SKILL.md"), "utf8");
+  const match = source.match(/check = "([^"\n]*cargo metadata[^"\n]*)"/);
+  if (!match) throw new Error("generated Rust check line is missing");
+  return match[1];
+}
+
+const CARGO_STUB = `#!/bin/bash
+case "$1" in
+  metadata|tree) exit 0 ;;
+  clippy)
+    if [ "\${FAIL_CLIPPY:-0}" = "1" ]; then
+      echo "clippy: structural finding" >&2
+      exit 1
+    fi
+    ;;
+esac
+exit 0
+`;
+
+const DESLOP_STUB = `#!/bin/bash
+if [ "\${FAIL_DESLOP:-0}" = "1" ]; then
+  echo "deslop-please: structural finding" >&2
+  exit 1
+fi
+exit 0
+`;
+
+function runGeneratedCheck(check, env) {
+  return Bun.spawnSync(["/bin/bash", "-c", check], {
+    cwd: ROOT,
+    env,
+  });
+}
+
+function textOf(stream) {
+  return stream ? String(stream) : "";
 }
 
 describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
@@ -109,5 +154,53 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     expect(noTddGuard.status).toBe("skipped");
     expect(noTddGuard.reason).toContain("toolchain absent: tdd-guard");
     expect(noTddGuard.reason).toContain("never a pass");
+  });
+});
+
+describe("flow-gates — generated Rust check (plan 20261124-081 TASK 3)", () => {
+  test("test_generated_rust_check_parse", () => {
+    const check = generatedRustCheck();
+    const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8");
+    const documented = readme.match(/check = "([^"\n]*cargo metadata[^"\n]*)"/)?.[1];
+    expect(documented, "README must show the flat generated Rust check line").toBe(check);
+    expect(check).not.toContain("\n");
+    const rustToml = `[tasks]\ncheck = "${check}"\nverify = "cargo test"\n`;
+    expect(miseTasks(rustToml)).toEqual({ check, verify: "cargo test" });
+    // test-quality gate reaches both generated tasks through the same parser
+    const dir = tmpRepo(rustToml);
+    expect(testQualityCommands(dir)).toEqual([
+      "tdd-guard lint",
+      "mise run check",
+      "mise run verify",
+    ]);
+  });
+
+  test("test_generated_rust_check_loud_skip", () => {
+    const check = generatedRustCheck();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rust-check-env-"));
+    const bin = path.join(dir, "bin");
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, "cargo"), CARGO_STUB, { mode: 0o755 });
+    // Isolated PATH: cargo-deny, deslop-please and rust-analyzer are absent,
+    // while cargo (the mandatory tool) is present and succeeds.
+    const env = { PATH: bin, HOME: dir };
+    const analyzer = Bun.spawnSync(["/bin/bash", "-c", "command -v rust-analyzer"], { env });
+    expect(analyzer.exitCode).not.toBe(0);
+
+    const clean = runGeneratedCheck(check, env);
+    const stderr = textOf(clean.stderr);
+    expect(clean.exitCode, `check failed: ${stderr}`).toBe(0);
+    expect(stderr).toMatch(/\bSKIP\b[^\n]*cargo-deny[^\n]*install/i);
+    expect(stderr).toMatch(/\bSKIP\b[^\n]*deslop-please[^\n]*install/i);
+
+    // An installed tool with findings still fails the chain with exit 1.
+    const finding = runGeneratedCheck(check, { ...env, FAIL_CLIPPY: "1" });
+    expect(finding.exitCode).toBe(1);
+    expect(textOf(finding.stderr)).toContain("clippy: structural finding");
+
+    fs.writeFileSync(path.join(bin, "deslop-please"), DESLOP_STUB, { mode: 0o755 });
+    const deslopFinding = runGeneratedCheck(check, { ...env, FAIL_DESLOP: "1" });
+    expect(deslopFinding.exitCode).toBe(1);
+    expect(textOf(deslopFinding.stderr)).toContain("deslop-please: structural finding");
   });
 });
