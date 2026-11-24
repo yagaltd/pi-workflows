@@ -1,20 +1,14 @@
-# Review — task-1 (plan 066)
+# Review — task-1
+Task: Deterministic output policy module · Contract: .workflows/specs/task-1.spec
 
-## Round 1 — 20261117 · reviewer
+## Round 1 — 2026-11-23 · reviewer
+**ok: true**
 
-- Verdict: **ok: true** (no findings)
-- Pins (`tests/prompt-doctrine.test.ts:649-724`): five assertions, all load-bearing.
-  The "installed skills" pin uses a hardcoded `INSTALLED_SKILLS` set (line 616) with no
-  filesystem reads — CI does not depend on which skills a machine has.
-- `skills/init/SKILL.md:154-165`: eslint|biome detection sources → `check`; vitest|
-  node --test|bun test → `verify`; worked vanilla-JS example; bun/TS and rust examples
-  intact; no-linter case explicit ("`check` stays ABSENT … rather than invent one").
-- `agents/reviewer.md:173-185`: modern-web-guidance first, `web-perf` for CWV
-  (LCP/INP/CLS), impeccable set by intent, Rust trio now `rust-review` /
-  `rust-best-practices` / `rust-port`. 11/11 cited skills resolve against the installed
-  set; `unsafe-checker` gone from doctrine (legacy pin swapped 1:1, no assertion lost).
-- Gates: bun test 412 pass / 0 fail · drift CLEAN · docs-lint CLEAN with the baseline
-  byte-identical (no raised budget) · gen-docs --check 0 · zero added lines >80 cols.
-- Observation: Layer 2 **tdd-guard now actually runs** in reviews (it was npm-linked
-  during the housekeeping pass): lint clean, `verify --spec` found all 5 selectors.
-  The task prompt's "not installed" note was stale.
+Evidence:
+- `agent-spec lifecycle .workflows/specs/task-1.spec --code . --format json`: PASS, 5/5 scenarios, quality 1.0.
+- `bun test tests/output-policy.test.ts`: PASS, 5 tests / 71 assertions / 0 fail.
+- Branch `subagents/run_mwt778qd_3m2vj6/worker-task-1` diff: only `scripts/output-policy.mjs` (+37) and `tests/output-policy.test.ts` (+102); no forbidden paths.
+- `verify-landing.sh --branches subagents/run_mwt778qd_3m2vj6/worker-task-1`: OK [S1] landed, OK [S2] all claimed files present.
+- Reviewer noted guard's `--spec` CLI mismatch and verify-only skip quirk as pre-existing loud degradation; lifecycle is the passing authority.
+
+No findings.

@@ -1,17 +1,14 @@
-# Review — task-2 (plan 067)
+# Review — task-2
+Task: open-diagram renderer seam · Contract: .workflows/specs/task-2.spec
 
-## Round 1 — 20261117 · reviewer pw67-t2
+## Round 1 — 2026-11-23 · reviewer
+**ok: true**
 
-- Verdict: **ok: true** (no findings)
-- Pins: all five + gates pin read real files (fs.readFileSync), no
-  self-referential pins; each asserts what its scenario claims.
-- Amendment dated + attributed (FOLLOW-UP-TABLE.md "Amended once (20261117,
-  plan 20261117-067)"); Origin after Item, uniqueness-pinned. Registry
-  enforcement points present by name (`subagent_result`, template path).
-  Ledger Resolution grammar EXACT: done(<task-ref>) / closed(<reason>) /
-  deferred(trigger: <condition>).
-- Gates: bun test 427/0 · drift CLEAN · docs-lint CLEAN (markdownlint -15,
-  harper -6) with baseline byte-identical · gen-docs --check 0.
-- 80-col: 9 raw over-limit lines proven 1:1 in-place extensions of already
-  over-limit baseline rows; net-new over-limit = 0. Not a budget raise.
-- Scope: exactly the 6 Allowed paths.
+Evidence:
+- `agent-spec lifecycle .workflows/specs/task-2.spec --code . --format json`: PASS, 4/4 scenarios, quality 1.0.
+- `bun test tests/open-diagram-render.test.ts`: PASS, 5 tests / 26 assertions / 0 fail.
+- Branch `subagents/run_mwt778qd_3m2vj6/worker-task-2` diff: only `scripts/open-diagram-render.mjs` and `tests/open-diagram-render.test.ts` (+223); no forbidden paths.
+- `verify-landing.sh --branches subagents/run_mwt778qd_3m2vj6/worker-task-2`: OK [S1] landed, OK [S2] all claimed files present.
+- Unit tests inject the runner; no Python/Chrome dependency in `bun test`.
+
+No findings.

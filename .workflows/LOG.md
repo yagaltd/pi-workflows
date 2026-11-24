@@ -399,3 +399,5 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 20261123 SHIP 20261122-080 WIP batch gate — executable WIP state, task-bound verdict proof, scope-checked SHIP, pre-commit/CI gate, dispatcher block, mise/init surface; v0.15.18.
 20261123 ARCHIVE 20261122-080 WIP batch gate — all seven tasks shipped; plan bundle moved to .workflows/archive/done/20261122-080-wip-batch-gate/; stale plan/spec durable-audit rule fixed; final gates CLEAN; bun test 784 pass / 3 skip / 0 fail.
 20261123 SHIP v0.15.19 — post-plan-080: /init installs the orchestrator persona and WIP gitignore wiring in consumer repos; WIP verdict freshness handles coarse filesystem mtime. Full suite twice 794 pass / 3 skip / 0 fail; gates CLEAN.
+
+20261123 EXECUTE 20261123-075 approved by owner — adaptive output format; wave 1 TASK 1 + TASK 2 dispatched.

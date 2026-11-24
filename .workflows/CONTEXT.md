@@ -52,3 +52,10 @@
 - **evidenceVerdict / exampleVerdict** — pure functions (proof-ledger.mjs): pass requires ≥1 independent (runner ≠ owner) replayable-confirmed check; unreplayable never counts as passed (origin: kwant missions/mod.rs:359, foundry.rs:636).
 - **runner taxonomy** — worker | reviewer | orchestrator; recorded via --runner; historical rows read as worker (not independent).
 - **specGuardSupport probe** — contract gate probes agent-spec --spec support once per process; 0.2.7 lacks it → aggregate --spec-dir form + loud degradation.
+
+
+### Glossary (plan 20261123-075)
+- **output policy** — deterministic four-boolean surface decision (`prose`, `statusTokens`, `table`, `diagram`): canonical prose and display-only status tokens always stand; tables and diagrams are earned by explicit thresholds; never image-only.
+- **policy-authoritative artifact** — only the policy result may select table or diagram form; judge answers flag and route, never gate.
+- **generated view** — additive SVG/PNG artifact with alt text, emitted after canonical text; never a replacement for judge-readable prose or the mandatory follow-up table.
+- **OPEN_DIAGRAM_CLI** — environment override for the open-diagram executable; local venv path is only the default.

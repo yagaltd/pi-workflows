@@ -1,0 +1,147 @@
+[
+  {
+    "id": "criterion_testable",
+    "question": "Contract .workflows/specs/task-4.spec: is every Acceptance-Criteria scenario mechanically testable as written \u2014 explicit Test: selector, observable post-state? Flag any scenario a machine cannot verify.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "enum": [
+            "flag",
+            "clear"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "finding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "confidence"
+      ]
+    }
+  },
+  {
+    "id": "boundary_complete",
+    "question": "Contract .workflows/specs/task-4.spec: do Allowed Changes list every file the implementation must touch, and Forbidden exclude the out-of-scope paths? Flag any file the work needs but the boundaries omit.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "enum": [
+            "flag",
+            "clear"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "finding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "confidence"
+      ]
+    }
+  },
+  {
+    "id": "ambiguity",
+    "question": "Contract .workflows/specs/task-4.spec: which wording could a worker read two ways? Flag each ambiguous phrase, quote it, and rate the risk (minor/blocking) in the finding.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "enum": [
+            "flag",
+            "clear"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "finding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "confidence"
+      ]
+    }
+  },
+  {
+    "id": "missing_scenarios",
+    "question": "Contract .workflows/specs/task-4.spec: which failure, edge, or integration scenarios does it omit \u2014 error paths, empty states, cross-task effects? Flag each omission and name the scenario to add.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "enum": [
+            "flag",
+            "clear"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "finding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "confidence"
+      ]
+    }
+  },
+  {
+    "id": "second_path_violation",
+    "question": "Contract .workflows/specs/task-4.spec: could any scenario pass via a path other than the specified one \u2014 a silent fallback, dead-end workaround, or alternate route that satisfies the Test: selectors while violating a boundary or decision? Flag the path.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "verdict": {
+          "enum": [
+            "flag",
+            "clear"
+          ]
+        },
+        "confidence": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "finding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "confidence"
+      ]
+    }
+  }
+]
