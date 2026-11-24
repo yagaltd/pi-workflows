@@ -34,6 +34,5 @@
 
 - `<placeholder>`: project-specific binding rules, one line each — only what
   every session must always obey; detail belongs in pointer targets.
-- Rust projects: add this conditional structural gate to PROJECT only when
-  cargo/Rust is detected; non-Rust charters stay unchanged.
-  Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).
+- Rust projects: add the conditional structural gate described by init doctrine
+  to PROJECT only when cargo/Rust is detected; non-Rust charters stay unchanged.

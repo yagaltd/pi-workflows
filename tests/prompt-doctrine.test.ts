@@ -1474,9 +1474,10 @@ describe("prompt doctrine — oracle-binding disclosure (plan 20261119-079 T3)",
 });
 
 // --- plan 20261124-081 TASK 1 — Rust structural gate doctrine wiring ---
-// The canonical mandate is pinned verbatim as the contract for all four
-// placements. deslop-please is a CLI, never a Pi skill: the installed-skill
-// allowlist gains rust-crate-architecture only.
+// The canonical mandate is pinned verbatim in the three Rust-only doctrine
+// placements; the universal template carries only a generic conditional
+// pointer so non-Rust charters stay unchanged. deslop-please is a CLI, never a
+// Pi skill: the installed-skill allowlist gains rust-crate-architecture only.
 const RUST_GATE_SENTENCE =
   "Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).";
 const PHASE5_SKIP_RULE =
@@ -1647,7 +1648,10 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     const project = norm081(template.slice(template.indexOf("## PROJECT")));
     expect(project).toMatch(/Rust projects?/);
     expect(project).toContain("structural gate");
-    expect(project).toContain("deslop-please");
+    expect(project).toMatch(/cargo\/Rust/);
+    expect(project).toContain("init doctrine");
+    expect(project).not.toContain(RUST_GATE_SENTENCE);
+    expect(project).not.toContain("deslop-please");
 
     const policy = read081("templates/DOCS-POLICY.md");
     const start = policy.indexOf("## AGENTS.md (project)");
@@ -1692,8 +1696,8 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
   });
 
   test("test_rust_gate_non_rust_unchanged", () => {
-    // CORE stays stack-neutral: the mandate is conditional and belongs in
-    // PROJECT only (the four-placement pin requires it in the template).
+    // CORE stays stack-neutral and the universal template carries only a
+    // generic conditional pointer; the literal mandate is Rust-only doctrine.
     const template081 = read081("templates/AGENTS.md");
     const core081 = norm081(
       template081.slice(
@@ -1702,9 +1706,13 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
       ),
     );
     expect(core081).not.toContain(RUST_GATE_SENTENCE);
-    expect(
-      norm081(template081.slice(template081.indexOf("## PROJECT"))),
-    ).toContain(RUST_GATE_SENTENCE);
+    const project081 = norm081(
+      template081.slice(template081.indexOf("## PROJECT")),
+    );
+    expect(project081).toMatch(/Rust projects?/);
+    expect(project081).toContain("structural gate");
+    expect(project081).toContain("init doctrine");
+    expect(project081).not.toContain(RUST_GATE_SENTENCE);
     const nested = domainSkillsNestedSlice081();
     expect(nested).not.toContain(RUST_GATE_SENTENCE);
     expect(nested).not.toContain("deslop-please");
@@ -1736,12 +1744,21 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(REVIEWER).toContain(BUDGET);
     expect(REVIEWER).toContain(CITE);
     expect(WORKER).toContain(BUDGET);
-    // the wired suite is the one that must stay green: mandate landed in all
-    // four placements without growing the prompt surface
-    for (const p of RUST_GATE_PLACEMENTS)
+    // the wired suite is the one that must stay green: the mandate landed in
+    // the three Rust-only doctrine placements without growing the prompt
+    // surface; the universal template keeps a generic conditional pointer
+    for (const p of RUST_GATE_PLACEMENTS.filter(
+      (p) => p !== "templates/AGENTS.md",
+    ))
       expect(norm081(read081(p)), `mandate missing from ${p}`).toContain(
         RUST_GATE_SENTENCE,
       );
+    const template081 = read081("templates/AGENTS.md");
+    const templateProject081 = norm081(
+      template081.slice(template081.indexOf("## PROJECT")),
+    );
+    expect(templateProject081).toContain("init doctrine");
+    expect(templateProject081).not.toContain(RUST_GATE_SENTENCE);
   });
 
   test("test_rust_gate_no_forbidden_changes", () => {
