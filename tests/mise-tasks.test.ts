@@ -245,3 +245,85 @@ describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", 
     expect(changelogDiff.exitCode).toBe(0);
   });
 });
+
+describe("mise tasks — final review integration gates (TASK 4, plan 20261124-081)", () => {
+  test("test_final_review_integration_gates", () => {
+    // The Verify command runs the full suite; this test is inside that suite.
+    // The marker prevents recursion without skipping any other test.
+    const GUARD = "PI_WORKFLOWS_INTEGRATION_RECURSION_GUARD";
+    if (process.env[GUARD] === "1") return;
+    const env = { ...(process.env as Record<string, string>), [GUARD]: "1" };
+
+    const suite = Bun.spawnSync(["bun", "test"], {
+      cwd: ROOT,
+      env,
+      encoding: "utf8",
+      timeout: 240_000,
+    });
+    const suiteOutput = `${textOf(suite.stdout)}${textOf(suite.stderr)}`;
+    expect(
+      suite.exitCode,
+      `bun test failed:\n${suiteOutput.slice(-4000)}`
+    ).toBe(0);
+    expect(suiteOutput).toMatch(/\b0 fail\b/);
+    expect(suiteOutput).toMatch(/\b\d+ pass\b/);
+
+    const docs = Bun.spawnSync(["bash", "scripts/docs-lint.sh"], {
+      cwd: ROOT,
+      env,
+      encoding: "utf8",
+      timeout: 120_000,
+    });
+    expect(
+      docs.exitCode,
+      `docs-lint failed:\n${textOf(docs.stdout)}${textOf(docs.stderr)}`
+    ).toBe(0);
+
+    const drift = Bun.spawnSync(["bash", "scripts/check-drift.sh"], {
+      cwd: ROOT,
+      env,
+      encoding: "utf8",
+      timeout: 120_000,
+    });
+    expect(
+      drift.exitCode,
+      `check-drift failed:\n${textOf(drift.stdout)}${textOf(drift.stderr)}`
+    ).toBe(0);
+
+    // No budget rise: every committed budget still bounds the live baseline.
+    const committed = Bun.spawnSync(
+      ["git", "show", "HEAD:scripts/docs-lint-baseline.json"],
+      { cwd: ROOT, encoding: "utf8" }
+    );
+    expect(committed.exitCode).toBe(0);
+    const before = JSON.parse(textOf(committed.stdout));
+    const after = JSON.parse(read("scripts/docs-lint-baseline.json"));
+    for (const [name, beforeSection] of Object.entries(before.sections) as [
+      string,
+      { total: number; files: Record<string, number> },
+    ][]) {
+      const afterSection: { total: number; files: Record<string, number> } =
+        after.sections[name] ?? { total: 0, files: {} };
+      expect(
+        Number(afterSection.total),
+        `${name} total budget rose`
+      ).toBeLessThanOrEqual(Number(beforeSection.total));
+      for (const [file, budget] of Object.entries(beforeSection.files)) {
+        expect(
+          Number(afterSection.files[file] ?? 0),
+          `${name} budget for ${file} rose`
+        ).toBeLessThanOrEqual(Number(budget));
+      }
+      for (const file of Object.keys(afterSection.files)) {
+        expect(
+          Object.prototype.hasOwnProperty.call(beforeSection.files, file),
+          `${name} gained a new budget for ${file}`
+        ).toBe(true);
+      }
+    }
+  }, 300_000);
+});
+
+function textOf(stream: unknown): string {
+  return stream == null ? "" : String(stream);
+}

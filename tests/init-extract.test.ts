@@ -527,3 +527,25 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
   });
 });
 
+/* ── plan 081 TASK 4: live judge schema parity with the recorded backend ── */
+describe("init-extract (plan 081 T4) — live schema four-skill parity", () => {
+  test("test_live_schema_review_skills", async () => {
+    const reviewSkills = (INIT_EXTRACT_SCHEMA as any).properties.stackDetection
+      .properties.reviewSkills;
+    const description = String(reviewSkills?.description ?? "");
+    const namedRustSkills = [...description.matchAll(/\brust-[a-z0-9-]+/g)].map(
+      (m) => m[0]
+    );
+    expect(
+      [...new Set(namedRustSkills)].sort(),
+      "the live judge schema must name the same four-skill Rust family as the recorded backend"
+    ).toEqual([...RUST_REVIEW_SKILLS].sort());
+
+    // The recorded backend (and therefore the generated Rust charter) must
+    // stay in lockstep with what the live schema tells the judge to draft.
+    const root = makeRepo(RUST_FIXTURE);
+    const { draft } = await draftAdopt(root);
+    expect(draft.stackDetection.reviewSkills).toEqual(RUST_REVIEW_SKILLS);
+  });
+});
+
