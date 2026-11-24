@@ -2,7 +2,7 @@
 
 > Plan ID: 20261123-075
 > Created: 2026-11-23
-> Status: IN PROGRESS
+> Status: DONE
 
 ## Lifecycle
 - Plan ID is assigned once at bootstrap: 20261123-075 (NNN = entries in `.workflows/archive/done` + `.workflows/archive/superseded` + 1, zero-padded to 3). Never reuse a Plan ID.

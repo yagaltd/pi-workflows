@@ -401,3 +401,5 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 20261123 SHIP v0.15.19 — post-plan-080: /init installs the orchestrator persona and WIP gitignore wiring in consumer repos; WIP verdict freshness handles coarse filesystem mtime. Full suite twice 794 pass / 3 skip / 0 fail; gates CLEAN.
 
 20261123 EXECUTE 20261123-075 approved by owner — adaptive output format; wave 1 TASK 1 + TASK 2 dispatched.
+
+20261123 SHIP 20261123-075 adaptive-output-format — plan complete (eight tasks); text-first policy with earned open-diagram views.
