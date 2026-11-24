@@ -328,3 +328,202 @@ describe("init-extract (plan 078 T2) — CLI", () => {
   }, 60000);
 });
 
+/* ── plan 081 T2: brownfield adopt draft wiring (Rust-only, draft-only) ──
+ * Contract source: .workflows/specs/task-2.spec. The Rust fixture exercises
+ * the recorded backend's cargo detection; the TypeScript fixture is the
+ * byte-identical regression guard for every non-Rust project. */
+
+const RUST_GATE_SENTENCE =
+  "Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).";
+const RUST_REVIEW_SKILLS = [
+  "rust-review",
+  "rust-best-practices",
+  "rust-port",
+  "rust-crate-architecture",
+];
+
+const RUST_FIXTURE: Record<string, string> = {
+  "README.md": "# fixture-rs\n\nA small Rust CLI maintained by one team.\n",
+  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "src/main.rs": "fn main() {}\n",
+  "docs/architecture.md": "# Architecture\n\nSingle-crate CLI.\n",
+  "CONTRIBUTING.md": "# Contributing\n\ncargo test before push.\n",
+  "scripts/agents-lint.sh": "#!/usr/bin/env bash\n# charter gate stub\n",
+};
+
+type AdoptBackend = ReturnType<typeof recordedAdoptBackend>;
+
+async function draftAdopt(
+  root: string,
+  backend: AdoptBackend = recordedAdoptBackend(root)
+) {
+  const ctx = buildAdoptContext(root);
+  const er = await extractAdoptDraft(backend, ctx);
+  if (er.skipped || !er.draft) throw new Error(`adopt draft skipped: ${er.reason}`);
+  const written = writeAdoptDrafts(root, er.draft);
+  return {
+    draft: er.draft,
+    profile: JSON.parse(fs.readFileSync(written.profile, "utf8")) as Record<string, any>,
+    charter: fs.readFileSync(written.charter, "utf8"),
+    suggestions: fs.readFileSync(written.suggestions, "utf8"),
+  };
+}
+
+/** Override only the resolved stack in the recorded response: lets a test
+ *  separate "Cargo.toml was detected" from "the stack resolved to Rust". */
+function withStack(
+  backend: AdoptBackend,
+  stackDetection: { stack: string; reviewSkills: string[] }
+): AdoptBackend {
+  return {
+    name: backend.name,
+    classify: async (schema, input) => {
+      const result = (await backend.classify(schema, input)) as any;
+      if (result.skipped || !result.value) return result;
+      return { ...result, value: { ...result.value, stackDetection } };
+    },
+  };
+}
+
+describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
+  test("test_adopt_rust_profile_marker", async () => {
+    const root = makeRepo(RUST_FIXTURE);
+    const { profile } = await draftAdopt(root);
+
+    // draft-only top-level marker, never a new commands/gates entry
+    expect(Object.prototype.hasOwnProperty.call(profile, "architectureGate")).toBe(true);
+    const marker = profile.architectureGate;
+    expect(typeof marker).toBe("object");
+    expect(marker).not.toBeNull();
+    const markerText = JSON.stringify(marker);
+    expect(markerText).toContain("deslop-please");
+    expect(markerText).toContain("rust-analyzer");
+    expect(profile.commands).toEqual({
+      test: "cargo test",
+      lint: "cargo clippy -- -D warnings",
+      build: "cargo build",
+    });
+    expect(profile.gates).toEqual(["scripts/agents-lint.sh"]);
+    expect(profile.commands).not.toHaveProperty("architectureGate");
+    expect(profile.gates).not.toContain("deslop-please");
+    expect(fs.existsSync(path.join(root, ".deslop-please.allow"))).toBe(false);
+
+    // both conditions are required: cargo manifest AND resolved Rust stack
+    const cargoNoRust = makeRepo(RUST_FIXTURE);
+    const noRustStack = await draftAdopt(
+      cargoNoRust,
+      withStack(recordedAdoptBackend(cargoNoRust), {
+        stack: "TypeScript (npm)",
+        reviewSkills: ["security-audit"],
+      })
+    );
+    expect(Object.prototype.hasOwnProperty.call(noRustStack.profile, "architectureGate")).toBe(false);
+
+    const rustNoCargo = makeRepo(CLEAN_REPO);
+    const noCargo = await draftAdopt(
+      rustNoCargo,
+      withStack(recordedAdoptBackend(rustNoCargo), {
+        stack: "Rust (cargo)",
+        reviewSkills: RUST_REVIEW_SKILLS,
+      })
+    );
+    expect(Object.prototype.hasOwnProperty.call(noCargo.profile, "architectureGate")).toBe(false);
+  });
+
+  test("test_adopt_rust_review_skills", async () => {
+    const root = makeRepo(RUST_FIXTURE);
+    const { draft, suggestions } = await draftAdopt(root);
+
+    expect(draft.stackDetection.reviewSkills).toEqual(RUST_REVIEW_SKILLS);
+    const skillsLine = suggestions.split("\n").find((l) => l.startsWith("- reviewSkills:")) ?? "";
+    const listed = skillsLine
+      .replace(/^- reviewSkills:\s*/, "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    expect(listed).toEqual(RUST_REVIEW_SKILLS);
+    // deslop-please is a CLI gate, not an installed Pi skill — invent none
+    expect(listed).not.toContain("deslop-please");
+    expect(draft.stackDetection.reviewSkills).not.toContain("deslop-please");
+  });
+
+  test("test_adopt_rust_charter_gate", async () => {
+    const root = makeRepo(RUST_FIXTURE);
+    const { charter } = await draftAdopt(root);
+    const project = charter.split("## PROJECT")[1] ?? "";
+
+    expect(project).toContain(RUST_GATE_SENTENCE);
+    const pointerLine = project.split("\n").find((l) => l.includes("Review pointers cite")) ?? "";
+    expect(pointerLine).toContain("Rust (cargo)");
+    for (const skill of RUST_REVIEW_SKILLS) expect(pointerLine).toContain(skill);
+  });
+
+  test("test_adopt_non_rust_unchanged", async () => {
+    const root = makeRepo(CLEAN_REPO); // TypeScript brownfield fixture
+    const { draft, profile, charter, suggestions } = await draftAdopt(root);
+
+    expect(Object.prototype.hasOwnProperty.call(profile, "architectureGate")).toBe(false);
+    expect(JSON.stringify(profile)).not.toContain("deslop-please");
+    expect(JSON.stringify(profile)).not.toContain("rust-analyzer");
+    expect(draft.stackDetection.reviewSkills).toEqual(["security-audit"]);
+    expect(charter).not.toContain(RUST_GATE_SENTENCE);
+    expect(charter).not.toContain("rust-crate-architecture");
+    expect(suggestions).toContain("- reviewSkills: security-audit");
+    expect(suggestions).not.toContain("rust-crate-architecture");
+
+    // byte-identical to the pre-change output (dates computed, not pinned)
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    expect(profile).toEqual({
+      commands: { test: "bun test", lint: "bunx eslint ." },
+      pointers: {
+        "project-overview": "README.md",
+        conventions: "CONTRIBUTING.md",
+        architecture: "docs/architecture.md",
+        "build-manifest": "package.json",
+        "charter-gate": "scripts/agents-lint.sh",
+      },
+      tree: { docs: "docs", scripts: "scripts", src: "src", tests: "tests" },
+      gates: ["scripts/agents-lint.sh"],
+      scaffolds: { kinds: {} },
+      meta: {
+        generated_by: "init-extract draft — judge-drafted, lint-verified; NOT final config",
+        generated_at: day(0),
+        stale_after: day(30),
+      },
+    });
+    const project = charter.split("## PROJECT")[1] ?? "";
+    expect(project).toContain("- Review pointers cite the TypeScript (npm) skill family: security-audit.");
+    expect(project).not.toContain("Rust structural gate");
+  });
+
+  test("test_adopt_no_forbidden_changes", () => {
+    const repoRoot = path.resolve(import.meta.dir, "..");
+    const diff = spawnSync(
+      "git",
+      [
+        "diff",
+        "--exit-code",
+        "--",
+        "extensions/index.ts",
+        "scripts/profile-lint.sh",
+        "scripts/flow-gates.mjs",
+      ],
+      { cwd: repoRoot, encoding: "utf-8" }
+    );
+    expect(`${diff.stdout}${diff.stderr}`).toBe("");
+    expect(diff.status).toBe(0);
+    expect(fs.existsSync(path.join(repoRoot, ".deslop-please.allow"))).toBe(false);
+    expect(fs.readdirSync(repoRoot).filter((f) => f.endsWith(".allow"))).toEqual([]);
+    expect(Object.keys((INIT_EXTRACT_SCHEMA as any).properties).sort()).toEqual([
+      "charterPointers",
+      "confidence",
+      "evidence",
+      "gates",
+      "profileCommands",
+      "stackDetection",
+      "treeDomains",
+    ]);
+  });
+});
+
