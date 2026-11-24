@@ -1551,20 +1551,50 @@ function topHeadingCount081(): number {
   return headings.length - templates.length;
 }
 
+function gitOutput081(args: string[]): string {
+  const run = spawnSync("git", args, { encoding: "utf8" });
+  expect(run.status, run.stderr).toBe(0);
+  return run.stdout;
+}
+
+function gitPaths081(args: string[]): string[] {
+  return gitOutput081(args).split("\n").filter(Boolean);
+}
+
 function changedPaths081(): string[] {
-  const diff = spawnSync("git", ["diff", "--name-only", "HEAD", "--"], {
-    encoding: "utf8",
-  });
-  expect(diff.status, diff.stderr).toBe(0);
-  const untracked = spawnSync(
-    "git",
-    ["ls-files", "--others", "--exclude-standard"],
-    { encoding: "utf8" },
-  );
-  expect(untracked.status, untracked.stderr).toBe(0);
-  return [...diff.stdout.split("\n"), ...untracked.stdout.split("\n")].filter(
-    Boolean,
-  );
+  const dirty = gitPaths081(["diff", "--name-only", "HEAD", "--"]);
+  const untracked = gitPaths081([
+    "ls-files",
+    "--others",
+    "--exclude-standard",
+  ]);
+  // The extension commits worker diffs before the reviewer runs, so the
+  // contracted wiring lives in HEAD, not in the dirty tree. Walk the recent
+  // first-parent merges and use the oldest one that landed the contracted
+  // placements as the branch base; diffing it to HEAD covers both the wiring
+  // commit and any fix-round commits stacked on top (plain or merged). A
+  // merge touching only the test file is not the wiring landing.
+  let base: string | null = null;
+  for (const sha of gitPaths081([
+    "rev-list",
+    "--first-parent",
+    "--max-count=6",
+    "HEAD",
+  ])) {
+    const parents = gitOutput081(["show", "-s", "--format=%P", sha])
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parents.length < 2) continue;
+    const merged = gitPaths081(["diff", "--name-only", `${sha}^1`, sha, "--"]);
+    if (RUST_GATE_PLACEMENTS.every((p) => merged.includes(p)))
+      base = `${sha}^1`;
+  }
+  const committed = [
+    ...gitPaths081(["diff", "--name-only", "HEAD~1", "HEAD", "--"]),
+    ...(base ? gitPaths081(["diff", "--name-only", base, "HEAD", "--"]) : []),
+  ];
+  return [...new Set([...committed, ...dirty, ...untracked])];
 }
 
 describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)", () => {
