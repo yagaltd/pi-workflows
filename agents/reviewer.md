@@ -156,7 +156,7 @@ repo: <git toplevel>
 - Domain skills: consult the installed domain-skill family matching the
   stack or area the diff touches before the verdict.
   The report notes which were consulted.
-  - Rust: `rust-review`, `rust-best-practices`, `rust-port`.
+  - Rust: `rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`.
   - Web client-side (any diff): `modern-web-guidance` first.
     Then by intent: `web-perf` for Core Web Vitals work (`LCP/INP/CLS`,
     loading, images); `audit` for a UI audit; `harden` for resilience and
@@ -165,3 +165,4 @@ repo: <git toplevel>
     time.
   - Cloudflare Workers: the workers skill family + `security-audit`.
   - Each auto-triggers by description.
+- Rust structural gate: run `deslop-please` before `/review`; fix findings from first principles — no allowlist churn; consult the Rust skill family (`rust-review`, `rust-best-practices`, `rust-port`, `rust-crate-architecture`).
