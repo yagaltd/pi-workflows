@@ -3,6 +3,12 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import {
+  buildAdoptContext,
+  extractAdoptDraft,
+  recordedAdoptBackend,
+  writeAdoptDrafts,
+} from "../scripts/init-extract.ts";
 
 // Plan 20261102-050 T1 — role-file doctrine: the three DSH/Bise steals.
 // Pins the exact doctrine lines in agents/worker.md and agents/reviewer.md.
@@ -1788,5 +1794,117 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(changed).toContain(TEST_FILE_081);
     for (const p of RUST_GATE_PLACEMENTS) expect(changed).toContain(p);
     expect(fs.existsSync(".deslop-please.allow")).toBe(false);
+  });
+});
+
+// --- plan 20261124-081 TASK 4 — universal template must stay Rust-free ---
+const NON_RUST_FIXTURE_081: Record<string, string> = {
+  "README.md": "# fixture-app\n\nA small TypeScript CLI maintained by one team.\n",
+  "package.json": JSON.stringify({
+    name: "fixture-app",
+    scripts: { test: "bun test", lint: "bunx eslint ." },
+  }),
+  "src/index.ts": "export const main = () => 0;\n",
+  "tests/app.test.ts": 'test("app", () => {});\n',
+  "docs/architecture.md": "# Architecture\n\nSingle-entry CLI.\n",
+  "CONTRIBUTING.md": "# Contributing\n\nbun test before push.\n",
+  "scripts/agents-lint.sh": "#!/usr/bin/env bash\n",
+};
+
+const RUST_FIXTURE_081: Record<string, string> = {
+  "README.md": "# fixture-rs\n\nA small Rust CLI.\n",
+  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "src/main.rs": "fn main() {}\n",
+  "docs/architecture.md": "# Architecture\n\nSingle-crate CLI.\n",
+  "CONTRIBUTING.md": "# Contributing\n\ncargo test before push.\n",
+  "scripts/agents-lint.sh": "#!/usr/bin/env bash\n",
+};
+
+function stagedRepo081(files: Record<string, string>): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "non-rust-charter-"));
+  for (const [rel, content] of Object.entries(files)) {
+    const target = path.join(root, rel);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+  }
+  return root;
+}
+
+async function charterFor081(root: string): Promise<string> {
+  const ctx = buildAdoptContext(root);
+  const result = await extractAdoptDraft(recordedAdoptBackend(root), ctx);
+  if (!result.draft) throw new Error(`adopt draft skipped: ${result.reason}`);
+  const written = writeAdoptDrafts(root, result.draft);
+  return fs.readFileSync(written.charter, "utf8");
+}
+
+/** Byte-for-byte output of the universal template for a non-Rust adopt
+ *  before plan 081: no Rust pointer, no Rust gate sentence, only slot fills. */
+const PRE_PLAN_NON_RUST_CHARTER_081 = [
+  "## CORE (binding)",
+  "",
+  "- Command entrypoint: repo-root `.mise/tasks` file tasks;",
+  "  use `mise run <task>` for gates.",
+  "- Containment: work only within your task's Allowed Changes; anything else is reported, never fixed.",
+  "- Commits: workers never commit, merge, or push; a gate commits after review passes.",
+  "- Refactor first: extend existing structure before adding new surface.",
+  "- TDD: write the failing test with the change, not after; keep the suite green.",
+  "- Resources: before any test suite or build, verify free CPU and RAM",
+  "  (`free -h` + load average); constrained or many parallel runs → defer",
+  "  or serialize.",
+  "- Subtract first: prefer deleting or simplifying over adding.",
+  "- Root causes: fix causes, not symptoms; never patch around a defect.",
+  "- Docs discipline: docs describe current state; history lands only in",
+  "  CHANGELOG.md.",
+  "",
+  "## POINTERS",
+  "",
+  "- Project overview (what this is, who it serves): `README.md`",
+  "- Build and test (commands, fixtures): `package.json`",
+  "  (prefer `mise run <task>` file tasks when present)",
+  "- Architecture and docs index (map, ADRs): `docs/architecture.md`",
+  "- Conventions (style, docs policy): `CONTRIBUTING.md`",
+  "",
+  "## PROJECT",
+  "",
+  "- Adopted <DATE> by /init --adopt — project rules pending the owner's review; the judge",
+  "  DRAFTED this charter and the deterministic lints verified the paths",
+  "  (see .workflows/charter-pointers.draft.md).",
+  "- Review pointers cite the TypeScript (npm) skill family: security-audit.",
+  "",
+].join("\n");
+
+const dateAgnostic081 = (text: string) =>
+  text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, "<DATE>");
+
+describe("prompt doctrine — universal template parity (TASK 4, plan 20261124-081)", () => {
+  test("test_non_rust_template_no_pointer", async () => {
+    const template = read081("templates/AGENTS.md");
+    expect(template, "the universal template must not carry a Rust-specific pointer").not.toMatch(
+      /\bRust\b|deslop-please|structural gate|cargo\/Rust/i
+    );
+
+    const nonRust = await charterFor081(stagedRepo081(NON_RUST_FIXTURE_081));
+    const expected = PRE_PLAN_NON_RUST_CHARTER_081.replace(
+      "<DATE>",
+      new Date().toISOString().slice(0, 10)
+    );
+    expect(
+      dateAgnostic081(nonRust),
+      "non-Rust charter must stay byte-identical to the pre-plan output"
+    ).toBe(dateAgnostic081(expected));
+
+    // The conditional gate still lands where Rust is actually detected.
+    const rustCharter = await charterFor081(stagedRepo081(RUST_FIXTURE_081));
+    expect(rustCharter).toContain(RUST_GATE_SENTENCE);
+    for (const p of [
+      "agents/reviewer.md",
+      "skills/init/SKILL.md",
+      "templates/DOCS-POLICY.md",
+    ]) {
+      expect(norm081(read081(p)), `Rust doctrine missing from ${p}`).toContain(
+        RUST_GATE_SENTENCE
+      );
+    }
   });
 });

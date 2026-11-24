@@ -204,3 +204,97 @@ describe("flow-gates — generated Rust check (plan 20261124-081 TASK 3)", () =>
     expect(textOf(deslopFinding.stderr)).toContain("deslop-please: structural finding");
   });
 });
+
+/* ── plan 081 TASK 4: no impossible allow file; bootstrap Cargo.lock ──
+ * The stubs below model the real tool contract instead of hiding it: a
+ * --locked command fails when Cargo.lock is absent, and the deslop-please
+ * stub records its argv without creating any allow file. */
+describe("flow-gates — generated Rust check integration (plan 20261124-081 TASK 4)", () => {
+  const CARGO_LOCK_AWARE_STUB = `#!/bin/bash
+printf '%s\n' "$*" >> "$CARGO_LOG"
+case "$1" in
+  metadata|tree|clippy)
+    if [[ "$*" == *--locked* && ! -f Cargo.lock ]]; then
+      echo "error: --locked needs Cargo.lock (missing)" >&2
+      exit 101
+    fi
+    if [[ "$1" == metadata && "$*" != *--locked* ]]; then
+      [ -f Cargo.lock ] || printf '# bootstrapped by cargo metadata\n' > Cargo.lock
+    fi
+    ;;
+esac
+exit 0
+`;
+
+  const DESLOP_ARGV_STUB = `#!/bin/bash
+printf '%s\n' "$*" >> "$DESLOP_LOG"
+exit 0
+`;
+
+  function freshRustWorkspace(withLock: boolean) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "rust-integration-"));
+    const bin = path.join(dir, "bin");
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, "cargo"), CARGO_LOCK_AWARE_STUB, { mode: 0o755 });
+    fs.writeFileSync(
+      path.join(dir, "Cargo.toml"),
+      '[package]\nname = "fresh-workspace"\nversion = "0.1.0"\n'
+    );
+    if (withLock)
+      fs.writeFileSync(path.join(dir, "Cargo.lock"), "# owner-managed lock\n");
+    return { dir, bin, cargoLog: path.join(dir, "cargo.log") };
+  }
+
+  function runIn(check: string, dir: string, bin: string, extras: Record<string, string> = {}) {
+    return Bun.spawnSync(["/bin/bash", "-c", check], {
+      cwd: dir,
+      env: {
+        PATH: `${bin}:/usr/bin:/bin`,
+        HOME: dir,
+        CARGO_LOG: path.join(dir, "cargo.log"),
+        ...extras,
+      },
+    });
+  }
+
+  test("test_deslop_no_missing_allow", () => {
+    const check = generatedRustCheck();
+    const { dir, bin } = freshRustWorkspace(true); // lockfile exists; allow file does not
+    const deslopLog = path.join(dir, "deslop.argv");
+    fs.writeFileSync(path.join(bin, "deslop-please"), DESLOP_ARGV_STUB, { mode: 0o755 });
+    expect(fs.existsSync(path.join(dir, ".deslop-please.allow"))).toBe(false);
+
+    const run = runIn(check, dir, bin, { DESLOP_LOG: deslopLog });
+    expect(run.exitCode, `check failed: ${textOf(run.stderr)}`).toBe(0);
+
+    const argv = fs.existsSync(deslopLog)
+      ? fs.readFileSync(deslopLog, "utf8").trim()
+      : "";
+    expect(argv, "an installed deslop-please must actually run").not.toBe("");
+    // No owner-managed allow file exists here: the check must not point a
+    // --allow flag at a file that is not there (and must not invent one).
+    expect(argv).not.toMatch(/--allow(?:[=\s]|$)/);
+    expect(argv).not.toContain(".deslop-please.allow");
+    expect(fs.existsSync(path.join(dir, ".deslop-please.allow"))).toBe(false);
+  });
+
+  test("test_cargo_lock_bootstrap", () => {
+    const check = generatedRustCheck();
+    const { dir, bin, cargoLog } = freshRustWorkspace(false);
+    expect(fs.existsSync(path.join(dir, "Cargo.lock"))).toBe(false);
+
+    const run = runIn(check, dir, bin);
+    const stderr = textOf(run.stderr);
+    expect(run.exitCode, `fresh workspace check failed: ${stderr}`).toBe(0);
+    expect(fs.existsSync(path.join(dir, "Cargo.lock"))).toBe(true);
+
+    const commands = fs.readFileSync(cargoLog, "utf8").trim().split("\n");
+    expect(commands.length).toBeGreaterThan(1);
+    expect(commands[0], "a non-locked cargo metadata must bootstrap the lock first").toMatch(
+      /^metadata\b/
+    );
+    expect(commands[0]).not.toContain("--locked");
+    const firstLocked = commands.findIndex((line) => line.includes("--locked"));
+    expect(firstLocked, "a --locked command must follow the bootstrap").toBeGreaterThan(0);
+  });
+});
