@@ -115,6 +115,27 @@ pills are plain text). Reviewers verify, never fix (gate:
 `agents/reviewer.md`); workers never write plan.md — the orchestrator is the
 single writer (gate: `agents/worker.md`).
 
+### Rust Structural Gate
+
+For a detected Rust stack, `/init` emits a flat `check` assignment so the
+`mise [tasks]` parser needs no new branch (gate:
+`tests/flow-gates-mise.test.ts`). The Rust structural gate runs in order:
+
+```text
+cargo metadata --locked --no-deps --format-version 1
+cargo tree --locked --workspace -e normal,build --target all
+cargo clippy --locked --workspace --all-targets -- -D warnings
+cargo deny --config deny.toml --locked check
+deslop-please --allow .deslop-please.allow
+```
+
+The first three commands always run; the last two are guarded by
+`command -v`. An absent optional tool writes `SKIP` with an install hint to
+`stderr` and the chain continues; findings from an installed tool exit 1
+(gate: `tests/mise-tasks.test.ts`). Crate-boundary decisions use the
+four-skill Rust family: `rust-review`, `rust-best-practices`, `rust-port`,
+`rust-crate-architecture` (gate: `agents/reviewer.md`).
+
 ## Three hard rails
 
 | Rail | What it enforces | How |

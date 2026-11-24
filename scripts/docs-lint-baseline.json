@@ -3,7 +3,7 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 341,
+      "total": 342,
       "files": {
         "AGENTS.md": 11,
         "README.md": 44,
@@ -12,7 +12,7 @@
         "agents/orchestrator.md": 8,
         "agents/quality-reviewer.md": 3,
         "agents/registry.md": 13,
-        "agents/reviewer.md": 6,
+        "agents/reviewer.md": 7,
         "agents/scout.md": 2,
         "agents/spec-drafter.md": 6,
         "agents/tester.md": 3,
@@ -59,7 +59,7 @@
       "files": {}
     },
     "harper-cli": {
-      "total": 1102,
+      "total": 1103,
       "files": {
         "ADR-FORMAT.md": 9,
         "ADR.md": 1,
@@ -103,7 +103,7 @@
         "registry.md": 42,
         "restart.md": 1,
         "resume-protocol.md": 2,
-        "reviewer.md": 16,
+        "reviewer.md": 17,
         "scout.md": 6,
         "spec-drafter.md": 13,
         "status.md": 15,

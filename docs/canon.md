@@ -53,3 +53,7 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
 7. **Chat-reply decoration stays out.** Status pills and icon glyphs are for
    chat replies; every tracked Markdown file stays clean (gate:
    `templates/STATUS-VOCABULARY.md`, the rule of record).
+8. The Rust structural gate is the proof for Rust claims: the generated
+   `mise run check` chain runs the structural commands, and
+   `rust-crate-architecture` settles crate-boundary decisions (gate:
+   `tests/mise-tasks.test.ts`).

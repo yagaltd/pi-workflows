@@ -100,7 +100,9 @@ grows only through triage, never through prose.
 
 ## Gates
 
-`bash scripts/check-drift.sh` runs twelve drift sections on every commit (`.githooks/pre-commit`) and push (CI) — views must agree with sources; exit 1 on drift:
+`bash scripts/check-drift.sh` runs twelve drift sections on every commit
+(`.githooks/pre-commit`) and push (CI) — views must agree with sources;
+exit 1 on drift:
 
 | # | Section | What it proves |
 | --- | --- | --- |
@@ -114,6 +116,24 @@ grows only through triage, never through prose.
 | 8 | agents-lint | AGENTS.md doctrine: core + pointers + budget (`scripts/agents-lint.sh`) |
 | 9 | profile-lint | `.workflows/profile.json` schema + repo facts (`scripts/profile-lint.sh`) |
 | 10 | metric-gates | complexity + duplication thresholds (`scripts/metric-gates.sh`; absent tools skip) |
+
+### Rust Structural Gate
+
+The Rust structural gate is a flat `[tasks]` check line that `/init` emits
+for a detected Rust stack; the existing parser reads it without a new branch
+(gate: `tests/flow-gates-mise.test.ts`):
+
+```toml
+check = "cargo metadata --locked --no-deps --format-version 1 >/dev/null && cargo tree --locked --workspace -e normal,build --target all >/dev/null && cargo clippy --locked --workspace --all-targets -- -D warnings && { if command -v cargo-deny >/dev/null 2>&1; then cargo deny --config deny.toml --locked check; else echo 'SKIP: cargo-deny absent — install with cargo install cargo-deny --locked' >&2; fi; } && { if command -v deslop-please >/dev/null 2>&1; then deslop-please --allow .deslop-please.allow; else echo 'SKIP: deslop-please absent — install deslop-please (needs rust-analyzer: rustup component add rust-analyzer)' >&2; fi; }"
+```
+
+The chain runs `cargo metadata`, `cargo tree`, `cargo clippy`, then optional
+`cargo deny` and `deslop-please`. An absent optional tool writes `SKIP` with
+an install hint to `stderr` and the chain continues; findings exit 1 (gate:
+`tests/mise-tasks.test.ts`).
+Crate-boundary claims must name `rust-crate-architecture`; gate: `docs/canon.md`
+The four-skill Rust family covers the rest: `rust-review`,
+`rust-best-practices`, `rust-port`.
 
 ## Flows
 
