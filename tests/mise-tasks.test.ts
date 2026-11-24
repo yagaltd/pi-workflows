@@ -48,6 +48,40 @@ function typescriptFiles(dir: string): string[] {
   });
 }
 
+// Plan 20261124-081 TASK 3: the generated Rust check is authored as a flat
+// double-quoted [tasks] line in the init doctrine; read it from that source of
+// truth rather than duplicating a second copy of the chain in this test.
+function generatedRustCheck(): string {
+  const source = read(path.join("skills", "init", "SKILL.md"));
+  const match = source.match(/check = "([^"\n]*cargo metadata[^"\n]*)"/);
+  if (!match) throw new Error("generated Rust check line is missing");
+  return match[1];
+}
+
+function sectionText(relative: string, heading: string): string {
+  const text = read(relative);
+  const start = text.indexOf(heading);
+  if (start < 0) throw new Error(`${relative} is missing ${heading}`);
+  const rest = text.slice(start + heading.length);
+  const end = rest.indexOf("\n## ");
+  return end < 0 ? rest : rest.slice(0, end);
+}
+
+const RUST_CHAIN_TOKENS = [
+  "cargo metadata --locked --no-deps --format-version 1",
+  "cargo tree --locked --workspace -e normal,build --target all",
+  "cargo clippy --locked --workspace --all-targets -- -D warnings",
+  "cargo deny --config deny.toml --locked check",
+  "deslop-please --allow .deslop-please.allow",
+] as const;
+
+const RUST_SKILLS = [
+  "rust-review",
+  "rust-best-practices",
+  "rust-port",
+  "rust-crate-architecture",
+] as const;
+
 describe("mise file-task command surface", () => {
   test("legacy manifest and tool pin are gone", () => {
     expect(fs.existsSync(path.join(ROOT, LEGACY_MANIFEST))).toBe(false);
@@ -124,5 +158,90 @@ describe("mise file-task command surface", () => {
       expect(fragment).toContain(`[tasks."wf:${name}"]`);
       expect(fragment).toContain(`"$PI_WORKFLOWS_BIN" ${name} "$@"`);
     }
+  });
+});
+
+describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", () => {
+  test("test_generated_rust_check_chain", () => {
+    const check = generatedRustCheck();
+    const at = (token: string) => {
+      const index = check.indexOf(token);
+      expect(index, `check is missing ${token}`).toBeGreaterThanOrEqual(0);
+      return index;
+    };
+    const positions = RUST_CHAIN_TOKENS.map(at);
+    expect(positions[0]).toBe(0);
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i], `${RUST_CHAIN_TOKENS[i]} must follow ${RUST_CHAIN_TOKENS[i - 1]}`).toBeGreaterThan(positions[i - 1]);
+    }
+    expect(check).toContain("command -v cargo-deny");
+    expect(check).toContain("command -v deslop-please");
+    expect(check).toMatch(/SKIP[^\n]*cargo-deny[^\n]*>&2/);
+    expect(check).toMatch(/SKIP[^\n]*deslop-please[^\n]*>&2/);
+    expect(check).not.toContain("--update-allow");
+    // crate-boundary decisions belong to the four-skill Rust family in docs
+    expect(read("README.md")).toContain("rust-crate-architecture");
+  });
+
+  test("test_rust_architecture_docs", () => {
+    const readme = sectionText("README.md", "## Gates");
+    const architecture = sectionText("docs/architecture.md", "## Gates —");
+    const canon = read("docs/canon.md");
+
+    for (const [label, slice] of [["README.md", readme], ["docs/architecture.md", architecture]] as const) {
+      for (const token of RUST_CHAIN_TOKENS) {
+        expect(slice.toLowerCase(), `${label} Rust gate section is missing ${token}`).toContain(token.toLowerCase());
+      }
+      expect(slice, `${label} must document the structural gate`).toMatch(/Rust structural gate/i);
+      expect(slice, `${label} must document the loud skip`).toMatch(/SKIP/i);
+      expect(slice, `${label} must name stderr`).toMatch(/stderr/i);
+      expect(slice, `${label} must pin exit-1 on findings`).toMatch(/exit\s+(?:1|one)\b/i);
+    }
+
+    for (const skill of RUST_SKILLS) expect(readme).toContain(skill);
+    expect(readme).toMatch(/crate[- ]boundary/i);
+    expect(canon, "claim-to-gate mapping must name the Rust structural gate").toMatch(/Rust structural gate/i);
+    expect(canon).toContain("rust-crate-architecture");
+    expect(canon).toMatch(/crate[- ]boundary/i);
+
+    // The claim-to-gate scan is a same-line rule: every new Rust claim that
+    // obligates an agent must carry a gate reference on that very line.
+    const rustClaims = [readme, architecture, canon]
+      .flatMap((text) => text.split("\n"))
+      .filter((line) => /deslop-please|rust-crate-architecture|cargo (?:metadata|tree|clippy|deny)/i.test(line))
+      .filter((line) => /\b(?:must|must not|never|always)\b/i.test(line));
+    expect(rustClaims.length).toBeGreaterThan(0);
+    for (const line of rustClaims) expect(line).toMatch(/(?:gate:|`[^`]*\/[^`]*`)/);
+  });
+
+  test("test_rust_docs_baseline_ratchet", () => {
+    const baseline = JSON.parse(read("scripts/docs-lint-baseline.json"));
+    expect(baseline.generated_by).toBe("bash scripts/docs-lint.sh --write-baseline");
+    expect(Object.keys(baseline.sections)).toEqual(["markdownlint-cli2", "lychee", "harper-cli"]);
+
+    // Ceilings measured before the plan's doc edits. Regeneration may record
+    // a lower debt; raising any per-file budget would hide new debt.
+    const reference: Record<string, Record<string, number>> = {
+      "markdownlint-cli2": { "README.md": 44, "docs/architecture.md": 28, "docs/canon.md": 0 },
+      "lychee": { "README.md": 0, "docs/architecture.md": 0, "docs/canon.md": 0 },
+      "harper-cli": { "README.md": 47, "docs/architecture.md": 0, "docs/canon.md": 0 },
+    };
+    for (const [name, ceilings] of Object.entries(reference)) {
+      const section = baseline.sections[name];
+      const keys = Object.keys(section.files);
+      expect(keys, `${name} budgets must be sorted`).toEqual([...keys].sort());
+      expect(section.total).toBe(Object.values(section.files).reduce((sum: number, n) => sum + Number(n), 0));
+      for (const [file, ceiling] of Object.entries(ceilings)) {
+        expect(section.files[file] ?? 0, `${name} budget for ${file} rose above the pre-change reference`).toBeLessThanOrEqual(ceiling);
+      }
+    }
+
+    const docs = [read("README.md"), read("docs/architecture.md"), read("docs/canon.md")].join("\n");
+    expect(docs).toContain("Rust structural gate");
+    expect(docs).toContain("rust-crate-architecture");
+
+    // CHANGELOG is SHIP-only: the docs worker never touches history.
+    const changelogDiff = Bun.spawnSync(["git", "diff", "--quiet", "--", "CHANGELOG.md"], { cwd: ROOT });
+    expect(changelogDiff.exitCode).toBe(0);
   });
 });
