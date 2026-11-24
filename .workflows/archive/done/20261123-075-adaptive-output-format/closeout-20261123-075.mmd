@@ -1,0 +1,20 @@
+---
+title: Close-out — 20261123-075
+---
+graph LR
+  task-1["task-1 done"]:::done
+  task-2["task-2 done"]:::done
+  task-1 --> task-2
+  task-3["task-3 done"]:::done
+  task-2 --> task-3
+  task-4["task-4 done"]:::done
+  task-3 --> task-4
+  task-5["task-5 done"]:::done
+  task-4 --> task-5
+  task-6["task-6 done"]:::done
+  task-5 --> task-6
+  task-7["task-7 done"]:::done
+  task-6 --> task-7
+  task-8["task-8 done"]:::done
+  task-7 --> task-8
+  classDef done fill:#dfd;classDef fail fill:#fdd;classDef pend fill:#ffd;
