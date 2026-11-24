@@ -4133,7 +4133,7 @@ export const INIT_EXTRACT_SCHEMA = {
           type: "array",
           items: { type: "string" },
           description:
-            "skill names for the charter's review pointers: Rust → rust-review, rust-best-practices, rust-port; web frontend → modern-web-guidance, impeccable; Cloudflare Workers → the workers family, security-audit; not detectable → empty",
+            "skill names for the charter's review pointers: Rust → rust-review, rust-best-practices, rust-port, rust-crate-architecture; web frontend → modern-web-guidance, impeccable; Cloudflare Workers → the workers family, security-audit; not detectable → empty",
         },
       },
       required: ["stack", "reviewSkills"],

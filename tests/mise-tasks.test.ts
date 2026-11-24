@@ -68,11 +68,12 @@ function sectionText(relative: string, heading: string): string {
 }
 
 const RUST_CHAIN_TOKENS = [
-  "cargo metadata --locked --no-deps --format-version 1",
+  // The first metadata call bootstraps Cargo.lock; the rest stay --locked.
+  "cargo metadata --no-deps --format-version 1",
   "cargo tree --locked --workspace -e normal,build --target all",
   "cargo clippy --locked --workspace --all-targets -- -D warnings",
   "cargo deny --config deny.toml --locked check",
-  "deslop-please --allow .deslop-please.allow",
+  "deslop-please",
 ] as const;
 
 const RUST_SKILLS = [
@@ -179,6 +180,7 @@ describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", 
     expect(check).toMatch(/SKIP[^\n]*cargo-deny[^\n]*>&2/);
     expect(check).toMatch(/SKIP[^\n]*deslop-please[^\n]*>&2/);
     expect(check).not.toContain("--update-allow");
+    expect(check).not.toContain("--allow"); // no nonexistent allow dependency
     // crate-boundary decisions belong to the four-skill Rust family in docs
     expect(read("README.md")).toContain("rust-crate-architecture");
   });
@@ -254,7 +256,9 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
     if (process.env[GUARD] === "1") return;
     const env = { ...(process.env as Record<string, string>), [GUARD]: "1" };
 
-    const suite = Bun.spawnSync(["bun", "test"], {
+    // Mirror the contract's Verify line: the pinned toolchain, not whatever
+    // bun happens to be first on PATH in the caller's shell.
+    const suite = Bun.spawnSync(["mise", "exec", "--", "bun", "test"], {
       cwd: ROOT,
       env,
       encoding: "utf8",
@@ -268,12 +272,15 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
     expect(suiteOutput).toMatch(/\b0 fail\b/);
     expect(suiteOutput).toMatch(/\b\d+ pass\b/);
 
-    const docs = Bun.spawnSync(["bash", "scripts/docs-lint.sh"], {
-      cwd: ROOT,
-      env,
-      encoding: "utf8",
-      timeout: 120_000,
-    });
+    const docs = Bun.spawnSync(
+      ["mise", "exec", "--", "bash", "scripts/docs-lint.sh"],
+      {
+        cwd: ROOT,
+        env,
+        encoding: "utf8",
+        timeout: 120_000,
+      },
+    );
     expect(
       docs.exitCode,
       `docs-lint failed:\n${textOf(docs.stdout)}${textOf(docs.stderr)}`

@@ -34,5 +34,3 @@
 
 - `<placeholder>`: project-specific binding rules, one line each — only what
   every session must always obey; detail belongs in pointer targets.
-- Rust projects: add the conditional structural gate described by init doctrine
-  to PROJECT only when cargo/Rust is detected; non-Rust charters stay unchanged.
