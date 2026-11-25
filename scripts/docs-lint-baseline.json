@@ -3,10 +3,10 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 337,
+      "total": 338,
       "files": {
         "AGENTS.md": 11,
-        "README.md": 44,
+        "README.md": 45,
         "agents/dispatch-shapes.md": 18,
         "agents/execution-doctrine.md": 16,
         "agents/orchestrator.md": 8,
@@ -59,7 +59,7 @@
       "files": {}
     },
     "harper-cli": {
-      "total": 1103,
+      "total": 1107,
       "files": {
         "ADR-FORMAT.md": 9,
         "ADR.md": 1,
@@ -70,7 +70,7 @@
         "DOCS-POLICY.md": 34,
         "FOLLOW-UP-TABLE.md": 24,
         "PROPOSAL-FORMAT.md": 3,
-        "README.md": 47,
+        "README.md": 49,
         "REVIEW_GUIDELINES.md": 1,
         "SKILL.md": 381,
         "STATUS-VOCABULARY.md": 7,
@@ -78,7 +78,7 @@
         "abort.md": 9,
         "add.md": 7,
         "amend.md": 1,
-        "architecture.md": 60,
+        "architecture.md": 62,
         "audit.md": 8,
         "auto-next.md": 6,
         "brainstorm.md": 5,

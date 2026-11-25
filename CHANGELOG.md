@@ -1,3 +1,9 @@
+## 2026-11-25 — v0.15.22: Judge pre-flight content binding — plan 20261125-082 complete (four tasks)
+
+- plan 20261125-082: judge pre-flight questions bind contract text through `--context`; path-only questions fail the new `judge-context` lint.
+- Oversized or unsafe context fails closed before the network with an audit marker; yes/no finding questions keep numeric confidence and the 0.6 floor.
+- `/init` generates a `wf:judge-context` wrapper; package scripts remain package-owned and resolve context from the consumer repository.
+
 ## 2026-11-24 — v0.15.21: Rust structural gate wiring — plan 20261124-081 complete (four tasks)
 
 - plan 20261124-081: Rust projects now wire deslop-please as a structural gate and rust-crate-architecture as the crate-boundary/layer skill in greenfield and brownfield init.

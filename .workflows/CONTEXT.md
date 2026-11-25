@@ -65,3 +65,18 @@
 - **Rust structural gate** — generated Rust check wiring: Cargo.lock bootstrap, cargo metadata/tree/clippy, optional cargo-deny, then deslop-please; optional tools SKIP loudly with install hints.
 - **Four-skill Rust family** — rust-review, rust-best-practices, rust-port, rust-crate-architecture; deslop-please is a CLI, not a Pi skill.
 - **architectureGate marker** — draft-only top-level profile marker in brownfield Rust adopt drafts naming deslop-please and rust-analyzer; never a generated root allow file.
+### Glossary (plan 20261125-judge-content-binding, decision 1)
+- **content-bound judge question** — pre-flight question whose payload embeds the exact evidence it asks about; a path alone is not evidence.
+- **v1 context binding** — one contract per judge call; repeatable `--context` paths are concatenated into every question; caps apply to the final translated payload; a cap breach is a loud skip before the network call, never a partial prompt.
+- **yes-means-finding pre-flight** — v1 pre-flight uses five yes/no questions; `yes` means the named defect class is present, `no` means clear, and confidence is the judge's numeric probability.
+- **spec-only context** — v1 judge context accepts regular UTF-8 `.spec` files under `.workflows/specs/` only; symlinks, other paths, and key-shaped files are rejected.
+- **package-owned workflow scripts** — pi-workflows scripts stay in the installed package and are invoked through the `PI_WORKFLOWS_BIN` launcher; `/init` generates namespaced mise wrappers, never copies executable scripts into consumer `.workflows/`.
+- **judge-context lint** — mechanical pre-flight gate: every spec path referenced by a question must be supplied as `--context`; a path-only question exits 1 and is never sent.
+- **content-bound pre-flight** — contract pre-flight always embeds contract text; diff-bound evidence remains a Stage 2 `bench verdicts` route, not a pre-flight fallback.
+
+
+### Glossary (plan 20261125-082, whole-plan sweep)
+- **SHIP-owned churn** — CHANGELOG/version-bump paths introduced by a plan-complete commit; not worker-boundary drift and excluded from committed-slice boundary checks only.
+- **mise-pinned suite** — canonical full test suite run as `mise exec -- bun test`; needed so docs-lint fixtures see pinned linters.
+- **consumer-cwd context** — judge context paths resolve under the caller's repository root, not the installed package root; required for installed-package pre-flight.
+- **non-vacuous context lint** — pre-flight question sets using the five finding ids require supplied context even when questions contain no path literals.

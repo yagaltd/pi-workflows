@@ -145,6 +145,8 @@ A flow is declarative data — `.workflows/flows/<slug>.json` with steps (`task`
 
 Flow `decision` steps make one calibrated judge call (`node scripts/judge.mjs ask` — the single judge client: typed question sets to the System One API `/v1/systemone`; key chain `TYPESAFE_API_KEY` env → `~/.pi/agent/auth.json`); `assert` gates on value or confidence, and an unavailable judge is a loud skip, never a pass. `node scripts/intent-guard.mjs --query "..."` classifies a query against the live plan before dispatch — proceed / amend / answer / ask — failing open to `ask-human`. Provenance: decision answers in the run report, guard verdicts in `.workflows/intent/trail.jsonl`.
 
+Plan pre-flight binds contract text into every judge question: paths are pointers, not evidence. `bash scripts/wf.sh judge-context --questions <file> --context <spec>` rejects path-only question sets; `judge ask --context <spec>` embeds the spec in every instruction and fails closed before the network on cap breach. Low-confidence rows route to the human; judges never gate.
+
 ## Run budget + journal
 
 `/auto-next` and `/next` record every dispatch and verdict to the run journal (`.workflows/journal.jsonl`) via `node scripts/run-journal.mjs record` (the extension auto-records on FINAL verdicts). A budget file (`.workflows/budget.json`: `{max_tasks, max_cost_usd}`, both optional) caps the run: before each dispatch the check runs — exhaustion records `budget-exhausted` and stops (a stop, not a failure). Resume is mechanical: `node scripts/run-journal.mjs resume --plan <id>` prints done, failed, and open dispatches with budget headroom. Raising the budget is the owner's edit.

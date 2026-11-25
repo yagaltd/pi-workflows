@@ -271,7 +271,11 @@ human (gate: `tests/extension.test.ts`).
 Phase 5 contract generation runs a two-step mechanical gate before the human
 approval gate: `agent-spec parse` (syntax) then
 `scripts/check-spec-selectors.sh` (parse-only `bash -n` + grep-flag sanity on
-every `Test:` selector — findings are fix-or-justify). A Jev-based
+every `Test:` selector — findings are fix-or-justify). Pre-flight questions
+must be content-bound: `scripts/check-judge-context.mjs` rejects path-only
+sets, and `scripts/judge.mjs --context` embeds regular UTF-8 spec text before
+each question; cap breach skips loudly with an audit marker (gate:
+`tests/judge.test.ts`, `tests/judge-context.test.ts`). A Jev-based
 spec-sanity pre-pass was trust-tested and rejected (both known-bad selectors
 false-passed: the defects are repo-dependent, invisible from spec text alone
 — evidence in `.workflows/spikes/spec-sanity/report.md`); redesign candidates
