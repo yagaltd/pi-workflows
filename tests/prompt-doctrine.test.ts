@@ -1979,7 +1979,28 @@ describe("prompt doctrine — judge pre-flight content binding (TASK 3, plan 202
       // The object schemas were rejected by the client (judge.mjs:167).
       expect(q.schema?.type).not.toBe("object");
       expect(q.schema?.properties).toBeUndefined();
+      // A yes/no answer cannot carry quoted or named detail: the questions
+      // must stay decidable without asking for text the schema cannot return.
+      expect(
+        String(q.question),
+        `question ${q.id} asks for detail the yes/no schema cannot return`,
+      ).not.toMatch(/\b(?:quote|name|cite|copy|paste|transcribe|spell)\b/i);
+      expect(String(q.question).trim().endsWith("?")).toBe(true);
     }
+
+    // Review round 2: fix routing goes by finding ID plus manual inspection
+    // of the content-bound spec, never by detail extracted from the verdict.
+    const step3Start = p.indexOf("### Step 3");
+    const step3End = p.indexOf("### Step 4", step3Start);
+    expect(step3Start).toBeGreaterThan(-1);
+    expect(step3End).toBeGreaterThan(step3Start);
+    const step3 = flat082(p.slice(step3Start, step3End));
+    expect(step3).toMatch(/finding IDs?/i);
+    for (const id of PREFLIGHT_IDS_082)
+      expect(step3, `Step 3 must route ${id} by ID`).toContain(id);
+    expect(step3).toMatch(/manual inspection/i);
+    expect(step3).toMatch(/content-bound spec/i);
+    expect(step3).not.toMatch(/\b(?:quote|named|name)\b/i);
     expect(flat).toMatch(
       /yes[^.]{0,30}(?:means|=|:)[^.]{0,80}(?:finding|defect)[^.]{0,40}present/i,
     );
