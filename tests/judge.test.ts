@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -339,5 +340,95 @@ name: "judge context binding proof"
     expect(auditText).toContain(path.basename(a.abs));
     expect(auditText).toContain(path.basename(b.abs));
     expect(auditText).not.toContain(secretKey);
+  });
+});
+
+/* ── plan 20261125-082 TASK 4: consumer-cwd context resolution ─────────────
+ * The judge client is package-owned. A consumer invokes it from its own repo
+ * with an absolute launcher path; `--context` must be validated under that
+ * consumer cwd, never under the installed package root. The child process
+ * below imports a COPY of judge.mjs from a throwaway package root so the two
+ * roots cannot coincide, and mocks fetch so no network call is possible. */
+describe("judge consumer-cwd context (plan 20261125-082 TASK 4)", () => {
+  test("test_context_resolves_from_consumer_cwd", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "judge-consumer-cwd-"));
+    const repoRoot = path.resolve(import.meta.dir, "..");
+    const packageRoot = path.join(root, "installed-package");
+    const packageScripts = path.join(packageRoot, "scripts");
+    const consumer = path.join(root, "consumer-repo");
+    const relSpec = path.join(".workflows", "specs", "consumer.spec");
+    const question = "Is the consumer contract complete?";
+    const marker = "CONSUMER_CWD_CONTEXT_SENTINEL_082";
+    try {
+      fs.mkdirSync(packageScripts, { recursive: true });
+      fs.mkdirSync(path.join(consumer, path.dirname(relSpec)), { recursive: true });
+      fs.copyFileSync(path.join(repoRoot, "scripts", "judge.mjs"), path.join(packageScripts, "judge.mjs"));
+      fs.copyFileSync(path.join(repoRoot, "scripts", "wf.sh"), path.join(packageScripts, "wf.sh"));
+      fs.writeFileSync(
+        path.join(consumer, relSpec),
+        `spec: task\n## Completion Criteria\n  Then ${marker} is bound from the consumer cwd.\n`,
+      );
+      fs.writeFileSync(
+        path.join(consumer, "questions.json"),
+        JSON.stringify([{ id: "bound", question, schema: { type: "string", enum: ["no", "yes"] } }]),
+      );
+
+      // The launcher resolves its own package root; this half stays green
+      // before the fix and proves the installed-package invocation shape.
+      const usage = spawnSync("bash", [path.join(packageScripts, "wf.sh"), "judge"], {
+        cwd: consumer,
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+      expect(usage.status).toBe(2);
+      expect(`${usage.stdout}${usage.stderr}`).toContain("usage: judge.mjs ask");
+      expect(`${usage.stdout}${usage.stderr}`).not.toMatch(/ENOENT|No such file/);
+
+      const probe = path.join(packageRoot, "probe.mjs");
+      const source = [
+        'import { pathToFileURL } from "node:url";',
+        `process.chdir(${JSON.stringify(consumer)});`,
+        `const { cmdAsk } = await import(pathToFileURL(${JSON.stringify(path.join(packageScripts, "judge.mjs"))}).href);`,
+        "const calls = [];",
+        "globalThis.fetch = async (url, init) => {",
+        "  calls.push({ url, body: JSON.parse(init.body), auth: init.headers.authorization });",
+        "  return { ok: true, status: 200, text: async () => JSON.stringify({ answers: { bound: { type: 'noul', noul: 0.9 } } }) };",
+        "};",
+        "const errs = [], outs = [];",
+        `const status = await cmdAsk(["--questions", "questions.json", "--context", ${JSON.stringify(relSpec.split(path.sep).join("/"))}, "--audit", "judge-audit.jsonl"], { out: { write: (s) => outs.push(s) }, err: { write: (s) => errs.push(s) } });`,
+        'console.log("RESULT " + JSON.stringify({ status, calls, err: errs, out: outs }));',
+      ].join("\n");
+      fs.writeFileSync(probe, source);
+
+      const run = spawnSync("bun", [probe], {
+        cwd: consumer,
+        encoding: "utf8",
+        timeout: 60_000,
+        env: {
+          ...process.env,
+          TYPESAFE_API_KEY: "consumer-cwd-key",
+          TYPESAFE_BASE_URL: "https://judge.invalid",
+          JUDGE_AUDIT: path.join(consumer, "judge-audit.jsonl"),
+        },
+      });
+      expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+      const line = run.stdout.split("\n").find((l) => l.startsWith("RESULT "));
+      expect(line, `probe produced no RESULT line: ${run.stdout}\n${run.stderr}`).toBeDefined();
+      const result = JSON.parse((line ?? "").slice("RESULT ".length));
+      expect(result.status).toBe(0);
+      expect(result.err.join("")).toBe("");
+      expect(result.calls).toHaveLength(1);
+      expect(result.calls[0].auth).toBe("Bearer consumer-cwd-key");
+      const instruction = result.calls[0].body.questions.bound.instructions;
+      expect(instruction).toContain(marker);
+      expect(instruction.indexOf(marker)).toBeLessThan(instruction.indexOf(question));
+
+      const auditText = fs.readFileSync(path.join(consumer, "judge-audit.jsonl"), "utf8").trim();
+      const audit = JSON.parse(auditText.split("\n").at(-1) ?? "{}");
+      expect(audit.status).toBe("ok");
+      expect(audit.contextPaths).toContain(relSpec.split(path.sep).join("/"));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });

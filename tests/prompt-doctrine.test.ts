@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   buildAdoptContext,
+  buildInitMiseFragment,
   extractAdoptDraft,
   recordedAdoptBackend,
   writeAdoptDrafts,
@@ -2061,5 +2062,125 @@ describe("prompt doctrine — judge pre-flight content binding (TASK 3, plan 202
         `${script} exited ${r.status}:\n${r.stdout}\n${r.stderr}`,
       ).toBe(0);
     }
+  }, 600000);
+});
+
+/* ── TASK 4 (plan 20261125-082): whole-plan review fixes ──────────────────
+ * Four source findings plus their integrated gates. All pins are reads (or
+ * child gate runs); no production or docs file is rewritten by these tests. */
+const INIT_082_T4 = fs.readFileSync("skills/init/SKILL.md", "utf8");
+
+describe("prompt doctrine — whole-plan review fixes (TASK 4, plan 20261125-082)", () => {
+  test("test_confidence_floor_preserved", () => {
+    const p = phase5Slice082();
+    const start = p.indexOf("### Step 4");
+    const end = p.indexOf("### Step 5", start);
+    expect(start, "Phase 5 must carry a Step 4 escalation rule").toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const step4 = flat082(p.slice(start, end));
+
+    expect(step4).toMatch(/confidence/i);
+    expect(step4).toMatch(/escalat/i);
+    expect(step4).toContain("0.6");
+    expect(step4).toMatch(
+      /0\.6\s*(?:floor|threshold|or below)|(?:floor|below|under|less than|at or below|[<≤])[^\n]{0,24}0\.6/i,
+    );
+
+    // The review finding was the vague replacement text; it must be gone
+    // from Step 4 and from the plan skill as a whole.
+    const vague = /\b(?:near|around|about|close to|roughly|approximately)\s+0?\.5\b/i;
+    expect(step4).not.toMatch(vague);
+    expect(PLAN_082).not.toMatch(vague);
+  });
+
+  test("test_init_wrapper_inventory_current", () => {
+    const start = INIT_082_T4.indexOf("**Task bridge: pi-workflows wrappers");
+    expect(start, "init skill must document its generated wrapper inventory").toBeGreaterThan(-1);
+    const end = INIT_082_T4.indexOf("**Persona bridge", start);
+    expect(end).toBeGreaterThan(start);
+    const inventory = INIT_082_T4.slice(start, end);
+
+    // Derive the expected names from the actual deterministic builder so the
+    // doc cannot silently lag behind a newly generated wrapper.
+    const generated = buildInitMiseFragment();
+    const wrappers = [...generated.matchAll(/^\[tasks\."(wf:[^"]+)"\]$/gm)].map((m) => m[1]);
+    expect(wrappers).toContain("wf:judge-context");
+    for (const name of wrappers) {
+      expect(inventory, `init wrapper inventory omits ${name}`).toContain(`[tasks."${name}"]`);
+    }
+    for (const name of [
+      "wf:judge",
+      "wf:lessons",
+      "wf:bench",
+      "wf:archive-check",
+      "wf:wip",
+      "wf:judge-context",
+    ]) {
+      expect(inventory, `init wrapper inventory omits ${name}`).toContain(`[tasks."${name}"]`);
+    }
+  });
+
+  test("test_stage2_fixes_green", () => {
+    // The outer `mise exec -- bun test` run is the full suite; a child run
+    // with this sentinel skips this gate test, so there is no recursion.
+    if (process.env.PI_WORKFLOWS_STAGE2_INNER === "1") return;
+
+    const expected: Record<string, string[]> = {
+      "tests/judge.test.ts": ["test_context_resolves_from_consumer_cwd"],
+      "tests/judge-context.test.ts": ["test_lint_requires_context_for_preflight"],
+      "tests/prompt-doctrine.test.ts": [
+        "test_confidence_floor_preserved",
+        "test_init_wrapper_inventory_current",
+        "test_stage2_fixes_green",
+      ],
+    };
+    for (const [file, names] of Object.entries(expected)) {
+      const source = fs.readFileSync(file, "utf8");
+      for (const name of names) {
+        expect(source, `${file} must pin the exact selector ${name}`).toMatch(
+          new RegExp(`test\\(\\s*["']${name}["']`),
+        );
+      }
+    }
+
+    // The contract stays at the planned two fix rounds and keeps the full
+    // Verify chain; no extra budget or weaker gate is allowed to close TASK 4.
+    const specFile = ".workflows/specs/task-4.spec";
+    if (fs.existsSync(specFile)) {
+      const spec = fs.readFileSync(specFile, "utf8");
+      expect(spec).toMatch(/^max-rounds:\s*2\s*$/m);
+      expect(spec).toContain("mise exec -- bun test");
+      expect(spec).toContain("mise exec -- bash scripts/docs-lint.sh");
+      expect(spec).toContain("bash scripts/check-drift.sh");
+    }
+
+    // Bun matches the full "describe > test" display name, so the names
+    // are matched unanchored (stage2 itself is deliberately not listed).
+    const pattern =
+      "(test_context_resolves_from_consumer_cwd|test_lint_requires_context_for_preflight|test_confidence_floor_preserved|test_init_wrapper_inventory_current)";
+    const targeted = spawnSync(
+      "mise",
+      ["exec", "--", "bun", "test", ...Object.keys(expected), "-t", pattern],
+      {
+        encoding: "utf8",
+        timeout: 600000,
+        env: { ...process.env, PI_WORKFLOWS_STAGE2_INNER: "1" },
+      },
+    );
+    expect(
+      targeted.status,
+      `pinned fix selectors failed:\n${targeted.stdout}\n${targeted.stderr}`,
+    ).toBe(0);
+
+    const docs = spawnSync("mise", ["exec", "--", "bash", "scripts/docs-lint.sh"], {
+      encoding: "utf8",
+      timeout: 600000,
+    });
+    expect(docs.status, `docs-lint failed:\n${docs.stdout}\n${docs.stderr}`).toBe(0);
+    const drift = spawnSync("bash", ["scripts/check-drift.sh"], {
+      encoding: "utf8",
+      timeout: 600000,
+    });
+    expect(drift.status, `check-drift failed:\n${drift.stdout}\n${drift.stderr}`).toBe(0);
   }, 600000);
 });

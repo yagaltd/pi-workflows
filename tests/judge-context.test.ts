@@ -101,3 +101,66 @@ describe("judge-context lint (plan 20261125-082 TASK 2)", () => {
     }
   });
 });
+
+/* ── plan 20261125-082 TASK 4: a path-free pre-flight set still needs context ──
+ * The accepted five-question template names no path at all. Without supplied
+ * context the lint must still fail: a path-free question is no more evidence
+ * than a path-only one when the contract text was never bound. */
+describe("judge-context pre-flight context gate (plan 20261125-082 TASK 4)", () => {
+  test("test_lint_requires_context_for_preflight", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "judge-context-preflight-"));
+    const relContext = path.join(".workflows", "specs", "task-4.spec").split(path.sep).join("/");
+    const questions = path.join(root, "questions.json");
+    const audit = path.join(root, "judge-audit.jsonl");
+    const ids = [
+      "criterion_testable",
+      "boundary_complete",
+      "ambiguity",
+      "missing_scenarios",
+      "second_path_violation",
+    ];
+    const rows = ids.map((id) => ({
+      id,
+      question: `Is the ${id} finding present in the contract?`,
+      schema: { enum: ["yes", "no"] },
+    }));
+    try {
+      fs.mkdirSync(path.dirname(path.join(root, relContext)), { recursive: true });
+      fs.writeFileSync(path.join(root, relContext), "spec: task\nname: path-free pre-flight fixture\n---\n\n## Completion Criteria\n");
+      fs.writeFileSync(questions, JSON.stringify(rows));
+
+      const env = {
+        ...process.env,
+        JUDGE_AUDIT: audit,
+        TYPESAFE_API_KEY: "test-only-key-never-sent",
+        TYPESAFE_BASE_URL: "http://127.0.0.1:1",
+        TYPESAFE_TIMEOUT_MS: "100",
+      };
+      const bare = spawnSync("node", [LINT, "--questions", questions], {
+        cwd: root,
+        encoding: "utf8",
+        env,
+        timeout: 30_000,
+      });
+      const bareOut = `${bare.stdout}${bare.stderr}`;
+      expect(bare.status, bareOut).toBe(1);
+      expect(bareOut).toContain(FINDING);
+      expect(bareOut).not.toContain("JUDGE SKIPPED");
+      expect(bareOut).not.toContain("Bearer ");
+      expect(fs.existsSync(audit)).toBe(false);
+
+      const bound = spawnSync("node", [LINT, "--questions", questions, "--context", relContext], {
+        cwd: root,
+        encoding: "utf8",
+        env,
+        timeout: 30_000,
+      });
+      const boundOut = `${bound.stdout}${bound.stderr}`;
+      expect(bound.status, boundOut).toBe(0);
+      expect(boundOut).not.toContain(FINDING);
+      expect(fs.existsSync(audit)).toBe(false);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
