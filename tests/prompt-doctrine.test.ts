@@ -1580,13 +1580,18 @@ function changedPaths081(): string[] {
   // path touched across the whole plan delta from its known base: a commit
   // window misses late task wiring, and a tree diff alone misses files whose
   // net change is zero (e.g. the universal template round-trip).
+  // SHIP's plan-complete commit (07defa4) versions the package and writes
+  // CHANGELOG.md; that churn is SHIP-owned, not worker-boundary drift. Filter
+  // it from the committed slice only: a live edit to either path still shows
+  // up in dirty/untracked and is checked against the forbidden list.
+  const shipOwned = new Set(["CHANGELOG.md", "package.json"]);
   const committed = gitPaths081([
     "log",
     "--format=",
     "--name-only",
     "2a938e0..HEAD",
     "--",
-  ]);
+  ]).filter((p) => !shipOwned.has(p));
   return [...new Set([...committed, ...dirty, ...untracked])];
 }
 

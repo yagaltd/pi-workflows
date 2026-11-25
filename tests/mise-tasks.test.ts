@@ -148,6 +148,7 @@ describe("mise file-task command surface", () => {
       "wf:archive-check",
       "wf:bench",
       "wf:judge",
+      "wf:judge-context",
       "wf:lessons",
       "wf:wip",
     ]);
