@@ -57,3 +57,4 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
    `mise run check` chain runs the structural commands, and
    `rust-crate-architecture` settles crate-boundary decisions (gate:
    `tests/mise-tasks.test.ts`).
+9. Paths are pointers, not evidence (gate: `scripts/check-judge-context.mjs`).

@@ -3,7 +3,7 @@
   "generated_by": "bash scripts/docs-lint.sh --write-baseline",
   "sections": {
     "markdownlint-cli2": {
-      "total": 342,
+      "total": 337,
       "files": {
         "AGENTS.md": 11,
         "README.md": 44,
@@ -42,7 +42,7 @@
         "skills/idea/SKILL.md": 5,
         "skills/init/SKILL.md": 1,
         "skills/optimize/SKILL.md": 7,
-        "skills/plan/SKILL.md": 36,
+        "skills/plan/SKILL.md": 31,
         "skills/refactor/SKILL.md": 5,
         "skills/review/SKILL.md": 14,
         "templates/ADR-FORMAT.md": 3,
