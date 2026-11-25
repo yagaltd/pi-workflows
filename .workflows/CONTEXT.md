@@ -59,3 +59,9 @@
 - **policy-authoritative artifact** — only the policy result may select table or diagram form; judge answers flag and route, never gate.
 - **generated view** — additive SVG/PNG artifact with alt text, emitted after canonical text; never a replacement for judge-readable prose or the mandatory follow-up table.
 - **OPEN_DIAGRAM_CLI** — environment override for the open-diagram executable; local venv path is only the default.
+
+
+### Glossary (plan 20261124-081)
+- **Rust structural gate** — generated Rust check wiring: Cargo.lock bootstrap, cargo metadata/tree/clippy, optional cargo-deny, then deslop-please; optional tools SKIP loudly with install hints.
+- **Four-skill Rust family** — rust-review, rust-best-practices, rust-port, rust-crate-architecture; deslop-please is a CLI, not a Pi skill.
+- **architectureGate marker** — draft-only top-level profile marker in brownfield Rust adopt drafts naming deslop-please and rust-analyzer; never a generated root allow file.

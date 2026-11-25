@@ -403,3 +403,5 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 20261123 EXECUTE 20261123-075 approved by owner — adaptive output format; wave 1 TASK 1 + TASK 2 dispatched.
 
 20261123 SHIP 20261123-075 adaptive-output-format — plan complete (eight tasks); text-first policy with earned open-diagram views.
+
+20261124 EXECUTE 20261124-081 approved by owner — Rust structural gate + crate-architecture skill; wave 1 TDD testers dispatched.

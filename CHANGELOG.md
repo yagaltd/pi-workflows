@@ -1,3 +1,9 @@
+## 2026-11-24 — v0.15.21: Rust structural gate wiring — plan 20261124-081 complete (four tasks)
+
+- plan 20261124-081: Rust projects now wire deslop-please as a structural gate and rust-crate-architecture as the crate-boundary/layer skill in greenfield and brownfield init.
+- Generated Rust checks bootstrap Cargo.lock, run cargo metadata/tree/clippy, add optional cargo-deny, then deslop-please with loud SKIP and install hints when optional tools are absent.
+- Brownfield adopt drafts carry a draft-only architectureGate marker and the four-skill Rust family; non-Rust projects stay byte-identical.
+
 ## 2026-11-23 — v0.15.20: adaptive output format — plan 20261123-075 complete (seven tasks)
 
 - plan 20261123-075: adaptive output format — deterministic text-first policy with earned diagrams
