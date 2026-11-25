@@ -208,3 +208,48 @@ describe("wf launcher contract", () => {
     expect(mise).not.toMatch(/^\[tasks\]/m);
   });
 });
+
+/* ── plan 20261125-082 TASK 2: judge-context launcher verb ──
+ * The launcher forwards the full argv unchanged to the package-owned lint and
+ * advertises the verb in its usage text; the consumer never owns a copy. */
+describe("wf launcher (plan 20261125-082 TASK 2) — judge-context verb", () => {
+  test("test_judge_context_wf_verb", () => {
+    const source = fs.readFileSync(LAUNCHER, "utf8");
+    expect(source).toMatch(/\bjudge-context\)/);
+    expect(source).toContain("check-judge-context.mjs");
+
+    const usage = run([]);
+    expect(usage.status).toBe(2);
+    expect(`${usage.stdout}${usage.stderr}`).toContain("judge-context");
+
+    // An argv recorder in a throwaway package root proves the forwarding is
+    // verbatim (including a value with spaces) without depending on lint rules.
+    const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), "wf-judge-context-"));
+    const scriptsDir = path.join(sandbox, "scripts");
+    fs.mkdirSync(scriptsDir, { recursive: true });
+    const copiedLauncher = path.join(scriptsDir, "wf.sh");
+    fs.copyFileSync(LAUNCHER, copiedLauncher);
+    const recorder = path.join(scriptsDir, "check-judge-context.mjs");
+    fs.writeFileSync(recorder, "console.log(JSON.stringify(process.argv.slice(2)))\n");
+
+    const args = [
+      "--questions",
+      "questions.json",
+      "--context",
+      ".workflows/specs/task-2.spec",
+      "--extra",
+      "two words",
+    ];
+    try {
+      const r = spawnSync("bash", [copiedLauncher, "judge-context", ...args], {
+        cwd: sandbox,
+        encoding: "utf8",
+      });
+      expect(r.status).toBe(0);
+      expect(JSON.parse(r.stdout.trim())).toEqual(args);
+      expect(r.stderr).not.toContain("usage:");
+    } finally {
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+});

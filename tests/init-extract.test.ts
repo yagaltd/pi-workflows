@@ -11,6 +11,8 @@ import {
   verifyAdoptDrafts,
   recordedAdoptBackend,
   noKeyMaterialIn,
+  buildInitMiseFragment,
+  INIT_MISE_FRAGMENT_PATH,
   type AdoptDraft,
 } from "../scripts/init-extract.ts";
 
@@ -547,6 +549,49 @@ describe("init-extract (plan 081 T4) — live schema four-skill parity", () => {
     const root = makeRepo(RUST_FIXTURE);
     const { draft } = await draftAdopt(root);
     expect(draft.stackDetection.reviewSkills).toEqual(RUST_REVIEW_SKILLS);
+  });
+});
+
+/* ── plan 20261125-082 TASK 2: generated mise wrapper ──
+ * /init writes namespaced wrappers only. The lint stays package-owned behind
+ * PI_WORKFLOWS_BIN; no executable script is copied into the consumer tree. */
+describe("init-extract (plan 20261125-082 TASK 2) — generated mise wrapper", () => {
+  test("test_init_mise_wrapper", () => {
+    const fragment = buildInitMiseFragment();
+    expect(fragment).toContain('[tasks."wf:judge-context"]');
+    expect(fragment).toMatch(/^run = .*"\$PI_WORKFLOWS_BIN" judge-context "\$@".*$/m);
+
+    // A fragment is TOML wrapper definitions, never a script body or a path
+    // into the installed package's scripts directory.
+    for (const line of fragment.split("\n").filter((l) => l.trim() !== "")) {
+      const wrapperLine =
+        /^\[tasks\."wf:[a-z0-9-]+"\]$/.test(line) ||
+        line.startsWith("description = ") ||
+        line.startsWith("run = ");
+      expect(line.startsWith("#") || wrapperLine).toBe(true);
+    }
+    expect(fragment).not.toContain("exec ");
+    expect(fragment).not.toContain("#!");
+    expect(fragment).not.toContain("scripts/");
+
+    const root = makeRepo(CLEAN_REPO);
+    const target = path.join(root, INIT_MISE_FRAGMENT_PATH);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+
+    const listFiles = (dir: string): string[] =>
+      fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.name === ".git") return [];
+        const full = path.join(dir, entry.name);
+        return entry.isDirectory() ? listFiles(full) : [full];
+      });
+    const before = new Set(listFiles(root));
+    fs.writeFileSync(target, fragment);
+
+    const added = listFiles(root).filter((f) => !before.has(f));
+    expect(added).toEqual([target]);
+    expect(fs.statSync(target).mode & 0o111).toBe(0);
+    expect(fs.existsSync(path.join(root, "scripts", "check-judge-context.mjs"))).toBe(false);
+    expect(fs.existsSync(path.join(root, "scripts", "wf.sh"))).toBe(false);
   });
 });
 
