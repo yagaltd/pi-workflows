@@ -10,6 +10,7 @@ usage() {
 usage: bash scripts/wf.sh <subcommand> [args...]
 subcommands:
   judge            scripts/judge.mjs
+  judge-context    scripts/check-judge-context.mjs
   lessons          scripts/lessons.mjs
   bench            scripts/bench-intake-triage.ts
   archive-check    scripts/check-archive.sh
@@ -43,6 +44,7 @@ root="$(cd -P -- "$dir/.." && pwd)" || exit 2
 
 case "$cmd" in
   judge)          exec node    "$root/scripts/judge.mjs"              "$@" ;;
+  judge-context)  exec node    "$root/scripts/check-judge-context.mjs" "$@" ;;
   lessons)        exec node    "$root/scripts/lessons.mjs"            "$@" ;;
   bench)          exec bun     "$root/scripts/bench-intake-triage.ts" "$@" ;;
   archive-check)  exec bash    "$root/scripts/check-archive.sh"       "$@" ;;
