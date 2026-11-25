@@ -618,14 +618,17 @@ plan bundle at SHIP.
 
 ### Step 3 — feed findings to the spec drafter as fix rounds
 
-Read the verdict table and route each finding to the drafter:
-`criterion_testable` / `boundary_complete` → rewrite the scenario's
-`Test:` selector or the boundary paths; `ambiguity` → reword the flagged
-phrase; `missing_scenarios` → add the named scenario;
-`second_path_violation` → close the alternate path (dead end, boundary,
-or decision note) that satisfies the selectors. Dispatch the findings as
-one fix round, then re-run the pre-flight on the revised contract (same
-command, same audit file).
+Read the verdict table and route each `yes` finding by its finding ID:
+`criterion_testable` / `boundary_complete` → have the drafter inspect the
+content-bound spec for untestable selectors or missing boundary paths;
+`ambiguity` → inspect it for wording open to two readings;
+`missing_scenarios` → inspect it for the uncovered failure or edge case;
+`second_path_violation` → inspect it for the alternate path (dead end,
+boundary, or decision note) that satisfies a selector. The yes/no schema
+returns no free-text detail, so the drafter locates each defect by manual
+inspection of the content-bound spec supplied by `--context`. Dispatch all
+`yes` IDs as one fix round, then re-run the pre-flight on the revised
+contract (same command, same audit file).
 
 ### Step 4 — stop clean or escalate
 
@@ -662,17 +665,17 @@ ids and schemas verbatim. `yes` means the named finding is present.
   },
   {
     "id": "ambiguity",
-    "question": "Is any wording open to two readings? Quote it.",
+    "question": "Is any wording open to two readings?",
     "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "missing_scenarios",
-    "question": "Is a failure or edge scenario missing? Name it.",
+    "question": "Is a failure or edge scenario missing?",
     "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "second_path_violation",
-    "question": "Can a scenario pass via a second path? Name it.",
+    "question": "Can a scenario pass via a second path?",
     "schema": { "enum": ["yes", "no"] }
   }
 ]
