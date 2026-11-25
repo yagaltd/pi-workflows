@@ -1898,3 +1898,147 @@ describe("prompt doctrine — universal template parity (TASK 4, plan 20261124-0
     }
   });
 });
+
+// --- TASK 3 (plan 20261125-082): content-bound judge pre-flight doctrine ---
+// Wave 2 owns skills/plan/SKILL.md + docs/canon.md + the regenerated docs
+// baseline. These pins read doctrine only; the docs gates run read-only.
+const PLAN_082 = fs.readFileSync("skills/plan/SKILL.md", "utf8");
+const CANON_082 = fs.readFileSync("docs/canon.md", "utf8");
+const REVIEW_082 = fs.readFileSync("skills/review/SKILL.md", "utf8");
+const flat082 = (s: string) => s.replace(/\s+/g, " ");
+const PREFLIGHT_IDS_082 = [
+  "criterion_testable",
+  "boundary_complete",
+  "ambiguity",
+  "missing_scenarios",
+  "second_path_violation",
+];
+
+function phase5Slice082(): string {
+  const m = PLAN_082.indexOf("## Phase 5: GENERATE CONTRACTS");
+  expect(m).toBeGreaterThan(-1);
+  const end = PLAN_082.indexOf("## Phase 6: HAND OFF", m);
+  expect(end).toBeGreaterThan(m);
+  return PLAN_082.slice(m, end);
+}
+
+function codeBlocks082(s: string): string[] {
+  return [...s.matchAll(/```(?:[a-z]+)?\r?\n([\s\S]*?)```/g)].map((m) =>
+    flat082(m[1]),
+  );
+}
+
+function questionTemplate082(): Array<Record<string, any>> {
+  const candidates = [...phase5Slice082().matchAll(/```json\s*\n([\s\S]*?)```/g)]
+    .map((m) => {
+      try {
+        return JSON.parse(m[1]);
+      } catch {
+        return null;
+      }
+    })
+    .filter(
+      (v): v is Array<Record<string, any>> =>
+        Array.isArray(v) &&
+        v.length > 0 &&
+        v.every((q) => q && typeof q === "object" && "id" in q),
+    );
+  expect(
+    candidates.length,
+    "Phase 5 must carry a parseable ready-to-write question template",
+  ).toBeGreaterThan(0);
+  return candidates[0];
+}
+
+describe("prompt doctrine — judge pre-flight content binding (TASK 3, plan 20261125-082)", () => {
+  test("test_plan_template_content_bound", () => {
+    const p = phase5Slice082();
+    const flat = flat082(p);
+
+    // The judge command binds the contract text at call time: both the
+    // question file and the spec must ride on the same command line.
+    const ask = codeBlocks082(p).find((b) => /\bjudge ask\b/.test(b));
+    expect(ask, "Phase 5 must pin the judge ask command").toBeDefined();
+    const cmd = ask ?? "";
+    expect(cmd).toMatch(/--questions\s+\S+/);
+    expect(cmd).toMatch(/--context\s+\S+/);
+    expect(cmd).toMatch(/\.workflows\/reviews\/preflight-[^\s]+\.json/);
+    expect(cmd).toMatch(/\.workflows\/specs\/[^\s]+\.spec/);
+
+    // No bare contract placeholder in the questions: the lint rejects a
+    // path with no supplied context, so the template cannot teach one.
+    const questions = questionTemplate082();
+    expect(questions.map((q) => q.id).sort()).toEqual(
+      [...PREFLIGHT_IDS_082].sort(),
+    );
+    expect(JSON.stringify(questions)).not.toContain("<spec path>");
+    for (const q of questions) {
+      expect(q.schema?.enum?.map((v: unknown) => String(v).toLowerCase()).sort()).toEqual(
+        ["no", "yes"],
+      );
+      // The object schemas were rejected by the client (judge.mjs:167).
+      expect(q.schema?.type).not.toBe("object");
+      expect(q.schema?.properties).toBeUndefined();
+    }
+    expect(flat).toMatch(
+      /yes[^.]{0,30}(?:means|=|:)[^.]{0,80}(?:finding|defect)[^.]{0,40}present/i,
+    );
+    expect(flat).toMatch(
+      /(?:confidence[^.]{0,80}numeric|numeric[^.]{0,80}confidence)/i,
+    );
+  });
+
+  test("test_preflight_content_bound_only", () => {
+    const p = phase5Slice082();
+    const flat = flat082(p);
+
+    expect(flat).toMatch(/pre-flight[^.]{0,120}content-bound/i);
+    expect(flat).toMatch(/path-only[^.]{0,100}(?:invalid|never|forbidden|rejected)/i);
+    // The diff route is named as a Stage 2 hand-off, never as pre-flight
+    // input and never as a flag on the judge ask command.
+    expect(flat).toMatch(/diff-bound/i);
+    expect(flat).toMatch(/bench verdicts/);
+    expect(flat).toMatch(/Stage 2/i);
+    const ask = codeBlocks082(p).find((b) => /\bjudge ask\b/.test(b)) ?? "";
+    expect(ask).not.toContain("bench verdicts");
+    expect(ask).not.toContain("--diff");
+
+    // Stage 2 itself is untouched: bench verdicts still takes a diff summary.
+    const start = REVIEW_082.indexOf(
+      "## Stage 2: Adversarial + Quality Review",
+    );
+    expect(start).toBeGreaterThan(-1);
+    const end = REVIEW_082.indexOf("### Stage 2: Reviews", start);
+    expect(end).toBeGreaterThan(start);
+    const stage2 = REVIEW_082.slice(start, end);
+    expect(stage2).toContain("bench verdicts");
+    expect(stage2).toContain("--diff");
+  });
+
+  test("test_canon_paths_not_evidence", () => {
+    const rule = CANON_082.split("\n").find((line) =>
+      /\bpaths?\b.*\bpointers?\b.*\bnot\s+evidence\b/i.test(line),
+    );
+    expect(rule, "canon lacks the paths-are-not-evidence rule").toBeDefined();
+    const line = rule ?? "";
+    const gate = line.indexOf("gate:");
+    const lint = line.indexOf("check-judge-context.mjs");
+    expect(gate).toBeGreaterThan(-1);
+    expect(lint).toBeGreaterThan(gate);
+    expect(line.slice(0, gate)).toMatch(/not evidence/i);
+
+    // The baseline is regenerated only through docs-lint's --write-baseline;
+    // after that, both gates read clean. Checks are read-only here: the test
+    // never rewrites the baseline as a side effect.
+    for (const script of ["scripts/docs-lint.sh", "scripts/check-drift.sh"]) {
+      const r = spawnSync("bash", [script], {
+        encoding: "utf8",
+        timeout: 300000,
+      });
+      expect(
+        r.status,
+        `${script} exited ${r.status}:\n${r.stdout}\n${r.stderr}`,
+      ).toBe(0);
+    }
+  }, 600000);
+});
