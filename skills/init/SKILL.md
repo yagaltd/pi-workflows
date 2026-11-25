@@ -228,8 +228,9 @@ project's
    If present, WRITE `mise/conf.d/pi-workflows.toml` (use the existing
    directory layout when one exists) from `buildInitMiseFragment()` in
    `scripts/init-extract.ts`. The emitted tables are `[tasks."wf:judge"]`,
-   `[tasks."wf:lessons"]`, `[tasks."wf:bench"]`,
-   `[tasks."wf:archive-check"]`, and `[tasks."wf:wip"]`. Each task calls
+   `[tasks."wf:judge-context"]`, `[tasks."wf:lessons"]`,
+   `[tasks."wf:bench"]`, `[tasks."wf:archive-check"]`, and `[tasks."wf:wip"]`.
+   Each task calls
    `"$PI_WORKFLOWS_BIN" <verb> "$@"`.
    Boundaries (gate: owner approval): do not edit the root `mise.toml`, do not
    define `check`/`verify`, do not create a legacy task manifest, and do not

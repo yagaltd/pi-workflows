@@ -593,8 +593,9 @@ spec drafter as fix rounds, re-run after fixes — only then the approval ask.
 
 The command supplies the contract text via `--context`; a bare path is not
 evidence. Path-only questions are invalid (gate:
-`scripts/check-judge-context.mjs`). Diff-bound evidence stays a Stage 2
-`bench verdicts` route, never judge input.
+`scripts/check-judge-context.mjs`). The gate also rejects the five-question
+preflight set with no `--context`, even when no path is named. Diff-bound
+evidence stays a Stage 2 `bench verdicts` route, never judge input.
 
 ### Step 1 — write the question file (one per contract)
 
@@ -634,9 +635,9 @@ contract (same command, same audit file).
 
 A clean re-run proceeds to the approval ask. Remaining findings after the
 fix round are NOT silently dropped — list them for the human at the
-approval ask. Confidence is numeric (0–1); rows near 0.5 escalate to the
-human the same way: the judge flags and routes, it never passes or fails
-a contract, and agent-spec lint stays the mechanical authority.
+approval ask. Confidence is numeric (0–1); rows at or below the 0.6 floor
+escalate to the human the same way: the judge flags and routes, it never passes
+or fails a contract, and agent-spec lint stays the mechanical authority.
 
 ### Step 5 — NO-JUDGE degradation
 

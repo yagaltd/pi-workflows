@@ -37,7 +37,9 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const STATE = "pi-workflows judge question set";
 
 const repoRoot = () => resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const specDir = () => join(repoRoot(), ".workflows", "specs");
+// The judge is package-owned but the contract belongs to the consumer: never
+// resolve --context against the installed package root.
+const specDir = () => join(process.cwd(), ".workflows", "specs");
 const auditPath = () => process.env.JUDGE_AUDIT || join(repoRoot(), ".workflows", "judge-audit.jsonl");
 const baseUrl = () => (process.env.TYPESAFE_BASE_URL || "https://api.typesafe.ai").replace(/\/+$/, "");
 const model = () => process.env.TYPESAFE_MODEL || "jev-latest";
@@ -82,8 +84,8 @@ export function loadQuestions(file) {
 /**
  * @cc [label:context-binding] spec-only-context
  * Context paths MUST resolve to regular UTF-8 `.spec` files directly under the
- * repository spec directory; symlinks, outside paths and key-shaped names MUST
- * be rejected before any request is sent.
+ * consumer working directory's spec directory; symlinks, outside paths and
+ * key-shaped names MUST be rejected before any request is sent.
  */
 function loadContext(paths) {
   const dir = specDir();
