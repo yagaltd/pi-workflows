@@ -585,23 +585,30 @@ Two authoring rules bind every generated contract:
 For plans with **≥2 waves**, the default path is the spec-drafter fan-out from
 the Drafting Pipeline; the fallback is hand-writing the specs.
 
-**Judge pre-flight (plan 20261025-017) — one judge call per drafted contract,
-before the approval ask**: Phase 5 ends by presenting the generated contracts to
-the human. Before that approval ask, run the judge pre-flight: ONE judge call
-per drafted contract, findings fed back to the spec drafter as fix rounds,
-re-run after fixes — only then the approval ask.
+**Judge pre-flight (plan 20261025-017) — content-bound, one judge call per
+drafted contract, before the approval ask**: Phase 5 ends by presenting the
+generated contracts to the human. Before that approval ask, run the judge
+pre-flight: ONE judge call per drafted contract, findings fed back to the
+spec drafter as fix rounds, re-run after fixes — only then the approval ask.
+
+The command supplies the contract text via `--context`; a bare path is not
+evidence. Path-only questions are invalid (gate:
+`scripts/check-judge-context.mjs`). Diff-bound evidence stays a Stage 2
+`bench verdicts` route, never judge input.
 
 ### Step 1 — write the question file (one per contract)
 
 For each drafted `.spec`, write
 `.workflows/reviews/preflight-<task-id>.json` from the template below —
 five questions, one per finding kind, schema-typed. Do not add or drop
-kinds: the five are the contract's full defect surface.
+kinds: the five are the contract's full defect surface. Run the parse-only
+gate (`scripts/check-judge-context.mjs`) with the same `--context` before
+the judge call.
 
 ### Step 2 — run the judge (one call per contract)
 
 ```bash
-bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" judge ask --questions .workflows/reviews/preflight-<task-id>.json --audit .workflows/reviews/judge-<plan-id>.md
+bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" judge ask --questions .workflows/reviews/preflight-<task-id>.json --context .workflows/specs/<task-id>.spec --audit .workflows/reviews/judge-<plan-id>.md
 ```
 
 Five questions per call stays far under the client's 64-question cap (the
@@ -624,7 +631,7 @@ command, same audit file).
 
 A clean re-run proceeds to the approval ask. Remaining findings after the
 fix round are NOT silently dropped — list them for the human at the
-approval ask. Low-confidence rows (`confidence: low`) escalate to the
+approval ask. Confidence is numeric (0–1); rows near 0.5 escalate to the
 human the same way: the judge flags and routes, it never passes or fails
 a contract, and agent-spec lint stays the mechanical authority.
 
@@ -638,75 +645,35 @@ human gate; it never is the gate — the approval ask is unchanged.
 
 ### Pre-flight question template (ready-to-write JSON)
 
-Replace `<spec path>` with the contract under test; keep the five ids and
-schemas verbatim.
+The file named by `--context` is the contract under test; keep the five
+ids and schemas verbatim. `yes` means the named finding is present.
 
 ```json
 [
   {
     "id": "criterion_testable",
-    "question": "Contract <spec path>: is every Acceptance-Criteria scenario mechanically testable as written — explicit Test: selector, observable post-state? Flag any scenario a machine cannot verify.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "verdict": { "enum": ["flag", "clear"] },
-        "confidence": { "enum": ["low", "medium", "high"] },
-        "finding": { "type": "string" }
-      },
-      "required": ["verdict", "confidence"]
-    }
+    "question": "Is any Test: selector or post-state untestable?",
+    "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "boundary_complete",
-    "question": "Contract <spec path>: do Allowed Changes list every file the implementation must touch, and Forbidden exclude the out-of-scope paths? Flag any file the work needs but the boundaries omit.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "verdict": { "enum": ["flag", "clear"] },
-        "confidence": { "enum": ["low", "medium", "high"] },
-        "finding": { "type": "string" }
-      },
-      "required": ["verdict", "confidence"]
-    }
+    "question": "Are any required paths missing from boundaries?",
+    "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "ambiguity",
-    "question": "Contract <spec path>: which wording could a worker read two ways? Flag each ambiguous phrase, quote it, and rate the risk (minor/blocking) in the finding.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "verdict": { "enum": ["flag", "clear"] },
-        "confidence": { "enum": ["low", "medium", "high"] },
-        "finding": { "type": "string" }
-      },
-      "required": ["verdict", "confidence"]
-    }
+    "question": "Is any wording open to two readings? Quote it.",
+    "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "missing_scenarios",
-    "question": "Contract <spec path>: which failure, edge, or integration scenarios does it omit — error paths, empty states, cross-task effects? Flag each omission and name the scenario to add.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "verdict": { "enum": ["flag", "clear"] },
-        "confidence": { "enum": ["low", "medium", "high"] },
-        "finding": { "type": "string" }
-      },
-      "required": ["verdict", "confidence"]
-    }
+    "question": "Is a failure or edge scenario missing? Name it.",
+    "schema": { "enum": ["yes", "no"] }
   },
   {
     "id": "second_path_violation",
-    "question": "Contract <spec path>: could any scenario pass via a path other than the specified one — a silent fallback, dead-end workaround, or alternate route that satisfies the Test: selectors while violating a boundary or decision? Flag the path.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "verdict": { "enum": ["flag", "clear"] },
-        "confidence": { "enum": ["low", "medium", "high"] },
-        "finding": { "type": "string" }
-      },
-      "required": ["verdict", "confidence"]
-    }
+    "question": "Can a scenario pass via a second path? Name it.",
+    "schema": { "enum": ["yes", "no"] }
   }
 ]
 ```
