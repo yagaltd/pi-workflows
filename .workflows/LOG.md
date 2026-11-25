@@ -409,3 +409,5 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 20261124 SHIP 20261124-081 rust-structural-gate — Rust structural gate and crate-architecture skill wiring.
 
 20261125 EXECUTE 20261125-082 approved by owner — judge pre-flight content binding; wave 1 TDD testers dispatched.
+
+20261125 SHIP 20261125-082 judge-content-binding — plan complete (four tasks); judge pre-flight binds contract evidence.

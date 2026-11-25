@@ -1,0 +1,43 @@
+{
+  "id": "20261125-082/task-1+task-2+task-3+task-4",
+  "kind": "ship",
+  "scope": [
+    ".workflows",
+    "README.md",
+    "docs/architecture.md",
+    "CHANGELOG.md",
+    "package.json",
+    "scripts/docs-lint-baseline.json"
+  ],
+  "root_cause": "plan 20261125-082 complete with final review pass",
+  "verdict": ".workflows/reviews/plan-final-20261125-082.md",
+  "status": "shipped",
+  "created_at": "2026-11-25T08:53:32.069Z",
+  "task_ids": [
+    "task-1",
+    "task-2",
+    "task-3",
+    "task-4"
+  ],
+  "verified_files": [
+    "CHANGELOG.md",
+    "docs/architecture.md",
+    "package.json",
+    "README.md",
+    "scripts/docs-lint-baseline.json",
+    ".workflows/CONTEXT.md",
+    ".workflows/LOG.md",
+    ".workflows/plan.md",
+    ".workflows/proposals/20261125-judge-content-binding.md",
+    ".workflows/reviews/plan-20261125-082.md",
+    ".workflows/reviews/plan-final-20261125-082.md",
+    ".workflows/reviews/task-1.md",
+    ".workflows/reviews/task-2.md",
+    ".workflows/reviews/task-3.md",
+    ".workflows/reviews/task-4.md",
+    ".workflows/specs/task-1.spec",
+    ".workflows/specs/task-2.spec",
+    ".workflows/specs/task-3.spec",
+    ".workflows/specs/task-4.spec"
+  ]
+}
