@@ -2,7 +2,7 @@
 
 > Plan ID: 20261124-081
 > Created: 2026-11-24
-> Status: IN PROGRESS
+> Status: DONE
 
 ## Lifecycle
 - Plan ID is assigned once at bootstrap: NNN = (entries in `.workflows/archive/done` + `.workflows/archive/superseded`) + 1, zero-padded to 3. Never reuse a Plan ID.
@@ -77,7 +77,7 @@ Outcome: propose. The scout artifact is the inspection evidence; no further rese
 - `README.md` — command-table section describes the generated Rust `check` chain and the Rust architecture skill family.
 - `docs/architecture.md` — gates section records the Rust structural gate and its skip semantics.
 - `docs/canon.md` — claim-to-gate mapping for the Rust structural gate.
-- `scripts/docs-lint-baseline.json` — regenerated only with `bash scripts/docs-lint.sh --write-baseline`.
+- `scripts/docs-lint-baseline.json` — regenerated only by the docs-lint gate script with its baseline-write flag.
 - CHANGELOG: SHIP-only — next release — Wire deslop-please as the Rust structural gate (Plan ID 20261124-081); no worker task edits `CHANGELOG.md`.
 
 ## Spec Map

@@ -1,0 +1,36 @@
+{
+  "id": "20261124-081/task-1+task-2+task-3+task-4",
+  "kind": "ship",
+  "scope": [
+    ".workflows",
+    "CHANGELOG.md",
+    "package.json"
+  ],
+  "root_cause": "plan 20261124-081 complete with final review pass",
+  "verdict": ".workflows/reviews/plan-final-20261124-081.md",
+  "status": "shipped",
+  "created_at": "2026-11-25T01:56:16.896Z",
+  "task_ids": [
+    "task-1",
+    "task-2",
+    "task-3",
+    "task-4"
+  ],
+  "verified_files": [
+    "CHANGELOG.md",
+    "package.json",
+    ".workflows/CONTEXT.md",
+    ".workflows/LOG.md",
+    ".workflows/plan.md",
+    ".workflows/reviews/plan-20261124-081.md",
+    ".workflows/reviews/plan-final-20261124-081.md",
+    ".workflows/reviews/task-1.md",
+    ".workflows/reviews/task-2.md",
+    ".workflows/reviews/task-3.md",
+    ".workflows/reviews/task-4.md",
+    ".workflows/specs/task-1.spec",
+    ".workflows/specs/task-2.spec",
+    ".workflows/specs/task-3.spec",
+    ".workflows/specs/task-4.spec"
+  ]
+}
