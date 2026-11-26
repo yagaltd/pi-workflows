@@ -122,14 +122,19 @@ a scaffold, a quick `git status` + tree-match check suffices; docs-tier).
 project's
    actual commands — when the dev environment defines mise tasks (step 7
    below), the charter's test/check pointers cite `mise run check` and
-   `mise run verify` so agents execute the same tasks gates run. Every
+   `mise run verify` so agents execute the same tasks gates run. The
+   CITATION REPAIR (step 7) confirms these once the tasks exist — or
+   strips them if they never materialize: never leave a `mise run …`
+   pointer to tasks that were not written. Every
    session — orchestrator and all
    subagents — auto-loads it from here on.
 2. **Profile**: GENERATE `.workflows/profile.json` — the machine truth
    for project facts: `commands`, `pointers`, `tree`, `gates`,
    `scaffolds`, `meta` (the schema is what `scripts/profile-lint.sh`
    checks). Greenfield: fill from the Phase 1–4 facts — test/lint/build
-   commands (Phase 1), the pointer targets the charter cites (canon,
+   commands (Phase 1; raw at first write — step 7's CITATION REPAIR
+   rewrites `commands.test`/`commands.lint` to the mise tasks when they
+   exist), the pointer targets the charter cites (canon,
    docs-policy, registry, ADR index), tree domains from the approved
    Phase 3 tree, gates in run order (at minimum the charter's
    `scripts/agents-lint.sh`). Brownfield (`/init --adopt`): there are no
@@ -176,8 +181,8 @@ project's
    `.tool-versions`, `mise.toml`). Greenfield: GENERATE a `mise.toml`
    draft — a `[tools]` block pinned from the detected markers, versions
    confirmed with `mise current` — together with a `[tasks]` section whose
-   `check` and `verify` tasks are REAL commands detected from the stack —
-   never placeholder filler. For JS/TS, DETECT the project's OWN tooling
+   `check`, `verify`, and `ci` tasks are REAL commands detected from the
+   stack — never placeholder filler. For JS/TS, DETECT the project's OWN tooling
    instead of assuming TypeScript: the linter (`eslint` or `biome`, from
    `eslint.config.*` / `.eslintrc*` / `biome.json` or a linter entry in the
    package manifest) and the runner (`vitest`, `node --test`, `bun test`,
@@ -194,7 +199,46 @@ project's
    If no linter is detectable, `check` stays ABSENT and the handoff says
    so plainly — leave the gate out rather than invent one. These tasks are the
    executable charter: gates and review run them (see scripts/flow-gates.mjs),
-   and the step 1 charter cites them. Also PERSIST the approved Phase 3
+   and the step 1 charter cites them. `ci = "mise run check && mise run
+   verify"` composes the pair for CI: if `check` is absent, `ci` runs
+   `verify` alone, and if neither exists neither does `ci`.
+
+   CONTRACT: `check`, `verify`, and `ci` stay FLAT inline under `[tasks]`
+   in the root `mise.toml` — `scripts/flow-gates.mjs` (`miseTasks()`) and
+   `/review` Layer 0 parse only that shape; `.mise/tasks/` file tasks are
+   invisible to them, and moving `check` there silently disables the
+   executable charter. File tasks are for other verbs — the `wf:*` bridge
+   below is the pattern. OPTIONAL: a conditional docs gate (the
+   `docs-if-touched` pattern — run the docs checks only when doc surfaces
+   changed; house example `.mise/tasks/docs-if-touched`) — add it only
+   when the project has a docs gate; it never replaces `check`/`verify`.
+
+   **CI wiring (gate: owner approval):** `mise` coordinates CI, so the
+   project's CI calls the tasks instead of restating commands. Only when
+   the tasks above exist (this step did not degrade): GREENFIELD — OFFER
+   a minimal CI job running `mise install && mise run ci`
+   (`.github/workflows/ci.yml` when the repo's host is GitHub Actions;
+   no CI host declared → say so and skip). BROWNFIELD — when a CI
+   configuration exists (`.github/workflows/*`, `.gitlab-ci.yml`,
+   `Jenkinsfile`, …), OFFER consolidation onto `mise run ci` under the
+   version-file boundaries: NEVER delete an existing CI configuration,
+   NEVER rewrite a pipeline unilaterally, never forced. 🛑 the owner
+   approves before any CI file is written or changed; a declined offer
+   stays untouched and is named as an open question in the handoff. The
+   handoff reports the CI outcome (job written / consolidated /
+   offered-and-declined / no CI host declared / skipped — this step
+   degraded).
+
+   CITATION REPAIR (runs after this step resolves): steps 1–2 wrote the
+   charter and `profile.json` before these tasks existed — reconcile
+   now. Tasks exist → set `profile.commands.test = "mise run verify"`
+   and `profile.commands.lint = "mise run check"`, and confirm the
+   charter cites that pair. Step degraded → STRIP every `mise run …`
+   citation from the charter and keep the Phase-1 raw commands in the
+   profile (a citation to tasks that do not exist is a bug: the
+   `command -v` check in `profile-lint` will not catch it). Run
+   `profile-lint` again after any change.
+   Also PERSIST the approved Phase 3
    tree as `.workflows/tree.json` in this minimal shape (the tree checker
    consumes it):
 
@@ -276,11 +320,13 @@ project's
    OWNER and record their pick, then write `models/registry.json` with
    provenance `pi-catalog`. The catalog is CAPABILITY truth: NEVER read
    key files or key contents (API keys) — the catalog needs no secrets.
-10. **Hand off**: present the summary — including BOTH the model-policy
-   outcome (the owner's registry picks and their provenance) AND the
+10. **Hand off**: present the summary — including the model-policy
+   outcome (the owner's registry picks and their provenance), the
    dev-environment outcome (mise.toml written and verified, native
    pinning reported, the generated `mise/conf.d/pi-workflows.toml` path, or
-   the loud mise-absent skip) — and point at `/plan` — its
+   the loud mise-absent skip), and the CI outcome (job written /
+   consolidated / offered-and-declined / no CI host declared / skipped
+   with the reason) — and point at `/plan` — its
 contract
    Boundaries now derive from the documented tree (say so explicitly in
    the handoff). The fresh project now carries its charter (probed

@@ -1,3 +1,9 @@
+## 2026-11-26 — v0.15.23: /init CI coordination — mise `ci` task + CI wiring
+
+- `/init` step 7 now generates a flat `ci = "mise run check && mise run verify"` task alongside `check`/`verify`, with the flat-inline contract pinned: flow-gates and `/review` Layer 0 parse only root `mise.toml` `[tasks]` — `.mise/tasks/` file tasks are invisible to the gates.
+- New gated CI wiring: greenfield offers a minimal `mise install && mise run ci` job; brownfield `--adopt` offers consolidation onto `mise run ci` under the version-file boundaries (never delete, never unilateral, never forced); the handoff reports the CI outcome.
+- Citation repair after step 7: charter and `profile.json` commands are confirmed against the generated tasks or stripped back to Phase-1 raw commands when the step degrades; the optional `docs-if-touched` conditional docs-gate pattern is documented.
+
 ## 2026-11-25 — v0.15.22: Judge pre-flight content binding — plan 20261125-082 complete (four tasks)
 
 - plan 20261125-082: judge pre-flight questions bind contract text through `--context`; path-only questions fail the new `judge-context` lint.
