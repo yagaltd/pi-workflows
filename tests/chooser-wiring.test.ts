@@ -3,6 +3,16 @@ import fs from "node:fs";
 import { requireLiveState } from "./state-helpers";
 
 const read = (p: string) => fs.readFileSync(p, "utf8");
+const releaseVersion = () => (JSON.parse(read("package.json")) as { version: string }).version;
+const releaseParts = () => read("CHANGELOG.md").split(/(?=^## )/m).filter((part) => part.startsWith("## "));
+const releaseEntry = () => releaseParts()[0] ?? "";
+// Pre-sweep entries carry the plan id in the preceding release, so the pin
+// follows the newest plan-tagged release rather than a fixed historical id.
+const releasePlanId = () =>
+  releaseParts()
+    .slice(0, 2)
+    .map((part) => part.match(/\bplan (\d{8}-\d{3})\b/)?.[1] ?? "")
+    .find(Boolean) ?? "";
 
 describe("chooser wiring (plan 20261026-032)", () => {
   test("boundaries carry the chooser step and the view rules", () => {
@@ -44,11 +54,22 @@ describe("chooser wiring (plan 20261026-032)", () => {
   });
 
   test("test_release_changelog_plan_id", () => {
+    const entry = releaseEntry();
+    const version = releaseVersion();
+    const planId = releasePlanId();
+    expect(entry).toMatch(/^## \d{4}-\d{2}-\d{2} — v/);
+    expect(entry).toContain(`v${version}:`);
+    expect(planId).toMatch(/^\d{8}-\d{3}$/);
+    expect(releaseParts().slice(0, 2).join("\n")).toContain(`plan ${planId}`);
+  });
+
+  test("test_release_pin_current", () => {
+    const entry = releaseEntry();
+    const version = releaseVersion();
+    expect(entry.split("\n")[0]).toContain(`v${version}:`);
+    expect(releasePlanId()).toMatch(/^\d{8}-\d{3}$/);
     const changelog = read("CHANGELOG.md");
-    const entry = "plan 20261125-082: judge pre-flight questions bind contract text through `--context`";
-    expect(changelog).toContain(entry);
-    expect(changelog).toContain("20261125-082");
-    expect(changelog.split("\n").slice(0, 12).join("\n")).toContain(entry);
-    expect(changelog).toMatch(/^## 2026-11-26 — v0\.15\.23:/m);
+    expect(changelog.startsWith(entry)).toBe(true);
+    expect(changelog.slice(entry.length)).toMatch(/^## /m);
   });
 });

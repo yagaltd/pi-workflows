@@ -246,9 +246,23 @@ describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", 
     expect(docs).toContain("Rust structural gate");
     expect(docs).toContain("rust-crate-architecture");
 
-    // CHANGELOG is SHIP-only: the docs worker never touches history.
-    const changelogDiff = Bun.spawnSync(["git", "diff", "--quiet", "--", "CHANGELOG.md"], { cwd: ROOT });
-    expect(changelogDiff.exitCode).toBe(0);
+    // CHANGELOG is SHIP-only: the docs worker never touches history. The
+    // release sweep may prepend the current version/plan entry to HEAD; any
+    // other history edit still fails this ratchet.
+    const changelog = read("CHANGELOG.md");
+    const head = Bun.spawnSync(["git", "show", "HEAD:CHANGELOG.md"], {
+      cwd: ROOT,
+    }).stdout.toString();
+    const entries = changelog.split(/(?=^## )/m).filter((part) => part.startsWith("## "));
+    const entry = entries[0] ?? "";
+    const version = (JSON.parse(read("package.json")) as { version: string }).version;
+    const shipEntry = /^## \d{4}-\d{2}-\d{2} — v/.test(entry)
+      && entry.includes(`v${version}:`)
+      && /\bplan \d{8}-\d{3}\b/.test(entries.slice(0, 2).join("\n"));
+    expect(
+      changelog === head || (shipEntry && changelog === entry + head),
+      "CHANGELOG changes must be the SHIP release entry only",
+    ).toBe(true);
   });
 });
 
