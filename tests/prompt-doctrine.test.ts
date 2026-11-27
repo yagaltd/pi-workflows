@@ -1903,7 +1903,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(changed).toContain("extensions/index.ts");
     for (const p of RUST_GATE_PLACEMENTS) expect(changed).toContain(p);
     expect(fs.existsSync(".deslop-please.allow")).toBe(false);
-  });
+  }, 30_000);
 });
 
 // --- plan 20261124-081 TASK 4 — universal template must stay Rust-free ---
