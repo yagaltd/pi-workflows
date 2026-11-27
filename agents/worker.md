@@ -224,7 +224,7 @@ never weaken, skip, or rename them to get there.
 ### 1. Contract verification (if .spec file exists)
 
 ```bash
-agent-spec lifecycle .workflows/specs/<task>.spec --code . --format json
+agent-spec lifecycle .workflows/specs/<task>.spec --code .
 agent-spec guard --spec-dir .workflows/specs --code . --change-scope worktree
 ```
 
@@ -399,3 +399,7 @@ building.
 - Boundary handlers (HTTP routes, CLI) must not pretend success.
 - If a catch exists only to satisfy lint, it's a bug.
 - When uncertain, crash fast over silent degradation.
+
+Worker Verify runs a read-only `format-check`, scoped to explicit paths. It
+never rewrites those paths. Use `fmt` only when explicitly contracted on
+explicit paths.

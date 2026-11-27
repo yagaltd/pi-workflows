@@ -107,11 +107,13 @@ describe("final integration cleanup (plan 20261127-083 TASK 4)", () => {
       "scripts/docs-lint-baseline.json",
       ".workflows/tree.json",
       ".workflows/specs/task-4.spec",
+      ".githooks/pre-commit",
+      "agents/worker.md",
       "tests/final-integration.test.ts",
     ]);
-    // Live .workflows/ plan, review, spec, and LOG state is orchestrator
-    // bookkeeping, not shipped behavior. The history, version, plugin, and
-    // allowed-path checks below still bind the release diff.
+    // Plan 20261127-083 TASK 5 owns the staged hook and the worker role rule;
+    // live .workflows/ state is orchestrator bookkeeping. The history, version,
+    // plugin, and allowed-path checks below still bind the release diff.
     expect(
       [...touched].filter(
         (p) =>

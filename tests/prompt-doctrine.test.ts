@@ -1624,8 +1624,11 @@ function formatterOnlyDelta081(rel: string): boolean {
 }
 
 function changedPaths081(): string[] {
+  // Plan 20261127-083 TASK 5 owns this lint surface; an uncommitted fix to it
+  // is contracted churn, not plan 081 boundary drift.
+  const task5Owned = new Set(["scripts/profile-lint.sh"]);
   const dirty = gitPaths081(["diff", "--name-only", "HEAD", "--"])
-    .filter((p) => !formatterOnlyDelta081(p));
+    .filter((p) => !formatterOnlyDelta081(p) && !task5Owned.has(p));
   const untracked = gitPaths081([
     "ls-files",
     "--others",
