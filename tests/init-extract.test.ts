@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import {
   INIT_EXTRACT_SCHEMA,
   buildAdoptContext,
@@ -593,5 +594,369 @@ describe("init-extract (plan 20261125-082 TASK 2) — generated mise wrapper", (
     expect(fs.existsSync(path.join(root, "scripts", "check-judge-context.mjs"))).toBe(false);
     expect(fs.existsSync(path.join(root, "scripts", "wf.sh"))).toBe(false);
   });
+});
+
+/* ── plan 20261127-083 TASK 2: formatter profile detection / owner gate ──
+ * Contract source: .workflows/specs/task-2.spec. The registry is deterministic
+ * marker→profile detection over on-disk evidence only. Every formatter tool is
+ * a PATH stub that logs invocations: detection/offers may resolve a tool, but
+ * no check/fmt/format process and no write may happen before owner approval.
+ * The contract seam is scripts/init-extract.ts exporting
+ * detectFormatterProfiles(root) and buildFormatterOffer(profile). */
+
+const FORMATTER_SCRIPT = path.resolve(import.meta.dir, "..", "scripts", "init-extract.ts");
+
+type FormatterProfileLike = {
+  id?: unknown;
+  command?: unknown;
+  checkCommand?: unknown;
+  evidence?: unknown;
+  targets?: unknown;
+  status?: unknown;
+};
+
+function makeFormatterStubs(): { dir: string; log: string; pathEnv: string } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "formatter-stub-"));
+  const log = path.join(dir, "invocations.log");
+  for (const name of ["dprint", "ruff", "cargo", "shfmt"]) {
+    const p = path.join(dir, name);
+    fs.writeFileSync(
+      p,
+      [
+        "#!/usr/bin/env bash",
+        `echo "$*" >> ${JSON.stringify(log)}`,
+        'case "$1" in',
+        "  --version|version|-V|--help) echo stub; exit 0 ;;",
+        "esac",
+        "exit 0",
+        "",
+      ].join("\n"),
+      { mode: 0o755 }
+    );
+    fs.chmodSync(p, 0o755);
+  }
+  return { dir, log, pathEnv: `${dir}${path.delimiter}${process.env.PATH ?? ""}` };
+}
+
+async function formatterModule(names: string[]): Promise<Record<string, (...args: any[]) => any>> {
+  const mod = (await import("../scripts/init-extract.ts")) as Record<string, unknown>;
+  for (const name of names)
+    if (typeof mod[name] !== "function")
+      throw new Error(`scripts/init-extract.ts must export ${name}() for the formatter registry contract`);
+  return mod as Record<string, (...args: any[]) => any>;
+}
+
+function asProfiles(value: unknown): FormatterProfileLike[] {
+  if (Array.isArray(value)) return value as FormatterProfileLike[];
+  if (value && typeof value === "object") return Object.values(value) as FormatterProfileLike[];
+  return [];
+}
+
+function flattenPaths(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(flattenPaths);
+  if (value && typeof value === "object") return Object.values(value).flatMap(flattenPaths);
+  return [];
+}
+
+const idOf = (p: FormatterProfileLike) => (typeof p.id === "string" ? p.id : "");
+const cmdOf = (p: FormatterProfileLike) =>
+  typeof p.command === "string" ? p.command : typeof p.checkCommand === "string" ? p.checkCommand : "";
+const targetsOf = (p: FormatterProfileLike) =>
+  flattenPaths((p as any).targets ?? (p as any).files ?? (p as any).paths);
+
+async function detectFormatters(root: string): Promise<FormatterProfileLike[]> {
+  const mod = await formatterModule(["detectFormatterProfiles"]);
+  return asProfiles(await mod.detectFormatterProfiles(root));
+}
+
+async function offerText(profile: FormatterProfileLike): Promise<string> {
+  const mod = await formatterModule(["buildFormatterOffer"]);
+  const value = await mod.buildFormatterOffer(profile);
+  if (typeof value === "string") return value;
+  if (value && typeof value.text === "string") return value.text;
+  return JSON.stringify(value ?? "");
+}
+
+function checkInvocations(logPath: string): string[] {
+  try {
+    return fs
+      .readFileSync(logPath, "utf8")
+      .split("\n")
+      .filter((line) => /\b(check|fmt|format)\b/.test(line));
+  } catch {
+    return [];
+  }
+}
+
+const GATE_STUB = "#!/usr/bin/env bash\n# fixture gate stub\n";
+
+const DPRINT_TS_FILES: Record<string, string> = {
+  "README.md": "# dprint fixture\n",
+  "package.json": JSON.stringify(
+    {
+      name: "dprint-fixture",
+      scripts: { test: "bun test", lint: "bun x tsc --noEmit" },
+      devDependencies: { dprint: "0.50.0" },
+    },
+    null,
+    2
+  ),
+  "dprint.json": JSON.stringify(
+    {
+      plugins: [
+        "https://plugins.dprint.dev/typescript-0.93.0.wasm",
+        "https://plugins.dprint.dev/json-0.20.0.wasm",
+      ],
+      includes: ["**/*.ts", "**/*.js", "**/*.json"],
+      typescript: { lineWidth: 100 },
+    },
+    null,
+    2
+  ),
+  "src/index.ts": "export const x = 1;\n",
+  "src/util.js": "module.exports = 1;\n",
+  "data/config.json": '{"a":1}\n',
+  "scripts/agents-lint.sh": GATE_STUB,
+};
+
+const PYTHON_RUFF_FILES: Record<string, string> = {
+  "README.md": "# python fixture\n",
+  "pyproject.toml": '[tool.ruff]\nline-length = 100\n',
+  "src/app.py": "x=1\n",
+  "scripts/agents-lint.sh": GATE_STUB,
+};
+
+const RUST_FILES: Record<string, string> = {
+  "README.md": "# rust fixture\n",
+  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "src/main.rs": "fn main() {}\n",
+  "scripts/agents-lint.sh": GATE_STUB,
+};
+
+const SHELL_FILES: Record<string, string> = {
+  "README.md": "# shell fixture\n",
+  ".shfmt": "-i 2 -ci -sr\n",
+  "scripts/run.sh": "#!/usr/bin/env bash\necho ok\n",
+  "scripts/agents-lint.sh": GATE_STUB,
+};
+
+const PLUGIN_FILES: Record<string, string> = {
+  ...DPRINT_TS_FILES,
+  "dprint.json": JSON.stringify(
+    {
+      plugins: [
+        "https://plugins.dprint.dev/typescript-0.93.0.wasm",
+        "https://plugins.dprint.dev/toml-0.6.3.wasm",
+        "https://plugins.dprint.dev/sql-0.4.0.wasm",
+        "https://plugins.dprint.dev/jupyter-0.2.0.wasm",
+        "https://plugins.dprint.dev/dockerfile-0.3.2.wasm",
+      ],
+      includes: ["**/*.ts", "**/*.toml", "**/*.sql", "**/*.ipynb", "**/Dockerfile"],
+    },
+    null,
+    2
+  ),
+  "conf.toml": "key = 1\n",
+  "query.sql": "SELECT 1;\n",
+  "notebook.ipynb": "{}\n",
+  Dockerfile: "FROM scratch\n",
+};
+
+const CONTROL_FILES: Record<string, string> = {
+  "README.md": "# unmarked fixture\n",
+  "src/index.ts": "export const x = 1;\n",
+  "docs/guide.md": "# guide\n",
+};
+
+type FileSnapshot = Map<string, { sha: string; mode: number }>;
+
+function snapshot(root: string): FileSnapshot {
+  const out: FileSnapshot = new Map();
+  const walk = (dir: string, rel: string) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (e.name === ".git") continue;
+      const full = path.join(dir, e.name);
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(full, r);
+      else if (e.isFile())
+        out.set(r, {
+          sha: crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex"),
+          mode: fs.statSync(full).mode & 0o777,
+        });
+    }
+  };
+  walk(root, "");
+  return out;
+}
+
+function expectOnlyDraftChanges(before: FileSnapshot, after: FileSnapshot, label: string): void {
+  const added = [...after.keys()].filter((p) => !before.has(p));
+  const removed = [...before.keys()].filter((p) => !after.has(p));
+  const mutated = [...after.keys()].filter((p) => {
+    const b = before.get(p);
+    return b && (!/\.draft(?:\.|$)/.test(p)) && (b.sha !== after.get(p)!.sha || b.mode !== after.get(p)!.mode);
+  });
+  expect({ label, added, removed, mutated }).toEqual({ label, added: [], removed: [], mutated: [] });
+}
+
+function seedDrafts(root: string): void {
+  const dir = path.join(root, ".workflows");
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of ["profile.json.draft", "AGENTS.md.draft", "tree.json.draft", "charter-pointers.draft.md"])
+    fs.writeFileSync(path.join(dir, f), `seeded ${f}\n`);
+}
+
+describe("init-extract (plan 20261127-083 T2) — formatter detection + owner gate", () => {
+  test("test_formatter_registry_detects_stacks", async () => {
+    const stubs = makeFormatterStubs();
+    const previousPath = process.env.PATH;
+    process.env.PATH = stubs.pathEnv;
+    try {
+      const twice = async (files: Record<string, string>) => {
+        const root = makeRepo(files);
+        const first = await detectFormatters(root);
+        const second = await detectFormatters(root);
+        expect(JSON.stringify(first), "detection must be byte-identical across two runs").toBe(
+          JSON.stringify(second)
+        );
+        return first;
+      };
+
+      const ts = await twice(DPRINT_TS_FILES);
+      const py = await twice(PYTHON_RUFF_FILES);
+      const wrapped = await twice({
+        ...PYTHON_RUFF_FILES,
+        "dprint.json": JSON.stringify({
+          exec: [{ command: "ruff format --check", ext: "py" }],
+          includes: ["**/*.py"],
+        }),
+      });
+      const rust = await twice(RUST_FILES);
+      const shell = await twice(SHELL_FILES);
+      const plugins = await twice(PLUGIN_FILES);
+      const control = await twice(CONTROL_FILES);
+
+      for (const [label, profiles] of Object.entries({ ts, py, wrapped, rust, shell, plugins })) {
+        expect(profiles.length, `${label}: expected a detected profile`).toBeGreaterThan(0);
+        for (const p of profiles) {
+          expect(idOf(p).length, `${label}: profile id`).toBeGreaterThan(0);
+          expect(cmdOf(p).length, `${label}: exact read-only check command`).toBeGreaterThan(0);
+          expect(flattenPaths(p.evidence).length, `${label}: evidence paths`).toBeGreaterThan(0);
+          expect(["offer", "skip"]).toContain(p.status);
+        }
+      }
+
+      expect(
+        ts.some((p) => /\bdprint\b/.test(cmdOf(p)) && /\bcheck\b/.test(cmdOf(p))),
+        "TS/JS/JSON must resolve to a dprint check command"
+      ).toBe(true);
+      expect(py.some((p) => cmdOf(p).includes("ruff format --check")), "Python must resolve to Ruff").toBe(true);
+      expect(py.every((p) => !cmdOf(p).includes("dprint")), "no dprint Ruff wrapper without config").toBe(true);
+      expect(
+        wrapped.some((p) => /dprint/.test(cmdOf(p)) && /ruff/.test(cmdOf(p))),
+        "dprint Ruff wrapper only when existing config names it"
+      ).toBe(true);
+      expect(rust.some((p) => cmdOf(p).includes("cargo fmt --check")), "Rust must prefer cargo fmt --check").toBe(true);
+      expect(rust.every((p) => !/\bdprint\b/.test(cmdOf(p))), "no dprint exec as a Rust default").toBe(true);
+      expect(
+        shell.some((p) => /\bshfmt\b/.test(cmdOf(p)) && !/(^|\s)-w(\s|$)/.test(cmdOf(p))),
+        "shell must use a read-only shfmt check"
+      ).toBe(true);
+      const pluginProfile = plugins.find((p) => /\bdprint\b/.test(cmdOf(p)));
+      expect(pluginProfile, "pinned dprint plugins must produce a dprint profile").toBeDefined();
+      const pluginTargets = targetsOf(pluginProfile!).join("\n");
+      for (const rel of ["conf.toml", "query.sql", "notebook.ipynb", "Dockerfile"])
+        expect(pluginTargets, `dprint plugin target ${rel}`).toContain(rel);
+
+      expect(control, "source files without markers/config must yield no profile").toHaveLength(0);
+      for (const p of [...ts, ...py, ...wrapped, ...rust, ...shell, ...plugins, ...control])
+        expect(targetsOf(p).join("\n")).not.toMatch(/\.mdx?(?:\s|$)/);
+      expect(checkInvocations(stubs.log), "detection must not run a check").toEqual([]);
+    } finally {
+      process.env.PATH = previousPath;
+    }
+  }, 30000);
+
+  test("test_owner_gate_offer", async () => {
+    const stubs = makeFormatterStubs();
+    const previousPath = process.env.PATH;
+    process.env.PATH = stubs.pathEnv;
+    try {
+      const root = makeRepo({ ...PYTHON_RUFF_FILES, ...RUST_FILES });
+      const before = snapshot(root);
+      const profiles = await detectFormatters(root);
+      const ruff = profiles.find((p) => /ruff/i.test(idOf(p)));
+      const rust = profiles.find((p) => /cargo|rust/i.test(idOf(p)));
+      expect(ruff, "Ruff profile must be detected").toBeDefined();
+      expect(rust, "Rust profile must be detected").toBeDefined();
+
+      for (const p of [ruff!, rust!]) {
+        const text = await offerText(p);
+        expect(text).toContain(idOf(p));
+        expect(text).toContain(cmdOf(p));
+        expect(flattenPaths(p.evidence).some((e) => text.includes(e))).toBe(true);
+        expect(text).toMatch(/requires explicit owner approval/i);
+      }
+      const rustOffer = await offerText(rust!);
+      expect(rustOffer).toContain("cargo fmt --check");
+      expect(rustOffer, "dprint exec is an opt-in alternate only").toMatch(
+        /opt[- ]?in|optional|alternate|only on (?:explicit )?request/i
+      );
+      expect(rustOffer).not.toMatch(/default[^\n]*dprint/i);
+
+      // Declining means silence: no approval call, no writes, no formatter run.
+      await offerText(rust!);
+      expectOnlyDraftChanges(before, snapshot(root), "owner-gate offer without approval");
+      expect(checkInvocations(stubs.log), "offer must not spawn a format/check process").toEqual([]);
+    } finally {
+      process.env.PATH = previousPath;
+    }
+  }, 30000);
+
+  test("test_no_unapproved_writes", async () => {
+    const stubs = makeFormatterStubs();
+    const previousPath = process.env.PATH;
+    process.env.PATH = stubs.pathEnv;
+    try {
+      const roots = [
+        makeRepo(DPRINT_TS_FILES),
+        makeRepo(PYTHON_RUFF_FILES),
+        makeRepo(RUST_FILES),
+      ];
+      for (const root of roots) seedDrafts(root);
+
+      for (const root of roots) {
+        const before = snapshot(root);
+        const profiles = await detectFormatters(root);
+        expect(profiles.length, "fixture must expose a formatter profile").toBeGreaterThan(0);
+        const offers = await Promise.all(profiles.map((p) => offerText(p)));
+        expect(offers.join("\n")).toMatch(/requires explicit owner approval/i);
+        expectOnlyDraftChanges(before, snapshot(root), "module API detection + offer");
+
+        const cli = spawnSync(
+          "bun",
+          [FORMATTER_SCRIPT, "--root", root, "--recorded", "--formatter-offer"],
+          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } }
+        );
+        const cliOut = `${cli.stdout ?? ""}${cli.stderr ?? ""}`;
+        expect(cliOut, "CLI must present the formatter OFFER").toMatch(/\bOFFER\b/i);
+        for (const p of profiles) expect(cliOut).toContain(idOf(p));
+        expectOnlyDraftChanges(before, snapshot(root), "CLI detection + offer");
+
+        const denied = spawnSync(
+          "bun",
+          [FORMATTER_SCRIPT, "--root", root, "--recorded", "--apply-formatter"],
+          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } }
+        );
+        expect(denied.status, "apply without the approval flag must be rejected").not.toBe(0);
+        expect(`${denied.stdout ?? ""}${denied.stderr ?? ""}`.toLowerCase()).toContain("approval");
+        expectOnlyDraftChanges(before, snapshot(root), "apply without approval");
+      }
+      expect(checkInvocations(stubs.log), "no format/check process before approval").toEqual([]);
+    } finally {
+      process.env.PATH = previousPath;
+    }
+  }, 60000);
 });
 
