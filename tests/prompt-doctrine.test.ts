@@ -2209,7 +2209,9 @@ describe("prompt doctrine — whole-plan review fixes (TASK 4, plan 20261125-082
 
     // The contract stays at the planned two fix rounds and keeps the full
     // Verify chain; no extra budget or weaker gate is allowed to close TASK 4.
-    const specFile = ".workflows/specs/task-4.spec";
+    // Plan 20261125-082's contract is archived; the live spec path now
+    // belongs to plan 20261127-083.
+    const specFile = ".workflows/archive/done/20261125-082-judge-content-binding/specs/task-4.spec";
     if (fs.existsSync(specFile)) {
       const spec = fs.readFileSync(specFile, "utf8");
       expect(spec).toMatch(/^max-rounds:\s*2\s*$/m);
