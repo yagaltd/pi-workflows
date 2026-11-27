@@ -142,3 +142,94 @@ describe("final integration cleanup (plan 20261127-083 TASK 4)", () => {
     }
   }, 600_000);
 });
+
+/* ── TASK 5 (plan 20261127-083): whole-plan review fixes ────────────────
+ * Selector: test_final_review_fixes_green (verbatim from task-5.spec).
+ * The re-entry env guard keeps the nested `bun test` from recursing into
+ * this gate while still checking the full suite. */
+const GATE_REENTRY_083 = "PI_WORKFLOWS_TASK5_GATE_REENTRY";
+const TASK4_BASE_083 = "005a799";
+
+function changedPaths083(): string[] {
+  const git = (args: string[]): string[] =>
+    spawnSync("git", args, {
+      cwd: ROOT,
+      encoding: "utf8",
+      timeout: 30_000,
+    }).stdout
+      .split("\n")
+      .filter(Boolean);
+  const baseExists = spawnSync(
+    "git",
+    ["merge-base", "--is-ancestor", TASK4_BASE_083, "HEAD"],
+    { cwd: ROOT, encoding: "utf8" },
+  ).status === 0;
+  return [
+    ...new Set([
+      ...(baseExists
+        ? git(["diff", "--name-only", `${TASK4_BASE_083}..HEAD`])
+        : []),
+      ...git(["diff", "--cached", "--name-only"]),
+      ...git(["diff", "--name-only"]),
+      ...git(["ls-files", "--others", "--exclude-standard"]),
+    ]),
+  ].sort();
+}
+
+describe("final review fixes (TASK 5, plan 20261127-083)", () => {
+  test("test_final_review_fixes_green", () => {
+    if (process.env[GATE_REENTRY_083] === "1") return;
+
+    const dprint = pinned(["dprint", "check", "--list-different"]);
+    expect(
+      dprint.status,
+      `dprint check: ${dprint.stdout}\n${dprint.stderr}`,
+    ).toBe(0);
+
+    const suite = spawnSync("bun", ["test"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      timeout: 600_000,
+      maxBuffer: 20 * 1024 * 1024,
+      env: { ...process.env, [GATE_REENTRY_083]: "1" },
+    });
+    expect(
+      suite.status,
+      `bun test: ${suite.stdout}\n${suite.stderr}`,
+    ).toBe(0);
+
+    const docs = pinned(["bash", "scripts/docs-lint.sh"]);
+    expect(
+      docs.status,
+      `docs-lint: ${docs.stdout}\n${docs.stderr}`,
+    ).toBe(0);
+    const drift = spawnSync("bash", ["scripts/check-drift.sh"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      timeout: 600_000,
+    });
+    expect(
+      drift.status,
+      `check-drift: ${drift.stdout}\n${drift.stderr}`,
+    ).toBe(0);
+
+    const allowed = new Set([
+      ".workflows/specs/task-5.spec",
+      ".githooks/pre-commit",
+      "scripts/init-extract.ts",
+      "scripts/profile-lint.sh",
+      "skills/init/SKILL.md",
+      "agents/worker.md",
+      "tests/init-extract.test.ts",
+      "tests/profile-lint.test.ts",
+      "tests/prompt-doctrine.test.ts",
+      "tests/final-integration.test.ts",
+    ]);
+    // Orchestrator bookkeeping (.workflows/ LOG, reviews, live plan) is not
+    // shipped behavior; the content pins above still bind release surfaces.
+    const outside = changedPaths083().filter(
+      (p) => !allowed.has(p) && !p.startsWith(".workflows/"),
+    );
+    expect(outside, "no task-5 forbidden path may change").toEqual([]);
+  }, 600_000);
+});
