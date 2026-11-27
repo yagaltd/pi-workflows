@@ -80,3 +80,9 @@
 - **mise-pinned suite** — canonical full test suite run as `mise exec -- bun test`; needed so docs-lint fixtures see pinned linters.
 - **consumer-cwd context** — judge context paths resolve under the caller's repository root, not the installed package root; required for installed-package pre-flight.
 - **non-vacuous context lint** — pre-flight question sets using the five finding ids require supplied context even when questions contain no path literals.
+
+
+### Glossary (plan 20261127-083)
+- **Read-only format gate** — mechanical `dprint check` on declared source includes; never writes files and never substitutes for reviewer judgment.
+- **Formatter profile** — deterministic detector output naming id, exact read-only check command, evidence paths, and offer/skip status; written only after explicit owner approval.
+- **Loud formatter SKIP** — missing formatter tool reported on stderr with exit 3 only when no other lint failure exists; never a PASS.

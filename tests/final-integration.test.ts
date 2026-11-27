@@ -323,6 +323,12 @@ describe("final review fixes (TASK 5, plan 20261127-083)", () => {
       "tests/flow-gates-mise.test.ts",
       "tests/format-chooser.test.ts",
       "tests/wip.test.ts",
+      // Orchestrator SHIP sweep: release entry, version, and refreshed docs.
+      "CHANGELOG.md",
+      "README.md",
+      "docs/architecture.md",
+      "docs/canon.md",
+      "package.json",
     ]);
     // Orchestrator bookkeeping (.workflows/ LOG, reviews, live plan) is not
     // shipped behavior; the content pins above still bind release surfaces.

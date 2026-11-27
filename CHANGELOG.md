@@ -1,3 +1,9 @@
+## 2026-11-27 — v0.15.24: Deterministic format checking — plan 20261127-083 complete (five tasks)
+
+- plan 20261127-083: `mise run format-check` adds a read-only dprint gate for TS/JS/MJS/JSON; Markdown stays under docs-lint.
+- `/init` detects formatter profiles from on-disk markers and config, offers them only at the owner gate, and skips loudly when a tool is absent.
+- Pre-commit checks staged source bytes, honors dprint excludes, and never rewrites files; profile lint rejects write-style formatter commands.
+
 ## 2026-11-26 — v0.15.23: /init CI coordination — mise `ci` task + CI wiring
 
 - `/init` step 7 now generates a flat `ci = "mise run check && mise run verify"` task alongside `check`/`verify`, with the flat-inline contract pinned: flow-gates and `/review` Layer 0 parse only root `mise.toml` `[tasks]` — `.mise/tasks/` file tasks are invisible to the gates.

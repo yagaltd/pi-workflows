@@ -59,7 +59,8 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
    `tests/mise-tasks.test.ts`).
 9. Paths are pointers, not evidence (gate: `scripts/check-judge-context.mjs`).
 10. Markdown is excluded from `format-check`; `scripts/docs-lint.sh` is the sole
-   Markdown authority, with no Markdown formatter or second checker. The docs
-   baseline changes only through
+   Markdown authority, with no Markdown formatter or second checker. Formatter
+   profiles are read-only and owner-gated. The baseline changes only through
    `bash scripts/docs-lint.sh --write-baseline`, never by hand (gate:
-   `scripts/docs-lint.sh`, `tests/prompt-doctrine.test.ts`).
+   `scripts/docs-lint.sh`, `scripts/profile-lint.sh`,
+   `tests/prompt-doctrine.test.ts`, `tests/init-extract.test.ts`).

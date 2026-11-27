@@ -385,8 +385,9 @@ profile-declared artifacts (ADR entries first; kinds validated by
 profile-lint; gate: `scripts/profile-lint.sh`).
 `bash scripts/docs-lint.sh` stays the sole Markdown authority in the same
 chain (gate: `scripts/docs-lint.sh`). `mise run format-check` sits beside those
-gates as a read-only source check, replacing neither check-drift nor
-docs-lint (gate: `.mise/tasks/format-check`, `tests/mise-tasks.test.ts`).
+gates as a read-only source check; staged checks use index bytes and honor
+excludes (gate: `.mise/tasks/format-check`, `.githooks/pre-commit`,
+`tests/mise-tasks.test.ts`, `tests/init-extract.test.ts`).
 
 ## Bottleneck tags
 

@@ -130,9 +130,10 @@ Worker Verify runs that read-only format check scoped to the task's explicit
 paths, never `fmt` in that leg; `fmt` is allowed only in an explicitly
 contracted formatting task on explicit paths (gate: `skills/init/SKILL.md`).
 The mutating `mise run format` task is optional and out of band (gate:
-`.mise/tasks/format`). Pre-commit runs a staged read-only check on staged
-source files and never rewrites files; `/review` Stage 1 runs
-`mise run format-check` over the whole tree (gate: `.githooks/pre-commit`,
+`.mise/tasks/format`). Pre-commit checks staged bytes, skips excluded source
+paths, and never rewrites files; `/init` offers detected formatter profiles
+only after owner approval. `/review` Stage 1 runs `mise run format-check` over
+the whole tree (gate: `.githooks/pre-commit`, `skills/init/SKILL.md`,
 `skills/review/SKILL.md`).
 
 ### Rust Structural Gate
