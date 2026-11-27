@@ -57,29 +57,28 @@ describe("prompt doctrine: budget, done-when, cite-or-open-questions (plan 20261
   });
 });
 
-const readT2 = (p: string) =>
-  fs.readFileSync(p, "utf8").replace(/\s+/g, " ");
+const readT2 = (p: string) => fs.readFileSync(p, "utf8").replace(/\s+/g, " ");
 
 // --- T2: dispatch-policy pins (plan 20261102-050) ---
 describe("prompt doctrine — dispatch policy (T2, plan 20261102-050)", () => {
   test("registry dispatch policy assigns per-task budgets in the pack", () => {
     const registry = readT2("agents/registry.md");
     expect(registry).toContain(
-      "The orchestrator assigns each task's budget in the pack (default 60 tool calls from role doctrine; judge/API-call caps explicit when the task touches judge/API surfaces)."
+      "The orchestrator assigns each task's budget in the pack (default 60 tool calls from role doctrine; judge/API-call caps explicit when the task touches judge/API surfaces).",
     );
   });
 
   test("execution doctrine report rules carry the Done-when assertion duty", () => {
     const doctrine = readT2("agents/execution-doctrine.md");
     expect(doctrine).toContain(
-      "final report asserts each Done-when line individually"
+      "final report asserts each Done-when line individually",
     );
   });
 
   test("verify reviewer checklist gains the additive cite-check line", () => {
     const verify = readT2("prompts/verify.md");
     expect(verify).toContain(
-      "Cite-check: spot-check that factual claims in doc-producing tasks carry file:line/URL citations; uncited claims are findings."
+      "Cite-check: spot-check that factual claims in doc-producing tasks carry file:line/URL citations; uncited claims are findings.",
     );
   });
 
@@ -229,7 +228,7 @@ describe("prompt doctrine — /init Dev environment (mise) step 7 (T6, plan 2026
   test("step 7 detects stack markers and the version files mise already reads natively as-is", () => {
     const slice = devSlice();
     expect(slice).toContain(
-      "`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`, `*.csproj`"
+      "`package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod`, `Gemfile`, `*.csproj`",
     );
     expect(slice).toContain("`.nvmrc`, `.python-version`, `.tool-versions`, `mise.toml`");
   });
@@ -315,8 +314,7 @@ describe("prompt doctrine — idea ledger + TypeLLM triage (T8, plan 20261104-05
 
 // --- T7: reviewer doctrine hardening (plan 20261103-055 T1) ---
 describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 20261104-059)", () => {
-  const normT9 = (p: string) =>
-    fs.readFileSync(p, "utf8").replace(/\s+/g, " ");
+  const normT9 = (p: string) => fs.readFileSync(p, "utf8").replace(/\s+/g, " ");
   const INIT_T9 = normT9("skills/init/SKILL.md");
 
   test("reviewer.md names the Rust skill family in a domain-skills rule and requires the report to note which were consulted", () => {
@@ -354,10 +352,8 @@ describe("prompt doctrine — reviewer domain-skills + init hardening (T9, plan 
 });
 
 describe("prompt doctrine — reviewer Read-AGENTS.md mandate + charter lines (T7, plan 20261103-055)", () => {
-  const REFACTOR_FIRST =
-    "Refactor first: extend existing structure before adding new surface.";
-  const SUBTRACT_FIRST =
-    "Subtract first: prefer deleting or simplifying over adding.";
+  const REFACTOR_FIRST = "Refactor first: extend existing structure before adding new surface.";
+  const SUBTRACT_FIRST = "Subtract first: prefer deleting or simplifying over adding.";
 
   test("reviewer.md carries a Read AGENTS.md mandate phrased as the review lens", () => {
     expect(REVIEWER).toContain("Read AGENTS.md");
@@ -585,10 +581,32 @@ describe("prompt doctrine — domain-skill wiring (T13, plan 20261104-063)", () 
 // silently unreachable (the /resume incident — pi's session picker opened
 // instead of prompts/resume.md). Built-in set of record: pi docs/slash-commands.md.
 const PI_BUILTIN_COMMANDS = new Set([
-  "settings", "model", "thinking", "scoped-models", "login", "logout", "llama",
-  "new", "resume", "name", "session", "tree", "fork", "clone", "compact",
-  "import", "copy", "export", "share", "bug", "trust", "mcp", "reload",
-  "hotkeys", "changelog", "quit",
+  "settings",
+  "model",
+  "thinking",
+  "scoped-models",
+  "login",
+  "logout",
+  "llama",
+  "new",
+  "resume",
+  "name",
+  "session",
+  "tree",
+  "fork",
+  "clone",
+  "compact",
+  "import",
+  "copy",
+  "export",
+  "share",
+  "bug",
+  "trust",
+  "mcp",
+  "reload",
+  "hotkeys",
+  "changelog",
+  "quit",
 ]);
 
 describe("prompt doctrine: no prompt template shadows a pi built-in command", () => {
@@ -666,8 +684,8 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
     expect(slice).toContain("node --test");
     expect(slice).toContain("bun test");
     // one worked vanilla-JS example beside the bun/TS and rust ones
-    expect(slice).toContain('check = "bunx eslint ."');
-    expect(slice).toContain('verify = "node --test"');
+    expect(slice).toContain("check = \"bunx eslint .\"");
+    expect(slice).toContain("verify = \"node --test\"");
     // the real-commands rule stays explicit
     expect(slice).toContain("never placeholder filler");
     // nothing detectable → `check` is left absent, never invented
@@ -677,13 +695,13 @@ describe("prompt doctrine — JS/TS gates (T1, plan 20261117-066)", () => {
 
   test("test_init_keeps_existing_stack_examples", () => {
     const slice = initDevEnvironmentSliceT1();
-    expect(slice).toContain('check = "bunx tsc --noEmit"');
-    expect(slice).toContain('verify = "bun test"');
+    expect(slice).toContain("check = \"bunx tsc --noEmit\"");
+    expect(slice).toContain("verify = \"bun test\"");
     // plan 20261124-081: the Rust check is a flat chain starting at metadata.
     expect(slice).toContain(
-      'check = "cargo metadata --no-deps --format-version 1',
+      "check = \"cargo metadata --no-deps --format-version 1",
     );
-    expect(slice).toContain('verify = "cargo test"');
+    expect(slice).toContain("verify = \"cargo test\"");
   });
 
   test("test_reviewer_names_web_family", () => {
@@ -997,7 +1015,7 @@ const readBaseline = (rev: string) =>
   JSON.parse(
     spawnSync("git", ["show", `${rev}:scripts/docs-lint-baseline.json`], {
       encoding: "utf8",
-    }).stdout
+    }).stdout,
   ) as { sections: Record<string, { files?: Record<string, number> }> };
 
 describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK 1, plan 20261117-071)", () => {
@@ -1020,12 +1038,14 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     ];
     for (const row of rows) expect(v, `missing mapping row: ${row}`).toContain(row);
     // the required action lead-ins are pinned too
-    for (const lead of ["**Do:**", "**Run:**", "**Guard:**", "**Next:**", "**Check:**"])
+    for (const lead of ["**Do:**", "**Run:**", "**Guard:**", "**Next:**", "**Check:**"]) {
       expect(v).toContain(lead);
+    }
     // work-kind opener maps to its five pills
     expect(v).toContain("Work-kind opener");
-    for (const pill of ["[[Implement]]", "[[Investigate]]", "[[Preview]]", "[[Brainstorm]]", "[[Qualify]]"])
+    for (const pill of ["[[Implement]]", "[[Investigate]]", "[[Preview]]", "[[Brainstorm]]", "[[Qualify]]"]) {
       expect(v).toContain(pill);
+    }
     // single-source claim: the extension owns pill writing, not this file
     expect(v).toContain("mapping of record");
     expect(v).toContain("pi-emphasis");
@@ -1033,8 +1053,9 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // hard shape constraints: ≤60 lines, every line ≤80 cols
     const lines = raw.replace(/\n$/, "").split("\n");
     expect(lines.length, `file is ${lines.length} lines (max 60)`).toBeLessThanOrEqual(60);
-    for (const [i, line] of lines.entries())
+    for (const [i, line] of lines.entries()) {
       expect(line.length, `line ${i + 1} is ${line.length} cols (max 80)`).toBeLessThanOrEqual(80);
+    }
   });
 
   test("test_ship_report_scoreboard_rule", () => {
@@ -1110,7 +1131,7 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // committed.
     const head = readBaseline(BASE_REF);
     const cur = JSON.parse(
-      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
+      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8"),
     ) as { sections: Record<string, { files?: Record<string, number> }> };
     for (const section of Object.keys(head.sections)) {
       const before = head.sections[section]?.files ?? {};
@@ -1120,7 +1141,7 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
         if (was === undefined) continue; // new tracked file: addition, not a rise
         expect(
           n,
-          `${section} budget for ${file} rose ${was} -> ${n} — new doc debt`
+          `${section} budget for ${file} rose ${was} -> ${n} — new doc debt`,
         ).toBeLessThanOrEqual(was);
       }
     }
@@ -1149,19 +1170,19 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
       const first = regen();
       expect(
         first.status,
-        `--write-baseline exited ${first.status}:\n${first.stdout}\n${first.stderr}`
+        `--write-baseline exited ${first.status}:\n${first.stdout}\n${first.stderr}`,
       ).toBe(0);
       fs.cpSync(committed, run1); // run1 = first fresh regen
       const second = regen();
       expect(
         second.status,
-        `--write-baseline exited ${second.status}:\n${second.stdout}\n${second.stderr}`
+        `--write-baseline exited ${second.status}:\n${second.stdout}\n${second.stderr}`,
       ).toBe(0);
       const a = fs.readFileSync(run1);
       const b = fs.readFileSync(committed); // run2 = second fresh regen
       expect(
         a.equals(b),
-        "two consecutive --write-baseline runs differ — non-deterministic"
+        "two consecutive --write-baseline runs differ — non-deterministic",
       ).toBe(true);
     } finally {
       fs.copyFileSync(snapshot, committed);
@@ -1173,7 +1194,7 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // committed.
     const head = readBaseline(BASE_REF);
     const cur = JSON.parse(
-      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8")
+      fs.readFileSync("scripts/docs-lint-baseline.json", "utf8"),
     ) as { sections: Record<string, { files?: Record<string, number> }> };
     let lowered = 0;
     let raised = 0;
@@ -1189,7 +1210,7 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     }
     expect(
       lowered,
-      "no pre-existing budget lower than the pre-regen reference — stale budgets not corrected"
+      "no pre-existing budget lower than the pre-regen reference — stale budgets not corrected",
     ).toBeGreaterThan(0);
     expect(raised, `${raised} budget(s) rose above the pre-regen reference — new doc debt`).toBe(0);
   }, 600000);
@@ -1200,8 +1221,8 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // Strings are built by concatenation so this pin cannot match itself.
     const src = fs.readFileSync("tests/prompt-doctrine.test.ts", "utf8");
     expect(src).not.toContain("additions_" + "only");
-    expect(src).toContain('test("test_baseline_mono' + 'tone"');
-    expect(src).toContain('test("test_baseline_regen' + 'erated_deterministic"');
+    expect(src).toContain("test(\"test_baseline_mono" + "tone\"");
+    expect(src).toContain("test(\"test_baseline_regen" + "erated_deterministic\"");
   });
 
   test("test_tree_checker_satisfied", () => {
@@ -1256,14 +1277,16 @@ const PROTO_T1 = fs.readFileSync("prompts/prototype.md", "utf8");
 
 describe("prompt doctrine — sieve gate + decision fields + promotion (T1, plan 20261117-073)", () => {
   test("test_sieve_gate_in_all_proposal_entries", () => {
-    for (const [name, content] of [
-      ["skills/idea/SKILL.md", IDEA_T1],
-      ["skills/plan/SKILL.md", PLAN_T1],
-      ["skills/add-feature/SKILL.md", ADD_T1],
-      ["prompts/prototype.md", PROTO_T1],
-    ] as const) {
+    for (
+      const [name, content] of [
+        ["skills/idea/SKILL.md", IDEA_T1],
+        ["skills/plan/SKILL.md", PLAN_T1],
+        ["skills/add-feature/SKILL.md", ADD_T1],
+        ["prompts/prototype.md", PROTO_T1],
+      ] as const
+    ) {
       expect(content, `${name} lacks the identical sieve gate block`).toContain(
-        SIEVE_GATE
+        SIEVE_GATE,
       );
     }
   });
@@ -1281,10 +1304,10 @@ describe("prompt doctrine — sieve gate + decision fields + promotion (T1, plan
     ]) {
       const content = fs.readFileSync(p, "utf8");
       expect(content, `${p} must not carry the sieve gate`).not.toContain(
-        "## Sieve Gate"
+        "## Sieve Gate",
       );
       expect(content, `${p} must not carry the forced-choice table`).not.toContain(
-        "| Cell | Forced choice |"
+        "| Cell | Forced choice |",
       );
     }
   });
@@ -1463,15 +1486,15 @@ describe("prompt doctrine — oracle-binding disclosure (plan 20261119-079 T3)",
     // Output, Rules — the fold adds zero headings. The two fenced report
     // template lines (## Verdict / ## Verification) are counted apart.
     const templates = headings.filter(
-      (h) => h.startsWith("## Verdict") || h.startsWith("## Verification")
+      (h) => h.startsWith("## Verdict") || h.startsWith("## Verification"),
     );
     expect(templates).toHaveLength(2);
     expect(headings.length - templates.length).toBe(7);
     expect(REVIEWER.indexOf("An oracle is only worth what its binding.")).toBeGreaterThan(
-      REVIEWER.indexOf("## Tier 2")
+      REVIEWER.indexOf("## Tier 2"),
     );
     expect(REVIEWER.indexOf("An oracle is only worth what its binding.")).toBeLessThan(
-      REVIEWER.indexOf("## Output")
+      REVIEWER.indexOf("## Output"),
     );
   });
 
@@ -1529,10 +1552,11 @@ function domainSkillsNestedSlice081(): string {
   const lines = REVIEWER.slice(start).split("\n");
   let endLine = 1;
   while (
-    endLine < lines.length &&
-    (lines[endLine].startsWith("  ") || lines[endLine].trim() === "")
-  )
+    endLine < lines.length
+    && (lines[endLine].startsWith("  ") || lines[endLine].trim() === "")
+  ) {
     endLine++;
+  }
   return REVIEWER.slice(
     start,
     start + lines.slice(0, endLine).join("\n").length,
@@ -1618,8 +1642,7 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(sentenceIdx).toBeGreaterThanOrEqual(domainIdx + nested.length);
     expect(nested).not.toContain(RUST_GATE_SENTENCE);
 
-    const rustLine =
-      REVIEWER.split("\n").find((line) => /^\s*-\s*Rust:/.test(line)) ?? "";
+    const rustLine = REVIEWER.split("\n").find((line) => /^\s*-\s*Rust:/.test(line)) ?? "";
     let cursor = -1;
     for (const skill of RUST_SKILL_FAMILY) {
       const next = rustLine.indexOf(`\`${skill}\``, cursor + 1);
@@ -1745,10 +1768,11 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     // surface; the universal template stays Rust-free
     for (const p of RUST_GATE_PLACEMENTS.filter(
       (p) => p !== "templates/AGENTS.md",
-    ))
+    )) {
       expect(norm081(read081(p)), `mandate missing from ${p}`).toContain(
         RUST_GATE_SENTENCE,
       );
+    }
     const template081 = read081("templates/AGENTS.md");
     const templateProject081 = norm081(
       template081.slice(template081.indexOf("## PROJECT")),
@@ -1775,9 +1799,9 @@ describe("prompt doctrine — Rust structural gate (TASK 1, plan 20261124-081)",
     expect(
       changed.filter(
         (p) =>
-          forbidden.includes(p) ||
-          /\.allow$/.test(p) ||
-          p.startsWith(".mise/tasks/"),
+          forbidden.includes(p)
+          || /\.allow$/.test(p)
+          || p.startsWith(".mise/tasks/"),
       ),
     ).toEqual([]);
     // the boundary check is non-vacuous: the contracted wiring landed
@@ -1796,7 +1820,7 @@ const NON_RUST_FIXTURE_081: Record<string, string> = {
     scripts: { test: "bun test", lint: "bunx eslint ." },
   }),
   "src/index.ts": "export const main = () => 0;\n",
-  "tests/app.test.ts": 'test("app", () => {});\n',
+  "tests/app.test.ts": "test(\"app\", () => {});\n",
   "docs/architecture.md": "# Architecture\n\nSingle-entry CLI.\n",
   "CONTRIBUTING.md": "# Contributing\n\nbun test before push.\n",
   "scripts/agents-lint.sh": "#!/usr/bin/env bash\n",
@@ -1804,7 +1828,7 @@ const NON_RUST_FIXTURE_081: Record<string, string> = {
 
 const RUST_FIXTURE_081: Record<string, string> = {
   "README.md": "# fixture-rs\n\nA small Rust CLI.\n",
-  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "Cargo.toml": "[package]\nname = \"fixture-rs\"\nversion = \"0.1.0\"\n",
   "src/main.rs": "fn main() {}\n",
   "docs/architecture.md": "# Architecture\n\nSingle-crate CLI.\n",
   "CONTRIBUTING.md": "# Contributing\n\ncargo test before push.\n",
@@ -1865,24 +1889,23 @@ const PRE_PLAN_NON_RUST_CHARTER_081 = [
   "",
 ].join("\n");
 
-const dateAgnostic081 = (text: string) =>
-  text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, "<DATE>");
+const dateAgnostic081 = (text: string) => text.replace(/\b\d{4}-\d{2}-\d{2}\b/g, "<DATE>");
 
 describe("prompt doctrine — universal template parity (TASK 4, plan 20261124-081)", () => {
   test("test_non_rust_template_no_pointer", async () => {
     const template = read081("templates/AGENTS.md");
     expect(template, "the universal template must not carry a Rust-specific pointer").not.toMatch(
-      /\bRust\b|deslop-please|structural gate|cargo\/Rust/i
+      /\bRust\b|deslop-please|structural gate|cargo\/Rust/i,
     );
 
     const nonRust = await charterFor081(stagedRepo081(NON_RUST_FIXTURE_081));
     const expected = PRE_PLAN_NON_RUST_CHARTER_081.replace(
       "<DATE>",
-      new Date().toISOString().slice(0, 10)
+      new Date().toISOString().slice(0, 10),
     );
     expect(
       dateAgnostic081(nonRust),
-      "non-Rust charter must stay byte-identical to the pre-plan output"
+      "non-Rust charter must stay byte-identical to the pre-plan output",
     ).toBe(dateAgnostic081(expected));
 
     // The conditional gate still lands where Rust is actually detected.
@@ -1894,7 +1917,7 @@ describe("prompt doctrine — universal template parity (TASK 4, plan 20261124-0
       "templates/DOCS-POLICY.md",
     ]) {
       expect(norm081(read081(p)), `Rust doctrine missing from ${p}`).toContain(
-        RUST_GATE_SENTENCE
+        RUST_GATE_SENTENCE,
       );
     }
   });
@@ -1924,9 +1947,7 @@ function phase5Slice082(): string {
 }
 
 function codeBlocks082(s: string): string[] {
-  return [...s.matchAll(/```(?:[a-z]+)?\r?\n([\s\S]*?)```/g)].map((m) =>
-    flat082(m[1]),
-  );
+  return [...s.matchAll(/```(?:[a-z]+)?\r?\n([\s\S]*?)```/g)].map((m) => flat082(m[1]));
 }
 
 function questionTemplate082(): Array<Record<string, any>> {
@@ -1940,9 +1961,9 @@ function questionTemplate082(): Array<Record<string, any>> {
     })
     .filter(
       (v): v is Array<Record<string, any>> =>
-        Array.isArray(v) &&
-        v.length > 0 &&
-        v.every((q) => q && typeof q === "object" && "id" in q),
+        Array.isArray(v)
+        && v.length > 0
+        && v.every((q) => q && typeof q === "object" && "id" in q),
     );
   expect(
     candidates.length,
@@ -1997,8 +2018,9 @@ describe("prompt doctrine — judge pre-flight content binding (TASK 3, plan 202
     expect(step3End).toBeGreaterThan(step3Start);
     const step3 = flat082(p.slice(step3Start, step3End));
     expect(step3).toMatch(/finding IDs?/i);
-    for (const id of PREFLIGHT_IDS_082)
+    for (const id of PREFLIGHT_IDS_082) {
       expect(step3, `Step 3 must route ${id} by ID`).toContain(id);
+    }
     expect(step3).toMatch(/manual inspection/i);
     expect(step3).toMatch(/content-bound spec/i);
     expect(step3).not.toMatch(/\b(?:quote|named|name)\b/i);
@@ -2038,9 +2060,7 @@ describe("prompt doctrine — judge pre-flight content binding (TASK 3, plan 202
   });
 
   test("test_canon_paths_not_evidence", () => {
-    const rule = CANON_082.split("\n").find((line) =>
-      /\bpaths?\b.*\bpointers?\b.*\bnot\s+evidence\b/i.test(line),
-    );
+    const rule = CANON_082.split("\n").find((line) => /\bpaths?\b.*\bpointers?\b.*\bnot\s+evidence\b/i.test(line));
     expect(rule, "canon lacks the paths-are-not-evidence rule").toBeDefined();
     const line = rule ?? "";
     const gate = line.indexOf("gate:");
@@ -2184,3 +2204,504 @@ describe("prompt doctrine — whole-plan review fixes (TASK 4, plan 20261125-082
     expect(drift.status, `check-drift failed:\n${drift.stdout}\n${drift.stderr}`).toBe(0);
   }, 600000);
 });
+
+/* ── TASK 3 (plan 20261127-083): gate-timing doctrine + docs ─────────────
+ * The five selectors below come verbatim from .workflows/specs/task-3.spec.
+ * Every assertion is a read or a read-only child gate; no `--write-baseline`
+ * appears in the verification leg, and no production/doc file is edited.
+ */
+const read083 = (p: string) => fs.readFileSync(p, "utf8");
+const flat083 = (s: string) => s.replace(/\s+/g, " ");
+const slice083 = (s: string, start: string, end?: string): string => {
+  const a = s.indexOf(start);
+  if (a < 0) return "";
+  const b = end ? s.indexOf(end, a + start.length) : -1;
+  return b < 0 ? s.slice(a) : s.slice(a, b);
+};
+
+// Co-location check: one alternative from each group must appear in the same
+// window. It proves a sentence-level doctrine instead of a whole-file grep.
+const near083 = (
+  s: string,
+  groups: string[][],
+  size = 360,
+): boolean => {
+  const lower = s.toLowerCase();
+  const anchors = groups[0] ?? [];
+  for (const anchor of anchors) {
+    let from = 0;
+    for (;;) {
+      const at = lower.indexOf(anchor.toLowerCase(), from);
+      if (at < 0) break;
+      const window = lower.slice(
+        Math.max(0, at - size),
+        at + anchor.length + size,
+      );
+      if (
+        groups.every((group) => group.some((alt) => window.includes(alt.toLowerCase())))
+      ) {
+        return true;
+      }
+      from = at + anchor.length;
+    }
+  }
+  return false;
+};
+
+const INIT_083 = read083("skills/init/SKILL.md");
+const README_083 = read083("README.md");
+const CANON_083 = read083("docs/canon.md");
+const ARCH_083 = read083("docs/architecture.md");
+const REVIEWER_083 = read083("agents/reviewer.md");
+const REVIEW_SKILL_083 = read083("skills/review/SKILL.md");
+
+describe(
+  "prompt doctrine — gate timing + docs authority (TASK 3, plan 20261127-083)",
+  () => {
+    test("test_worker_verify_scoped_check", () => {
+      const init = flat083(INIT_083);
+      const gates = flat083(slice083(README_083, "## Gates", "## Flows"));
+
+      expect(gates, "README ## Gates slice is missing").not.toBe("");
+      // Worker Verify: read-only format check, scoped to the task's explicit
+      // paths, never `fmt` in that leg.
+      expect(
+        near083(init, [
+          ["verify"],
+          ["format-check", "format check"],
+          ["read-only", "non-mutating"],
+          ["scoped"],
+          ["explicit paths"],
+        ]),
+        "init must pin Verify as a scoped read-only format check",
+      ).toBe(true);
+      expect(
+        near083(init, [["verify"], ["never", "not"], ["fmt"]]),
+        "init must forbid fmt in the Verify leg",
+      ).toBe(true);
+      // `fmt` is licensed only by an explicit formatting task on explicit
+      // paths — never by a dispatch pack's ordinary Verify command.
+      expect(
+        near083(init, [
+          ["fmt"],
+          ["explicitly contracted"],
+          ["formatting task"],
+          ["explicit paths"],
+        ]),
+        "init must reserve fmt for an explicit formatting task",
+      ).toBe(true);
+      expect(
+        near083(gates, [
+          ["verify"],
+          ["format-check", "format check"],
+          ["read-only", "non-mutating"],
+          ["scoped"],
+          ["explicit paths"],
+        ]),
+        "README Gates must pin the scoped read-only Verify check",
+      ).toBe(true);
+      expect(
+        near083(gates, [
+          ["fmt"],
+          ["explicitly contracted"],
+          ["formatting task"],
+          ["explicit paths"],
+        ]),
+        "README Gates must pin fmt's explicit-task boundary",
+      ).toBe(true);
+      expect(
+        near083(gates, [
+          ["pre-commit"],
+          ["staged"],
+          ["read-only", "non-mutating"],
+        ]),
+        "README Gates must pin the staged read-only pre-commit check",
+      ).toBe(true);
+      expect(
+        near083(gates, [["pre-commit"], ["never rewrite"]]),
+        "README Gates must say pre-commit never rewrites files",
+      ).toBe(true);
+    });
+
+    test("test_reviewer_consumes_output", () => {
+      const slice = flat083(slice083(REVIEWER_083, "## Tier 0"));
+      expect(slice, "reviewer Tier 0 / Rules slice is missing").toContain(
+        "## Rules",
+      );
+      expect(
+        near083(slice, [
+          ["recorded"],
+          ["format-check", "format check"],
+          ["output"],
+          ["evidence"],
+        ]),
+        "reviewer must treat recorded format-check output as evidence",
+      ).toBe(true);
+      expect(
+        near083(slice, [["re-derive"], ["widen"], ["repair"]]),
+        "reviewer must not re-derive, widen, or repair the check",
+      ).toBe(true);
+      expect(slice, "the read-only verdict rule must survive").toMatch(
+        /\bread-only\b/i,
+      );
+      expect(
+        near083(slice, [["never", "not"], ["fmt"]], 240),
+        "reviewer must never run fmt",
+      ).toBe(true);
+      expect(slice, "the read-only verdict rule must survive").toContain(
+        "Reviewers verify, never fix.",
+      );
+      // The existing tiers absorb the rule: no extra verification prompt,
+      // role, or reviewer section is introduced for format checks.
+      expect(
+        fs
+          .readdirSync("prompts")
+          .filter((f) => f !== "verify.md" && /(?:format|verify)/i.test(f)),
+      ).toEqual([]);
+      expect(REVIEWER_083).not.toMatch(
+        /^##\s+(?:Format|Formatting|Verification task)/im,
+      );
+    });
+
+    test("test_stage1_whole_tree_check", () => {
+      const stage1 = flat083(
+        slice083(
+          REVIEW_SKILL_083,
+          "## Stage 1: Mechanical Verification",
+          "## Stage 2:",
+        ),
+      );
+      expect(stage1, "review Stage 1 slice is missing").not.toBe("");
+      expect(stage1, "Stage 1 must name the read-only mise task").toContain(
+        "mise run format-check",
+      );
+      expect(
+        near083(stage1, [
+          ["mise run format-check"],
+          ["read-only", "non-mutating"],
+          ["whole-tree", "whole tree"],
+        ]),
+        "Stage 1 must run the whole-tree read-only check",
+      ).toBe(true);
+      expect(
+        near083(stage1, [
+          ["full verification suite"],
+          ["format-check", "format check"],
+        ]),
+        "the format check belongs to the full verification suite",
+      ).toBe(true);
+      expect(
+        /scoped[^.]{0,200}(?:not|never|no)[^.]{0,160}(?:substitute|replace)/i.test(
+          stage1,
+        )
+          || /(?:not|never)\s+[^.]{0,80}(?:substitute|replace)[^.]{0,160}scoped/i.test(
+            stage1,
+          ),
+        "a scoped task result cannot replace the whole-tree check",
+      ).toBe(true);
+      expect(stage1, "Stage 1 must name fmt explicitly").toMatch(/\bfmt\b/i);
+      expect(
+        /(?:never|not)\s+(?:run|runs|invoke|invokes)[^.]{0,80}(?:fmt|`?format`?)[^.]{0,100}(?:repair|rewrite|fix)/i
+          .test(
+            stage1,
+          ),
+        "Stage 1 never runs format/fmt to repair files",
+      ).toBe(true);
+    });
+
+    test("test_markdown_docs_lint_authority", () => {
+      for (
+        const [label, doc] of [
+          ["README.md", README_083],
+          ["docs/canon.md", CANON_083],
+          ["skills/init/SKILL.md", INIT_083],
+        ] as const
+      ) {
+        const flat = flat083(doc);
+        expect(
+          near083(flat, [
+            ["Markdown"],
+            ["excluded", "excludes"],
+            ["format-check", "format check"],
+          ]),
+          `${label} must exclude Markdown from the format check`,
+        ).toBe(true);
+        expect(
+          near083(flat, [
+            ["Markdown"],
+            ["docs-lint.sh"],
+            ["sole", "only"],
+            ["authority"],
+          ]),
+          `${label} must name docs-lint as the sole Markdown authority`,
+        ).toBe(true);
+      }
+
+      // No allowed surface grants a Markdown formatter, a second checker,
+      // or a fmt rewrite of fences the docs-lint gate already validated.
+      for (const p of [
+        "README.md",
+        "docs/architecture.md",
+        "docs/canon.md",
+        "skills/init/SKILL.md",
+        "agents/reviewer.md",
+        "skills/review/SKILL.md",
+      ]) {
+        const grants = read083(p)
+          .split("\n")
+          .filter((line) => {
+            const l = line.toLowerCase();
+            if (!/\bmarkdown\b/.test(l)) return false;
+            if (
+              !/\b(?:dprint|formatter|format-check|fmt|second checker|markdownlint-cli2|plugin)\b/.test(
+                l,
+              )
+            ) {
+              return false;
+            }
+            if (
+              !/\b(?:enable[sd]?|add(?:s|ed)?|use[sd]?|run(?:s)?|support(?:s)?|format(?:s|ted)?|rewrite[sd]?|checker)\b/
+                .test(
+                  l,
+                )
+            ) {
+              return false;
+            }
+            return !/\b(?:never|not|no|exclude[sd]?|sole|only|authority|skip(?:ped)?|forbidden|disabl(?:e|ed)|without)\b/
+              .test(
+                l,
+              );
+          });
+        expect(grants, `${p} grants a second Markdown authority`).toEqual([]);
+      }
+
+      const baseline = JSON.parse(read083("scripts/docs-lint-baseline.json"));
+      expect(baseline.generated_by).toBe(
+        "bash scripts/docs-lint.sh --write-baseline",
+      );
+      expect(baseline.note).toContain(
+        "bash scripts/docs-lint.sh --write-baseline",
+      );
+      expect(baseline.note, "baseline is hand-editable").toContain(
+        "never hand-edit",
+      );
+    });
+
+    test("test_generated_docs_clean", async () => {
+      // Pre-task snapshot: scripts/docs-lint-baseline.json at the end of
+      // TASK 1/2 (commit 64ad30c). A fix may lower a budget; a rise banks
+      // new doc debt and fails even if the regenerated file is self-clean.
+      const preTask: Record<
+        string,
+        { total: number; files: Record<string, number> }
+      > = {
+        "markdownlint-cli2": {
+          total: 338,
+          files: {
+            "AGENTS.md": 11,
+            "README.md": 45,
+            "agents/dispatch-shapes.md": 18,
+            "agents/execution-doctrine.md": 16,
+            "agents/orchestrator.md": 8,
+            "agents/quality-reviewer.md": 3,
+            "agents/registry.md": 13,
+            "agents/reviewer.md": 7,
+            "agents/scout.md": 2,
+            "agents/spec-drafter.md": 6,
+            "agents/tester.md": 3,
+            "agents/worker.md": 15,
+            "docs/architecture.md": 28,
+            "prompts/abort.md": 5,
+            "prompts/add.md": 2,
+            "prompts/audit.md": 2,
+            "prompts/brainstorm.md": 1,
+            "prompts/explore.md": 2,
+            "prompts/fix.md": 1,
+            "prompts/idea.md": 1,
+            "prompts/optimize.md": 5,
+            "prompts/prototype.md": 2,
+            "prompts/restart.md": 2,
+            "prompts/status.md": 1,
+            "prompts/verify.md": 8,
+            "skills/add-feature/SKILL.md": 13,
+            "skills/brainstorm/SKILL.md": 1,
+            "skills/brainstorm/references/resume-protocol.md": 1,
+            "skills/challenge/SKILL.md": 1,
+            "skills/docs-check/SKILL.md": 3,
+            "skills/docs/SKILL.md": 4,
+            "skills/explore/SKILL.md": 5,
+            "skills/fix/SKILL.md": 12,
+            "skills/flows/SKILL.md": 4,
+            "skills/idea/SKILL.md": 5,
+            "skills/init/SKILL.md": 1,
+            "skills/optimize/SKILL.md": 7,
+            "skills/plan/SKILL.md": 31,
+            "skills/refactor/SKILL.md": 5,
+            "skills/review/SKILL.md": 14,
+            "templates/ADR-FORMAT.md": 3,
+            "templates/AGENTS.md": 3,
+            "templates/CONTEXT-FORMAT.md": 1,
+            "templates/CONTRACT-FORMAT.md": 2,
+            "templates/DOCS-POLICY.md": 4,
+            "templates/FOLLOW-UP-TABLE.md": 7,
+            "templates/THINKING-TOOLS.md": 4,
+          },
+        },
+        lychee: { total: 0, files: {} },
+        "harper-cli": {
+          total: 1107,
+          files: {
+            "ADR-FORMAT.md": 9,
+            "ADR.md": 1,
+            "AGENTS.md": 13,
+            "CONTEXT-FORMAT.md": 4,
+            "CONTRACT-FORMAT.md": 19,
+            "DECISION.md": 1,
+            "DOCS-POLICY.md": 34,
+            "FOLLOW-UP-TABLE.md": 24,
+            "PROPOSAL-FORMAT.md": 3,
+            "README.md": 49,
+            "REVIEW_GUIDELINES.md": 1,
+            "SKILL.md": 381,
+            "STATUS-VOCABULARY.md": 7,
+            "THINKING-TOOLS.md": 9,
+            "abort.md": 9,
+            "add.md": 7,
+            "amend.md": 1,
+            "architecture.md": 62,
+            "audit.md": 8,
+            "auto-next.md": 6,
+            "brainstorm.md": 5,
+            "canon.md": 13,
+            "challenge.md": 1,
+            "contract.md": 8,
+            "debug.md": 3,
+            "dispatch-shapes.md": 44,
+            "docs.md": 1,
+            "execution-doctrine.md": 129,
+            "explore.md": 6,
+            "fix.md": 4,
+            "idea.md": 1,
+            "init.md": 1,
+            "ledger-format.md": 9,
+            "next.md": 6,
+            "optimize.md": 18,
+            "orchestrator.md": 2,
+            "prototype.md": 7,
+            "quality-reviewer.md": 22,
+            "refactor.md": 1,
+            "registry.md": 42,
+            "restart.md": 1,
+            "resume-protocol.md": 2,
+            "reviewer.md": 17,
+            "scout.md": 6,
+            "spec-drafter.md": 13,
+            "status.md": 15,
+            "tester.md": 19,
+            "verify.md": 4,
+            "worker.md": 59,
+          },
+        },
+      };
+      const baseline = JSON.parse(
+        read083("scripts/docs-lint-baseline.json"),
+      ) as { sections: typeof preTask };
+      const budgets = baseline.sections;
+      for (const section of Object.keys(budgets)) {
+        expect(
+          preTask[section],
+          `new budget section ${section} is not in the pre-task snapshot`,
+        ).toBeDefined();
+      }
+      for (const [section, snap] of Object.entries(preTask)) {
+        const actual = budgets[section] ?? { total: 0, files: {} };
+        expect(
+          actual.total,
+          `${section} total budget rose above the pre-task snapshot`,
+        ).toBeLessThanOrEqual(snap.total);
+        const files = actual.files;
+        for (const [file, n] of Object.entries(files)) {
+          expect(
+            snap.files[file],
+            `${section} gained a new budget entry for ${file}`,
+          ).toBeDefined();
+          expect(
+            n,
+            `${section} budget for ${file} rose above the pre-task snapshot`,
+          ).toBeLessThanOrEqual(snap.files[file] ?? 0);
+        }
+      }
+
+      // Read-only gates: no --write-baseline in either verification leg.
+      const docs = spawnSync(
+        "mise",
+        ["exec", "--", "bash", "scripts/docs-lint.sh"],
+        { encoding: "utf8", timeout: 600000 },
+      );
+      expect(
+        docs.status,
+        `docs-lint failed:\n${docs.stdout}\n${docs.stderr}`,
+      ).toBe(0);
+      const drift = spawnSync("bash", ["scripts/check-drift.sh"], {
+        encoding: "utf8",
+        timeout: 600000,
+      });
+      expect(
+        drift.status,
+        `check-drift failed:\n${drift.stdout}\n${drift.stderr}`,
+      ).toBe(0);
+
+      // The format gate sits beside the existing gates; neither is replaced.
+      const chain = flat083(
+        slice083(ARCH_083, "**Repo gate chain**", "## Bottleneck tags"),
+      );
+      expect(chain, "architecture repo gate chain is missing").not.toBe("");
+      expect(chain).toContain("check-drift.sh");
+      expect(chain).toContain("docs-lint.sh");
+      expect(
+        near083(
+          chain,
+          [
+            ["format-check", "format check"],
+            ["read-only", "non-mutating"],
+          ],
+          480,
+        ),
+        "format gate must be read-only in the repo gate chain",
+      ).toBe(true);
+
+      // Claims must match the landed TASK 1/2 surfaces, not a guessed tool.
+      expect(
+        near083(flat083(README_083), [
+          ["format-check"],
+          ["--list-different"],
+          ["read-only"],
+        ]),
+        "README must describe the landed read-only --list-different gate",
+      ).toBe(true);
+      expect(
+        near083(flat083(README_083), [["optional"], ["`format`", "mise run format"]]),
+        "README must mark the mutating format task optional",
+      ).toBe(true);
+      expect(
+        near083(flat083(INIT_083), [
+          ["detect", "detected"],
+          ["profile"],
+          ["owner gate", "owner approval", "owner-gated"],
+        ]),
+        "init must describe detected owner-gated formatter profiles",
+      ).toBe(true);
+      expect(
+        near083(flat083(INIT_083), [
+          ["SKIP"],
+          ["missing", "absent"],
+          ["formatter", "format-check"],
+        ]),
+        "init must pin the loud SKIP for a missing formatter",
+      ).toBe(true);
+      expect(CANON_083, "canon rule 4 must survive").toContain(
+        "Every behavioral claim names its gate",
+      );
+    }, 600000);
+  },
+);
