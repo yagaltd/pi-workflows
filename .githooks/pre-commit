@@ -5,9 +5,21 @@
 # CI (.github/workflows/ci.yml) is the remote backstop for clones without it.
 set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
 
 if [ "$#" -gt 0 ] && [ -n "${1:-}" ]; then
-  bash "$REPO_ROOT/scripts/wf.sh" wip message --repo "$REPO_ROOT" --file "$1" || exit $?
+  bash "$REPO_ROOT"/scripts/wf.sh wip message --repo "$REPO_ROOT" --file "$1" || exit $?
+fi
+
+staged="$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.mjs' '*.json')"
+if [ -n "$staged" ]; then
+  files=()
+  while IFS= read -r file; do
+    [ -f "$file" ] && files+=("$file")
+  done <<< "$staged"
+  if [ "${#files[@]}" -gt 0 ]; then
+    mise exec -- dprint check --list-different "${files[@]}" || exit $?
+  fi
 fi
 
 exec "$REPO_ROOT/scripts/check-drift.sh"

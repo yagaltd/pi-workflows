@@ -23,6 +23,7 @@
     "CONTRACTS",
     "LICENSE",
     "README.md",
+    "dprint.json",
     "mise.toml",
     "package.json"
   ],
