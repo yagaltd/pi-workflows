@@ -1011,6 +1011,11 @@ const readVocab = () => fs.readFileSync("templates/STATUS-VOCABULARY.md", "utf8"
 // regen is committed (comparing against HEAD would compare the commit
 // against itself and structurally read 0).
 const BASE_REF = "5acf35e";
+// Plan 20261127-083 began at 64ad30c (its TASK 1/2 are landed): the pre-task
+// budget snapshot for the no-new-debt leg. BASE_REF stays the older
+// corrected-budget reference; using it alone would charge this plan for the
+// budget churn that was already committed before TASK 3 started.
+const PRE_TASK_REF = "64ad30c";
 const readBaseline = (rev: string) =>
   JSON.parse(
     spawnSync("git", ["show", `${rev}:scripts/docs-lint-baseline.json`], {
@@ -1126,10 +1131,9 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
     // ratchet that keeps the measurement honest. A regen task that LOWERS
     // budgets is legitimate when its plan authorizes the rewrites (plan
     // 20261117-072 does); a rise means new doc debt was banked unjustified.
-    // Truth-leg reference: BASE_REF (the pre-regen snapshot), never HEAD —
-    // see the comment above. Head self-comparison would always read 0 once
-    // committed.
-    const head = readBaseline(BASE_REF);
+    // Truth-leg reference: PRE_TASK_REF (the plan-083 pre-task snapshot),
+    // never HEAD — head self-comparison would always read 0 once committed.
+    const head = readBaseline(PRE_TASK_REF);
     const cur = JSON.parse(
       fs.readFileSync("scripts/docs-lint-baseline.json", "utf8"),
     ) as { sections: Record<string, { files?: Record<string, number> }> };
@@ -1189,22 +1193,30 @@ describe("prompt doctrine — status vocabulary + scoreboard + clean files (TASK
       fs.unlinkSync(snapshot);
       fs.unlinkSync(run1);
     }
-    // Truth-leg reference: BASE_REF (the pre-regen snapshot), never HEAD —
-    // see the comment above. Head self-comparison would always read 0 once
-    // committed.
-    const head = readBaseline(BASE_REF);
+    // Two truth legs: stale budgets corrected at least once (BASE_REF), and
+    // no budget raised since this plan's pre-task snapshot (PRE_TASK_REF).
+    const stale = readBaseline(BASE_REF);
+    const preTask = readBaseline(PRE_TASK_REF);
     const cur = JSON.parse(
       fs.readFileSync("scripts/docs-lint-baseline.json", "utf8"),
     ) as { sections: Record<string, { files?: Record<string, number> }> };
     let lowered = 0;
     let raised = 0;
-    for (const section of Object.keys(head.sections)) {
-      const before = head.sections[section]?.files ?? {};
+    for (const section of Object.keys(stale.sections)) {
+      const before = stale.sections[section]?.files ?? {};
       const after = cur.sections[section]?.files ?? {};
       for (const [file, was] of Object.entries(before)) {
         const now = after[file];
         if (now === undefined) continue;
         if (now < was) lowered += 1;
+      }
+    }
+    for (const section of Object.keys(preTask.sections)) {
+      const before = preTask.sections[section]?.files ?? {};
+      const after = cur.sections[section]?.files ?? {};
+      for (const [file, was] of Object.entries(before)) {
+        const now = after[file];
+        if (now === undefined) continue;
         if (now > was) raised += 1;
       }
     }
@@ -1610,13 +1622,24 @@ function changedPaths081(): string[] {
   // it from the committed slice only: a live edit to either path still shows
   // up in dirty/untracked and is checked against the forbidden list.
   const shipOwned = new Set(["CHANGELOG.md", "package.json"]);
+  // Plan 20261127-083 TASK 1/2 legitimately own the formatter gate and the
+  // profile lint; their committed churn is not plan 081 boundary drift. Only
+  // the committed slice is filtered: live edits to those paths still land in
+  // `dirty`/`untracked` and are checked against the forbidden list below.
+  const plan083Owned = new Set([
+    "scripts/profile-lint.sh",
+    ".mise/tasks/ci",
+    ".mise/tasks/ci-lite",
+    ".mise/tasks/format",
+    ".mise/tasks/format-check",
+  ]);
   const committed = gitPaths081([
     "log",
     "--format=",
     "--name-only",
     "2a938e0..HEAD",
     "--",
-  ]).filter((p) => !shipOwned.has(p));
+  ]).filter((p) => !shipOwned.has(p) && !plan083Owned.has(p));
   return [...new Set([...committed, ...dirty, ...untracked])];
 }
 

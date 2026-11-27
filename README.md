@@ -117,6 +117,21 @@ exit 1 on drift:
 | 9 | profile-lint | `.workflows/profile.json` schema + repo facts (`scripts/profile-lint.sh`) |
 | 10 | metric-gates | complexity + duplication thresholds (`scripts/metric-gates.sh`; absent tools skip) |
 
+### Format Gate
+
+`mise run format-check` runs `dprint check --list-different` read-only over
+TS/JS/JSON source files; Markdown is excluded and `scripts/docs-lint.sh` is
+the sole Markdown authority (gate: `.mise/tasks/format-check`,
+`scripts/docs-lint.sh`).
+Worker Verify runs that read-only format check scoped to the task's explicit
+paths, never `fmt` in that leg; `fmt` is allowed only in an explicitly
+contracted formatting task on explicit paths (gate: `agents/worker.md`).
+The mutating `mise run format` task is optional and out of band (gate:
+`.mise/tasks/format`). Pre-commit runs a staged read-only check on staged
+source files and never rewrites files; `/review` Stage 1 runs
+`mise run format-check` over the whole tree (gate: `.githooks/pre-commit`,
+`skills/review/SKILL.md`).
+
 ### Rust Structural Gate
 
 The Rust structural gate is a flat `[tasks]` check line that `/init` emits

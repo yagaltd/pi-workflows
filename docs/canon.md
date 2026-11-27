@@ -58,3 +58,8 @@ agent-spec). It governs every Markdown file a human or agent reads in this repo.
    `rust-crate-architecture` settles crate-boundary decisions (gate:
    `tests/mise-tasks.test.ts`).
 9. Paths are pointers, not evidence (gate: `scripts/check-judge-context.mjs`).
+10. Markdown is excluded from `format-check`; `scripts/docs-lint.sh` is the sole
+   Markdown authority, with no Markdown formatter or second checker. The docs
+   baseline changes only through
+   `bash scripts/docs-lint.sh --write-baseline`, never by hand (gate:
+   `scripts/docs-lint.sh`, `tests/prompt-doctrine.test.ts`).
