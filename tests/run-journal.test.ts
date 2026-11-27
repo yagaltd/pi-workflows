@@ -5,7 +5,13 @@ import path from "node:path";
 import { checkBudget, main, resumeState, spent } from "../scripts/run-journal.mjs";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "rj-"));
-const entry = (planId, taskId, event, cost) => ({ ts: "t", planId, ...(taskId ? { taskId } : {}), event, ...(cost !== undefined ? { cost } : {}) });
+const entry = (planId, taskId, event, cost) => ({
+  ts: "t",
+  planId,
+  ...(taskId ? { taskId } : {}),
+  event,
+  ...(cost !== undefined ? { cost } : {}),
+});
 
 describe("run-journal (plan 20261025-024)", () => {
   test("journal appends and resumes a run from recorded task states", async () => {
@@ -33,7 +39,11 @@ describe("run-journal (plan 20261025-024)", () => {
     const dir = tmp();
     const b = path.join(dir, "budget.json");
     fs.writeFileSync(b, JSON.stringify({ max_tasks: 2 }));
-    const entries = [entry("p1", "task-1", "dispatched"), entry("p1", "task-1", "done"), entry("p1", "task-2", "dispatched")];
+    const entries = [
+      entry("p1", "task-1", "dispatched"),
+      entry("p1", "task-1", "done"),
+      entry("p1", "task-2", "dispatched"),
+    ];
     const c = checkBudget(entries, { max_tasks: 2 });
     expect(c.ok).toBe(false);
     expect(c.reason).toContain("max_tasks");
@@ -43,7 +53,11 @@ describe("run-journal (plan 20261025-024)", () => {
   });
 
   test("cost budget sums recorded spend and blocks over the cap", () => {
-    const entries = [entry("p1", "task-1", "dispatched", 0.4), entry("p1", "task-1", "done", 0.35), entry("p1", "task-2", "dispatched", 0.3)];
+    const entries = [
+      entry("p1", "task-1", "dispatched", 0.4),
+      entry("p1", "task-1", "done", 0.35),
+      entry("p1", "task-2", "dispatched", 0.3),
+    ];
     expect(spent(entries).cost).toBe(1.05);
     expect(checkBudget(entries, { max_cost_usd: 1 }).ok).toBe(false);
     expect(checkBudget(entries, { max_cost_usd: 1.1 }).ok).toBe(true);
@@ -55,7 +69,21 @@ describe("run-journal (plan 20261025-024)", () => {
     const j = path.join(dir, "journal.jsonl");
     const b = path.join(dir, "budget.json");
     fs.writeFileSync(b, JSON.stringify({ max_tasks: 1 }));
-    expect(await main(["record", "--plan", "p1", "--task", "task-1", "--event", "dispatched", "--journal", j, "--budget", b])).toBe(0);
+    expect(
+      await main([
+        "record",
+        "--plan",
+        "p1",
+        "--task",
+        "task-1",
+        "--event",
+        "dispatched",
+        "--journal",
+        j,
+        "--budget",
+        b,
+      ]),
+    ).toBe(0);
     const code = await main(["check", "--plan", "p1", "--journal", j, "--budget", b]);
     expect(code).toBe(1);
     expect(readJournalLines(j).some((e) => e.event === "budget-exhausted")).toBe(true);

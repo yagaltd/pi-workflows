@@ -7,11 +7,11 @@
  * All tests use --fixture for deterministic offline execution.
  */
 
-import { describe, expect, test, beforeAll, afterAll } from "bun:test";
-import { readFileSync, writeFileSync, existsSync, unlinkSync, mkdirSync, copyFileSync, renameSync } from "node:fs";
-import { resolve, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -54,7 +54,7 @@ function restoreRegistry(backup) {
 beforeAll(() => {
   if (!existsSync(LIVE_FIXTURE)) {
     throw new Error(
-      `Fixture ${LIVE_FIXTURE} missing. Run: curl -s "https://openrouter.ai/api/v1/models" > ${LIVE_FIXTURE}`
+      `Fixture ${LIVE_FIXTURE} missing. Run: curl -s "https://openrouter.ai/api/v1/models" > ${LIVE_FIXTURE}`,
     );
   }
   // Ensure models/ dir exists
@@ -223,7 +223,7 @@ describe("CC4: Atomic write", () => {
     // in the non-dry-run path)
     const writeFileCalls = scriptSrc.match(/writeFileSync\([^,]+/g) || [];
     const directWrite = writeFileCalls.some(
-      (call) => call.includes("REGISTRY_PATH") && !call.includes("tmp")
+      (call) => call.includes("REGISTRY_PATH") && !call.includes("tmp"),
     );
     expect(directWrite).toBe(false);
   });
@@ -240,8 +240,8 @@ describe("CC4: Atomic write", () => {
       const result = runScan(["--fixture", NEWEST_BUILD_FIXTURE, "--dry-run"]);
       expect(result.status).toBe(0);
       // stdout should contain the JSON output
-      expect(result.stdout).toContain('"prefs"');
-      expect(result.stdout).toContain('"roles"');
+      expect(result.stdout).toContain("\"prefs\"");
+      expect(result.stdout).toContain("\"roles\"");
 
       // Registry must be unchanged
       const afterContent = readFileSync(REGISTRY, "utf-8");
@@ -304,7 +304,7 @@ describe("CC7: Thinking maps (D-THINKING-MAPS)", () => {
       // fallback constant keyed by bare id must be present in the script
       const src = readFileSync(resolve(ROOT, "scripts", "models-scan.mjs"), "utf-8");
       expect(src).toMatch(/['"]deepseek-v4-pro-0813['"]/);
-      expect(src).toMatch(/'observed'/);
+      expect(src).toMatch(/['"]observed['"]/);
     } finally {
       restoreRegistry(backup);
     }
@@ -508,11 +508,11 @@ function normalizePiEntry(entry: any) {
     source: "pi-catalog",
     thinking: entry.thinkingLevelMap
       ? {
-          supported: PI_THINKING_LEVELS.filter(
-            (l) => typeof entry.thinkingLevelMap[l] === "string"
-          ),
-          source: "pi-catalog",
-        }
+        supported: PI_THINKING_LEVELS.filter(
+          (l) => typeof entry.thinkingLevelMap[l] === "string",
+        ),
+        source: "pi-catalog",
+      }
       : { supported: [], source: "unknown" },
   };
 }
@@ -525,7 +525,7 @@ function normalizeOrEntry(m: any) {
     inPerM: policyCost(Number(m.pricing?.prompt) * 1e6),
     outPerM: policyCost(Number(m.pricing?.completion) * 1e6),
     reasoning: (m.supported_parameters || []).some(
-      (p: string) => p === "reasoning" || p === "include_reasoning"
+      (p: string) => p === "reasoning" || p === "include_reasoning",
     ),
     vision: (m.architecture?.input_modalities || []).includes("image"),
     source: "openrouter-live",
@@ -540,9 +540,9 @@ function parseOrEntries(payload: { data: any[] }) {
   return (payload.data || [])
     .filter(
       (m: any) =>
-        !String(m.id).startsWith("~") &&
-        String(m.id).split("/")[0] !== "openrouter" &&
-        typeof m.context_length === "number"
+        !String(m.id).startsWith("~")
+        && String(m.id).split("/")[0] !== "openrouter"
+        && typeof m.context_length === "number",
     )
     .map(normalizeOrEntry);
 }
@@ -558,19 +558,16 @@ function policyCheaper(a: any, b: any): number {
 }
 
 function pickStrongStandardScout(pool: any[]) {
-  const strong =
-    pool.filter((c) => c.reasoning && isFinite(c.inPerM)).sort(policyBetter)[0] ||
-    null;
+  const strong = pool.filter((c) => c.reasoning && isFinite(c.inPerM)).sort(policyBetter)[0]
+    || null;
   const siblings = pool.filter(
-    (c) => strong && c.provider === strong.provider && c.id !== strong.id
+    (c) => strong && c.provider === strong.provider && c.id !== strong.id,
   );
-  const standard =
-    siblings.filter((c) => c.reasoning && isFinite(c.inPerM)).sort(policyCheaper)[0] ||
-    null;
-  const scout =
-    siblings
-      .filter((c) => isFinite(c.inPerM) && (!standard || c.id !== standard.id))
-      .sort(policyCheaper)[0] || null;
+  const standard = siblings.filter((c) => c.reasoning && isFinite(c.inPerM)).sort(policyCheaper)[0]
+    || null;
+  const scout = siblings
+    .filter((c) => isFinite(c.inPerM) && (!standard || c.id !== standard.id))
+    .sort(policyCheaper)[0] || null;
   return { strong, standard, scout };
 }
 
@@ -596,7 +593,7 @@ function policyRole(c: any) {
  */
 function resolveModelPolicy(
   piCatalog: any[],
-  openrouterModels: { data: any[] }
+  openrouterModels: { data: any[] },
 ) {
   const native = (piCatalog || []).map(normalizePiEntry);
   const nativeFamilies = new Set(native.map((c) => policyFamilyKey(c.id)));
@@ -622,12 +619,11 @@ function resolveModelPolicy(
 
   const nativeVision = native.filter((c) => c.vision);
   const strongProviderVision = nativeVision.filter(
-    (c) => strong && c.provider === strong.provider
+    (c) => strong && c.provider === strong.provider,
   );
-  let vision =
-    [...(strongProviderVision.length ? strongProviderVision : nativeVision)].sort(
-      policyBetter
-    )[0] || null;
+  let vision = [...(strongProviderVision.length ? strongProviderVision : nativeVision)].sort(
+    policyBetter,
+  )[0] || null;
 
   if (!strong) {
     ({ strong, standard, scout } = pickStrongStandardScout(orPool));
@@ -668,7 +664,7 @@ describe("CC8: Catalog-driven model policy resolver", () => {
     // (z-ai/glm-5.2, z-ai/glm-5.3 — ctx 1048576, LARGER). The native id must
     // win despite the raw ctx disadvantage.
     const native = loadPiCatalog().filter(
-      (e) => e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id)
+      (e) => e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id),
     );
     const orPayload = loadOpenrouterPayload();
     const glmOnly = { data: orPayload.data.filter((m) => m.id.includes("glm")) };
@@ -709,8 +705,22 @@ describe("CC8: Catalog-driven model policy resolver", () => {
 
   test("strong skips larger non-reasoning candidates (edge pin, synthetic catalog)", () => {
     const catalog = [
-      { provider: "acme", id: "big-dumb", reasoning: false, ctx: 9000000, input: ["text"], cost: { input: 1, output: 1 } },
-      { provider: "acme", id: "small-smart", reasoning: true, ctx: 1000, input: ["text"], cost: { input: 1, output: 1 } },
+      {
+        provider: "acme",
+        id: "big-dumb",
+        reasoning: false,
+        ctx: 9000000,
+        input: ["text"],
+        cost: { input: 1, output: 1 },
+      },
+      {
+        provider: "acme",
+        id: "small-smart",
+        reasoning: true,
+        ctx: 1000,
+        input: ["text"],
+        cost: { input: 1, output: 1 },
+      },
     ];
     const policy = resolveModelPolicy(catalog, { data: [] });
     expect(policy.tiers.strong.id).toBe("small-smart");
@@ -742,8 +752,8 @@ describe("CC8: Catalog-driven model policy resolver", () => {
     // native zai entries are text-only here → no native vision candidate
     const native = loadPiCatalog().filter(
       (e) =>
-        e.provider === "perplexity" ||
-        (e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id))
+        e.provider === "perplexity"
+        || (e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id)),
     );
     const policy = resolveModelPolicy(native, loadOpenrouterPayload());
     expect(policy.tiers.vision).not.toBeNull();
@@ -774,13 +784,13 @@ describe("CC8: Catalog-driven model policy resolver", () => {
   test("vision unresolved when no vision-capable candidate exists anywhere (never fabricated)", () => {
     const native = loadPiCatalog().filter(
       (e) =>
-        e.provider === "perplexity" ||
-        (e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id))
+        e.provider === "perplexity"
+        || (e.provider === "zai" && ["glm-5.2", "glm-5.3"].includes(e.id)),
     );
     const orPayload = loadOpenrouterPayload();
     const textOnly = {
       data: orPayload.data.filter(
-        (m) => !(m.architecture?.input_modalities || []).includes("image")
+        (m) => !(m.architecture?.input_modalities || []).includes("image"),
       ),
     };
     const policy = resolveModelPolicy(native, textOnly);

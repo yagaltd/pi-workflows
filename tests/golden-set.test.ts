@@ -4,8 +4,14 @@ import path from "node:path";
 import { requireLiveState } from "./state-helpers";
 
 const GOLDEN = ".workflows/evals/golden";
-const goldenLive = requireLiveState(GOLDEN, "the golden set holds at least ten cases spanning the dispatcher gate degradation archive and docs kinds");
-const baselineLive = requireLiveState(GOLDEN, "eval-golden.mjs regenerates a fresh baseline over the live golden corpus and reports zero flips on an immediate re-run");
+const goldenLive = requireLiveState(
+  GOLDEN,
+  "the golden set holds at least ten cases spanning the dispatcher gate degradation archive and docs kinds",
+);
+const baselineLive = requireLiveState(
+  GOLDEN,
+  "eval-golden.mjs regenerates a fresh baseline over the live golden corpus and reports zero flips on an immediate re-run",
+);
 
 describe("golden set v1 (plan 20261025-021)", () => {
   test.skipIf(!goldenLive)("at least ten cases across all five kinds", () => {

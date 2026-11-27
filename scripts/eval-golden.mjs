@@ -26,7 +26,12 @@ import path from "node:path";
 const RUNS = 2;
 
 export function parseArgs(argv) {
-  const opts = { casesDir: ".workflows/evals/golden", baseline: ".workflows/evals/baseline.jsonl", acceptFlips: [], updateBaseline: false };
+  const opts = {
+    casesDir: ".workflows/evals/golden",
+    baseline: ".workflows/evals/baseline.jsonl",
+    acceptFlips: [],
+    updateBaseline: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--cases-dir") opts.casesDir = argv[++i];
@@ -60,8 +65,12 @@ export function checkGate(c) {
   const r = c.recorded ?? {};
   const pass = r.exit === 0;
   if (c.expected.verdict === "PASS") return { ok: pass, note: `exit=${r.exit}` };
-  if (c.expected.verdict === "FAIL")
-    return { ok: pass === false && Array.isArray(r.findings) && r.findings.length > 0, note: `exit=${r.exit} findings=${(r.findings ?? []).length}` };
+  if (c.expected.verdict === "FAIL") {
+    return {
+      ok: pass === false && Array.isArray(r.findings) && r.findings.length > 0,
+      note: `exit=${r.exit} findings=${(r.findings ?? []).length}`,
+    };
+  }
   return { ok: false, note: `expected.verdict must be PASS|FAIL` };
 }
 
@@ -69,14 +78,20 @@ export function checkDegradation(c) {
   const r = c.recorded ?? {};
   const markerOk = typeof r.marker === "string" && /^JUDGE SKIPPED \(.+\)$/.test(r.marker);
   const advisoryOk = r.mode === "advisory";
-  return { ok: (markerOk || advisoryOk) && c.expected.proceed === true && c.expected.documented_gap === true, note: markerOk ? r.marker : advisoryOk ? "advisory" : "no documented-gap marker" };
+  return {
+    ok: (markerOk || advisoryOk) && c.expected.proceed === true && c.expected.documented_gap === true,
+    note: markerOk ? r.marker : advisoryOk ? "advisory" : "no documented-gap marker",
+  };
 }
 
 export function checkArchive(c) {
   const r = c.recorded ?? {};
   const idOk = /^\d{8}-\d{3}$/.test(r.planId ?? "");
   const mentionOk = r.changelogMentions === true;
-  return { ok: idOk && mentionOk === (c.expected.ship === "pass"), note: `planId=${r.planId} mentions=${r.changelogMentions}` };
+  return {
+    ok: idOk && mentionOk === (c.expected.ship === "pass"),
+    note: `planId=${r.planId} mentions=${r.changelogMentions}`,
+  };
 }
 
 export function docsExpired(rec) {
@@ -102,9 +117,15 @@ export function runOnce(c) {
       // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
       env: process.env,
     });
-    if (s.error || s.status !== 0) return { ok: false, note: `probe failed: ${s.error?.message ?? s.stderr?.slice(0, 200)}` };
+    if (s.error || s.status !== 0) {
+      return { ok: false, note: `probe failed: ${s.error?.message ?? s.stderr?.slice(0, 200)}` };
+    }
     let out;
-    try { out = JSON.parse(s.stdout.trim().split("\n").pop()); } catch { return { ok: false, note: "probe printed no JSON" }; }
+    try {
+      out = JSON.parse(s.stdout.trim().split("\n").pop());
+    } catch {
+      return { ok: false, note: "probe printed no JSON" };
+    }
     const e = c.expected;
     const ok = out.ok === e.ok && (e.ok ? out.id === e.id && out.wave === e.wave : out.blocked === e.blocked);
     return { ok, note: out.ok ? `selected ${out.id} wave ${out.wave}` : `blocked=${out.blocked}` };
@@ -135,10 +156,19 @@ export function compareBaseline(baseline, id, outcome, acceptFlips) {
 
 export async function main(argv) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
   const { cases, error: loadErr } = loadCases(opts.casesDir);
-  if (loadErr) { console.error(`eval-golden: ${loadErr}`); return 2; }
-  if (cases.length === 0) { console.error("eval-golden: no cases found"); return 2; }
+  if (loadErr) {
+    console.error(`eval-golden: ${loadErr}`);
+    return 2;
+  }
+  if (cases.length === 0) {
+    console.error("eval-golden: no cases found");
+    return 2;
+  }
 
   const firstRun = !fs.existsSync(opts.baseline);
   const baseline = new Map();
@@ -168,25 +198,40 @@ export async function main(argv) {
     rows.push({ id: c.id, kind: c.kind, outcome, prev: baseline.get(c.id) ?? null, status: cmp.status, note });
   }
 
-  const stable = rows.filter((r) => r.outcome !== "flaky").every((r) => r.outcome === (r.prev ?? r.outcome) || ["new", "flip-accepted", "fixed", "flaky"].includes(r.status));
+  const stable = rows.filter((r) => r.outcome !== "flaky").every((r) =>
+    r.outcome === (r.prev ?? r.outcome) || ["new", "flip-accepted", "fixed", "flaky"].includes(r.status)
+  );
   for (const r of rows) {
     const mark = r.outcome === "pass" ? "PASS" : r.outcome === "fail" ? "FAIL" : "FLAKY";
     console.log(`${mark.padEnd(5)} ${r.id.padEnd(34)} ${String(r.status).padEnd(13)} ${r.note}`);
   }
   const fails = rows.filter((r) => r.outcome === "fail" && r.status !== "flip" && r.status !== "flip-accepted").length;
   const flaky = rows.filter((r) => r.outcome === "flaky").length;
-  console.log(`eval-golden: ${rows.length} cases · ${rows.length - fails - flaky} pass · ${fails} fail · ${flaky} flaky · ${flips} flip(s)`);
+  console.log(
+    `eval-golden: ${rows.length} cases · ${
+      rows.length - fails - flaky
+    } pass · ${fails} fail · ${flaky} flaky · ${flips} flip(s)`,
+  );
 
   if (firstRun || opts.updateBaseline) {
     fs.mkdirSync(path.dirname(opts.baseline), { recursive: true });
-    fs.writeFileSync(opts.baseline, rows.map((r) => JSON.stringify({ id: r.id, outcome: r.outcome })).join("\n") + "\n");
+    fs.writeFileSync(
+      opts.baseline,
+      rows.map((r) => JSON.stringify({ id: r.id, outcome: r.outcome })).join("\n") + "\n",
+    );
     console.log(`baseline ${firstRun ? "written" : "updated"}: ${opts.baseline}`);
   } else {
-    fs.writeFileSync(opts.baseline.replace(/\.jsonl$/, ".last.jsonl"), rows.map((r) => JSON.stringify({ id: r.id, outcome: r.outcome })).join("\n") + "\n");
+    fs.writeFileSync(
+      opts.baseline.replace(/\.jsonl$/, ".last.jsonl"),
+      rows.map((r) => JSON.stringify({ id: r.id, outcome: r.outcome })).join("\n") + "\n",
+    );
   }
 
   if (fails > 0) return 1;
-  if (flips > 0) { console.error(`FLIPS BLOCK: ${flips} case(s) flipped pass→fail — annotate or fix before SHIP`); return 1; }
+  if (flips > 0) {
+    console.error(`FLIPS BLOCK: ${flips} case(s) flipped pass→fail — annotate or fix before SHIP`);
+    return 1;
+  }
   void stable;
   return 0;
 }

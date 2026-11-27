@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { classifyStatus, buildReport, extractFeatures, parseVerdict, buildBarSpec, main } from "../scripts/ship-diagram.mjs";
+import {
+  buildBarSpec,
+  buildReport,
+  classifyStatus,
+  extractFeatures,
+  main,
+  parseVerdict,
+} from "../scripts/ship-diagram.mjs";
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "ship-"));
 
@@ -18,7 +25,10 @@ describe("ship-diagram (plan 20261104-057 T2)", () => {
   test("(a) classifies git diff --name-status lines: A, M, R, D", () => {
     expect(classifyStatus("A\tsrc/new.ts")).toEqual({ kind: "added", file: "src/new.ts" });
     expect(classifyStatus("M\tsrc/old.ts")).toEqual({ kind: "modified", file: "src/old.ts" });
-    expect(classifyStatus("R100\told-name.ts\tnew-name.ts")).toEqual({ kind: "moved", file: "old-name.ts → new-name.ts" });
+    expect(classifyStatus("R100\told-name.ts\tnew-name.ts")).toEqual({
+      kind: "moved",
+      file: "old-name.ts → new-name.ts",
+    });
     expect(classifyStatus("R084\tlib/a.ts\tlib/b.ts")).toEqual({ kind: "moved", file: "lib/a.ts → lib/b.ts" });
     expect(classifyStatus("D\tsrc/gone.ts")).toEqual({ kind: "removed", file: "src/gone.ts" });
     expect(classifyStatus("X\tweird")).toBeNull();

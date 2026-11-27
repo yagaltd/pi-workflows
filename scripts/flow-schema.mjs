@@ -23,7 +23,20 @@ export function exampleFlow() {
     slug: "example",
     title: "Example flow",
     steps: [
-      { id: "s1", kind: "task", title: "First task", tier: "B", wave: 1, depends_on: [], tdd: false, allowed: ["src/a.ts"], verify: "bun test", model: "standard", thinking: "medium", role: "worker" },
+      {
+        id: "s1",
+        kind: "task",
+        title: "First task",
+        tier: "B",
+        wave: 1,
+        depends_on: [],
+        tdd: false,
+        allowed: ["src/a.ts"],
+        verify: "bun test",
+        model: "standard",
+        thinking: "medium",
+        role: "worker",
+      },
       { id: "g1", kind: "gate", gate: "review", wave: 2, depends_on: ["s1"] },
     ],
   };

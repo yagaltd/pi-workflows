@@ -23,16 +23,17 @@
  *   audit file:     one JSON line per run (default: env JUDGE_AUDIT, else
  *                   <repoRoot>/.workflows/judge-audit.jsonl).
  */
-import { readFileSync, appendFileSync, mkdirSync, lstatSync, realpathSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { appendFileSync, lstatSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
-import { TextDecoder } from "node:util";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TextDecoder } from "node:util";
 
 export const QUESTION_CAP = 64;
 const CONTEXT_QUESTION_CAP = 60_000;
 const CONTEXT_PAYLOAD_CAP = 65_000;
-const KEY_SHAPED_NAME = /(?:^|[^a-z0-9])(?:api[_-]?key|secret|token|password|passwd|credential|auth|key)(?:[^a-z0-9]|$)/i;
+const KEY_SHAPED_NAME =
+  /(?:^|[^a-z0-9])(?:api[_-]?key|secret|token|password|passwd|credential|auth|key)(?:[^a-z0-9]|$)/i;
 const DEFAULT_TIMEOUT_MS = 30_000;
 const STATE = "pi-workflows judge question set";
 
@@ -74,9 +75,12 @@ export function loadQuestions(file) {
     const at = `question[${i}]${q && typeof q === "object" && q.id ? ` (${q.id})` : ""}`;
     if (!q || typeof q !== "object" || Array.isArray(q)) throw new Error(`${at} must be an object`);
     if (typeof q.id !== "string" || !q.id.trim()) throw new Error(`${at} is missing a non-empty string id`);
-    if (typeof q.question !== "string" || !q.question.trim()) throw new Error(`${at} is missing a non-empty string question`);
-    if (q.schema !== undefined && (typeof q.schema !== "object" || q.schema === null || Array.isArray(q.schema)))
+    if (typeof q.question !== "string" || !q.question.trim()) {
+      throw new Error(`${at} is missing a non-empty string question`);
+    }
+    if (q.schema !== undefined && (typeof q.schema !== "object" || q.schema === null || Array.isArray(q.schema))) {
       throw new Error(`${at} schema must be a JSON Schema object`);
+    }
   });
   return raw;
 }
@@ -90,8 +94,9 @@ export function loadQuestions(file) {
 function loadContext(paths) {
   const dir = specDir();
   return paths.map((supplied) => {
-    if (typeof supplied !== "string" || !supplied.trim())
+    if (typeof supplied !== "string" || !supplied.trim()) {
       throw new Error("context path must be a non-empty string");
+    }
     const abs = resolve(process.cwd(), supplied);
     const name = basename(abs);
     let stat;
@@ -100,24 +105,30 @@ function loadContext(paths) {
     } catch {
       throw new Error(`context ${supplied} must be a readable regular .spec file under .workflows/specs/`);
     }
-    if (stat.isSymbolicLink())
+    if (stat.isSymbolicLink()) {
       throw new Error(`context ${supplied} is a symlink; symlink context is not allowed`);
-    if (!stat.isFile())
+    }
+    if (!stat.isFile()) {
       throw new Error(`context ${supplied} must be a regular .spec file under .workflows/specs/`);
-    if (KEY_SHAPED_NAME.test(name))
+    }
+    if (KEY_SHAPED_NAME.test(name)) {
       throw new Error(`context ${name} has a key-shaped name; keys, secrets and auth files are not allowed as context`);
-    if (dirname(abs) !== dir || !name.endsWith(".spec"))
+    }
+    if (dirname(abs) !== dir || !name.endsWith(".spec")) {
       throw new Error(`context ${supplied} must be a regular .spec file under .workflows/specs/`);
-    if (realpathSync(dirname(abs)) !== dirname(abs))
+    }
+    if (realpathSync(dirname(abs)) !== dirname(abs)) {
       throw new Error(`context ${supplied} traverses a symlink; symlink context is not allowed`);
+    }
     let text;
     try {
       text = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(abs));
     } catch {
       throw new Error(`context ${supplied} is not valid UTF-8 text`);
     }
-    if (text.includes("\0"))
+    if (text.includes("\0")) {
       throw new Error(`context ${supplied} is not regular UTF-8 text`);
+    }
     return { path: supplied, text };
   });
 }
@@ -132,12 +143,14 @@ function contextCapBreach(translated, contextPaths) {
   const from = contextPaths.length ? ` from context ${contextPaths.join(", ")}` : "";
   for (const [id, payload] of Object.entries(translated)) {
     const size = typeof payload?.instructions === "string" ? payload.instructions.length : 0;
-    if (size > CONTEXT_QUESTION_CAP)
+    if (size > CONTEXT_QUESTION_CAP) {
       return `question ${id} instruction ${size} chars exceeds per-question cap ${CONTEXT_QUESTION_CAP}${from}`;
+    }
   }
   const size = JSON.stringify(translated).length;
-  if (size > CONTEXT_PAYLOAD_CAP)
+  if (size > CONTEXT_PAYLOAD_CAP) {
     return `translated payload ${size} chars exceeds payload cap ${CONTEXT_PAYLOAD_CAP}${from}`;
+  }
   return "";
 }
 
@@ -156,17 +169,24 @@ export function translate(questions, contextText = "") {
   for (const q of questions) {
     const instructions = contextText ? `${contextText}\n\n${q.question}` : q.question;
     const enumValues = q.schema?.enum;
-    if (Array.isArray(enumValues) && enumValues.length === 2 && enumValues.every((v) => typeof v === "string") &&
-        enumValues.map((v) => v.toLowerCase()).sort().join() === "no,yes") {
+    if (
+      Array.isArray(enumValues) && enumValues.length === 2 && enumValues.every((v) => typeof v === "string")
+      && enumValues.map((v) => v.toLowerCase()).sort().join() === "no,yes"
+    ) {
       out[q.id] = { type: "noul", instructions };
-    } else if (Array.isArray(enumValues) && enumValues.length >= 2 && enumValues.length <= 255 && enumValues.every((v) => typeof v === "string")) {
+    } else if (
+      Array.isArray(enumValues) && enumValues.length >= 2 && enumValues.length <= 255
+      && enumValues.every((v) => typeof v === "string")
+    ) {
       const criteria = {};
       for (const v of enumValues) criteria[v] = v;
       out[q.id] = { type: "choice", instructions, criteria };
     } else if (q.schema?.type === "boolean") {
       out[q.id] = { type: "noul", instructions };
     } else {
-      throw new Error(`question (${q.id}): unsupported schema for the typesafe backend — use schema.enum (yes/no or N options) or type boolean`);
+      throw new Error(
+        `question (${q.id}): unsupported schema for the typesafe backend — use schema.enum (yes/no or N options) or type boolean`,
+      );
     }
   }
   return out;
@@ -201,7 +221,10 @@ export function appendAudit(file, entry) {
   appendFileSync(file, `${JSON.stringify(entry)}\n`);
 }
 
-function auditEntry(auditFile, { endpoint, questions, status, reason, verdict, model, usage, contextPaths, truncated }) {
+function auditEntry(
+  auditFile,
+  { endpoint, questions, status, reason, verdict, model, usage, contextPaths, truncated },
+) {
   appendAudit(auditFile || auditPath(), {
     v: 1,
     ts: new Date().toISOString(),
@@ -239,13 +262,27 @@ function skip(out, reason) {
  * unreachable endpoint, HTTP error, or a non-JSON response — anything that would
  * otherwise block the pipeline or tempt a fabricated answer.
  */
-export async function ask({ questions, contextPaths = [], auditFile, fetchImpl = fetch, out = process.stdout, err = process.stderr, key = apiKey() }) {
+export async function ask(
+  {
+    questions,
+    contextPaths = [],
+    auditFile,
+    fetchImpl = fetch,
+    out = process.stdout,
+    err = process.stderr,
+    key = apiKey(),
+  },
+) {
   const endpoint = `${baseUrl()}/v1/systemone`;
   const common = { endpoint, questions };
   const audited = contextPaths.length ? { ...common, contextPaths } : common;
   if (!key) {
     skip(err, "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)");
-    auditEntry(auditFile, { ...common, status: "skipped", reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)" });
+    auditEntry(auditFile, {
+      ...common,
+      status: "skipped",
+      reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)",
+    });
     return { status: 0, skipped: true };
   }
 
@@ -335,22 +372,29 @@ export async function cmdAsk(args, { out = process.stdout, err = process.stderr 
       throw new Error(`unknown argument ${flag}`);
     }
   }
-  if (!questionsFile) throw new Error("usage: judge.mjs ask --questions <file.json> [--context <file.spec>]... [--audit <file>]");
+  if (!questionsFile) {
+    throw new Error("usage: judge.mjs ask --questions <file.json> [--context <file.spec>]... [--audit <file>]");
+  }
 
   // NO-JUDGE gate FIRST (plan-017 D2): key absence is the tested default path —
   // loud skip, exit 0, audit entry — BEFORE any input validation.
   if (!apiKey()) {
     err.write(`JUDGE SKIPPED (missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json))\n`);
     appendAudit(auditFile || auditPath(), {
-      v: 1, ts: new Date().toISOString(), command: "ask", questionCount: 0,
-      status: "skipped", reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)",
+      v: 1,
+      ts: new Date().toISOString(),
+      command: "ask",
+      questionCount: 0,
+      status: "skipped",
+      reason: "missing TYPESAFE_API_KEY (env or ~/.pi/agent/auth.json)",
     });
     return 0;
   }
 
   const questions = loadQuestions(questionsFile);
-  if (questions.length > QUESTION_CAP)
+  if (questions.length > QUESTION_CAP) {
     throw new Error(`${questions.length} questions exceeds the ${QUESTION_CAP}-question cap; split the set`);
+  }
   const af = auditFile || auditPath();
   const { status } = await ask({ questions, contextPaths, auditFile: af, out, err });
   return status;

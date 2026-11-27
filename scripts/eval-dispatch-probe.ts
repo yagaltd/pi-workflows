@@ -15,7 +15,10 @@ const missing = new Set<string>(f.missingSpecs ?? []);
 const result = resolveNext({
   plan: f.plan,
   registry: f.registry ?? {},
-  reviewFiles: (f.reviewFiles ?? []).map((r: { name: string; content: string }) => ({ name: r.name, content: r.content })),
+  reviewFiles: (f.reviewFiles ?? []).map((r: { name: string; content: string }) => ({
+    name: r.name,
+    content: r.content,
+  })),
   readSpec: (p: string) => (Array.from(missing).some((id) => p.endsWith(`${id}.spec`)) ? null : "# spec body"),
   repo: f.repo ?? "/repo",
 });

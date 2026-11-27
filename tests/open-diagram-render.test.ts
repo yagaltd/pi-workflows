@@ -24,8 +24,13 @@ function stubRunner(overrides: { width?: number; height?: number; text?: number;
     const out = args[args.indexOf("-o") + 1];
     fs.writeFileSync(`${out}.svg`, "<svg />");
     fs.writeFileSync(`${out}.png`, "PNG");
-    const summary = `wrote ${out}.svg, ${out}.png: ${width} x ${height} px; smallest text ${text} px; ${problems.length} layout problem(s)`;
-    return { status: problems.length ? 1 : 0, stdout: [summary, ...problems.map((p) => `  - ${p}`), ""].join("\n"), stderr: "" };
+    const summary =
+      `wrote ${out}.svg, ${out}.png: ${width} x ${height} px; smallest text ${text} px; ${problems.length} layout problem(s)`;
+    return {
+      status: problems.length ? 1 : 0,
+      stdout: [summary, ...problems.map((p) => `  - ${p}`), ""].join("\n"),
+      stderr: "",
+    };
   };
   return { calls, run };
 }
@@ -64,7 +69,11 @@ describe("open-diagram renderer seam (plan 20261123-075)", () => {
   test("test_render_returns_alt_text", async () => {
     const { spec, out } = fixture();
     const { run } = stubRunner();
-    const result = await renderDiagram({ spec: { path: spec, title: TITLE, subtitle: "Work flows through gates" }, out, run });
+    const result = await renderDiagram({
+      spec: { path: spec, title: TITLE, subtitle: "Work flows through gates" },
+      out,
+      run,
+    });
     expect(typeof result.altText).toBe("string");
     expect(result.altText.length).toBeGreaterThan(0);
     expect(result.altText).toContain(TITLE);
@@ -76,10 +85,14 @@ describe("open-diagram renderer seam (plan 20261123-075)", () => {
   test("test_render_fails_on_layout_problem", async () => {
     const { spec, out } = fixture();
     const overlap = stubRunner({ problems: ["'Plan' and 'Ship' overlap; move one"] });
-    await expect(renderDiagram({ spec: { path: spec, title: TITLE }, out, run: overlap.run })).rejects.toThrow(/overlap/);
+    await expect(renderDiagram({ spec: { path: spec, title: TITLE }, out, run: overlap.run })).rejects.toThrow(
+      /overlap/,
+    );
 
     const tiny = stubRunner({ text: 9.5 });
-    await expect(renderDiagram({ spec: { path: spec, title: TITLE }, out, run: tiny.run })).rejects.toThrow(/9\.5 px.*10 px/);
+    await expect(renderDiagram({ spec: { path: spec, title: TITLE }, out, run: tiny.run })).rejects.toThrow(
+      /9\.5 px.*10 px/,
+    );
   });
 
   test("test_renderer_cli_path_override", async () => {
@@ -128,7 +141,11 @@ describe("open-diagram renderer seam (plan 20261123-075)", () => {
       stderr: { write: (s: string) => errors.push(s) },
     });
     expect(code).toBe(0);
-    expect(JSON.parse(output.join(""))).toMatchObject({ svgPath: `${out}.svg`, pngPath: `${out}.png`, layoutProblems: 0 });
+    expect(JSON.parse(output.join(""))).toMatchObject({
+      svgPath: `${out}.svg`,
+      pngPath: `${out}.png`,
+      layoutProblems: 0,
+    });
     expect(errors.join("")).toBe("");
     expect(parseArgs(["--spec", spec, "--out", out]).error).toContain("--title is required");
     const bad = await main(["--spec", spec, "--title", TITLE, "--out", out], {

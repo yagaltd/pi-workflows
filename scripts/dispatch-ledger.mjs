@@ -23,10 +23,10 @@
  *   non-worktree child → "unknown"
  * Annotations always win over heuristics.
  */
-import { readFileSync, writeFileSync, appendFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { execSync } from "node:child_process";
+import { appendFileSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
 
 const sessionsDir = () => process.env.DISPATCH_SESSIONS_DIR || join(homedir(), ".pi/agent/sessions");
 const ledgerPath = () => process.env.DISPATCH_LEDGER || join(homedir(), ".pi/agent/dispatch-ledger.jsonl");
@@ -51,17 +51,28 @@ export function loadLedger() {
 function loadOutcomes() {
   const OUTCOMES = outcomesPath();
   if (!existsSync(OUTCOMES)) return {};
-  try { return JSON.parse(readFileSync(OUTCOMES, "utf8")); } catch { return {}; }
+  try {
+    return JSON.parse(readFileSync(OUTCOMES, "utf8"));
+  } catch {
+    return {};
+  }
 }
 
-function saveOutcomes(o) { writeFileSync(outcomesPath(), JSON.stringify(o, null, 2)); }
+function saveOutcomes(o) {
+  writeFileSync(outcomesPath(), JSON.stringify(o, null, 2));
+}
 
 // Cache tokens: tolerate camelCase and snake_case provider shapes; null when absent.
 function cacheTokens(u = {}) {
   const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
   return {
-    cacheReadTokens: num(u.cacheReadTokens ?? u.cache_read_tokens ?? u.cacheRead ?? u.cache_read ?? u.cache_read_input_tokens),
-    cacheCreationTokens: num(u.cacheCreationTokens ?? u.cache_creation_tokens ?? u.cacheCreation ?? u.cache_creation ?? u.cache_creation_input_tokens),
+    cacheReadTokens: num(
+      u.cacheReadTokens ?? u.cache_read_tokens ?? u.cacheRead ?? u.cache_read ?? u.cache_read_input_tokens,
+    ),
+    cacheCreationTokens: num(
+      u.cacheCreationTokens ?? u.cache_creation_tokens ?? u.cacheCreation ?? u.cache_creation
+        ?? u.cache_creation_input_tokens,
+    ),
   };
 }
 
@@ -75,10 +86,17 @@ export function summarizeSession(file) {
   for (const line of readFileSync(file, "utf8").split("\n")) {
     if (!line.trim()) continue;
     let e;
-    try { e = JSON.parse(line); } catch { continue; }
+    try {
+      e = JSON.parse(line);
+    } catch {
+      continue;
+    }
     if (!head && (e.type === "session" || e.parentSession)) head = e;
     const ts = e.timestamp || e.ts;
-    if (ts) { firstTs ??= ts; lastTs = ts; }
+    if (ts) {
+      firstTs ??= ts;
+      lastTs = ts;
+    }
     if (e.type === "model_change" && e.modelId) models.add(e.modelId);
     if (e.type === "thinking_level_change") thinking = e.thinkingLevel ?? e.level ?? e.thinking ?? e.value ?? null;
     if (e.type === "session_info" && e.name) name = e.name.replace(/^subagent:\s*/, "");
@@ -114,8 +132,11 @@ export function summarizeSession(file) {
     startedAt: firstTs,
     durationSec: durSec,
     model: [...models].at(-1) ?? null,
-    thinking, turns,
-    inputTokens: input, outputTokens: output, reasoningTokens: reasoning,
+    thinking,
+    turns,
+    inputTokens: input,
+    outputTokens: output,
+    reasoningTokens: reasoning,
     cacheReadTokens: cacheSeen ? cacheRead : null,
     cacheCreationTokens: cacheSeen ? cacheCreation : null,
     cost: Math.round(cost * 10000) / 10000,
@@ -137,7 +158,9 @@ function branchExists(repo, runId, taskId) {
       { stdio: ["ignore", "pipe", "ignore"], timeout: 5000 },
     ).toString();
     return out.trim().length > 0;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function outcomeFor(entry, outcomes) {
@@ -159,19 +182,31 @@ function cmdScan() {
   for (const dir of readdirSync(sessionsDir())) {
     const full = join(SESSIONS_DIR, dir);
     let st;
-    try { st = statSync(full); } catch { continue; }
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
     if (!st.isDirectory()) continue;
     for (const f of readdirSync(full)) {
       if (!f.endsWith(".jsonl")) continue;
       const file = join(full, f);
       let s;
-      try { s = summarizeSession(file); } catch { skipped++; continue; }
+      try {
+        s = summarizeSession(file);
+      } catch {
+        skipped++;
+        continue;
+      }
       if (!s || !s.parentSession) continue; // not a subagent child
       const cls = classify(s.cwd);
       const entry = { v: 1, ...s, ...cls, outcome: null, scannedAt: new Date().toISOString() };
       entry.outcome = outcomeFor(entry, outcomes);
       if (ledger.has(entry.sessionId)) refreshed++;
-      else { added++; out.push(JSON.stringify(entry)); }
+      else {
+        added++;
+        out.push(JSON.stringify(entry));
+      }
       ledger.set(entry.sessionId, entry);
     }
   }
@@ -185,13 +220,20 @@ export function cmdReport() {
   const ledger = [...loadLedger().values()].map((e) => ({ ...e, outcome: outcomes[e.sessionId] ?? e.outcome }));
   const groups = new Map();
   for (const e of ledger) {
-    const key = `${(e.model ?? "?").replace(/.*\//, "")} / ${e.thinking ?? "default"} / ${e.outcome?.startsWith("misfire") ? "misfire" : "ok-ish"}`;
+    const key = `${(e.model ?? "?").replace(/.*\//, "")} / ${e.thinking ?? "default"} / ${
+      e.outcome?.startsWith("misfire") ? "misfire" : "ok-ish"
+    }`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
   }
-  const med = (xs) => { const s=[...xs].sort((a,b)=>a-b); return s.length? s[Math.floor(s.length/2)] : 0; };
+  const med = (xs) => {
+    const s = [...xs].sort((a, b) => a - b);
+    return s.length ? s[Math.floor(s.length / 2)] : 0;
+  };
   console.log(`${ledger.length} dispatches on record\n`);
-  console.log("model / thinking                      n   outcomes                                turns(med)  cost$   dur(med)   cache%");
+  console.log(
+    "model / thinking                      n   outcomes                                turns(med)  cost$   dur(med)   cache%",
+  );
   for (const [key, es] of [...groups].sort((a, b) => b[1].length - a[1].length)) {
     const oc = {};
     for (const e of es) oc[e.outcome] = (oc[e.outcome] ?? 0) + 1;
@@ -202,10 +244,16 @@ export function cmdReport() {
     const hasCache = es.some((e) => e.cacheReadTokens != null);
     const cachePct = hasCache && inSum > 0 ? `${Math.round((crSum / inSum) * 100)}%` : "n/a";
     console.log(
-      `${key.padEnd(38)} ${String(es.length).padStart(3)} ${ocS.padEnd(40)} ${String(med(es.map(e=>e.turns??0))).padStart(10)}  ${cost.toFixed(2).padStart(6)}  ${Math.round(med(es.map(e=>e.durationSec??0))/60)}m  ${cachePct.padStart(7)}`,
+      `${key.padEnd(38)} ${String(es.length).padStart(3)} ${ocS.padEnd(40)} ${
+        String(med(es.map(e => e.turns ?? 0))).padStart(10)
+      }  ${cost.toFixed(2).padStart(6)}  ${Math.round(med(es.map(e => e.durationSec ?? 0)) / 60)}m  ${
+        cachePct.padStart(7)
+      }`,
     );
   }
-  console.log("\noutcome key: ok/misfire:N/rejected/failed = annotated · partial = branch still exists (failed task kept it)");
+  console.log(
+    "\noutcome key: ok/misfire:N/rejected/failed = annotated · partial = branch still exists (failed task kept it)",
+  );
   console.log("             merged-or-discarded = branch gone · unknown = no annotation, no branch signal");
 }
 
@@ -219,7 +267,11 @@ function cmdShow(pattern = "") {
     if (pattern && !hay.includes(pattern)) continue;
     const dur = e.durationSec != null ? `${Math.round(e.durationSec / 60)}m` : "?";
     console.log(
-      `${(e.startedAt ?? "?").slice(5, 16)}  ${(e.name ?? e.taskId ?? e.sessionId.slice(0, 12)).padEnd(14)} ${(e.outcome ?? "?").padEnd(20)} ${dur.padStart(4)}  ${String(e.turns).padStart(3)}t  $${(e.cost ?? 0).toFixed(3)}  ${(e.repo ?? "").split("/").slice(-1)[0]}`,
+      `${(e.startedAt ?? "?").slice(5, 16)}  ${(e.name ?? e.taskId ?? e.sessionId.slice(0, 12)).padEnd(14)} ${
+        (e.outcome ?? "?").padEnd(20)
+      } ${dur.padStart(4)}  ${String(e.turns).padStart(3)}t  $${(e.cost ?? 0).toFixed(3)}  ${
+        (e.repo ?? "").split("/").slice(-1)[0]
+      }`,
     );
   }
 }
@@ -229,12 +281,18 @@ function cmdAnnotate(key, outcome) {
   const ledger = loadLedger();
   let matched = 0;
   for (const e of ledger.values()) {
-    if (e.sessionId === key || (e.runId && `${e.runId}/${e.taskId}` === key) || (e.taskId ?? "") === key || (e.name ?? "") === key) {
+    if (
+      e.sessionId === key || (e.runId && `${e.runId}/${e.taskId}` === key) || (e.taskId ?? "") === key
+      || (e.name ?? "") === key
+    ) {
       outcomes[e.sessionId] = outcome;
       matched++;
     }
   }
-  if (!matched && ledger.size === 0) { outcomes[key] = outcome; matched = 1; } // pre-register
+  if (!matched && ledger.size === 0) {
+    outcomes[key] = outcome;
+    matched = 1;
+  } // pre-register
   saveOutcomes(outcomes);
   console.log(`annotate: ${matched} entr${matched === 1 ? "y" : "ies"} → ${outcome}`);
 }
@@ -242,10 +300,18 @@ function cmdAnnotate(key, outcome) {
 // ── main ─────────────────────────────────────────────────────────────────────
 const [cmd, ...rest] = process.argv.slice(2);
 switch (cmd) {
-  case "scan": cmdScan(); break;
-  case "report": cmdReport(); break;
-  case "show": cmdShow(rest[0] ?? ""); break;
-  case "annotate": cmdAnnotate(rest[0], rest[1]); break;
+  case "scan":
+    cmdScan();
+    break;
+  case "report":
+    cmdReport();
+    break;
+  case "show":
+    cmdShow(rest[0] ?? "");
+    break;
+  case "annotate":
+    cmdAnnotate(rest[0], rest[1]);
+    break;
   default:
     console.log("usage: dispatch-ledger.mjs <scan|report|show [pattern]|annotate <key> <outcome>>");
 }

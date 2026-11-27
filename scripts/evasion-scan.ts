@@ -44,8 +44,9 @@ const INVISIBLE_NAMES: Record<number, string> = {
 
 function invisibleName(cp: number): string {
   if (cp >= 0xfe00 && cp <= 0xfe0f) return `VARIATION SELECTOR-${cp - 0xfe00 + 1}`;
-  if (cp >= 0xe0000 && cp <= 0xe007f)
+  if (cp >= 0xe0000 && cp <= 0xe007f) {
     return `TAG ${cp === 0xe0000 ? "CANCEL" : String.fromCodePoint(cp - 0xe0000)}`;
+  }
   if (cp >= 0xe0100 && cp <= 0xe01ef) return `VARIATION SELECTOR-${cp - 0xe0100 + 17}`;
   if (cp >= 0xe0000) return "UNASSIGNED/INVISIBLE PLANE-14+ CODEPOINT";
   return INVISIBLE_NAMES[cp] ?? "INVISIBLE CODEPOINT";
@@ -53,11 +54,11 @@ function invisibleName(cp: number): string {
 
 function isInvisible(cp: number): boolean {
   return (
-    (cp >= 0x200b && cp <= 0x200d) ||
-    cp === 0xfeff ||
-    (cp >= 0x2060 && cp <= 0x2064) ||
-    (cp >= 0xfe00 && cp <= 0xfe0f) ||
-    cp >= 0xe0000
+    (cp >= 0x200b && cp <= 0x200d)
+    || cp === 0xfeff
+    || (cp >= 0x2060 && cp <= 0x2064)
+    || (cp >= 0xfe00 && cp <= 0xfe0f)
+    || cp >= 0xe0000
   );
 }
 
@@ -199,8 +200,8 @@ export function caseNormalizationDiff(a: string, b: string): CaseDiff {
   const verdict: CaseVerdict = exactEqual
     ? "identical"
     : normalizedEqual
-      ? "equivalent-only-under-normalization"
-      : "distinct";
+    ? "equivalent-only-under-normalization"
+    : "distinct";
   return { exactEqual, normalizedEqual, verdict };
 }
 
@@ -285,7 +286,7 @@ export function scanConfusables(text: string): ConfusableFinding[] {
 export function scanEnvBypass(text: string, pins?: string[]): EnvBypassFinding[] {
   const scoped = pins && pins.length > 0;
   const byName = new Map<string, string>(); // lower → exact pin
-  if (scoped) for (const p of pins) byName.set(p.toLowerCase(), p);
+  if (scoped) { for (const p of pins) byName.set(p.toLowerCase(), p); }
   // Gather every pattern match, then keep only NON-OVERLAPPING sites: a
   // `process.env["X"]` hit subsumes the bare `env["X"]` match inside it —
   // one read site, one finding.
@@ -369,31 +370,34 @@ export function scanFiles(paths: string[], pins?: string[]): ScanReport {
 
 export function humanLines(report: ScanReport): string[] {
   const lines: string[] = [];
-  if (report.clean && !report.caseDiff)
+  if (report.clean && !report.caseDiff) {
     return [`evasion-scan: CLEAN — ${report.filesScanned} file(s) scanned, 0 findings`];
+  }
   for (const f of report.findings) {
-    if (f.kind === "invisible-char")
+    if (f.kind === "invisible-char") {
       lines.push(
-        `invisible-char ${f.codepoint} ${f.name} — byte ${f.byteOffset}, line ${f.line}: ${f.context}`
+        `invisible-char ${f.codepoint} ${f.name} — byte ${f.byteOffset}, line ${f.line}: ${f.context}`,
       );
-    else if (f.kind === "confusable")
+    } else if (f.kind === "confusable") {
       lines.push(
-        `confusable ${f.codepoint} → '${f.foldsTo}' — byte ${f.byteOffset}, line ${f.line}: ${f.context}`
+        `confusable ${f.codepoint} → '${f.foldsTo}' — byte ${f.byteOffset}, line ${f.line}: ${f.context}`,
       );
-    else if (f.kind === "env-bypass")
+    } else if (f.kind === "env-bypass") {
       lines.push(
-        `env-bypass ${f.pin ? `pin '${f.pin}'` : "unbound read"}${f.caseVariant ? " (CASE-VARIANT)" : ""} — ${f.site} (line ${f.line})`
+        `env-bypass ${f.pin ? `pin '${f.pin}'` : "unbound read"}${
+          f.caseVariant ? " (CASE-VARIANT)" : ""
+        } — ${f.site} (line ${f.line})`,
       );
-    else if (f.kind === "case-diff") lines.push(`case-diff: ${f.detail}`);
+    } else if (f.kind === "case-diff") lines.push(`case-diff: ${f.detail}`);
     else lines.push(`scan-error: ${f.detail}`);
   }
   if (report.caseDiff) {
     const d = report.caseDiff;
     lines.push(
-      `case-diff: exact=${d.exactEqual} normalized(NFKC+casefold)=${d.normalizedEqual} → verdict ${d.verdict}` +
-        (d.verdict === "equivalent-only-under-normalization"
+      `case-diff: exact=${d.exactEqual} normalized(NFKC+casefold)=${d.normalizedEqual} → verdict ${d.verdict}`
+        + (d.verdict === "equivalent-only-under-normalization"
           ? " (an exact-match oracle would miss this pair)"
-          : "")
+          : ""),
     );
   }
   return lines;
@@ -406,8 +410,9 @@ function readPins(file: string): string[] {
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.filter((p): p is string => typeof p === "string");
-    if (Array.isArray(parsed?.pins))
+    if (Array.isArray(parsed?.pins)) {
       return (parsed.pins as unknown[]).filter((p): p is string => typeof p === "string");
+    }
   } catch {
     // fall through: one pin per non-empty line
   }
@@ -438,7 +443,7 @@ export async function main(argv: string[]): Promise<number> {
 
   if (!files.length && (!casePair || casePair.length !== 2)) {
     console.error(
-      "usage: bun scripts/evasion-scan.ts --files <f...> [--pins <file>] [--case <a> <b>] [--json]"
+      "usage: bun scripts/evasion-scan.ts --files <f...> [--pins <file>] [--case <a> <b>] [--json]",
     );
     return 2;
   }

@@ -1,24 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import {
-  SIEVE_VALUE,
-  SIEVE_RISK,
-  SIEVE_EFFORT,
-  SIEVE_PATH,
-  SIEVE_OUTCOMES,
-  SIEVE_SCHEMA,
-  TRIAGE_CONFIDENCE_FLOOR,
-  sieveOutcome,
-  sieveInput,
-  sieveProposal,
-  renderSieveVerdict,
   type JudgeBackend,
+  renderSieveVerdict,
+  SIEVE_EFFORT,
+  SIEVE_OUTCOMES,
+  SIEVE_PATH,
+  SIEVE_RISK,
+  SIEVE_SCHEMA,
+  SIEVE_VALUE,
   type SieveCells,
+  sieveInput,
+  sieveOutcome,
+  sieveProposal,
+  TRIAGE_CONFIDENCE_FLOOR,
 } from "../extensions/index.ts";
-import {
-  SIEVE_FIXTURES,
-  evalSieveBackend,
-  recordedSieveBackend,
-} from "../scripts/bench-intake-triage.ts";
+import { evalSieveBackend, recordedSieveBackend, SIEVE_FIXTURES } from "../scripts/bench-intake-triage.ts";
 
 /* ── plan 078 T1: the 073 proposal-entry sieve consolidated onto JudgeBackend ──
  * The sieve (plan 20261117-073) predates the seam — its forced choices were
@@ -65,8 +61,9 @@ describe("sieve seam consolidation (plan 078 T1) — vocabulary", () => {
     expect(props.standalone.type).toBe("boolean");
     expect(props.confidence.minimum).toBe(0);
     expect(props.confidence.maximum).toBe(1);
-    for (const cell of ["value", "risk", "effort", "path", "standalone", "confidence"])
+    for (const cell of ["value", "risk", "effort", "path", "standalone", "confidence"]) {
       expect((SIEVE_SCHEMA as any).required).toContain(cell);
+    }
     expect((SIEVE_SCHEMA as any).additionalProperties).toBe(false);
   });
 
@@ -161,7 +158,7 @@ describe("sieve seam consolidation (plan 078 T1) — seam semantics", () => {
   test("below-floor verdict keeps the cells visible but routes to the default path, loudly", async () => {
     const r = await sieveProposal(
       backend0_9({ value: "valuable", risk: "contained", effort: "s", standalone: false, confidence: 0.4 }),
-      "extract a shared judge seam"
+      "extract a shared judge seam",
     );
     expect(r.outcome).toBe("propose"); // cells still render
     expect(r.defaultPath).toBe(true);
@@ -215,7 +212,7 @@ describe("sieve seam consolidation (plan 078 T1) — rendering", () => {
   test("usable verdict renders the doctrine gate table + outcome line", async () => {
     const r = await sieveProposal(
       backend0_9({ value: "must-have", risk: "trivial", effort: "xs", path: "none", standalone: true }),
-      "add the --version flag"
+      "add the --version flag",
     );
     const out = renderSieveVerdict("add the --version flag", r);
     expect(out).toContain("| V value | must-have |");
@@ -228,7 +225,7 @@ describe("sieve seam consolidation (plan 078 T1) — rendering", () => {
   test("severe renders the decompose flag next to the park outcome", async () => {
     const r = await sieveProposal(
       backend0_9({ value: "valuable", risk: "severe", effort: "m", path: "grill", standalone: false }),
-      "replace the auth layer"
+      "replace the auth layer",
     );
     const out = renderSieveVerdict("replace the auth layer", r);
     expect(out).toContain("Outcome: park + decompose flag");

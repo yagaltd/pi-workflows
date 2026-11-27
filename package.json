@@ -6,6 +6,15 @@
     "pi-package"
   ],
   "license": "MIT",
+  "peerDependencies": {
+    "@arhen/pi-core-subagent": ">=1.3.49"
+  },
+  "optionalPeerDependencies": {
+    "agent-spec": ">=1.0.0",
+    "tdd-guard": ">=0.1.0",
+    "bombadil": ">=0.4.0",
+    "pi-autoresearch": ">=0.1.0"
+  },
   "pi": {
     "skills": [
       "./skills"
@@ -16,14 +25,5 @@
     "extensions": [
       "./extensions"
     ]
-  },
-  "peerDependencies": {
-    "@arhen/pi-core-subagent": ">=1.3.49"
-  },
-  "optionalPeerDependencies": {
-    "agent-spec": ">=1.0.0",
-    "tdd-guard": ">=0.1.0",
-    "bombadil": ">=0.4.0",
-    "pi-autoresearch": ">=0.1.0"
   }
 }

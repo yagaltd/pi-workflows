@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { validateFlow } from "../scripts/flow-validate.mjs";
 import { requireLiveState } from "./state-helpers";
 
@@ -17,7 +17,10 @@ describe("decision docs (plan 20261025-023)", () => {
     expect(readme).toContain("intent-guard.mjs");
   });
 
-  const demoLive = requireLiveState(".workflows/flows/decision-demo.json", "the shipped decision-demo flow validates clean and dry-runs through flow-run.mjs with exit 0");
+  const demoLive = requireLiveState(
+    ".workflows/flows/decision-demo.json",
+    "the shipped decision-demo flow validates clean and dry-runs through flow-run.mjs with exit 0",
+  );
   test.skipIf(!demoLive)("examples ship a decision flow and validate clean", () => {
     const file = ".workflows/flows/decision-demo.json";
     const flow = JSON.parse(fs.readFileSync(file, "utf8"));

@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 let dir: string;
 
@@ -9,11 +9,16 @@ function childSessionJsonl(opts: { model: string; usage: Record<string, unknown>
   return [
     JSON.stringify({ type: "session", id: "child-1", parentSession: "parent-1", cwd: "/tmp/repo" }),
     JSON.stringify({ type: "model_change", modelId: opts.model }),
-    JSON.stringify({ type: "message", message: { role: "assistant", model: opts.model, usage: opts.usage, stopReason: "end_turn" } }),
+    JSON.stringify({
+      type: "message",
+      message: { role: "assistant", model: opts.model, usage: opts.usage, stopReason: "end_turn" },
+    }),
   ].join("\n") + "\n";
 }
 
-function ledgerRow(opts: { sessionId: string; model: string; thinking?: string; inputTokens: number; cacheReadTokens?: number | null }) {
+function ledgerRow(
+  opts: { sessionId: string; model: string; thinking?: string; inputTokens: number; cacheReadTokens?: number | null },
+) {
   return JSON.stringify({
     v: 1,
     sessionId: opts.sessionId,
@@ -56,10 +61,13 @@ afterEach(() => {
 describe("dispatch-ledger cache fields", () => {
   test("records cache tokens when present", () => {
     const file = join(dir, "sessions/child/s1.jsonl");
-    writeFileSync(file, childSessionJsonl({
-      model: "claude-x",
-      usage: { input: 100, output: 20, reasoning: 5, cacheReadTokens: 80, cacheCreationTokens: 30 },
-    }));
+    writeFileSync(
+      file,
+      childSessionJsonl({
+        model: "claude-x",
+        usage: { input: 100, output: 20, reasoning: 5, cacheReadTokens: 80, cacheCreationTokens: 30 },
+      }),
+    );
     const { summarizeSession } = ledger();
     const s = summarizeSession(file);
     expect(s.cacheReadTokens).toBe(80);
@@ -68,10 +76,13 @@ describe("dispatch-ledger cache fields", () => {
 
   test("records cache tokens from snake_case usage", () => {
     const file = join(dir, "sessions/child/s2.jsonl");
-    writeFileSync(file, childSessionJsonl({
-      model: "claude-x",
-      usage: { input: 100, output: 20, reasoning: 0, cache_read_tokens: 55, cache_creation_tokens: 7 },
-    }));
+    writeFileSync(
+      file,
+      childSessionJsonl({
+        model: "claude-x",
+        usage: { input: 100, output: 20, reasoning: 0, cache_read_tokens: 55, cache_creation_tokens: 7 },
+      }),
+    );
     const { summarizeSession } = ledger();
     const s = summarizeSession(file);
     expect(s.cacheReadTokens).toBe(55);
@@ -95,7 +106,9 @@ function ledger() {
 function captureReport(): string {
   const lines: string[] = [];
   const orig = console.log;
-  console.log = (...args: unknown[]) => { lines.push(args.join(" ")); };
+  console.log = (...args: unknown[]) => {
+    lines.push(args.join(" "));
+  };
   try {
     ledger().cmdReport();
   } finally {
@@ -106,10 +119,19 @@ function captureReport(): string {
 
 describe("dispatch-ledger report cache column", () => {
   test("report gains cache read over input column", () => {
-    writeFileSync(process.env.DISPATCH_LEDGER!, [
-      ledgerRow({ sessionId: "a", model: "anthropic/claude-x", thinking: "high", inputTokens: 200, cacheReadTokens: 100 }),
-      ledgerRow({ sessionId: "b", model: "openai/gpt-y", thinking: "high", inputTokens: 300, cacheReadTokens: 150 }),
-    ].join("\n") + "\n");
+    writeFileSync(
+      process.env.DISPATCH_LEDGER!,
+      [
+        ledgerRow({
+          sessionId: "a",
+          model: "anthropic/claude-x",
+          thinking: "high",
+          inputTokens: 200,
+          cacheReadTokens: 100,
+        }),
+        ledgerRow({ sessionId: "b", model: "openai/gpt-y", thinking: "high", inputTokens: 300, cacheReadTokens: 150 }),
+      ].join("\n") + "\n",
+    );
     const out = captureReport();
     expect(out).toContain("cache%");
     // 100/200 = 50%, 150/300 = 50%
@@ -117,10 +139,19 @@ describe("dispatch-ledger report cache column", () => {
   });
 
   test("prints n a when provider omits cache fields", () => {
-    writeFileSync(process.env.DISPATCH_LEDGER!, [
-      ledgerRow({ sessionId: "a", model: "anthropic/claude-x", thinking: "high", inputTokens: 200 }),
-      ledgerRow({ sessionId: "b", model: "anthropic/claude-x", thinking: "low", inputTokens: 100, cacheReadTokens: 0 }),
-    ].join("\n") + "\n");
+    writeFileSync(
+      process.env.DISPATCH_LEDGER!,
+      [
+        ledgerRow({ sessionId: "a", model: "anthropic/claude-x", thinking: "high", inputTokens: 200 }),
+        ledgerRow({
+          sessionId: "b",
+          model: "anthropic/claude-x",
+          thinking: "low",
+          inputTokens: 100,
+          cacheReadTokens: 0,
+        }),
+      ].join("\n") + "\n",
+    );
     const out = captureReport();
     expect(out).toContain("n/a");
     // group with cacheReadTokens: 0 and input 100 must not print n/a (it has cache data)
@@ -131,9 +162,12 @@ describe("dispatch-ledger report cache column", () => {
   });
 
   test("n a when denominator group has cacheReadTokens but zero input", () => {
-    writeFileSync(process.env.DISPATCH_LEDGER!, [
-      ledgerRow({ sessionId: "a", model: "m1", inputTokens: 0, cacheReadTokens: 50 }),
-    ].join("\n") + "\n");
+    writeFileSync(
+      process.env.DISPATCH_LEDGER!,
+      [
+        ledgerRow({ sessionId: "a", model: "m1", inputTokens: 0, cacheReadTokens: 50 }),
+      ].join("\n") + "\n",
+    );
     const out = captureReport();
     expect(out).toContain("n/a");
   });

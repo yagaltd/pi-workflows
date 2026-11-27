@@ -73,9 +73,7 @@ function project(active = false): string {
 function snapshot(dir: string): string {
   const entries: string[] = [];
   const walk = (current: string): void => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    )) {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) walk(full);
       else entries.push(`${path.relative(dir, full)}:${fs.statSync(full).mtimeMs}:${fs.statSync(full).size}`);

@@ -3,9 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  buildInitPersonaFragment,
   INIT_PERSONA_BEGIN,
   INIT_PERSONA_END,
-  buildInitPersonaFragment,
   mergeAppendSystem,
   mergeInitGitignore,
   readCanonicalPersona,

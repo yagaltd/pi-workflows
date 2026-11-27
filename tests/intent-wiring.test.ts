@@ -11,7 +11,10 @@ describe("intent hook wiring (plan 20261026-030)", () => {
     expect(readme).toContain("trail.jsonl");
   });
 
-  const queueLive = requireLiveState(".workflows/queue.json", "live queue: no C-option row remains after shipping and any remaining row keeps all six columns as strings");
+  const queueLive = requireLiveState(
+    ".workflows/queue.json",
+    "live queue: no C-option row remains after shipping and any remaining row keeps all six columns as strings",
+  );
   test.skipIf(!queueLive)("queue json drops the shipped c row", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
     // Structural (032): C never returns; remaining rows keep all columns.

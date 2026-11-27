@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
-  AUDIT_SEVERITIES,
   AUDIT_BATCH_SCHEMA,
+  AUDIT_SEVERITIES,
   auditBatchVerdicts,
-  renderAuditDigest,
   type JudgeBackend,
+  renderAuditDigest,
 } from "../extensions/index.ts";
 import {
   AUDIT_BATCH_FIXTURES,
@@ -69,9 +69,29 @@ describe("audit batch verdicts (plan 078 T4) — one batched call", () => {
           bucket: null,
           value: {
             findings: [
-              { finding: CANDIDATES[0].finding, severity: "P1", confirmed: true, evidenceCount: 2, evidence: "try/catch swallows", fileRefs: ["extensions/index.ts:100"] },
-              { finding: CANDIDATES[1].finding, severity: "P3", confirmed: true, evidenceCount: 1, evidence: "the comment", fileRefs: ["scripts/x.ts:12"] },
-              { finding: CANDIDATES[2].finding, severity: "P0", confirmed: false, evidenceCount: 1, evidence: "unverifiable from the batch" },
+              {
+                finding: CANDIDATES[0].finding,
+                severity: "P1",
+                confirmed: true,
+                evidenceCount: 2,
+                evidence: "try/catch swallows",
+                fileRefs: ["extensions/index.ts:100"],
+              },
+              {
+                finding: CANDIDATES[1].finding,
+                severity: "P3",
+                confirmed: true,
+                evidenceCount: 1,
+                evidence: "the comment",
+                fileRefs: ["scripts/x.ts:12"],
+              },
+              {
+                finding: CANDIDATES[2].finding,
+                severity: "P0",
+                confirmed: false,
+                evidenceCount: 1,
+                evidence: "unverifiable from the batch",
+              },
             ],
             confidence: 0.9,
           },
@@ -116,7 +136,7 @@ describe("audit batch verdicts (plan 078 T4) — one batched call", () => {
   test("below-floor confidence routes the whole batch to the agent (the same floor)", async () => {
     const backend = backendOk(
       [{ finding: CANDIDATES[0].finding, severity: "P1", confirmed: true, evidenceCount: 1 }],
-      0.3
+      0.3,
     );
     const r = await auditBatchVerdicts(backend, CANDIDATES);
     expect(r.skippedAll).toBe(true);
@@ -142,7 +162,14 @@ describe("audit batch verdicts (plan 078 T4) — one batched call", () => {
 describe("audit batch verdicts (plan 078 T4) — digest (audit output schema unchanged)", () => {
   test("the digest carries the Phase-3 sections: confirmed findings with [Pn] + the agent queue", async () => {
     const backend = backendOk([
-      { finding: CANDIDATES[0].finding, severity: "P1", confirmed: true, evidenceCount: 2, evidence: "try/catch swallows", fileRefs: ["extensions/index.ts:100"] },
+      {
+        finding: CANDIDATES[0].finding,
+        severity: "P1",
+        confirmed: true,
+        evidenceCount: 2,
+        evidence: "try/catch swallows",
+        fileRefs: ["extensions/index.ts:100"],
+      },
       { finding: CANDIDATES[2].finding, severity: "P0", confirmed: false, evidenceCount: 1 },
     ]);
     const r = await auditBatchVerdicts(backend, [CANDIDATES[0], CANDIDATES[2]]);

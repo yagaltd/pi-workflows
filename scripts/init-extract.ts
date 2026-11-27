@@ -21,19 +21,14 @@
 // Exit: 0 drafts written + every lint PASS · 1 loud block (judge skip or lint
 // FAIL — the findings are printed per path) · 2 usage.
 
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { type AdoptDraft, extractAdoptDraft, type JudgeBackend, makeTypellmBackend } from "../extensions/index.ts";
 import { checkTree } from "./check-tree.mjs";
-import {
-  extractAdoptDraft,
-  makeTypellmBackend,
-  type AdoptDraft,
-  type JudgeBackend,
-} from "../extensions/index.ts";
 
-export { INIT_EXTRACT_SCHEMA, extractAdoptDraft } from "../extensions/index.ts";
+export { extractAdoptDraft, INIT_EXTRACT_SCHEMA } from "../extensions/index.ts";
 export type { AdoptDraft } from "../extensions/index.ts";
 
 /** Consumer-side destination for the generated pi-workflows task bridge. */
@@ -71,8 +66,7 @@ export function buildInitPersonaFragment(personaText: string): string {
   return `${INIT_PERSONA_BEGIN}\n${text}${INIT_PERSONA_END}\n`;
 }
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Append the fragment or replace only its marked block, preserving user text. */
 export function mergeAppendSystem(existing: string | null, fragment: string): string {
@@ -98,9 +92,9 @@ export function mergeInitGitignore(existing: string | null): string {
   const needsContentsNegation = lines.includes(WIP_CONTENTS_IGNORE);
   const merged = lines.filter(
     (line) =>
-      line !== APPEND_SYSTEM_NEGATION &&
-      line !== WIP_NEGATION &&
-      line !== WIP_CONTENTS_NEGATION,
+      line !== APPEND_SYSTEM_NEGATION
+      && line !== WIP_NEGATION
+      && line !== WIP_CONTENTS_NEGATION,
   );
 
   const piIndex = merged.lastIndexOf(".pi/*");
@@ -150,13 +144,14 @@ export function buildInitMiseFragment(): string {
     "# The wf: prefix prevents collisions with the consumer's own task names.",
     "",
   ];
-  for (const { verb, description } of INIT_WF_TASKS)
+  for (const { verb, description } of INIT_WF_TASKS) {
     lines.push(
       `[tasks."wf:${verb}"]`,
       `description = "${description}"`,
       `run = '"$PI_WORKFLOWS_BIN" ${verb} "$@"'`,
       "",
     );
+  }
   return lines.join("\n").trimEnd() + "\n";
 }
 
@@ -217,10 +212,10 @@ function stripJsonComments(text: string): string {
       out += ch;
       if (escaped) escaped = false;
       else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
+      else if (ch === "\"") inString = false;
       continue;
     }
-    if (ch === '"') {
+    if (ch === "\"") {
       inString = true;
       out += ch;
       continue;
@@ -293,7 +288,9 @@ function readFormatterMarkers(root: string): FormatterMarkers {
       ? "pyproject.toml"
       : null);
   const mentions = (name: string) =>
-    ["package.json", "mise.toml", ".shfmt"].some((p) => files.includes(p) && new RegExp(`\\b${name}\\b`, "i").test(text(p)));
+    ["package.json", "mise.toml", ".shfmt"].some((p) =>
+      files.includes(p) && new RegExp(`\\b${name}\\b`, "i").test(text(p))
+    );
   return {
     files,
     text,
@@ -311,13 +308,13 @@ function buildDprintProfile(m: FormatterMarkers): BuiltProfile | null {
   const { path: configPath, config } = m.dprint;
   const plugins = Array.isArray(config.plugins)
     ? config.plugins.filter(
-        (p): p is string => typeof p === "string" && PINNED_PLUGIN.test(p) && !/markdown/i.test(p),
-      )
+      (p): p is string => typeof p === "string" && PINNED_PLUGIN.test(p) && !/markdown/i.test(p),
+    )
     : [];
   const exec = Array.isArray(config.exec)
     ? config.exec.filter(
-        (e): e is Record<string, unknown> => !!e && typeof e === "object" && typeof e.command === "string",
-      )
+      (e): e is Record<string, unknown> => !!e && typeof e === "object" && typeof e.command === "string",
+    )
     : [];
   if (!plugins.length && !exec.length) return null;
 
@@ -385,7 +382,11 @@ function buildShellProfile(m: FormatterMarkers): BuiltProfile | null {
 }
 
 /** The registry: marker predicate → profile definition, in stable order. */
-const FORMATTER_REGISTRY: { tool: string; marker: (m: FormatterMarkers) => boolean; build: (m: FormatterMarkers) => BuiltProfile | null }[] = [
+const FORMATTER_REGISTRY: {
+  tool: string;
+  marker: (m: FormatterMarkers) => boolean;
+  build: (m: FormatterMarkers) => BuiltProfile | null;
+}[] = [
   { tool: "dprint", marker: (m) => !!m.dprint, build: buildDprintProfile },
   { tool: "ruff", marker: (m) => !!m.ruffConfig, build: buildRuffProfile },
   { tool: "cargo", marker: (m) => m.cargo, build: buildRustProfile },
@@ -425,9 +426,11 @@ export function detectFormatterProfiles(root: string): FormatterProfile[] {
     );
   }
   profiles.sort((a, b) => a.id.localeCompare(b.id));
-  for (const p of profiles)
-    if (p.status === "skip")
+  for (const p of profiles) {
+    if (p.status === "skip") {
       console.error(`SKIP: formatter ${p.id} — (tool not found) ${p.tool}; no command offered, nothing written or run`);
+    }
+  }
   return profiles;
 }
 
@@ -440,8 +443,11 @@ export function detectFormatterProfiles(root: string): FormatterProfile[] {
 export function buildFormatterOffer(profile: FormatterProfile): string {
   const id = profile.id || "unknown";
   const command = profile.command.trim();
-  if (profile.status === "skip" || !command)
-    return `SKIP: formatter ${id} — (tool not found) ${profile.tool || "formatter executable"}; no command offered, nothing written or run`;
+  if (profile.status === "skip" || !command) {
+    return `SKIP: formatter ${id} — (tool not found) ${
+      profile.tool || "formatter executable"
+    }; no command offered, nothing written or run`;
+  }
   const lines = [
     `OFFER: formatter ${id}`,
     `  read-only check: ${command}`,
@@ -450,11 +456,12 @@ export function buildFormatterOffer(profile: FormatterProfile): string {
     "  requires explicit owner approval before any write or run",
     "  Markdown is excluded from formatter scope; docs-lint is authoritative",
   ];
-  if (/^(rust-cargo|cargo)/i.test(id))
+  if (/^(rust-cargo|cargo)/i.test(id)) {
     lines.push(
       "  opt-in alternate only: dprint exec for a single dprint surface, on explicit owner request",
       "  the check above stays cargo fmt --check unless the owner changes it",
     );
+  }
   return lines.join("\n");
 }
 
@@ -571,16 +578,16 @@ export function buildAdoptContext(root: string): string {
   const scriptsDir = path.join(root, "scripts");
   const gateScripts = fs.existsSync(scriptsDir)
     ? fs
-        .readdirSync(scriptsDir)
-        .filter((f) => f.endsWith(".sh") || f.endsWith(".mjs"))
-        .map((f) => `scripts/${f}`)
-        .slice(0, 20)
+      .readdirSync(scriptsDir)
+      .filter((f) => f.endsWith(".sh") || f.endsWith(".mjs"))
+      .map((f) => `scripts/${f}`)
+      .slice(0, 20)
     : [];
   return [
-    "Draft the /init --adopt profile for this brownfield repo from the tree and build manifests below. " +
-      "ONE draft: profileCommands (from the manifests — null when not detectable, never invented), " +
-      "treeDomains (existing top-level directories), stackDetection (the stack + the review-skill family to cite), " +
-      "charterPointers (existing paths from the listing only), and the boolean gate-questions.",
+    "Draft the /init --adopt profile for this brownfield repo from the tree and build manifests below. "
+    + "ONE draft: profileCommands (from the manifests — null when not detectable, never invented), "
+    + "treeDomains (existing top-level directories), stackDetection (the stack + the review-skill family to cite), "
+    + "charterPointers (existing paths from the listing only), and the boolean gate-questions.",
     "",
     `Top-level directories: ${dirs.map((d) => `${d}/`).join(" ")}`,
     `Top-level files: ${files.join(" ")}`,
@@ -628,8 +635,9 @@ export function recordedAdoptBackend(_root?: string): JudgeBackend {
       const sections = new Map<string, string>();
       {
         const parts = input.split(/^--- (.+?) ---$/m);
-        for (let i = 1; i < parts.length - 1; i += 2)
+        for (let i = 1; i < parts.length - 1; i += 2) {
           sections.set(parts[i].trim(), (parts[i + 1] ?? "").trim());
+        }
       }
       const manifest = (name: string): string => sections.get(name) ?? "";
       const commands: AdoptDraft["commands"] = {};
@@ -654,20 +662,26 @@ export function recordedAdoptBackend(_root?: string): JudgeBackend {
       }
       if (manifest("pyproject.toml") && !commands.test) commands.test = "python -m pytest";
       const treeDomains = dirs.map((d) => ({ name: d, path: d }));
-      if (!Object.keys(commands).length && !treeDomains.length)
-        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no manifests or directories in the context" };
+      if (!Object.keys(commands).length && !treeDomains.length) {
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "recorded replay: no manifests or directories in the context",
+        };
+      }
       const stackDetection = cargo
         ? { stack: "Rust (cargo)", reviewSkills: [...RUST_REVIEW_SKILLS] }
         : pkg
-          ? {
-              stack: files.includes("bun.lockb") || files.includes("bunfig.toml")
-                ? "TypeScript (bun)"
-                : "TypeScript (npm)",
-              reviewSkills: ["security-audit"],
-            }
-          : manifest("pyproject.toml")
-            ? { stack: "Python", reviewSkills: ["security-audit"] }
-            : { stack: "undetectable", reviewSkills: [] };
+        ? {
+          stack: files.includes("bun.lockb") || files.includes("bunfig.toml")
+            ? "TypeScript (bun)"
+            : "TypeScript (npm)",
+          reviewSkills: ["security-audit"],
+        }
+        : manifest("pyproject.toml")
+        ? { stack: "Python", reviewSkills: ["security-audit"] }
+        : { stack: "undetectable", reviewSkills: [] };
       const pointersSection = input.split("--- pointer candidates that exist on disk ---")[1] ?? "";
       const charterPointers = pointersSection
         .split("\n")
@@ -776,7 +790,7 @@ function buildCharterDraft(root: string, draft: AdoptDraft): string {
         draft.stackDetection.reviewSkills.join(", ") || "none — stack not detectable, skip the citation"
       }.`,
       ...(isRustAdoptDraft(root, draft) ? [`- ${RUST_GATE_SENTENCE}`] : []),
-    ].join("\n")
+    ].join("\n"),
   );
   return charter.trimEnd() + "\n";
 }
@@ -919,20 +933,26 @@ export async function initExtractMain(argv: string[]): Promise<number> {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--root") root = argv[++i] ?? null;
     else if (argv[i] === "--out-dir") outDir = argv[++i] ?? null;
-    else if (["--recorded", "--formatter-offer", "--apply-formatter", "--formatter-approve"].includes(argv[i])) continue;
-    else {
+    else if (["--recorded", "--formatter-offer", "--apply-formatter", "--formatter-approve"].includes(argv[i])) {
+      continue;
+    } else {
       console.error(`usage error: unknown argument ${argv[i]}`);
       return 2;
     }
   }
   if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
-    console.error("usage: bun scripts/init-extract.ts --root <brownfield-repo-root> [--recorded] [--out-dir <dir>] [--formatter-offer | --apply-formatter --formatter-approve]");
+    console.error(
+      "usage: bun scripts/init-extract.ts --root <brownfield-repo-root> [--recorded] [--out-dir <dir>] [--formatter-offer | --apply-formatter --formatter-approve]",
+    );
     return 2;
   }
-  if (!isRepoRoot(root))
+  if (!isRepoRoot(root)) {
     console.error("note: --root has no .git / .gitignore — the lints still run against this directory");
+  }
   if (applyFormatter && !formatterApproved) {
-    console.error("REFUSED: applying a formatter profile requires explicit owner approval (--formatter-approve); nothing was written or run");
+    console.error(
+      "REFUSED: applying a formatter profile requires explicit owner approval (--formatter-approve); nothing was written or run",
+    );
     return 1;
   }
   if (formatterOffer || applyFormatter) {
@@ -957,13 +977,17 @@ export async function initExtractMain(argv: string[]): Promise<number> {
   console.log(`init-extract (plan 078 T2) — DRAFTS written (judge never writes final config):`);
   for (const p of [files.profile, files.charter, files.tree, files.suggestions]) console.log(`  draft: ${p}`);
   console.log(
-    `gate questions: testCommandPresent=${draft.gates.testCommandPresent} noKeyMaterialInCharter=${draft.gates.noKeyMaterialInCharter}`
+    `gate questions: testCommandPresent=${draft.gates.testCommandPresent} noKeyMaterialInCharter=${draft.gates.noKeyMaterialInCharter}`,
   );
   for (const c of v.checks) {
     console.log(`${c.ok ? "PASS" : "FAIL"}: ${c.name} — ${c.path}`);
     for (const f of c.findings) console.log(`  ${f}`);
   }
-  if (!v.ok) console.error("lint failure blocks loudly — correct the drafts before presenting (the judge never writes final config)");
+  if (!v.ok) {
+    console.error(
+      "lint failure blocks loudly — correct the drafts before presenting (the judge never writes final config)",
+    );
+  }
   return v.ok ? 0 : 1;
 }
 

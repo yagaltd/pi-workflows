@@ -54,13 +54,23 @@ describe("recorded replays (deterministic, no live calls)", () => {
     expect(checkGate({ recorded: { tool: "lifecycle", exit: 0 }, expected: { verdict: "FAIL" } }).ok).toBe(false);
   });
   test("gate FAIL requires non-zero exit AND findings", () => {
-    expect(checkGate({ recorded: { tool: "lifecycle", exit: 1, findings: ["x"] }, expected: { verdict: "FAIL" } }).ok).toBe(true);
-    expect(checkGate({ recorded: { tool: "lifecycle", exit: 1, findings: [] }, expected: { verdict: "FAIL" } }).ok).toBe(false);
+    expect(checkGate({ recorded: { tool: "lifecycle", exit: 1, findings: ["x"] }, expected: { verdict: "FAIL" } }).ok)
+      .toBe(true);
+    expect(checkGate({ recorded: { tool: "lifecycle", exit: 1, findings: [] }, expected: { verdict: "FAIL" } }).ok)
+      .toBe(false);
   });
   test("degradation accepts the documented-gap marker or advisory mode", () => {
-    expect(checkDegradation({ recorded: { marker: "JUDGE SKIPPED (missing TYPEDLLM_API_KEY)" }, expected: { proceed: true, documented_gap: true } }).ok).toBe(true);
-    expect(checkDegradation({ recorded: { mode: "advisory" }, expected: { proceed: true, documented_gap: true } }).ok).toBe(true);
-    expect(checkDegradation({ recorded: { marker: "silent skip" }, expected: { proceed: true, documented_gap: true } }).ok).toBe(false);
+    expect(
+      checkDegradation({
+        recorded: { marker: "JUDGE SKIPPED (missing TYPEDLLM_API_KEY)" },
+        expected: { proceed: true, documented_gap: true },
+      }).ok,
+    ).toBe(true);
+    expect(checkDegradation({ recorded: { mode: "advisory" }, expected: { proceed: true, documented_gap: true } }).ok)
+      .toBe(true);
+    expect(
+      checkDegradation({ recorded: { marker: "silent skip" }, expected: { proceed: true, documented_gap: true } }).ok,
+    ).toBe(false);
   });
   test("docs stamp expiry computes from recorded fields", () => {
     const rec = { generated_at: "2026-10-01T00:00:00Z", stale_after_days: 7, now: "2026-10-25T00:00:00Z" };
@@ -73,7 +83,9 @@ describe("recorded replays (deterministic, no live calls)", () => {
 
 describe("dispatcher probe (the real resolveNext)", () => {
   test("dispatcher probe executes the real resolveNext", () => {
-    const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", "tests/fixtures/evals/dispatch-wave-order.json"], { encoding: "utf8" });
+    const s = spawnSync("bun", ["scripts/eval-dispatch-probe.ts", "tests/fixtures/evals/dispatch-wave-order.json"], {
+      encoding: "utf8",
+    });
     expect(s.status).toBe(0);
     const out = JSON.parse(s.stdout.trim().split("\n").pop());
     expect(out.ok).toBe(true);
@@ -95,7 +107,10 @@ describe("scenario bindings (agent-spec lifecycle selectors)", () => {
     fs.writeFileSync(path.join(tmp, "g1.json"), JSON.stringify(gate));
     const bl = path.join(tmp, "b.jsonl");
     expect(await main(["--cases-dir", tmp, "--baseline", bl])).toBe(0);
-    fs.writeFileSync(path.join(tmp, "g1.json"), JSON.stringify({ ...gate, recorded: { tool: "lifecycle", exit: 1, findings: ["regressed"] } }));
+    fs.writeFileSync(
+      path.join(tmp, "g1.json"),
+      JSON.stringify({ ...gate, recorded: { tool: "lifecycle", exit: 1, findings: ["regressed"] } }),
+    );
     expect(await main(["--cases-dir", tmp, "--baseline", bl])).toBe(1);
     expect(await main(["--cases-dir", tmp, "--baseline", bl, "--accept-flip", "g1"])).toBe(0);
   });
@@ -104,7 +119,12 @@ describe("scenario bindings (agent-spec lifecycle selectors)", () => {
 describe("main end-to-end (temp cases + baseline lifecycle)", () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "eval-golden-"));
   const gate = { id: "g1", kind: "gate", recorded: { tool: "lifecycle", exit: 0 }, expected: { verdict: "PASS" } };
-  const docs = { id: "d1", kind: "docs", recorded: { generated_at: "2026-10-24T00:00:00Z", stale_after_days: 7, now: "2026-10-25T00:00:00Z" }, expected: { finding: "no-expiry" } };
+  const docs = {
+    id: "d1",
+    kind: "docs",
+    recorded: { generated_at: "2026-10-24T00:00:00Z", stale_after_days: 7, now: "2026-10-25T00:00:00Z" },
+    expected: { finding: "no-expiry" },
+  };
   fs.writeFileSync(path.join(tmp, "g1.json"), JSON.stringify(gate));
   fs.writeFileSync(path.join(tmp, "d1.json"), JSON.stringify(docs));
 
@@ -119,8 +139,14 @@ describe("main end-to-end (temp cases + baseline lifecycle)", () => {
   });
   test("tampered baseline yields a blocking flip; acceptance unblocks", async () => {
     const bl = path.join(tmp, "b.jsonl");
-    fs.writeFileSync(bl, JSON.stringify({ id: "g1", outcome: "pass" }) + "\n" + JSON.stringify({ id: "d1", outcome: "pass" }) + "\n");
-    fs.writeFileSync(path.join(tmp, "d1.json"), JSON.stringify({ ...docs, recorded: { ...docs.recorded, generated_at: "2026-09-01T00:00:00Z" } }));
+    fs.writeFileSync(
+      bl,
+      JSON.stringify({ id: "g1", outcome: "pass" }) + "\n" + JSON.stringify({ id: "d1", outcome: "pass" }) + "\n",
+    );
+    fs.writeFileSync(
+      path.join(tmp, "d1.json"),
+      JSON.stringify({ ...docs, recorded: { ...docs.recorded, generated_at: "2026-09-01T00:00:00Z" } }),
+    );
     const flipped = await main(["--cases-dir", tmp, "--baseline", bl]);
     expect(flipped).toBe(1);
     const accepted = await main(["--cases-dir", tmp, "--baseline", bl, "--accept-flip", "d1"]);
@@ -184,16 +210,25 @@ describe("release drift gates (plan 20261123-075)", () => {
       expect(stale.stdout + stale.stderr).toContain("above the budget");
       expect(stale.stdout + stale.stderr).toContain("README.md");
 
-      const tampered = readme.replace("<!-- generated:commands:end -->", "| `/not-a-prompt` | fabricated |\n<!-- generated:commands:end -->");
+      const tampered = readme.replace(
+        "<!-- generated:commands:end -->",
+        "| `/not-a-prompt` | fabricated |\n<!-- generated:commands:end -->",
+      );
       expect(tampered).not.toBe(readme);
       fs.writeFileSync(readmePath, tampered);
       const drift = docsLint(dir);
       expect(drift.status).not.toBe(0);
       expect(drift.stdout + drift.stderr).toContain("gen-docs: README commands section drifted");
 
-      const restore = spawnSync("node", ["scripts/gen-docs.mjs", "--root", dir], { cwd: dir, encoding: "utf8", env: process.env });
+      const restore = spawnSync("node", ["scripts/gen-docs.mjs", "--root", dir], {
+        cwd: dir,
+        encoding: "utf8",
+        env: process.env,
+      });
       expect(restore.status).toBe(0);
-      expect(readCommands(fs.readFileSync(readmePath, "utf8"))).toBe(buildSection(readPrompts(path.join(dir, "prompts"))));
+      expect(readCommands(fs.readFileSync(readmePath, "utf8"))).toBe(
+        buildSection(readPrompts(path.join(dir, "prompts"))),
+      );
 
       const write = docsLint(dir, "--write-baseline");
       expect(write.status).toBe(0);

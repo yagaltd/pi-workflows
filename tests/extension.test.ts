@@ -4,47 +4,47 @@ import * as os from "os";
 import * as path from "path";
 import register from "../extensions/index";
 import {
-  roleBody,
-  resolveRefs,
-  resolveSubagentInput,
-  computeHygieneDrift,
-  isDocsExempt,
+  autoGate,
+  buildPack,
+  buildRegistry,
+  buildWaveQuestions,
   computeDocsDrift,
+  computeHygieneDrift,
+  detectSupersedeGaps,
+  DIAGRAM_VIEW_TYPE,
+  diagramViewMessage,
+  dispatchNext,
+  eligibleTasks,
+  extractDecisionsSection,
+  fallbackNote,
+  firstFindingsLine,
+  gateCommandsFor,
+  type GateRunner,
+  isDocsExempt,
+  makeRemindOnce,
+  matchesAllowed,
+  orderWave,
   parseAdrContracts,
   parseCcCheckList,
-  detectSupersedeGaps,
-  extractDecisionsSection,
-  makeRemindOnce,
+  parseJudgeRows,
   parsePlan,
   parseProvenance,
-  eligibleTasks,
-  orderWave,
-  buildPack,
-  gateCommandsFor,
-  verdictOnFile,
-  resolveNext,
   parseRegistryPolicy,
-  buildRegistry,
-  dispatchNext,
-  runGate,
-  toRepoRelative,
-  matchesAllowed,
-  firstFindingsLine,
-  autoGate,
   parseVerdictWrite,
-  waveSettledChildren,
-  buildWaveQuestions,
-  splitQuestions,
-  parseJudgeRows,
-  verdictTable,
-  fallbackNote,
+  produceGeneratedViewMessage,
   recordArgvs,
   renderDiagramView,
-  diagramViewMessage,
-  produceGeneratedViewMessage,
-  DIAGRAM_VIEW_TYPE,
-  type GateRunner,
+  resolveNext,
+  resolveRefs,
+  resolveSubagentInput,
+  roleBody,
+  runGate,
+  splitQuestions,
+  toRepoRelative,
+  verdictOnFile,
+  verdictTable,
   type WaveChild,
+  waveSettledChildren,
 } from "../extensions/index";
 
 const WORKER = `# Role: worker
@@ -76,7 +76,7 @@ describe("roleBody", () => {
       const path = require("path");
       const content = fs.readFileSync(
         path.join(__dirname, "..", "agents", `${f}.md`),
-        "utf8"
+        "utf8",
       );
       const body = roleBody(content);
       expect(body.startsWith("You are")).toBe(true);
@@ -164,7 +164,8 @@ describe("computeHygieneDrift", () => {
   });
   test("emoji in prose (header/notes) does not inflate done count", () => {
     // The real 20260821-001 plan shape: 4 status-line ✅, 3 more ✅ in prose
-    const plan = "> Status: IN PROGRESS (all tasks ✅)\n### TASK 1\n- **Status**: ✅ DONE\n### TASK 2\n- **Status**: ✅ DONE\ncontext: updated\ncontext: no changes\nlearnings ✅ here";
+    const plan =
+      "> Status: IN PROGRESS (all tasks ✅)\n### TASK 1\n- **Status**: ✅ DONE\n### TASK 2\n- **Status**: ✅ DONE\ncontext: updated\ncontext: no changes\nlearnings ✅ here";
     const reviews = [
       { name: "a.md", content: "**ok: true**" },
       { name: "b.md", content: "**ok: true**" },
@@ -176,7 +177,8 @@ describe("computeHygieneDrift", () => {
   test("markers in inline-bullet format count too (real plan shape)", () => {
     // /next closeout appends markers as task bullets:
     // "- **Cost**: ... \n- **context: updated**"
-    const plan = "### TASK 1\n- **Status**: ✅ DONE\n- **Cost**: ~$0.5\n- **context: updated**\n### TASK 2\n- **Status**: ✅ DONE\n- **Cost**: ~$0.1\n- **context: no changes**";
+    const plan =
+      "### TASK 1\n- **Status**: ✅ DONE\n- **Cost**: ~$0.5\n- **context: updated**\n### TASK 2\n- **Status**: ✅ DONE\n- **Cost**: ~$0.1\n- **context: no changes**";
     const reviews = [
       { name: "a.md", content: "**ok: true**" },
       { name: "b.md", content: "**ok: true**" },
@@ -270,7 +272,8 @@ describe("computeDocsDrift", () => {
   });
 
   test("emoji in prose does not inflate done count (header/notes ✅)", () => {
-    const plan = "> Status: IN PROGRESS (all tasks ✅)\n### TASK 1\n- **Status**: ✅ DONE\n### TASK 2\n- **Status**: ⬜ PENDING\nlearnings ✅ somewhere";
+    const plan =
+      "> Status: IN PROGRESS (all tasks ✅)\n### TASK 1\n- **Status**: ✅ DONE\n### TASK 2\n- **Status**: ⬜ PENDING\nlearnings ✅ somewhere";
     const d = computeDocsDrift(plan, () => null, () => []);
     expect(d.changelogPending).toBe(false); // 1 done ≠ 2 total
   });
@@ -306,7 +309,8 @@ describe("supersede watchdog", () => {
   });
 
   test("parseCcCheckList: reads adr: from cc-check list blocks", () => {
-    const out = `=> CONTRACTS <=\n\n◆ watchdog-once:1\n  scope:directory · label:watchdog · id:watchdog-once · adr:7\n\n◆ plain:9\n  scope:file · label:x · id:plain`;
+    const out =
+      `=> CONTRACTS <=\n\n◆ watchdog-once:1\n  scope:directory · label:watchdog · id:watchdog-once · adr:7\n\n◆ plain:9\n  scope:file · label:x · id:plain`;
     expect(parseCcCheckList(out)).toEqual([
       { id: "watchdog-once", label: "watchdog", adr: "7", owners: [] },
     ]);
@@ -367,7 +371,7 @@ describe("supersede watchdog", () => {
 
   test("owner parsing: textual fallback extracts owner attributes", () => {
     const contracts = parseAdrContracts(
-      "/** @cc [label:watchdog,id:x,owner:alice,adr:7] x\n */"
+      "/** @cc [label:watchdog,id:x,owner:alice,adr:7] x\n */",
     );
     expect(contracts).toHaveLength(1);
     expect(contracts[0].owners).toEqual(["alice"]);
@@ -375,14 +379,14 @@ describe("supersede watchdog", () => {
 
   test("owner parsing: multiple owners kept in contract order", () => {
     const contracts = parseAdrContracts(
-      "/** @cc [adr:7,id:x,owner:alice,owner:bob,label:y] x\n */"
+      "/** @cc [adr:7,id:x,owner:alice,owner:bob,label:y] x\n */",
     );
     expect(contracts[0].owners).toEqual(["alice", "bob"]);
   });
 
   test("owner parsing: cc-check list path extracts owner attributes", () => {
     const contracts = parseCcCheckList(
-      "◆ x:1\n  scope:file · label:y · id:x · owner:carol · adr:7"
+      "◆ x:1\n  scope:file · label:y · id:x · owner:carol · adr:7",
     );
     expect(contracts[0].owners).toEqual(["carol"]);
   });
@@ -406,14 +410,14 @@ describe("supersede watchdog", () => {
     // The line builder is internal (no replacement export, per contract) —
     // assert the built-line template names owners and carries no probability.
     const src = require("fs").readFileSync("extensions/index.ts", "utf8");
-    expect(src).toMatch(/sign-off required from \$\{gap\.owners\.join\(/);
+    expect(src).toMatch(/sign-off required from \$\{\s*gap\.owners\.join\(/);
     expect(src).not.toMatch(/choiceProbability|toFixed\(2\)|≥ 0\.90/);
   });
 
   test("generic human gate line when owner absent", () => {
     const src = require("fs").readFileSync("extensions/index.ts", "utf8");
     expect(src).toContain(
-      "— static advisory: possible ADR supersession — raise it at the human gate (advisory only)."
+      "— static advisory: possible ADR supersession — raise it at the human gate (advisory only).",
     );
   });
 
@@ -882,7 +886,7 @@ describe("resolveNext (dispatcher)", () => {
     expect(
       verdictOnFile("task-1", [
         { name: "task-1.md", content: "round 2\n**ok: true**" },
-      ])
+      ]),
     ).toBe(true);
   });
 
@@ -937,7 +941,7 @@ describe("firstFindingsLine", () => {
   });
   test("falls back to a bold scenario marker then the first line", () => {
     expect(firstFindingsLine("## Verification Failed\n\n**scenario one**\n- verdict: Fail")).toBe(
-      "**scenario one**"
+      "**scenario one**",
     );
     expect(firstFindingsLine("plain failure text")).toBe("plain failure text");
     expect(firstFindingsLine("")).toBe("no findings in output");
@@ -968,10 +972,10 @@ describe("autoGate (injected fakes)", () => {
       action: "inert",
     });
     expect(
-      autoGate({ file: "docs/notes.md", plan: AUTO_PLAN, stageSpec: stage, run })
+      autoGate({ file: "docs/notes.md", plan: AUTO_PLAN, stageSpec: stage, run }),
     ).toEqual({ action: "inert" });
     expect(
-      autoGate({ file: ".workflows/plan.md", plan: AUTO_PLAN, stageSpec: stage, run })
+      autoGate({ file: ".workflows/plan.md", plan: AUTO_PLAN, stageSpec: stage, run }),
     ).toEqual({ action: "inert" });
   });
 
@@ -979,7 +983,7 @@ describe("autoGate (injected fakes)", () => {
     const calls: { cmd: string; args: string[] }[] = [];
     const run: GateRunner = (cmd, args) => {
       calls.push({ cmd, args });
-      return { code: 0, stdout: '{"passed": true}', stderr: "" };
+      return { code: 0, stdout: "{\"passed\": true}", stderr: "" };
     };
     const d = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run });
     expect(d.action).toBe("allow");
@@ -1011,13 +1015,13 @@ describe("autoGate (injected fakes)", () => {
     const run: GateRunner = (cmd, args) =>
       cmd === "agent-spec" && args[0] === "guard"
         ? {
-            // real agent-spec guard prints its findings on stderr
-            code: 1,
-            stdout: "",
-            stderr:
-              "agent-spec guard: FAILED\n  - task-1.spec: change src/a.ts outside Allowed Changes (src/**)\nerror: 1 failed",
-          }
-        : { code: 0, stdout: '{"passed": true}', stderr: "" };
+          // real agent-spec guard prints its findings on stderr
+          code: 1,
+          stdout: "",
+          stderr:
+            "agent-spec guard: FAILED\n  - task-1.spec: change src/a.ts outside Allowed Changes (src/**)\nerror: 1 failed",
+        }
+        : { code: 0, stdout: "{\"passed\": true}", stderr: "" };
     const d = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run });
     expect(d.action).toBe("block");
     if (d.action !== "block") return;
@@ -1029,12 +1033,13 @@ describe("autoGate (injected fakes)", () => {
   test("lifecycle failure blocks with the failing scenario as findings line", () => {
     const run: GateRunner = (cmd, args) => {
       if (cmd === "agent-spec" && args[0] === "guard") return { code: 0, stdout: "PASSED", stderr: "" };
-      if (cmd === "agent-spec" && args[0] === "lifecycle")
+      if (cmd === "agent-spec" && args[0] === "lifecycle") {
         return {
           code: 1,
           stdout:
-            '{"passed": false, "failure_summary": "## Verification Failed\\n\\n**honors contract boundaries**\\n- verdict: Fail", "verification": {"results": [{"scenario_name": "honors contract boundaries", "verdict": "fail"}]}}',
+            "{\"passed\": false, \"failure_summary\": \"## Verification Failed\\n\\n**honors contract boundaries**\\n- verdict: Fail\", \"verification\": {\"results\": [{\"scenario_name\": \"honors contract boundaries\", \"verdict\": \"fail\"}]}}",
         };
+      }
       return { code: 0, stdout: "", stderr: "" };
     };
     const d = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run });
@@ -1042,16 +1047,17 @@ describe("autoGate (injected fakes)", () => {
     if (d.action !== "block") return;
     expect(d.layer).toBe("Layer 1 lifecycle (agent-spec)");
     expect(d.command).toBe(
-      "agent-spec lifecycle .workflows/specs/task-1.spec --code . --format json"
+      "agent-spec lifecycle .workflows/specs/task-1.spec --code . --format json",
     );
     expect(d.reason).toContain("honors contract boundaries (verdict fail)");
   });
 
   test("tdd-guard lint then verify block the Layer 2 sub-steps", () => {
     const lintFail: GateRunner = (cmd, args) => {
-      if (cmd === "tdd-guard" && args[0] === "lint")
+      if (cmd === "tdd-guard" && args[0] === "lint") {
         return { code: 1, stdout: "", stderr: "tdd-guard: no-assertionless-tests: src/a.test.ts:12 has no assertion" };
-      return { code: 0, stdout: '{"passed": true}', stderr: "" };
+      }
+      return { code: 0, stdout: "{\"passed\": true}", stderr: "" };
     };
     const d1 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: lintFail });
     expect(d1.action).toBe("block");
@@ -1060,9 +1066,10 @@ describe("autoGate (injected fakes)", () => {
       expect(d1.command).toBe("tdd-guard lint");
     }
     const verifyFail: GateRunner = (cmd, args) => {
-      if (cmd === "tdd-guard" && args[0] === "verify")
+      if (cmd === "tdd-guard" && args[0] === "verify") {
         return { code: 1, stdout: "", stderr: "- task-1.spec: no test covers decision: cache eviction" };
-      return { code: 0, stdout: '{"passed": true}', stderr: "" };
+      }
+      return { code: 0, stdout: "{\"passed\": true}", stderr: "" };
     };
     const d2 = autoGate({ file: "src/a.ts", plan: AUTO_PLAN, stageSpec: stage, run: verifyFail });
     expect(d2.action).toBe("block");
@@ -1082,7 +1089,7 @@ describe("autoGate (injected fakes)", () => {
           ? { code: 0, stdout: "PASSED", stderr: "" }
           : { code: 1, stdout: "", stderr: "  - spec: change other/x.ts is outside Allowed Changes" };
       }
-      return { code: 0, stdout: '{"passed": true}', stderr: "" };
+      return { code: 0, stdout: "{\"passed\": true}", stderr: "" };
     };
     const d1 = autoGate({ file: "other/x.ts", plan: AUTO_PLAN, stageSpec: stage, run });
     expect(d1.action).toBe("block");
@@ -1214,7 +1221,7 @@ function harness(projDir: string) {
 async function withGateEnv(
   binDir: string | null,
   modes: Record<string, string>,
-  body: (env: { journal: string; tddJournal: string }) => Promise<void> | void
+  body: (env: { journal: string; tddJournal: string }) => Promise<void> | void,
 ): Promise<void> {
   const savedPath = process.env.PATH;
   const savedModes: Record<string, string | undefined> = {};
@@ -1274,7 +1281,7 @@ describe("auto-gate wiring (PATH-shimmed)", () => {
         expect(result.reason).toContain("Layer 1 lifecycle (agent-spec)");
         expect(result.reason).toContain("agent-spec lifecycle .workflows/specs/task-1.spec");
         expect(result.reason).toContain("**honors contract boundaries**");
-      }
+      },
     );
   });
 
@@ -1602,7 +1609,7 @@ const VERDICT_PLAN = `# Plan: verdict fixture (038)
 
 const SINGLE_TASK_PLAN = VERDICT_PLAN.replace(
   /### TASK 2[\s\S]*$/,
-  ""
+  "",
 ).replace("038", "039");
 
 const verdictDoc = (ok: boolean, extra = ""): string =>
@@ -1671,7 +1678,7 @@ function verdictHarness(projDir: string) {
       for (const h of handlers.tool_call ?? []) {
         result = await h(
           { type: "tool_call", toolCallId: "t", toolName: "write", input: { path: relPath, content } },
-          ctx
+          ctx,
         );
         if (result) break;
       }
@@ -1697,7 +1704,7 @@ function verdictHarness(projDir: string) {
 async function withRecordsEnv(
   spyFile: string | null,
   scriptsOverride: string | null,
-  body: () => Promise<void> | void
+  body: () => Promise<void> | void,
 ): Promise<void> {
   const savedSpy = process.env.RECORD_SPY;
   const savedScripts = process.env.PI_WORKFLOWS_SCRIPTS_DIR;
@@ -1910,7 +1917,7 @@ describe("verdict automation units", () => {
     // 3 children × 4 rows = 12 — one call
     expect(splitQuestions(buildWaveQuestions([child, child, child]))).toHaveLength(1);
     const big = buildWaveQuestions(
-      Array.from({ length: 17 }, (_, i) => ({ ...child, id: `task-${i + 1}` }))
+      Array.from({ length: 17 }, (_, i) => ({ ...child, id: `task-${i + 1}` })),
     );
     expect(big).toHaveLength(68);
     const chunks = splitQuestions(big);
@@ -1964,13 +1971,28 @@ describe("verdict automation units", () => {
       ok: false,
     });
     expect(argvs.proof).toEqual([
-      "record", "--plan", "20260101-038", "--task", "task-2",
-      "--verify", "bun test", "--spec", ".workflows/specs/task-2.spec",
+      "record",
+      "--plan",
+      "20260101-038",
+      "--task",
+      "task-2",
+      "--verify",
+      "bun test",
+      "--spec",
+      ".workflows/specs/task-2.spec",
     ]);
     expect(argvs.journal).toEqual([
-      "record", "--plan", "20260101-038", "--task", "task-2", "--event", "failed",
+      "record",
+      "--plan",
+      "20260101-038",
+      "--task",
+      "task-2",
+      "--event",
+      "failed",
     ]);
-    expect(recordArgvs({ planId: "p", taskId: "t", verify: "v", contractPath: "s", ok: true }).journal).toContain("done");
+    expect(recordArgvs({ planId: "p", taskId: "t", verify: "v", contractPath: "s", ok: true }).journal).toContain(
+      "done",
+    );
   });
 });
 
@@ -1982,7 +2004,9 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
 
   class FakeImage {
     args: any[];
-    constructor(...args: any[]) { this.args = args; }
+    constructor(...args: any[]) {
+      this.args = args;
+    }
   }
   class FakeText {
     constructor(public text: string, public pad: number, public indent: number) {}
@@ -1990,7 +2014,9 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
   class FakeBox {
     children: any[] = [];
     constructor(public pad: number, public spacing: number, public bg: any) {}
-    addChild(child: any) { this.children.push(child); }
+    addChild(child: any) {
+      this.children.push(child);
+    }
   }
 
   const input = (overrides: Record<string, any> = {}) => ({
@@ -2018,10 +2044,12 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
       {
         on: () => undefined,
         registerTool: () => undefined,
-        registerMessageRenderer: (type: string, renderer: any) => { renderers[type] = renderer; },
+        registerMessageRenderer: (type: string, renderer: any) => {
+          renderers[type] = renderer;
+        },
         getSettings: () => settings,
       } as any,
-      { tui: { Image: FakeImage, Text: FakeText, Box: FakeBox } }
+      { tui: { Image: FakeImage, Text: FakeText, Box: FakeBox } },
     );
     const renderer = renderers[DIAGRAM_VIEW_TYPE];
     expect(typeof renderer).toBe("function");
@@ -2032,7 +2060,7 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
       const box = renderer(
         diagramViewMessage(input({ diagram: { pngPath: realPng, altText: ALT } })),
         { expanded: false, outputPad: 1 },
-        { bg: (_key: string, text: string) => text, fg: (_key: string, text: string) => text }
+        { bg: (_key: string, text: string) => text, fg: (_key: string, text: string) => text },
       );
       const renderedImage = box.children.find((c: any) => c instanceof FakeImage);
       const renderedText = box.children.find((c: any) => c instanceof FakeText);
@@ -2071,7 +2099,9 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
     }
     const unreadable = renderDiagramView(input(), {
       ...deps,
-      readImage: () => { throw new Error("no image bytes"); },
+      readImage: () => {
+        throw new Error("no image bytes");
+      },
     });
     expect(unreadable.image).toBeNull();
     expect(unreadable.text).toContain(ALT);
@@ -2118,13 +2148,13 @@ describe("TUI generated-view hook (plan 20261123-075 TASK 4)", () => {
     const suggested = { diagram: true };
     const policyOff = renderDiagramView(
       input({ policy: { diagram: false }, judgeSuggestion: suggested }),
-      deps
+      deps,
     );
     expect(policyOff.image).toBeNull();
     expect(policyOff.text).toContain(PROSE);
     const noPolicy = renderDiagramView(
       input({ policy: null, judgeSuggestion: suggested }),
-      deps
+      deps,
     );
     expect(noPolicy.image).toBeNull();
 
@@ -2145,8 +2175,7 @@ describe("CONTRACTS sync (plan 20261117-064 TASK 7)", () => {
   // A directive line, not a mention: `@cc [metadata] id` at the start of a
   // line (optionally inside a doc comment) is the only form cc-check parses.
   const DIRECTIVE = /^\s*(?:\/\*\*|\*)?\s*@cc \[([^\]]+)\] (\S+)\s*$/gm;
-  const directiveIds = (text: string) =>
-    Array.from(text.matchAll(DIRECTIVE), (m) => m[2]);
+  const directiveIds = (text: string) => Array.from(text.matchAll(DIRECTIVE), (m) => m[2]);
 
   // The repo-wide doctrine rules are CONTRACTS-only by design; every other
   // CONTRACTS entry must mirror a code directive, and every code directive

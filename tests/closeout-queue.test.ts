@@ -17,13 +17,26 @@ const setup = (dir, queue) => {
   if (queue !== undefined) fs.writeFileSync(path.join(dir, "queue.json"), JSON.stringify(queue));
 };
 
-const row = (option) => ({ option, what: `do ${option}`, effort: "S", risk: "low", unblocks: "next", recommend: "now" });
+const row = (option) => ({
+  option,
+  what: `do ${option}`,
+  effort: "S",
+  risk: "low",
+  unblocks: "next",
+  recommend: "now",
+});
 
 describe("closeout next moves (plan 20261025-029)", () => {
   test("closeout renders next moves table from queue.json", () => {
     const withQ = fs.mkdtempSync(path.join(os.tmpdir(), "q-"));
     setup(withQ, [row("C"), row("D")]);
-    const g = gather({ plan: path.join(withQ, "plan.md"), journal: path.join(withQ, "j.jsonl"), proofs: path.join(withQ, "p.jsonl"), lessons: path.join(withQ, "l.jsonl"), queue: path.join(withQ, "queue.json") });
+    const g = gather({
+      plan: path.join(withQ, "plan.md"),
+      journal: path.join(withQ, "j.jsonl"),
+      proofs: path.join(withQ, "p.jsonl"),
+      lessons: path.join(withQ, "l.jsonl"),
+      queue: path.join(withQ, "queue.json"),
+    });
     const report = renderReport(g);
     expect(report).toContain("### Next moves");
     expect(report).toContain("| Option | What | Effort | Risk | Unblocks | Recommend |");
@@ -32,7 +45,13 @@ describe("closeout next moves (plan 20261025-029)", () => {
 
     const noQ = fs.mkdtempSync(path.join(os.tmpdir(), "q-"));
     setup(noQ, undefined);
-    const g2 = gather({ plan: path.join(noQ, "plan.md"), journal: path.join(noQ, "j.jsonl"), proofs: path.join(noQ, "p.jsonl"), lessons: path.join(noQ, "l.jsonl"), queue: path.join(noQ, "queue.json") });
+    const g2 = gather({
+      plan: path.join(noQ, "plan.md"),
+      journal: path.join(noQ, "j.jsonl"),
+      proofs: path.join(noQ, "p.jsonl"),
+      lessons: path.join(noQ, "l.jsonl"),
+      queue: path.join(noQ, "queue.json"),
+    });
     expect(renderReport(g2)).toContain("no queue file — next moves undecided");
   });
 

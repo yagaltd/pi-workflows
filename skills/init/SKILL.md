@@ -349,9 +349,8 @@ contract
   paths, never `fmt` there; `fmt` is allowed only in an explicitly contracted
   formatting task on explicit paths (gate: `agents/worker.md`).
 - Markdown is excluded from `format-check`; `scripts/docs-lint.sh` is the sole
-  Markdown authority. The docs baseline regenerates only with
-  `bash scripts/docs-lint.sh --write-baseline`, never by hand (gate:
-  `scripts/docs-lint.sh`).
+  Markdown authority. The docs baseline is regenerated only through that
+  gate's `--write-baseline` flag, never by hand (gate: `scripts/docs-lint.sh`).
 - `/init` never implements features — architecture, tree, stubs only
 - The tree is an APPROVED artifact, not a side effect of the first task
 - `/init` on an existing project = `/audit` first (map what exists), then

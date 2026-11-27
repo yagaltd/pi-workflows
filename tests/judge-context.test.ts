@@ -126,7 +126,10 @@ describe("judge-context pre-flight context gate (plan 20261125-082 TASK 4)", () 
     }));
     try {
       fs.mkdirSync(path.dirname(path.join(root, relContext)), { recursive: true });
-      fs.writeFileSync(path.join(root, relContext), "spec: task\nname: path-free pre-flight fixture\n---\n\n## Completion Criteria\n");
+      fs.writeFileSync(
+        path.join(root, relContext),
+        "spec: task\nname: path-free pre-flight fixture\n---\n\n## Completion Criteria\n",
+      );
       fs.writeFileSync(questions, JSON.stringify(rows));
 
       const env = {

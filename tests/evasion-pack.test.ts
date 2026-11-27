@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import {
   BATCH_HEADER_PREFIX,
-  EVASION_QUESTIONS,
-  REVIEW_VERDICT_SCHEMA,
   batchVerdictSchema,
-  renderVerdictTable,
-  reviewVerdictsBatched,
-  reviewVerdictsDag,
+  EVASION_QUESTIONS,
   type EvasionAssessment,
   type JudgeBackend,
+  renderVerdictTable,
+  REVIEW_VERDICT_SCHEMA,
   type ReviewScenario,
+  reviewVerdictsBatched,
+  reviewVerdictsDag,
 } from "../extensions/index.ts";
 
 /* ── plan 20261119-079 Task 2: the judge evasion-detection pack ──
@@ -28,21 +28,21 @@ const SCENARIOS: ReviewScenario[] = [
   { id: "S2", claim: "Docs lines match the code." },
 ];
 
-const SCANNER_FINDINGS =
-  "invisible-char U+200B ZERO WIDTH SPACE — byte 10, line 1: rule alpha\\u{200b}-beta";
+const SCANNER_FINDINGS = "invisible-char U+200B ZERO WIDTH SPACE — byte 10, line 1: rule alpha\\u{200b}-beta";
 
 /** A capture fake that answers verdict rows + the evasion questions when
  *  the batch asks for them. */
 function evasionFake(
-  answer?: { evasion?: Record<string, unknown> | null; skip?: string; rows?: boolean }
+  answer?: { evasion?: Record<string, unknown> | null; skip?: string; rows?: boolean },
 ) {
   const calls: { schema: object; input: string }[] = [];
   const backend: JudgeBackend = {
     name: "evasion-fake",
     async classify(schema, input) {
       calls.push({ schema, input });
-      if (answer?.skip)
+      if (answer?.skip) {
         return { skipped: true, bucket: null, confidence: 0, reason: answer.skip };
+      }
       const schemaAny = schema as any;
       const wantsEvasion = !!schemaAny.properties?.evasion;
       const rows = [
@@ -50,14 +50,14 @@ function evasionFake(
         { id: "S2", verdict: "fail", confidence: 0.9, evidence: "ev2" },
       ].filter((r) => input.includes(`Scenario ${r.id}:`));
       const value: Record<string, unknown> = { verdicts: rows };
-      if (wantsEvasion && answer?.evasion !== null)
-        value.evasion =
-          answer?.evasion ?? {
-            invisible_chars: 0,
-            env_bypass: false,
-            normalization_equivalent: false,
-            oracle_binding_stated: true,
-          };
+      if (wantsEvasion && answer?.evasion !== null) {
+        value.evasion = answer?.evasion ?? {
+          invisible_chars: 0,
+          env_bypass: false,
+          normalization_equivalent: false,
+          oracle_binding_stated: true,
+        };
+      }
       return { skipped: false, bucket: null, value, confidence: 0.9 };
     },
   };
@@ -70,7 +70,7 @@ describe("evasion pack — the questions ARE in the batch body", () => {
     const evasion = schema.properties.evasion;
     expect(evasion).toBeTruthy();
     expect(Object.keys(evasion.properties).sort()).toEqual(
-      ["env_bypass", "invisible_chars", "normalization_equivalent", "oracle_binding_stated"]
+      ["env_bypass", "invisible_chars", "normalization_equivalent", "oracle_binding_stated"],
     );
     expect(evasion.properties.invisible_chars.type).toBe("integer");
     expect(evasion.properties.env_bypass.type).toBe("boolean");
@@ -84,7 +84,7 @@ describe("evasion pack — the questions ARE in the batch body", () => {
 
   test("EVASION_QUESTIONS is exported for the harness and names the doctrine", () => {
     expect(Object.keys(EVASION_QUESTIONS).sort()).toEqual(
-      ["env_bypass", "invisible_chars", "normalization_equivalent", "oracle_binding_stated"]
+      ["env_bypass", "invisible_chars", "normalization_equivalent", "oracle_binding_stated"],
     );
     expect(JSON.stringify(EVASION_QUESTIONS)).toContain("oracle");
   });
@@ -93,7 +93,7 @@ describe("evasion pack — the questions ARE in the batch body", () => {
     const schema = batchVerdictSchema(["S1"]) as any;
     const item = schema.properties.verdicts.items;
     expect(Object.keys(item.properties).sort()).toEqual(
-      ["confidence", "evidence", "id", "verdict"].sort()
+      ["confidence", "evidence", "id", "verdict"].sort(),
     );
     expect(item.required).toEqual(["id", "verdict"]);
     expect((REVIEW_VERDICT_SCHEMA as any).properties.evasion).toBeUndefined();
@@ -196,12 +196,11 @@ describe("evasion pack — the DAG runner carries the same pack", () => {
       evasionEvidence: SCANNER_FINDINGS,
     });
     // decompose + one call per sub-judgment (fallback: independent groups)
-    const verdictCalls = calls.filter((c) =>
-      (c.schema as any).properties?.verdicts !== undefined
-    );
+    const verdictCalls = calls.filter((c) => (c.schema as any).properties?.verdicts !== undefined);
     expect(verdictCalls.length).toBeGreaterThanOrEqual(2);
-    for (const c of verdictCalls)
+    for (const c of verdictCalls) {
       expect((c.schema as any).properties.evasion).toBeTruthy();
+    }
     expect(r.evasion?.unanswered).toBe(false);
   });
 

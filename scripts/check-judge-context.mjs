@@ -70,9 +70,12 @@ if (!Array.isArray(questions)) usage();
 
 const supplied = new Set(contexts.map(normalize));
 const unbound = [];
-if (contexts.length === 0 &&
-    questions.some((question) => PREFLIGHT_IDS.has(question?.id)))
+if (
+  contexts.length === 0
+  && questions.some((question) => PREFLIGHT_IDS.has(question?.id))
+) {
   unbound.push("pre-flight question set: no --context supplied");
+}
 questions.forEach((question, index) => {
   const text = typeof question === "string" ? question : question?.question;
   if (typeof text !== "string") usage();

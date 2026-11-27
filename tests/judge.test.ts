@@ -22,10 +22,30 @@ describe("judge (plan 20261025-029)", () => {
     let captured = null;
     const fetchImpl = async (url, init) => {
       captured = { url, body: JSON.parse(init.body), auth: init.headers.authorization };
-      return { ok: true, status: 200, text: async () => JSON.stringify({ model: "jev-latest", answers: { tested: { type: "noul", noul: 0.98 }, verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } }, boolean_q: { type: "noul", noul: 0.9 } }, usage: { input_tokens: 10, output_tokens: 2 } }) };
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            model: "jev-latest",
+            answers: {
+              tested: { type: "noul", noul: 0.98 },
+              verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } },
+              boolean_q: { type: "noul", noul: 0.9 },
+            },
+            usage: { input_tokens: 10, output_tokens: 2 },
+          }),
+      };
     };
     const af = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "j-")), "audit.jsonl");
-    const r = await ask({ questions, auditFile: af, fetchImpl, key: "k", out: { write: () => {} }, err: { write: () => {} } });
+    const r = await ask({
+      questions,
+      auditFile: af,
+      fetchImpl,
+      key: "k",
+      out: { write: () => {} },
+      err: { write: () => {} },
+    });
     expect(r.status).toBe(0);
     expect(captured.url).toBe("https://api.typesafe.ai/v1/systemone");
     expect(captured.auth).toBe("Bearer k");
@@ -37,7 +57,11 @@ describe("judge (plan 20261025-029)", () => {
   });
 
   test("judge maps systemone answers to verdict rows with confidence", () => {
-    const rows = mapAnswers({ tested: { type: "noul", noul: 0.98 }, hold_q: { type: "noul", noul: 0.2 }, verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } } });
+    const rows = mapAnswers({
+      tested: { type: "noul", noul: 0.98 },
+      hold_q: { type: "noul", noul: 0.2 },
+      verdict: { type: "choice", choice: "ship", confidence: 0.92, probabilities: { ship: 0.96, hold: 0.04 } },
+    });
     const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
     expect(byId.tested.verdict).toBe("yes");
     expect(byId.tested.confidence).toBeCloseTo(0.98);
@@ -50,9 +74,19 @@ describe("judge (plan 20261025-029)", () => {
   test("judge skips loudly when no key resolves", async () => {
     const errs = [];
     let called = false;
-    const fetchImpl = async () => { called = true; throw new Error("must not be called"); };
+    const fetchImpl = async () => {
+      called = true;
+      throw new Error("must not be called");
+    };
     const af = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "j-")), "audit.jsonl");
-    const r = await ask({ questions, auditFile: af, fetchImpl, key: "", out: { write: () => {} }, err: { write: (s) => errs.push(s) } });
+    const r = await ask({
+      questions,
+      auditFile: af,
+      fetchImpl,
+      key: "",
+      out: { write: () => {} },
+      err: { write: (s) => errs.push(s) },
+    });
     expect(r.status).toBe(0);
     expect(r.skipped).toBe(true);
     expect(called).toBe(false);
@@ -145,12 +179,13 @@ describe("judge context binding (plan 20261125-082)", () => {
       const body = JSON.parse(init.body);
       calls.push({ url, body, auth: init.headers.authorization });
       const answers = Object.fromEntries(
-        Object.keys(body.questions).map((id) => [id, { type: "noul", noul: 0.92 }])
+        Object.keys(body.questions).map((id) => [id, { type: "noul", noul: 0.92 }]),
       );
       return {
         ok: true,
         status: 200,
-        text: async () => JSON.stringify({ model: "jev-latest", answers, usage: { input_tokens: 10, output_tokens: 2 } }),
+        text: async () =>
+          JSON.stringify({ model: "jev-latest", answers, usage: { input_tokens: 10, output_tokens: 2 } }),
       };
     };
     return { calls, impl };
@@ -170,8 +205,10 @@ describe("judge context binding (plan 20261125-082)", () => {
     const err: string[] = [];
     const argv = ["--questions", qf, "--audit", audit];
     for (const ctx of opts.contexts ?? []) argv.push("--context", ctx);
-    const status = await withTransport(opts.key ?? "test-key", opts.fetchImpl, () =>
-      cmdAsk(argv, { out: { write: (s: string) => out.push(s) }, err: { write: (s: string) => err.push(s) } })
+    const status = await withTransport(
+      opts.key ?? "test-key",
+      opts.fetchImpl,
+      () => cmdAsk(argv, { out: { write: (s: string) => out.push(s) }, err: { write: (s: string) => err.push(s) } }),
     );
     return { status, audit, out, err };
   }
@@ -187,8 +224,16 @@ name: "judge context binding proof"
 `;
     const spec = specFixture(contract, "bind.spec");
     const rows = [
-      { id: "bound", question: `Contract ${spec.rel}: is every scenario mechanically testable?`, schema: { type: "string", enum: ["no", "yes"] } },
-      { id: "choice", question: `Contract ${spec.rel}: ship or hold?`, schema: { type: "string", enum: ["ship", "hold"] } },
+      {
+        id: "bound",
+        question: `Contract ${spec.rel}: is every scenario mechanically testable?`,
+        schema: { type: "string", enum: ["no", "yes"] },
+      },
+      {
+        id: "choice",
+        question: `Contract ${spec.rel}: ship or hold?`,
+        schema: { type: "string", enum: ["ship", "hold"] },
+      },
     ];
 
     const rec = recordingFetch();
@@ -221,7 +266,11 @@ name: "judge context binding proof"
 
     const cases = [
       { name: "symlink context", path: path.relative(process.cwd(), linkAbs), token: /symlink|link/i },
-      { name: "context outside the spec directory", path: outside, token: /spec director|\.workflows[/\\]specs|outside/i },
+      {
+        name: "context outside the spec directory",
+        path: outside,
+        token: /spec director|\.workflows[/\\]specs|outside/i,
+      },
       { name: "non-UTF-8 context", path: binary.rel, token: /utf-?8|binary|encoding/i },
       { name: "key-shaped context", path: keyShaped.rel, token: /key|secret|redact|auth|allowed/i },
     ];
@@ -247,7 +296,11 @@ name: "judge context binding proof"
     const single = specFixture("x".repeat(70_000), "oversized-single.spec");
     const pairA = specFixture("y".repeat(40_000), "oversized-a.spec");
     const pairB = specFixture("z".repeat(40_000), "oversized-b.spec");
-    const rows = [{ id: "q", question: "Is every scenario mechanically testable?", schema: { type: "string", enum: ["no", "yes"] } }];
+    const rows = [{
+      id: "q",
+      question: "Is every scenario mechanically testable?",
+      schema: { type: "string", enum: ["no", "yes"] },
+    }];
 
     for (const contexts of [[single.rel], [pairA.rel, pairB.rel]]) {
       const calls: unknown[] = [];
@@ -288,11 +341,21 @@ name: "judge context binding proof"
     const calls: unknown[] = [];
     const fetchImpl = forbiddenFetch(calls);
     const skipNo = await ask({
-      questions, auditFile: freshAudit(), fetchImpl, key: "", out: { write: () => {} }, err: { write: (s: string) => errNo.push(s) },
+      questions,
+      auditFile: freshAudit(),
+      fetchImpl,
+      key: "",
+      out: { write: () => {} },
+      err: { write: (s: string) => errNo.push(s) },
     });
     const skipWith = await ask({
-      questions, contextPaths: [spec.rel], auditFile: freshAudit(), fetchImpl, key: "",
-      out: { write: () => {} }, err: { write: (s: string) => errWith.push(s) },
+      questions,
+      contextPaths: [spec.rel],
+      auditFile: freshAudit(),
+      fetchImpl,
+      key: "",
+      out: { write: () => {} },
+      err: { write: (s: string) => errWith.push(s) },
     } as any);
     expect(skipWith).toEqual(skipNo);
     expect(skipNo).toEqual({ status: 0, skipped: true });
@@ -315,12 +378,26 @@ name: "judge context binding proof"
   test("test_context_mock_backend_payload", async () => {
     const markerA = "MOCK_BACKEND_CONTRACT_A_082";
     const markerB = "MOCK_BACKEND_CONTRACT_B_082";
-    const a = specFixture(`spec: task\nname: "mock a"\n\n## Completion Criteria\n  Then ${markerA} is bound.\n`, "mock-a.spec");
-    const b = specFixture(`spec: task\nname: "mock b"\n\n## Completion Criteria\n  Then ${markerB} is bound.\n`, "mock-b.spec");
+    const a = specFixture(
+      `spec: task\nname: "mock a"\n\n## Completion Criteria\n  Then ${markerA} is bound.\n`,
+      "mock-a.spec",
+    );
+    const b = specFixture(
+      `spec: task\nname: "mock b"\n\n## Completion Criteria\n  Then ${markerB} is bound.\n`,
+      "mock-b.spec",
+    );
     const secretKey = "JUDGE_TEST_KEY_DO_NOT_LEAK_082";
     const rows = [
-      { id: "c1", question: `Contract ${a.rel} and ${b.rel}: are all boundaries specific?`, schema: { type: "string", enum: ["no", "yes"] } },
-      { id: "c2", question: `Contract ${a.rel} and ${b.rel}: are negative cases present?`, schema: { type: "string", enum: ["no", "yes"] } },
+      {
+        id: "c1",
+        question: `Contract ${a.rel} and ${b.rel}: are all boundaries specific?`,
+        schema: { type: "string", enum: ["no", "yes"] },
+      },
+      {
+        id: "c2",
+        question: `Contract ${a.rel} and ${b.rel}: are negative cases present?`,
+        schema: { type: "string", enum: ["no", "yes"] },
+      },
     ];
 
     const rec = recordingFetch();
@@ -386,17 +463,21 @@ describe("judge consumer-cwd context (plan 20261125-082 TASK 4)", () => {
 
       const probe = path.join(packageRoot, "probe.mjs");
       const source = [
-        'import { pathToFileURL } from "node:url";',
+        "import { pathToFileURL } from \"node:url\";",
         `process.chdir(${JSON.stringify(consumer)});`,
-        `const { cmdAsk } = await import(pathToFileURL(${JSON.stringify(path.join(packageScripts, "judge.mjs"))}).href);`,
+        `const { cmdAsk } = await import(pathToFileURL(${
+          JSON.stringify(path.join(packageScripts, "judge.mjs"))
+        }).href);`,
         "const calls = [];",
         "globalThis.fetch = async (url, init) => {",
         "  calls.push({ url, body: JSON.parse(init.body), auth: init.headers.authorization });",
         "  return { ok: true, status: 200, text: async () => JSON.stringify({ answers: { bound: { type: 'noul', noul: 0.9 } } }) };",
         "};",
         "const errs = [], outs = [];",
-        `const status = await cmdAsk(["--questions", "questions.json", "--context", ${JSON.stringify(relSpec.split(path.sep).join("/"))}, "--audit", "judge-audit.jsonl"], { out: { write: (s) => outs.push(s) }, err: { write: (s) => errs.push(s) } });`,
-        'console.log("RESULT " + JSON.stringify({ status, calls, err: errs, out: outs }));',
+        `const status = await cmdAsk(["--questions", "questions.json", "--context", ${
+          JSON.stringify(relSpec.split(path.sep).join("/"))
+        }, "--audit", "judge-audit.jsonl"], { out: { write: (s) => outs.push(s) }, err: { write: (s) => errs.push(s) } });`,
+        "console.log(\"RESULT \" + JSON.stringify({ status, calls, err: errs, out: outs }));",
       ].join("\n");
       fs.writeFileSync(probe, source);
 

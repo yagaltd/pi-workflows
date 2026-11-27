@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test";
 import {
   BATCH_HEADER_PREFIX,
   DECOMPOSE_INPUT_MARKER,
-  REVIEW_VERDICTS,
-  REVIEW_VERDICT_SCHEMA,
-  REVIEW_CONTEXT_WINDOW,
+  type JudgeBackend,
   makeTypellmBackend,
+  REVIEW_CONTEXT_WINDOW,
+  REVIEW_VERDICT_SCHEMA,
+  REVIEW_VERDICTS,
+  type ReviewScenario,
   reviewVerdicts,
   reviewVerdictsBatched,
   reviewVerdictsDag,
-  type JudgeBackend,
-  type ReviewScenario,
 } from "../extensions/index.ts";
 
 /* ── plan 077 Task 1: the TypeLLM native-surface transport upgrade ──
@@ -42,7 +42,7 @@ const SCENARIOS: ReviewScenario[] = [
  *  override verdict is preserved (the native abstention). */
 function verdictRows(
   input: string,
-  over?: Record<string, { verdict?: string | null; confidence?: number; probabilities?: Record<string, number> }>
+  over?: Record<string, { verdict?: string | null; confidence?: number; probabilities?: Record<string, number> }>,
 ): Record<string, unknown>[] {
   return SCENARIOS.filter((s) => input.includes(`Scenario ${s.id}:`)).map((s) => {
     const o = over?.[s.id] ?? {};
@@ -59,7 +59,7 @@ function verdictRows(
 
 /** A capture fake answering the native array shape. */
 function captureFake(
-  answer?: (schema: object, input: string) => Record<string, unknown> | { skip: string }
+  answer?: (schema: object, input: string) => Record<string, unknown> | { skip: string },
 ) {
   const calls: { schema: object; input: string }[] = [];
   const backend: JudgeBackend = {
@@ -67,8 +67,9 @@ function captureFake(
     async classify(schema, input) {
       calls.push({ schema, input });
       const out = answer?.(schema, input) ?? { verdicts: verdictRows(input) };
-      if ("skip" in out)
+      if ("skip" in out) {
         return { skipped: true, bucket: null, confidence: 0, reason: out.skip };
+      }
       return { skipped: false, bucket: null, value: out, confidence: 0.9 };
     },
   };
@@ -315,7 +316,7 @@ describe("images pass-through (plan 077 T1)", () => {
         required: ["bucket", "confidence"],
       } as object,
       "see the screenshot",
-      { images: [PNG_URI] }
+      { images: [PNG_URI] },
     );
     expect(bodies[0].images).toEqual([PNG_URI]);
     expect(v.skipped).toBe(false);
@@ -402,7 +403,7 @@ describe("thinking budget (plan 077 T1)", () => {
         type: "object",
         properties: { verdict: { type: "string", enum: ["pass"], description: "d" } },
       } as object,
-      "x"
+      "x",
     );
     expect(bodies[0].questions.verdict.thinking).toBeUndefined();
     expect(bodies[0].questions.verdict.thinking_budget).toBeUndefined();
@@ -419,7 +420,10 @@ describe("usage surfaced (plan 077 T1)", () => {
         ok: true,
         status: 200,
         text: async () =>
-          JSON.stringify({ result: { bucket: "done", confidence: 0.9 }, usage: { input_tokens: 120, thinking_tokens: 40 } }),
+          JSON.stringify({
+            result: { bucket: "done", confidence: 0.9 },
+            usage: { input_tokens: 120, thinking_tokens: 40 },
+          }),
       })) as any,
     });
     const v = await backend.classify(
@@ -431,7 +435,7 @@ describe("usage surfaced (plan 077 T1)", () => {
         },
         required: ["bucket", "confidence"],
       } as object,
-      "x"
+      "x",
     );
     expect(v.usage).toEqual({ input_tokens: 120, thinking_tokens: 40 });
   });

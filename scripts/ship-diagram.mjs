@@ -9,9 +9,9 @@
 //   --diff-file reads fixture lines instead of running git.
 // Exit: 0 ok · 2 usage.
 
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 
 export function classifyStatus(line) {
   const m = /^([AMD])\t(.+)$/.exec(line.trim());
@@ -31,7 +31,9 @@ export function buildReport(from, to, diffLines) {
     if (c) groups[c.kind].push(c.file);
   }
   const sections = Object.entries(groups)
-    .map(([kind, files]) => [`## ${kind[0].toUpperCase() + kind.slice(1)} (${files.length})`, ...files.map((f) => `- ${f}`)].join("\n"))
+    .map(([kind, files]) =>
+      [`## ${kind[0].toUpperCase() + kind.slice(1)} (${files.length})`, ...files.map((f) => `- ${f}`)].join("\n")
+    )
     .join("\n\n");
   const total = Object.values(groups).reduce((n, f) => n + f.length, 0);
   return `# Ship report: ${from}..${to}\n\n${sections}\n\nTotal: ${total} files changed\n`;
@@ -79,7 +81,10 @@ export function buildBarSpec(from, to, diffLines) {
 }
 
 function gitDiffLines(from, to) {
-  return execFileSync("git", ["diff", "--name-status", `${from}..${to}`], { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 })
+  return execFileSync("git", ["diff", "--name-status", `${from}..${to}`], {
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  })
     .split("\n")
     .filter(Boolean);
 }
@@ -95,12 +100,17 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (!o.from) return 2;
 
-  const diffLines = o.diffFile ? fs.readFileSync(o.diffFile, "utf8").split("\n").filter(Boolean) : gitDiffLines(o.from, o.to);
+  const diffLines = o.diffFile
+    ? fs.readFileSync(o.diffFile, "utf8").split("\n").filter(Boolean)
+    : gitDiffLines(o.from, o.to);
 
   fs.mkdirSync(o.outDir, { recursive: true });
   const base = `ship-${o.from}..${o.to}`;
   fs.writeFileSync(path.join(o.outDir, `${base}.md`), buildReport(o.from, o.to, diffLines));
-  fs.writeFileSync(path.join(o.outDir, `${base}.json`), JSON.stringify(buildBarSpec(o.from, o.to, diffLines), null, 2) + "\n");
+  fs.writeFileSync(
+    path.join(o.outDir, `${base}.json`),
+    JSON.stringify(buildBarSpec(o.from, o.to, diffLines), null, 2) + "\n",
+  );
   console.log(`${path.join(o.outDir, base + ".md")} ${path.join(o.outDir, base + ".json")}`);
   return 0;
 }

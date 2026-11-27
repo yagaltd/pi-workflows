@@ -1605,8 +1605,27 @@ function gitPaths081(args: string[]): string[] {
   return gitOutput081(args).split("\n").filter(Boolean);
 }
 
+// Plan 20261127-083 TASK 4 owns the one contracted whole-tree dprint fmt run.
+// A formatter-owned path is exempt from this older boundary pin only while the
+// live bytes equal dprint's rendering of the plan-base bytes; a hand edit to
+// the same path still appears as forbidden drift.
+const FORMAT_BASE_081 = "2a938e0";
+const FORMAT_OWNED_081 = new Set(["scripts/flow-gates.mjs"]);
+function formatterOnlyDelta081(rel: string): boolean {
+  if (!FORMAT_OWNED_081.has(rel)) return false;
+  const base = spawnSync("git", ["show", `${FORMAT_BASE_081}:${rel}`], { encoding: "utf8" });
+  if (base.status !== 0) return false;
+  const formatted = spawnSync(
+    "mise",
+    ["exec", "--", "dprint", "fmt", "--stdin", rel],
+    { encoding: "utf8", input: base.stdout },
+  );
+  return formatted.status === 0 && fs.readFileSync(rel, "utf8") === formatted.stdout;
+}
+
 function changedPaths081(): string[] {
-  const dirty = gitPaths081(["diff", "--name-only", "HEAD", "--"]);
+  const dirty = gitPaths081(["diff", "--name-only", "HEAD", "--"])
+    .filter((p) => !formatterOnlyDelta081(p));
   const untracked = gitPaths081([
     "ls-files",
     "--others",
@@ -1639,7 +1658,9 @@ function changedPaths081(): string[] {
     "--name-only",
     "2a938e0..HEAD",
     "--",
-  ]).filter((p) => !shipOwned.has(p) && !plan083Owned.has(p));
+  ]).filter(
+    (p) => !shipOwned.has(p) && !plan083Owned.has(p) && !formatterOnlyDelta081(p),
+  );
   return [...new Set([...committed, ...dirty, ...untracked])];
 }
 

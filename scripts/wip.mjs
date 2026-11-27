@@ -20,8 +20,7 @@ const STATE_KEYS = [
   "verified_files",
 ];
 const TASK_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const BATCH_ID_RE =
-  /^([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*(?:[+,][A-Za-z0-9][A-Za-z0-9._-]*)*)$/;
+const BATCH_ID_RE = /^([A-Za-z0-9][A-Za-z0-9._-]*)\/([A-Za-z0-9][A-Za-z0-9._-]*(?:[+,][A-Za-z0-9][A-Za-z0-9._-]*)*)$/;
 const VERDICT_MTIME_TOLERANCE_MS = 1000;
 
 function emit(payload, code = 0) {
@@ -136,8 +135,8 @@ function validateState(state, file) {
     return `${file}: malformed WIP state created_at`;
   }
   if (
-    !Array.isArray(state.verified_files) ||
-    state.verified_files.some((entry) => normalizePath(entry) === null)
+    !Array.isArray(state.verified_files)
+    || state.verified_files.some((entry) => normalizePath(entry) === null)
   ) {
     return `${file}: malformed WIP state verified_files`;
   }
@@ -241,7 +240,8 @@ export function wipBlockResult(status) {
   return {
     ok: false,
     blocked: "wip-active",
-    reason: `WIP batch ${status.batch} is ${status.status} — run /review to consume it (wip ready + wip verify + wip ship) before dispatching`,
+    reason:
+      `WIP batch ${status.batch} is ${status.status} — run /review to consume it (wip ready + wip verify + wip ship) before dispatching`,
     eligible: [],
   };
 }
@@ -301,12 +301,12 @@ function parseVerdictFile(text, file, taskIds) {
     const owners = mentioned.length
       ? mentioned
       : headingTask
-        ? [headingTask]
-        : taskIds.includes(fileTask)
-          ? [fileTask]
-          : taskIds.length === 1
-            ? [taskIds[0]]
-            : [];
+      ? [headingTask]
+      : taskIds.includes(fileTask)
+      ? [fileTask]
+      : taskIds.length === 1
+      ? [taskIds[0]]
+      : [];
     for (const task of owners) verdicts.set(task, marker[1].toLowerCase() === "true");
   }
   return taskIds.filter((task) => verdicts.get(task) !== true);

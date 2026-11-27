@@ -70,50 +70,50 @@
 // re-implements classification.
 import fs from "node:fs";
 import {
+  auditBatchVerdicts,
+  type AuditCandidate,
+  type AuditSeverity,
   BATCH_HEADER_PREFIX,
-  TRIAGE_BUCKETS,
-  TRIAGE_CONFIDENCE_FLOOR,
-  TRIAGE_SCHEMA,
-  REVIEW_VERDICTS,
-  REVIEW_VERDICT_SCHEMA,
   DECOMPOSE_INPUT_MARKER,
-  REVIEW_CONTEXT_WINDOW,
+  doctrineCandidate,
+  draftSpecScenarios,
+  extractPlanDag,
+  extractTaskBrief,
+  type JudgeBackend,
   makeTypellmBackend,
+  mineLog,
+  parsePlanDeps,
+  renderAuditDigest,
+  renderClaimDigest,
+  renderPlanDagTable,
+  renderSieveVerdict,
+  renderSpecDraft,
   renderTriageTable,
   renderVerdictTable,
-  renderClaimDigest,
+  type ReportClaim,
+  REVIEW_CONTEXT_WINDOW,
+  REVIEW_VERDICT_SCHEMA,
+  REVIEW_VERDICTS,
+  type ReviewScenario,
+  type ReviewVerdict,
+  type ReviewVerdictResult,
   reviewVerdicts,
   reviewVerdictsBatched,
   reviewVerdictsDag,
   scenarioInput,
-  triageFinding,
-  verifyClaims,
-  mineLog,
-  doctrineCandidate,
-  extractTaskBrief,
-  draftSpecScenarios,
-  renderSpecDraft,
-  parsePlanDeps,
-  extractPlanDag,
-  renderPlanDagTable,
-  auditBatchVerdicts,
-  renderAuditDigest,
-  type AuditCandidate,
-  type AuditSeverity,
-  sieveInput,
-  sieveProposal,
-  renderSieveVerdict,
-  type JudgeBackend,
-  type ReviewScenario,
-  type ReviewVerdict,
-  type ReviewVerdictResult,
-  type SieveOutcome,
-  type TriageBucket,
-  type TriageResult,
-  type ReportClaim,
   type SessionTurn,
+  sieveInput,
+  type SieveOutcome,
+  sieveProposal,
+  TRIAGE_BUCKETS,
+  TRIAGE_CONFIDENCE_FLOOR,
+  TRIAGE_SCHEMA,
+  type TriageBucket,
+  triageFinding,
+  type TriageResult,
+  verifyClaims,
 } from "../extensions/index.ts";
-import { foldNormalized, scanText, type EvasionFinding } from "./evasion-scan.ts";
+import { type EvasionFinding, foldNormalized, scanText } from "./evasion-scan.ts";
 
 export interface TriageFixture {
   id: string;
@@ -126,15 +126,31 @@ export interface TriageFixture {
  *  with why · done = already fixed). Realistic shapes from the review
  *  flow's Stage-2 output rows. */
 export const FIXTURES: TriageFixture[] = [
-  { id: "f01", finding: "README install command 404s — the curl line references a retired v0.9 tag", expected: "queued" },
+  {
+    id: "f01",
+    finding: "README install command 404s — the curl line references a retired v0.9 tag",
+    expected: "queued",
+  },
   { id: "f02", finding: "test fixture carries live-shaped API key material — rotate and redact", expected: "queued" },
   { id: "f03", finding: "docs still mention the retired gitleaks gate as active", expected: "queued" },
-  { id: "f04", finding: "ship path swallows write failures — errors are caught and never surfaced", expected: "queued" },
+  {
+    id: "f04",
+    finding: "ship path swallows write failures — errors are caught and never surfaced",
+    expected: "queued",
+  },
   { id: "f05", finding: "three P3 comment-spacing nits across scripts/*, same shape", expected: "batched" },
-  { id: "f06", finding: "naming drift: 'sieve' vs 'gate' for the same mechanism across two prompts", expected: "batched" },
+  {
+    id: "f06",
+    finding: "naming drift: 'sieve' vs 'gate' for the same mechanism across two prompts",
+    expected: "batched",
+  },
   { id: "f07", finding: "changelog heading style inconsistent across older entries only", expected: "batched" },
   { id: "f08", finding: "typo in a code comment — 'recieve'", expected: "closed" },
-  { id: "f09", finding: "duplicate helper left from an earlier refactor — dead code, delete with one line why", expected: "closed" },
+  {
+    id: "f09",
+    finding: "duplicate helper left from an earlier refactor — dead code, delete with one line why",
+    expected: "closed",
+  },
   { id: "f10", finding: "memory leak in the watchdog — fixed by the task-3 dedupe patch", expected: "done" },
   { id: "f11", finding: "flaky queue test — resolved by the retry pin in task 2", expected: "done" },
   { id: "f12", finding: "074 key pin verified — no key material in README, nothing to do", expected: "done" },
@@ -149,13 +165,14 @@ export function recordedBackend(): JudgeBackend {
     name: "typellm-recorded",
     async classify(schema, input) {
       const f = byFinding.get(input);
-      if (!f)
+      if (!f) {
         return {
           skipped: true,
           bucket: null,
           confidence: 0,
           reason: "recorded fixture replay: input is not in the fixture slice",
         };
+      }
       return { skipped: false, bucket: f.expected, confidence: 0.9, evidence: `recorded:${f.id}` };
     },
   };
@@ -178,7 +195,7 @@ export interface BackendScore {
  *  count as not-correct and are reported separately (loud-skip doctrine). */
 export async function evalBackend(
   backend: JudgeBackend,
-  fixtures: TriageFixture[] = FIXTURES
+  fixtures: TriageFixture[] = FIXTURES,
 ): Promise<BackendScore> {
   let correct = 0;
   let skipped = 0;
@@ -203,7 +220,7 @@ export async function evalBackend(
  *  backend slots into the same table without harness changes). */
 export async function evalBackends(
   backends: JudgeBackend[],
-  fixtures: TriageFixture[] = FIXTURES
+  fixtures: TriageFixture[] = FIXTURES,
 ): Promise<BackendScore[]> {
   const rows: BackendScore[] = [];
   for (const b of backends) rows.push(await evalBackend(b, fixtures));
@@ -227,31 +244,36 @@ export const VERDICT_FIXTURES: VerdictFixture[] = [
   {
     id: "v01",
     scenario: { id: "S1", claim: "The report's claim that all spec scenarios pass matches the diff's test changes." },
-    diffSummary: "tests/dispatch-parse.test.ts adds 4 cases covering the new colon-tolerant parser; spec task-3 scenarios map 1:1 onto them.",
+    diffSummary:
+      "tests/dispatch-parse.test.ts adds 4 cases covering the new colon-tolerant parser; spec task-3 scenarios map 1:1 onto them.",
     expected: "pass",
   },
   {
     id: "v02",
     scenario: { id: "S2", claim: "README lines changed in the diff match the code's actual behavior." },
-    diffSummary: "README documents `--format json` for ship-diagram; the diff's ship-diagram.mjs has no --format flag and no JSON path.",
+    diffSummary:
+      "README documents `--format json` for ship-diagram; the diff's ship-diagram.mjs has no --format flag and no JSON path.",
     expected: "fail",
   },
   {
     id: "v03",
     scenario: { id: "S3", claim: "The new test pins assert what their scenarios claim (non-vacuous)." },
-    diffSummary: "test asserts expect(rows.length).toBe(2) after seeding exactly 2 rows and asserting intermediate state first.",
+    diffSummary:
+      "test asserts expect(rows.length).toBe(2) after seeding exactly 2 rows and asserting intermediate state first.",
     expected: "pass",
   },
   {
     id: "v04",
     scenario: { id: "S1", claim: "The report's claim that tests cover the new verify line matches the diff." },
-    diffSummary: "report claims coverage for the new CLI flag; the diff adds the flag to cli.ts but touches no test file.",
+    diffSummary:
+      "report claims coverage for the new CLI flag; the diff adds the flag to cli.ts but touches no test file.",
     expected: "fail",
   },
   {
     id: "v05",
     scenario: { id: "S4", claim: "Version/CHANGELOG claims in the diff are truthful (no stale version strings)." },
-    diffSummary: "CHANGELOG entry names v0.15.12; package.json version is 0.15.12; cli.ts --version derives from package.json.",
+    diffSummary:
+      "CHANGELOG entry names v0.15.12; package.json version is 0.15.12; cli.ts --version derives from package.json.",
     expected: "pass",
   },
   {
@@ -263,13 +285,15 @@ export const VERDICT_FIXTURES: VerdictFixture[] = [
   {
     id: "v07",
     scenario: { id: "S2", claim: "Docs lines changed in the diff match the code's actual behavior." },
-    diffSummary: "docs mention a retry cap of 3; the diff sets retries = 3 in one path and 5 in another; the doc's singular claim may match either.",
+    diffSummary:
+      "docs mention a retry cap of 3; the diff sets retries = 3 in one path and 5 in another; the doc's singular claim may match either.",
     expected: "uncertain",
   },
   {
     id: "v08",
     scenario: { id: "S1", claim: "The report's claim that boundaries are respected matches the diff." },
-    diffSummary: "report says only agents/worker.md changed; the summary shows changes to agents/worker.md plus one test file inside Allowed; nothing outside Allowed is visible.",
+    diffSummary:
+      "report says only agents/worker.md changed; the summary shows changes to agents/worker.md plus one test file inside Allowed; nothing outside Allowed is visible.",
     expected: "uncertain",
   },
 ];
@@ -282,7 +306,7 @@ export const VERDICT_FIXTURES: VerdictFixture[] = [
  *  covering every scenario present). Unknown input is a LOUD skip. */
 export function recordedVerdictBackend(): JudgeBackend {
   const byInput = new Map(
-    VERDICT_FIXTURES.map((f) => [scenarioInput(f.scenario, f.diffSummary), f])
+    VERDICT_FIXTURES.map((f) => [scenarioInput(f.scenario, f.diffSummary), f]),
   );
   const byId = new Map(VERDICT_FIXTURES.map((f) => [f.id, f]));
   const skip = (why: string) => ({
@@ -299,7 +323,7 @@ export function recordedVerdictBackend(): JudgeBackend {
     name: "typellm-recorded-verdicts",
     async classify(schema, input) {
       const legacy = byInput.get(input);
-      if (legacy)
+      if (legacy) {
         return {
           skipped: false,
           bucket: null,
@@ -307,6 +331,7 @@ export function recordedVerdictBackend(): JudgeBackend {
           confidence: 0.9,
           evidence: `recorded:${legacy.id}`,
         };
+      }
       if (input.includes(DECOMPOSE_INPUT_MARKER)) {
         const ids = idsPresent(input);
         if (!ids.length) return skip("recorded fixture replay: no fixture scenarios in the decompose input");
@@ -320,8 +345,9 @@ export function recordedVerdictBackend(): JudgeBackend {
       if (input.includes(BATCH_HEADER_PREFIX)) {
         // native array-of-objects batch answer (plan 077 T1)
         const ids = idsPresent(input);
-        if (!ids.length)
+        if (!ids.length) {
           return skip("recorded fixture replay: input is not in the verdict fixture slice");
+        }
         const verdicts = ids.map((id) => {
           const f = byId.get(id)!;
           return {
@@ -335,8 +361,9 @@ export function recordedVerdictBackend(): JudgeBackend {
         return { skipped: false, bucket: null, value: { verdicts }, confidence: 0.9 };
       }
       const ids = idsPresent(input);
-      if (!ids.length)
+      if (!ids.length) {
         return skip("recorded fixture replay: input is not in the verdict fixture slice");
+      }
       return skip("recorded fixture replay: unscripted input shape");
     },
   };
@@ -357,7 +384,7 @@ export interface VerdictScore {
  *  scored as the miss it is. */
 export async function evalVerdictBackend(
   backend: JudgeBackend,
-  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES,
 ): Promise<VerdictScore> {
   let correct = 0;
   let skipped = 0;
@@ -382,7 +409,7 @@ export async function evalVerdictBackend(
  *  backend slots in without harness changes). */
 export async function evalVerdictBackends(
   backends: JudgeBackend[],
-  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES,
 ): Promise<VerdictScore[]> {
   const rows: VerdictScore[] = [];
   for (const b of backends) rows.push(await evalVerdictBackend(b, fixtures));
@@ -424,7 +451,7 @@ function countingBackend(backend: JudgeBackend): { backend: JudgeBackend; count:
 export async function evalVerdictMode(
   mode: VerdictMode,
   backend: JudgeBackend,
-  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES,
 ): Promise<VerdictModeScore> {
   const { backend: counted, count } = countingBackend(backend);
   const t0 = Date.now();
@@ -443,10 +470,9 @@ export async function evalVerdictMode(
     // allows; each fixture's scenario id is its unique key
     const scenarios: ReviewScenario[] = fixtures.map((f) => ({ id: f.id, claim: f.scenario.claim }));
     const evidence = Object.fromEntries(fixtures.map((f) => [f.id, f.diffSummary]));
-    const r =
-      mode === "batched"
-        ? await reviewVerdictsBatched(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW })
-        : await reviewVerdictsDag(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW });
+    const r = mode === "batched"
+      ? await reviewVerdictsBatched(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW })
+      : await reviewVerdictsDag(counted, scenarios, "", { evidence, window: REVIEW_CONTEXT_WINDOW });
     for (const f of fixtures) {
       const v = r.results.find((x) => x.scenario === f.id);
       if (!v || v.skipped) skipped++;
@@ -468,7 +494,7 @@ export async function evalVerdictMode(
 /** All three modes on the SAME fixture slice — the Phase-3 comparison table. */
 export async function evalVerdictModes(
   backend: JudgeBackend,
-  fixtures: VerdictFixture[] = VERDICT_FIXTURES
+  fixtures: VerdictFixture[] = VERDICT_FIXTURES,
 ): Promise<VerdictModeScore[]> {
   const rows: VerdictModeScore[] = [];
   for (const mode of VERDICT_MODES) rows.push(await evalVerdictMode(mode, backend, fixtures));
@@ -478,7 +504,7 @@ export async function evalVerdictModes(
 function scoreLines(rows: BackendScore[]): string[] {
   const lines = [
     "backend              correct/total  skipped  accuracy   (floor "
-      + TRIAGE_CONFIDENCE_FLOOR + " · buckets " + TRIAGE_BUCKETS.join("/") + ")",
+    + TRIAGE_CONFIDENCE_FLOOR + " · buckets " + TRIAGE_BUCKETS.join("/") + ")",
   ];
   for (const r of rows) {
     const name = r.name.padEnd(20);
@@ -495,16 +521,18 @@ export function loadFindings(file: string): string[] {
   const trimmed = raw.trim();
   if (trimmed.startsWith("[")) {
     const arr = JSON.parse(trimmed);
-    if (!Array.isArray(arr) || !arr.every((x) => typeof x === "string" && x.trim()))
+    if (!Array.isArray(arr) || !arr.every((x) => typeof x === "string" && x.trim())) {
       throw new Error("findings file must be a JSON array of non-empty strings");
+    }
     return arr;
   }
   const rows = trimmed
     .split("\n")
     .filter((l) => l.trim())
     .map((l) => JSON.parse(l));
-  if (!rows.every((r: any) => typeof r?.finding === "string" && r.finding.trim()))
+  if (!rows.every((r: any) => typeof r?.finding === "string" && r.finding.trim())) {
     throw new Error("findings JSONL rows must carry a non-empty string `finding` field");
+  }
   return rows.map((r: any) => r.finding as string);
 }
 
@@ -516,10 +544,11 @@ async function cmdEval(argv: string[]): Promise<number> {
   for (const line of scoreLines(rows)) console.log(line);
   if (live) {
     const r = rows[0];
-    if (r.skipped === r.total)
+    if (r.skipped === r.total) {
       console.error(
-        `JUDGE SKIPPED (all ${r.total} rows skipped — check TYPELLM_API_KEY / endpoint; skips are never passes)`
+        `JUDGE SKIPPED (all ${r.total} rows skipped — check TYPELLM_API_KEY / endpoint; skips are never passes)`,
       );
+    }
   }
   return 0;
 }
@@ -530,12 +559,14 @@ async function cmdEval(argv: string[]): Promise<number> {
 export function loadScenarios(file: string): ReviewScenario[] {
   const raw = fs.readFileSync(file, "utf8").trim();
   const arr = JSON.parse(raw);
-  if (!Array.isArray(arr) || arr.length === 0)
+  if (!Array.isArray(arr) || arr.length === 0) {
     throw new Error("scenarios file must be a non-empty JSON array");
+  }
   return arr.map((x: any, i: number) => {
     if (typeof x === "string" && x.trim()) return { id: `S${i + 1}`, claim: x.trim() };
-    if (x && typeof x.id === "string" && x.id.trim() && typeof x.claim === "string" && x.claim.trim())
+    if (x && typeof x.id === "string" && x.id.trim() && typeof x.claim === "string" && x.claim.trim()) {
       return { id: x.id.trim(), claim: x.claim.trim() };
+    }
     throw new Error("scenarios rows must be non-empty strings or {id, claim} objects");
   });
 }
@@ -543,7 +574,7 @@ export function loadScenarios(file: string): ReviewScenario[] {
 function verdictScoreLines(rows: VerdictScore[]): string[] {
   const lines = [
     "backend              correct/total  skipped  accuracy   (floor "
-      + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
+    + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
   ];
   for (const r of rows) {
     const name = r.name.padEnd(20);
@@ -557,7 +588,7 @@ function verdictScoreLines(rows: VerdictScore[]): string[] {
 function verdictModeLines(rows: VerdictModeScore[]): string[] {
   const lines = [
     "mode            correct/total  skipped  accuracy   calls  wallMs   (floor "
-      + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
+    + TRIAGE_CONFIDENCE_FLOOR + " · verdicts " + REVIEW_VERDICTS.join("/") + ")",
   ];
   for (const r of rows) {
     const mode = r.mode.padEnd(15);
@@ -568,10 +599,15 @@ function verdictModeLines(rows: VerdictModeScore[]): string[] {
     lines.push(`${mode} ${frac} ${skip} ${acc} ${calls} ${r.wallMs}`);
   }
   // precision decides the default; a tie on accuracy breaks to the fewest calls
-  const best = rows.reduce((a, b) =>
-    b.accuracy > a.accuracy || (b.accuracy === a.accuracy && b.calls < a.calls) ? b : a
-  , rows[0]);
-  lines.push(`default: ${best.mode} (precision decides — accuracy ${(best.accuracy * 100).toFixed(1)}% on ${best.calls} call(s))`);
+  const best = rows.reduce(
+    (a, b) => b.accuracy > a.accuracy || (b.accuracy === a.accuracy && b.calls < a.calls) ? b : a,
+    rows[0],
+  );
+  lines.push(
+    `default: ${best.mode} (precision decides — accuracy ${
+      (best.accuracy * 100).toFixed(1)
+    }% on ${best.calls} call(s))`,
+  );
   return lines;
 }
 
@@ -597,19 +633,21 @@ async function cmdVerdicts(argv: string[]): Promise<number> {
       return 2;
     }
     const backend = live ? liveBackend() : recordedVerdictBackend();
-    const rows =
-      mode === "all"
-        ? await evalVerdictModes(backend)
-        : [await evalVerdictMode(mode as VerdictMode, backend)];
+    const rows = mode === "all"
+      ? await evalVerdictModes(backend)
+      : [await evalVerdictMode(mode as VerdictMode, backend)];
     console.log(
-      `review-verdicts mode eval (plan 20261117-076 Phase 3) — ${mode} — ${live ? "LIVE typellm" : "recorded fixtures"}`
+      `review-verdicts mode eval (plan 20261117-076 Phase 3) — ${mode} — ${
+        live ? "LIVE typellm" : "recorded fixtures"
+      }`,
     );
     for (const line of verdictModeLines(rows)) console.log(line);
     const totalSkips = rows.reduce((n, r) => n + r.skipped, 0);
-    if (live && totalSkips === rows.reduce((n, r) => n + r.total, 0))
+    if (live && totalSkips === rows.reduce((n, r) => n + r.total, 0)) {
       console.error(
-        `JUDGE SKIPPED (all rows skipped across modes — check TYPELLM_API_KEY / endpoint; skips are never passes)`
+        `JUDGE SKIPPED (all rows skipped across modes — check TYPELLM_API_KEY / endpoint; skips are never passes)`,
       );
+    }
     return 0;
   }
   if (scenariosFile !== null || diffFile !== null) {
@@ -624,30 +662,32 @@ async function cmdVerdicts(argv: string[]): Promise<number> {
     const backend = live ? liveBackend() : recordedVerdictBackend();
     const result: ReviewVerdictResult = await reviewVerdicts(backend, scenarios, diffSummary);
     console.log(renderVerdictTable(result));
-    if (result.skippedAll)
+    if (result.skippedAll) {
       console.error(
-        `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 deep-read`
+        `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 deep-read`,
       );
-    else
+    } else {
       console.error(
-        `Tier 1: ${result.results.length - result.deepRead.length}/${result.results.length} verdicts on the table; ` +
-          `${result.deepRead.length} route to Tier 2 deep-read (floor ${TRIAGE_CONFIDENCE_FLOOR}). ` +
-          "The judge never closes a review alone — the reviewer verifies intent."
+        `Tier 1: ${result.results.length - result.deepRead.length}/${result.results.length} verdicts on the table; `
+          + `${result.deepRead.length} route to Tier 2 deep-read (floor ${TRIAGE_CONFIDENCE_FLOOR}). `
+          + "The judge never closes a review alone — the reviewer verifies intent.",
       );
+    }
     return 0;
   }
   const backend = live ? liveBackend() : recordedVerdictBackend();
   const rows = await evalVerdictBackends([backend]);
   console.log(
-    `review-verdicts eval (plan 20261117-076 Phase 2) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    `review-verdicts eval (plan 20261117-076 Phase 2) — ${live ? "LIVE typellm" : "recorded fixtures"}`,
   );
   for (const line of verdictScoreLines(rows)) console.log(line);
   if (live) {
     const r = rows[0];
-    if (r.skipped === r.total)
+    if (r.skipped === r.total) {
       console.error(
-        `JUDGE SKIPPED (all ${r.total} rows skipped — check TYPELLM_API_KEY / endpoint; skips are never passes)`
+        `JUDGE SKIPPED (all ${r.total} rows skipped — check TYPELLM_API_KEY / endpoint; skips are never passes)`,
       );
+    }
   }
   return 0;
 }
@@ -671,14 +711,16 @@ async function cmdTriage(argv: string[]): Promise<number> {
   for (const finding of findings) results.push(await triageFinding(backend, finding));
   console.log(renderTriageTable(results));
   const defaultPath = results.filter((r) => r.defaultPath);
-  if (defaultPath.length)
-    for (const r of defaultPath)
+  if (defaultPath.length) {
+    for (const r of defaultPath) {
       console.error(
-        `JUDGE SKIPPED (${r.reason ?? "below confidence floor"}) — finding stays in the default path`
+        `JUDGE SKIPPED (${r.reason ?? "below confidence floor"}) — finding stays in the default path`,
       );
+    }
+  }
   const triaged = results.length - defaultPath.length;
   console.log(
-    `intake triage: ${triaged}/${results.length} triaged, ${defaultPath.length} in the default path (floor ${TRIAGE_CONFIDENCE_FLOOR})`
+    `intake triage: ${triaged}/${results.length} triaged, ${defaultPath.length} in the default path (floor ${TRIAGE_CONFIDENCE_FLOOR})`,
   );
   return 0;
 }
@@ -752,15 +794,18 @@ export const CLAIMS_FIXTURES: ClaimFixture[] = [
  *  claims never reach a backend at all (deterministic pre-check). */
 export function recordedClaimsBackend(): JudgeBackend {
   const byClaim = new Map<string, "TRUE" | "FALSE" | "UNVERIFIABLE">();
-  for (const f of CLAIMS_FIXTURES)
-    for (const [i, verdict] of Object.entries(f.expected))
+  for (const f of CLAIMS_FIXTURES) {
+    for (const [i, verdict] of Object.entries(f.expected)) {
       byClaim.set(f.claims[Number(i)].claim, verdict as "TRUE" | "FALSE" | "UNVERIFIABLE");
+    }
+  }
   return {
     name: "typellm-recorded-claims",
     async classify(_schema, input) {
       const ids = [...input.matchAll(/Claim (C\d+) \[type [^\]]+\] \(sessionTurn [^)]+\): (.*)$/gm)];
-      if (!ids.length)
+      if (!ids.length) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no claims in the input" };
+      }
       const rows: Record<string, unknown>[] = [];
       let unknown = false;
       for (const [, id, text] of ids) {
@@ -771,8 +816,14 @@ export function recordedClaimsBackend(): JudgeBackend {
         }
         rows.push({ id, verdict, confidence: 0.9, evidence: "recorded" });
       }
-      if (!rows.length)
-        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: claims not in the fixture slice" };
+      if (!rows.length) {
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "recorded replay: claims not in the fixture slice",
+        };
+      }
       void unknown;
       return { skipped: false, bucket: null, value: { claimVerdicts: rows }, confidence: 0.9 };
     },
@@ -793,7 +844,7 @@ export interface ClaimsScore {
  *  pass: skipped claims count as not-correct and are reported separately. */
 export async function evalClaimsBackend(
   backend: JudgeBackend,
-  fixtures: ClaimFixture[] = CLAIMS_FIXTURES
+  fixtures: ClaimFixture[] = CLAIMS_FIXTURES,
 ): Promise<ClaimsScore> {
   let correct = 0;
   let total = 0;
@@ -870,9 +921,12 @@ export function recordedLogMiningBackend(): JudgeBackend {
   return {
     name: "typellm-recorded-mining",
     async classify(_schema, input) {
-      const f = LOGMINING_FIXTURES.find((fx) => fx.log.split("\n").every((l) => input.includes(l.replace(/^\S*\s/, "")) || input.includes(l)));
-      if (!f)
+      const f = LOGMINING_FIXTURES.find((fx) =>
+        fx.log.split("\n").every((l) => input.includes(l.replace(/^\S*\s/, "")) || input.includes(l))
+      );
+      if (!f) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: log not in the fixture slice" };
+      }
       const lines = [...input.matchAll(/\[log line (\d+)\] (.*)/g)];
       const rows = f.expectedCandidates.map((e, i) => {
         const line = lines.find(([, , text]) => text.toLowerCase().includes(e.includes.toLowerCase()));
@@ -904,7 +958,7 @@ export interface MiningScore {
  *  deferred rows are reported, never scored as passes. */
 export async function evalLogMiningBackend(
   backend: JudgeBackend,
-  fixtures: LogMiningFixture[] = LOGMINING_FIXTURES
+  fixtures: LogMiningFixture[] = LOGMINING_FIXTURES,
 ): Promise<MiningScore> {
   let expectedRows = 0;
   let found = 0;
@@ -919,7 +973,7 @@ export async function evalLogMiningBackend(
     if (r.skippedAll) skipped++;
     for (const e of f.expectedCandidates) {
       const hit = r.candidates.find(
-        (c) => c.candidate.toLowerCase().includes(e.includes.toLowerCase()) && c.gateBinding === e.gateBinding
+        (c) => c.candidate.toLowerCase().includes(e.includes.toLowerCase()) && c.gateBinding === e.gateBinding,
       );
       if (hit) found++;
     }
@@ -967,8 +1021,14 @@ export function recordedDoctrineBackend(): JudgeBackend {
     name: "typellm-recorded-doctrine",
     async classify(schema, incident) {
       const f = DOCTRINE_FIXTURES.find((fx) => incident.includes(fx.incident));
-      if (!f)
-        return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: incident not in the fixture slice" };
+      if (!f) {
+        return {
+          skipped: true,
+          bucket: null,
+          confidence: 0,
+          reason: "recorded replay: incident not in the fixture slice",
+        };
+      }
       void schema;
       return {
         skipped: false,
@@ -997,7 +1057,7 @@ export interface DoctrineScore {
  *  expected phrase AND the gate binding matches. Skips are never passes. */
 export async function evalDoctrineBackend(
   backend: JudgeBackend,
-  fixtures: DoctrineFixture[] = DOCTRINE_FIXTURES
+  fixtures: DoctrineFixture[] = DOCTRINE_FIXTURES,
 ): Promise<DoctrineScore> {
   let correct = 0;
   let skipped = 0;
@@ -1008,13 +1068,20 @@ export async function evalDoctrineBackend(
       continue;
     }
     if (
-      r.candidate &&
-      r.candidate.rule.toLowerCase().includes(f.expectedRuleIncludes.toLowerCase()) &&
-      r.candidate.gateBinding === f.expectedGate
-    )
+      r.candidate
+      && r.candidate.rule.toLowerCase().includes(f.expectedRuleIncludes.toLowerCase())
+      && r.candidate.gateBinding === f.expectedGate
+    ) {
       correct++;
+    }
   }
-  return { name: backend.name, correct, total: fixtures.length, skipped, accuracy: fixtures.length ? correct / fixtures.length : 0 };
+  return {
+    name: backend.name,
+    correct,
+    total: fixtures.length,
+    skipped,
+    accuracy: fixtures.length ? correct / fixtures.length : 0,
+  };
 }
 
 /* ── brief mode (Task 5): the minimal per-task brief, augment-only parity ── */
@@ -1068,11 +1135,13 @@ export function recordedBriefBackend(): JudgeBackend {
     async classify(_schema, input) {
       const m = input.match(/Extract the minimal brief for Task (\S+)/);
       const slice = input.slice(input.indexOf("\n\n") + 2);
-      if (!m)
+      if (!m) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: not a brief call" };
+      }
       const deliverable = slice.match(/^Deliverable:\s*(.+)$/m)?.[1] ?? "";
-      if (!deliverable)
+      if (!deliverable) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no deliverable in the slice" };
+      }
       const allowed = slice.match(/^Allowed Changes:\s*(.+)$/m)?.[1] ?? "";
       const boundary = slice.match(/^Boundary:\s*(.+)$/m)?.[1] ?? "";
       const gate = slice.match(/^Gate:\s*(.+)$/m)?.[1] ?? "";
@@ -1107,7 +1176,7 @@ export interface BriefScore {
  *  skipped extraction is never scored as a pass. */
 export async function evalBriefBackend(
   backend: JudgeBackend,
-  fixtures: BriefFixture[] = BRIEF_FIXTURES
+  fixtures: BriefFixture[] = BRIEF_FIXTURES,
 ): Promise<BriefScore> {
   let correct = 0;
   let skipped = 0;
@@ -1175,8 +1244,9 @@ export function recordedSpecDraftBackend(): JudgeBackend {
     name: "typellm-recorded-draft",
     async classify(_schema, input) {
       const tasks = [...input.matchAll(/Task \d+:\s*(.+)/g)].map((m) => m[1].trim());
-      if (!tasks.length)
+      if (!tasks.length) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no task lines in the plan" };
+      }
       const scenarios = tasks.map((t, i) => ({
         name: `task ${i + 1} end state`,
         test: `bash -n scripts/selector-gate.sh`,
@@ -1203,7 +1273,9 @@ export function lintSpecSelector(selector: string): string[] {
   const r = Bun.spawnSync(["bash", "-n"], { input: `${selector}\n` });
   if (r.exitCode !== 0) findings.push(`shell syntax error in selector: ${selector}`);
   if (/(^|\s)-[ABC][^0-9\s]/.test(selector)) findings.push(`non-numeric context flag value: ${selector}`);
-  if (/(^|\s)-[ABC]\s+([^0-9]|$)/.test(selector)) findings.push(`non-numeric or missing context flag value: ${selector}`);
+  if (/(^|\s)-[ABC]\s+([^0-9]|$)/.test(selector)) {
+    findings.push(`non-numeric or missing context flag value: ${selector}`);
+  }
   if (/(^|\s)(''|"")($|\s)/.test(selector)) findings.push(`empty quoted argument: ${selector}`);
   return findings;
 }
@@ -1223,7 +1295,7 @@ export interface SpecDraftScore {
  *  Skips are never passes. The draft itself is owner-review material. */
 export async function evalSpecDraftBackend(
   backend: JudgeBackend,
-  fixtures: SpecDraftFixture[] = SPECDRAFT_FIXTURES
+  fixtures: SpecDraftFixture[] = SPECDRAFT_FIXTURES,
 ): Promise<SpecDraftScore> {
   let correct = 0;
   let skipped = 0;
@@ -1272,24 +1344,32 @@ async function cmdClaims(argv: string[]): Promise<number> {
     const backend = live ? liveBackend() : recordedClaimsBackend();
     const r = await verifyClaims(backend, claims, turns);
     console.log(renderClaimDigest(r));
-    if (r.skippedAll)
+    if (r.skippedAll) {
       console.error(`CLAIM VERIFICATION SKIPPED — all claims bounce, none verified (${r.reason ?? "unspecified"})`);
-    else
+    } else {
       console.error(
-        `${r.verified.length} verified / ${r.bounced.length} bounced (worker: ${r.bounced.filter((b) => b.route === "worker").length}, reviewer: ${r.bounced.filter((b) => b.route === "reviewer").length})`
+        `${r.verified.length} verified / ${r.bounced.length} bounced (worker: ${
+          r.bounced.filter((b) => b.route === "worker").length
+        }, reviewer: ${r.bounced.filter((b) => b.route === "reviewer").length})`,
       );
+    }
     return 0;
   }
   const backend = live ? liveBackend() : recordedClaimsBackend();
   const rows = await evalClaimsBackend(backend);
   console.log(
-    `claim verification eval (plan 077 T2) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    `claim verification eval (plan 077 T2) — ${live ? "LIVE typellm" : "recorded fixtures"}`,
   );
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  bounced(worker=${rows.bouncedToWorker}, reviewer=${rows.bouncedToReviewer})`
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${
+      (rows.accuracy * 100).toFixed(1)
+    }%  bounced(worker=${rows.bouncedToWorker}, reviewer=${rows.bouncedToReviewer})`,
   );
-  if (live && rows.skipped === rows.total)
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
@@ -1300,12 +1380,13 @@ async function cmdLogMining(argv: string[]): Promise<number> {
     const backend = live ? liveBackend() : recordedLogMiningBackend();
     const r = await mineLog(backend, fs.readFileSync(argv[logIdx + 1], "utf8"));
     console.log(
-      `LOG mining candidates (plan 077 T3 — SIEVE CANDIDATES, never auto-promoted): ${r.candidates.length} found, ${r.deferred.length} deferred, ${r.slices} slice(s), ${r.abstainedSlices} abstention(s)`
+      `LOG mining candidates (plan 077 T3 — SIEVE CANDIDATES, never auto-promoted): ${r.candidates.length} found, ${r.deferred.length} deferred, ${r.slices} slice(s), ${r.abstainedSlices} abstention(s)`,
     );
-    for (const c of r.candidates)
+    for (const c of r.candidates) {
       console.log(
-        `- [log line ${c.logTurn}] ${c.candidate} (trigger: ${c.trigger}; gate: ${c.gateBinding}; confidence ${c.confidence})`
+        `- [log line ${c.logTurn}] ${c.candidate} (trigger: ${c.trigger}; gate: ${c.gateBinding}; confidence ${c.confidence})`,
       );
+    }
     for (const d of r.deferred) console.log(`- DEFERRED: ${d.reason}`);
     if (r.skippedAll) console.error(r.reason ?? "JUDGE SKIPPED — mine the LOG by hand");
     return 0;
@@ -1314,10 +1395,15 @@ async function cmdLogMining(argv: string[]): Promise<number> {
   const rows = await evalLogMiningBackend(backend);
   console.log(`log-mining eval (plan 077 T3) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(24)} expected=${rows.expectedRows} found=${rows.found} candidates=${rows.candidates} precision=${(rows.precision * 100).toFixed(1)}%  skipped=${rows.skipped} deferred=${rows.deferred}`
+    `${
+      rows.name.padEnd(24)
+    } expected=${rows.expectedRows} found=${rows.found} candidates=${rows.candidates} precision=${
+      (rows.precision * 100).toFixed(1)
+    }%  skipped=${rows.skipped} deferred=${rows.deferred}`,
   );
-  if (rows.skipped)
+  if (rows.skipped) {
     console.error("JUDGE SKIPPED on one or more fixtures — skips are never scored as passes");
+  }
   return 0;
 }
 
@@ -1327,11 +1413,11 @@ async function cmdDoctrine(argv: string[]): Promise<number> {
   if (incidentIdx >= 0) {
     const backend = live ? liveBackend() : recordedDoctrineBackend();
     const r = await doctrineCandidate(backend, fs.readFileSync(argv[incidentIdx + 1], "utf8"));
-    if (r.candidate)
+    if (r.candidate) {
       console.log(
-        `doctrine candidate (SIEVE candidate — judged via the normal promotion path):\n- rule: ${r.candidate.rule}\n- trigger: ${r.candidate.trigger}\n- gateBinding: ${r.candidate.gateBinding}\n- confidence: ${r.candidate.confidence}`
+        `doctrine candidate (SIEVE candidate — judged via the normal promotion path):\n- rule: ${r.candidate.rule}\n- trigger: ${r.candidate.trigger}\n- gateBinding: ${r.candidate.gateBinding}\n- confidence: ${r.candidate.confidence}`,
       );
-    else console.log(`no doctrine candidate (${r.reason ?? "unspecified"})`);
+    } else console.log(`no doctrine candidate (${r.reason ?? "unspecified"})`);
     if (r.skipped) console.error(r.reason ?? "JUDGE SKIPPED");
     return 0;
   }
@@ -1339,10 +1425,13 @@ async function cmdDoctrine(argv: string[]): Promise<number> {
   const rows = await evalDoctrineBackend(backend);
   console.log(`doctrine-candidate eval (plan 077 T4) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%`
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${(rows.accuracy * 100).toFixed(1)}%`,
   );
-  if (live && rows.skipped === rows.total)
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
@@ -1359,7 +1448,9 @@ async function cmdBrief(argv: string[]): Promise<number> {
     const r = await extractTaskBrief(backend, fs.readFileSync(argv[planIdx + 1], "utf8"), argv[taskIdx + 1]);
     if (r.brief) {
       console.log(
-        `task brief (AUGMENT-ONLY — contracts stay primary):\n- taskId: ${r.brief.taskId}\n- objective: ${r.brief.objective}\n- deliverables: ${r.brief.deliverables.join("; ")}\n- constraints: ${r.brief.constraints.join("; ")}`
+        `task brief (AUGMENT-ONLY — contracts stay primary):\n- taskId: ${r.brief.taskId}\n- objective: ${r.brief.objective}\n- deliverables: ${
+          r.brief.deliverables.join("; ")
+        }\n- constraints: ${r.brief.constraints.join("; ")}`,
       );
     } else console.log(`no brief (${r.reason ?? "unspecified"}) — the dispatch pack carries the full document`);
     if (r.skipped) console.error(r.reason ?? "JUDGE SKIPPED");
@@ -1367,9 +1458,13 @@ async function cmdBrief(argv: string[]): Promise<number> {
   }
   const backend = live ? liveBackend() : recordedBriefBackend();
   const rows = await evalBriefBackend(backend);
-  console.log(`worker-pack brief eval (plan 077 T5, augment-only parity) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} parity=${(rows.parity * 100).toFixed(1)}% (${rows.markersFound}/${rows.markers} contract markers carried)  skipped=${rows.skipped}`
+    `worker-pack brief eval (plan 077 T5, augment-only parity) — ${live ? "LIVE typellm" : "recorded fixtures"}`,
+  );
+  console.log(
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} parity=${
+      (rows.parity * 100).toFixed(1)
+    }% (${rows.markersFound}/${rows.markers} contract markers carried)  skipped=${rows.skipped}`,
   );
   return 0;
 }
@@ -1380,7 +1475,9 @@ async function cmdSpecDraft(argv: string[]): Promise<number> {
   if (planIdx >= 0) {
     const backend = live ? liveBackend() : recordedSpecDraftBackend();
     const r = await draftSpecScenarios(backend, fs.readFileSync(argv[planIdx + 1], "utf8"));
-    console.log("DRAFT SPEC SKELETON (status: draft — owner review before agent-spec init; NEVER written to specs/ automatically):");
+    console.log(
+      "DRAFT SPEC SKELETON (status: draft — owner review before agent-spec init; NEVER written to specs/ automatically):",
+    );
     console.log(renderSpecDraft(r.draft));
     if (r.skipped) console.error(r.reason ?? "JUDGE SKIPPED");
     else if (r.reason) console.error(`note: ${r.reason}`);
@@ -1390,7 +1487,11 @@ async function cmdSpecDraft(argv: string[]): Promise<number> {
   const rows = await evalSpecDraftBackend(backend);
   console.log(`spec-draft eval (plan 077 T6) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  scenarioCountMisses=${rows.scenarioCountMisses} selectorFindings=${rows.selectorFindings}`
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${
+      (rows.accuracy * 100).toFixed(1)
+    }%  scenarioCountMisses=${rows.scenarioCountMisses} selectorFindings=${rows.selectorFindings}`,
   );
   return 0;
 }
@@ -1449,8 +1550,9 @@ export function recordedSieveBackend(): JudgeBackend {
     name: "typellm-recorded-sieve",
     async classify(schema, input) {
       const f = byAsk.get(input);
-      if (!f)
+      if (!f) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: ask not in the fixture slice" };
+      }
       void schema;
       return {
         skipped: false,
@@ -1483,7 +1585,7 @@ export interface SieveScore {
  *  A skip is NEVER a pass (loud-skip doctrine). */
 export async function evalSieveBackend(
   backend: JudgeBackend,
-  fixtures: SieveFixture[] = SIEVE_FIXTURES
+  fixtures: SieveFixture[] = SIEVE_FIXTURES,
 ): Promise<SieveScore> {
   let correct = 0;
   let skipped = 0;
@@ -1516,36 +1618,40 @@ async function cmdSieve(argv: string[]): Promise<number> {
     const backend = live ? liveBackend() : recordedSieveBackend();
     const r = await sieveProposal(backend, ask);
     console.log(renderSieveVerdict(ask, r));
-    if (r.defaultPath)
+    if (r.defaultPath) {
       console.error(
-        `JUDGE SKIPPED (${r.reason ?? "below confidence floor"}) — the doctrine gate answered by hand applies`
+        `JUDGE SKIPPED (${r.reason ?? "below confidence floor"}) — the doctrine gate answered by hand applies`,
       );
+    }
     return 0;
   }
   const backend = live ? liveBackend() : recordedSieveBackend();
   const rows = await evalSieveBackend(backend);
   console.log(`sieve eval (plan 078 T1 — the 073 gate on the seam) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%`
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${(rows.accuracy * 100).toFixed(1)}%`,
   );
-  if (live && rows.skipped === rows.total)
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
 /* ── initextract mode (plan 078 T2): /init --adopt extraction over fixture repos ── */
 
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import {
+  type AdoptDraft,
   buildAdoptContext,
   extractAdoptDraft,
   initExtractMain,
   recordedAdoptBackend,
   verifyAdoptDrafts,
   writeAdoptDrafts,
-  type AdoptDraft,
 } from "./init-extract.ts";
 
 export interface InitAdoptFixture {
@@ -1602,7 +1708,7 @@ function stageFixtureRepo(fixtureRepo: string): string {
  *  judge skip is never a pass. */
 export async function evalInitAdoptBackend(
   backend: JudgeBackend,
-  fixtures: InitAdoptFixture[] = INIT_ADOPT_FIXTURES
+  fixtures: InitAdoptFixture[] = INIT_ADOPT_FIXTURES,
 ): Promise<InitAdoptScore> {
   let correct = 0;
   let lintCorrect = 0;
@@ -1617,8 +1723,8 @@ export async function evalInitAdoptBackend(
       continue;
     }
     const draftOk =
-      Object.entries(f.expectedCommands).every(([k, v]) => (r.draft as AdoptDraft).commands[k as "test"] === v) &&
-      r.draft.stackDetection.stack.toLowerCase().includes(f.expectedStackIncludes);
+      Object.entries(f.expectedCommands).every(([k, v]) => (r.draft as AdoptDraft).commands[k as "test"] === v)
+      && r.draft.stackDetection.stack.toLowerCase().includes(f.expectedStackIncludes);
     if (draftOk) correct++;
     const files = writeAdoptDrafts(root, r.draft);
     const v = await verifyAdoptDrafts(root, files);
@@ -1646,13 +1752,16 @@ async function cmdInitExtract(argv: string[]): Promise<number> {
   const backend = live ? liveBackend() : recordedAdoptBackend();
   const rows = await evalInitAdoptBackend(backend);
   console.log(
-    `initextract eval (plan 078 T2 — draft-by-judge, verify-by-gate) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    `initextract eval (plan 078 T2 — draft-by-judge, verify-by-gate) — ${live ? "LIVE typellm" : "recorded fixtures"}`,
   );
   console.log(
-    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  lintVerdictCorrect=${rows.lintVerdictCorrect}/${rows.total}`
+    `${rows.name.padEnd(24)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${(rows.accuracy * 100).toFixed(1)}%  lintVerdictCorrect=${rows.lintVerdictCorrect}/${rows.total}`,
   );
-  if (live && rows.skipped === rows.total)
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
@@ -1730,12 +1839,14 @@ export function recordedPlanDagBackend(): JudgeBackend {
     name: "typellm-recorded-plandag",
     async classify(schema, input) {
       void schema;
-      if (!input.includes("Depends On"))
+      if (!input.includes("Depends On")) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: not a plan-DAG input" };
+      }
       const body = input.split("\n\n").slice(1).join("\n\n");
       const edges = parsePlanDeps(body);
-      if (!edges.length)
+      if (!edges.length) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no task blocks in the plan" };
+      }
       return {
         skipped: false,
         bucket: null,
@@ -1760,7 +1871,7 @@ export interface PlanDagScore {
  *  never a pass. */
 export async function evalPlanDagBackend(
   backend: JudgeBackend,
-  fixtures: PlanDagFixture[] = PLAN_DAG_FIXTURES
+  fixtures: PlanDagFixture[] = PLAN_DAG_FIXTURES,
 ): Promise<PlanDagScore> {
   let correct = 0;
   let skipped = 0;
@@ -1775,9 +1886,8 @@ export async function evalPlanDagBackend(
     }
     const got = new Map(r.edges.map((e) => [norm(e.task), new Set(e.dependsOn.map(norm))]));
     const want = new Map(f.expected.map((e) => [norm(e.task), new Set(e.dependsOn.map(norm))]));
-    const setOk =
-      got.size === want.size &&
-      [...want.entries()].every(([k, deps]) => {
+    const setOk = got.size === want.size
+      && [...want.entries()].every(([k, deps]) => {
         const g = got.get(k);
         return g && deps.size === g.size && [...deps].every((d) => g.has(d));
       });
@@ -1802,20 +1912,28 @@ async function cmdPlanDag(argv: string[]): Promise<number> {
     const r = await extractPlanDag(backend, fs.readFileSync(argv[planIdx + 1], "utf8"));
     console.log(renderPlanDagTable(r));
     if (r.skipped) console.error(r.reason ?? "JUDGE SKIPPED");
-    else if (r.findings.length)
+    else if (r.findings.length) {
       console.error(
-        `${r.findings.length} finding(s) — the OWNER must confirm or correct every edge; wrong edges are findings, never silent acceptance`
+        `${r.findings.length} finding(s) — the OWNER must confirm or correct every edge; wrong edges are findings, never silent acceptance`,
       );
+    }
     return 0;
   }
   const backend = live ? liveBackend() : recordedPlanDagBackend();
   const rows = await evalPlanDagBackend(backend);
-  console.log(`plan-DAG eval (plan 078 T3 — extraction before, validation after) — ${live ? "LIVE typellm" : "recorded fixtures"}`);
   console.log(
-    `${rows.name.padEnd(26)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%  findings=${rows.findings}`
+    `plan-DAG eval (plan 078 T3 — extraction before, validation after) — ${
+      live ? "LIVE typellm" : "recorded fixtures"
+    }`,
   );
-  if (live && rows.skipped === rows.total)
+  console.log(
+    `${rows.name.padEnd(26)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${(rows.accuracy * 100).toFixed(1)}%  findings=${rows.findings}`,
+  );
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
@@ -1832,25 +1950,54 @@ export const AUDIT_BATCH_FIXTURES: AuditBatchFixture[] = [
   {
     id: "ab01",
     candidates: [
-      { id: "c1", finding: "ship path swallows write failures — errors are caught and never surfaced", claimedSeverity: "P1" },
+      {
+        id: "c1",
+        finding: "ship path swallows write failures — errors are caught and never surfaced",
+        claimedSeverity: "P1",
+      },
       { id: "c2", finding: "typo in a code comment — 'recieve'", claimedSeverity: "P3" },
       { id: "c3", finding: "the retired gitleaks gate is still documented as active", claimedSeverity: "P2" },
     ],
     expected: [
-      { finding: "ship path swallows write failures — errors are caught and never surfaced", severity: "P1", confirmed: true, evidenceCount: 2 },
+      {
+        finding: "ship path swallows write failures — errors are caught and never surfaced",
+        severity: "P1",
+        confirmed: true,
+        evidenceCount: 2,
+      },
       { finding: "typo in a code comment — 'recieve'", severity: "P3", confirmed: true, evidenceCount: 1 },
-      { finding: "the retired gitleaks gate is still documented as active", severity: "P2", confirmed: false, evidenceCount: 1 },
+      {
+        finding: "the retired gitleaks gate is still documented as active",
+        severity: "P2",
+        confirmed: false,
+        evidenceCount: 1,
+      },
     ],
   },
   {
     id: "ab02",
     candidates: [
-      { id: "c1", finding: "auth boundary has no rate limit on the token endpoint", claimedSeverity: "P0", evidence: "no limiter middleware in the auth module" },
+      {
+        id: "c1",
+        finding: "auth boundary has no rate limit on the token endpoint",
+        claimedSeverity: "P0",
+        evidence: "no limiter middleware in the auth module",
+      },
       { id: "c2", finding: "README documents a --format flag the CLI does not implement", claimedSeverity: "P1" },
     ],
     expected: [
-      { finding: "auth boundary has no rate limit on the token endpoint", severity: "P0", confirmed: true, evidenceCount: 3 },
-      { finding: "README documents a --format flag the CLI does not implement", severity: "P1", confirmed: true, evidenceCount: 2 },
+      {
+        finding: "auth boundary has no rate limit on the token endpoint",
+        severity: "P0",
+        confirmed: true,
+        evidenceCount: 3,
+      },
+      {
+        finding: "README documents a --format flag the CLI does not implement",
+        severity: "P1",
+        confirmed: true,
+        evidenceCount: 2,
+      },
     ],
   },
 ];
@@ -1860,7 +2007,7 @@ export const AUDIT_BATCH_FIXTURES: AuditBatchFixture[] = [
  *  LOUD unconfirmed route to the agent, never an invented row. */
 export function recordedAuditBatchBackend(): JudgeBackend {
   const byFinding = new Map<string, (typeof AUDIT_BATCH_FIXTURES)[number]["expected"][number]>(
-    AUDIT_BATCH_FIXTURES.flatMap((f) => f.expected).map((e) => [e.finding, e])
+    AUDIT_BATCH_FIXTURES.flatMap((f) => f.expected).map((e) => [e.finding, e]),
   );
   return {
     name: "typellm-recorded-auditbatch",
@@ -1869,13 +2016,20 @@ export function recordedAuditBatchBackend(): JudgeBackend {
       const rows = [...input.matchAll(/^- \[[^\]]+\] (?:\(claimed severity [^)]+\) )?(.+)$/gm)]
         .map((m) => m[1].trim())
         .filter((t) => !t.startsWith("Evidence:"));
-      if (!rows.length)
+      if (!rows.length) {
         return { skipped: true, bucket: null, confidence: 0, reason: "recorded replay: no candidates in the input" };
+      }
       const findings: Record<string, unknown>[] = [];
       for (const text of rows) {
         const e = byFinding.get(text);
         if (!e) {
-          findings.push({ finding: text, severity: "P3", confirmed: false, evidenceCount: 1, evidence: "recorded replay: unknown candidate" });
+          findings.push({
+            finding: text,
+            severity: "P3",
+            confirmed: false,
+            evidenceCount: 1,
+            evidence: "recorded replay: unknown candidate",
+          });
           continue;
         }
         findings.push({
@@ -1904,7 +2058,7 @@ export interface AuditBatchScore {
  *  match ground truth. A skip is NEVER a pass. */
 export async function evalAuditBatchBackend(
   backend: JudgeBackend,
-  fixtures: AuditBatchFixture[] = AUDIT_BATCH_FIXTURES
+  fixtures: AuditBatchFixture[] = AUDIT_BATCH_FIXTURES,
 ): Promise<AuditBatchScore> {
   let correct = 0;
   let skipped = 0;
@@ -1919,12 +2073,13 @@ export async function evalAuditBatchBackend(
     for (const e of f.expected) {
       const row = r.rows.find((x) => x.finding === e.finding);
       if (
-        row &&
-        row.severity === e.severity &&
-        row.confirmed === e.confirmed &&
-        row.evidenceCount === e.evidenceCount
-      )
+        row
+        && row.severity === e.severity
+        && row.confirmed === e.confirmed
+        && row.evidenceCount === e.evidenceCount
+      ) {
         correct++;
+      }
     }
   }
   return {
@@ -1950,22 +2105,30 @@ async function cmdAuditBatch(argv: string[]): Promise<number> {
     const r = await auditBatchVerdicts(backend, candidates);
     console.log(renderAuditDigest(r));
     if (r.skippedAll) console.error(r.reason ?? "JUDGE SKIPPED");
-    else
+    else {
       console.error(
-        `${r.rows.filter((row) => row.confirmed).length} pre-verified / ${r.forAgent.length} routed to the agent — audit output schema unchanged`
+        `${
+          r.rows.filter((row) => row.confirmed).length
+        } pre-verified / ${r.forAgent.length} routed to the agent — audit output schema unchanged`,
       );
+    }
     return 0;
   }
   const backend = live ? liveBackend() : recordedAuditBatchBackend();
   const rows = await evalAuditBatchBackend(backend);
   console.log(
-    `audit-batch eval (plan 078 T4 — pre-verified findings, digest to the owner) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    `audit-batch eval (plan 078 T4 — pre-verified findings, digest to the owner) — ${
+      live ? "LIVE typellm" : "recorded fixtures"
+    }`,
   );
   console.log(
-    `${rows.name.padEnd(28)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${String(rows.skipped).padEnd(5)} accuracy=${(rows.accuracy * 100).toFixed(1)}%`
+    `${rows.name.padEnd(28)} ${`${rows.correct}/${rows.total}`.padEnd(13)} skipped=${
+      String(rows.skipped).padEnd(5)
+    } accuracy=${(rows.accuracy * 100).toFixed(1)}%`,
   );
-  if (live && rows.skipped === rows.total)
+  if (live && rows.skipped === rows.total) {
     console.error("JUDGE SKIPPED (all rows skipped — check TYPELLM_API_KEY; skips are never passes)");
+  }
   return 0;
 }
 
@@ -2044,7 +2207,7 @@ export const ORACLE_FIXTURES: OracleFixture[] = [
     claim: "the key is config-supplied (no env reads)",
     pinned: "config-only (no env reads)",
     claimed: "config-only (no env reads)",
-    actual: 'const key = process.env.TYPELLM_API_KEY;', // the env bypass
+    actual: "const key = process.env.TYPELLM_API_KEY;", // the env bypass
     compliant: false,
     evasion: "env-read",
     pins: ["TYPELLM_API_KEY"],
@@ -2066,8 +2229,9 @@ export function scannerOverFixtures(fixtures: OracleFixture[] = ORACLE_FIXTURES)
 function renderScanFinding(f: EvasionFinding): string {
   if (f.kind === "invisible-char") return `invisible-char ${f.codepoint} @byte ${f.byteOffset}`;
   if (f.kind === "confusable") return `confusable ${f.codepoint}->'${f.foldsTo}' @byte ${f.byteOffset}`;
-  if (f.kind === "env-bypass")
+  if (f.kind === "env-bypass") {
     return `env-bypass ${f.pin ? `pin '${f.pin}'` : "unbound"} ${f.site}${f.caseVariant ? " (CASE-VARIANT)" : ""}`;
+  }
   if (f.kind === "case-diff") return `case-diff ${f.detail}`;
   return `scan-error ${f.detail}`;
 }
@@ -2097,7 +2261,7 @@ export interface OracleVerdict {
  *  LOUD: no agreement, reason carried. */
 export async function evalOracleModes(
   backend: JudgeBackend,
-  fixtures: OracleFixture[] = ORACLE_FIXTURES
+  fixtures: OracleFixture[] = ORACLE_FIXTURES,
 ): Promise<OracleVerdict[]> {
   const scans = scannerOverFixtures(fixtures);
   const rows: OracleVerdict[] = [];
@@ -2117,7 +2281,7 @@ export async function evalOracleModes(
     });
     const v = await backend.classify(
       REVIEW_VERDICT_SCHEMA,
-      scenarioInput({ id: f.id, claim: f.claim }, oracleEvidence(f, findings))
+      scenarioInput({ id: f.id, claim: f.claim }, oracleEvidence(f, findings)),
     );
     if (v.skipped) {
       rows.push({
@@ -2148,22 +2312,23 @@ export function recordedOracleBackend(): JudgeBackend {
     ORACLE_FIXTURES.map((f) => [
       scenarioInput(
         { id: f.id, claim: f.claim },
-        oracleEvidence(f, scans.find((s) => s.id === f.id)?.findings ?? [])
+        oracleEvidence(f, scans.find((s) => s.id === f.id)?.findings ?? []),
       ),
       f,
-    ])
+    ]),
   );
   return {
     name: "typellm-recorded-oracle",
     async classify(_schema, input) {
       const f = byInput.get(input);
-      if (!f)
+      if (!f) {
         return {
           skipped: true,
           bucket: null,
           confidence: 0,
           reason: "recorded oracle replay: input is not in the oracle fixture slice",
         };
+      }
       return {
         skipped: false,
         bucket: null,
@@ -2193,16 +2358,15 @@ export function oracleVariationReport(fixtures: OracleFixture[], rows: OracleVer
     const label = f.evasion ?? "clean";
     const base = `${f.id} ${label}: exact=${cell(ex)} normalized=${cell(no)} semantic=${cell(se)}`;
     if (!f.compliant && accepts > 0) {
-      const blindSpot =
-        accepts === [ex?.agreement].filter(Boolean).length
-          ? "exact-only acceptance — the exact binding never reads the actual diff"
-          : "correlated blind spot across the accepting bindings — named by the judge";
+      const blindSpot = accepts === [ex?.agreement].filter(Boolean).length
+        ? "exact-only acceptance — the exact binding never reads the actual diff"
+        : "correlated blind spot across the accepting bindings — named by the judge";
       lines.push(`${base} → UNEARNED agreement (${f.evasion} evasion; ${blindSpot})`);
     } else if (f.compliant && accepts === ORACLE_MODES.length) {
       lines.push(`${base} → EARNED (converging acceptance across VARIED oracles)`);
     } else {
       lines.push(
-        `${base} → DIVERGENT (bindings disagree${se?.skipReason ? `; semantic skipped: ${se.skipReason}` : ""})`
+        `${base} → DIVERGENT (bindings disagree${se?.skipReason ? `; semantic skipped: ${se.skipReason}` : ""})`,
       );
     }
   }
@@ -2215,10 +2379,12 @@ async function cmdEvasion(argv: string[]): Promise<number> {
   const scans = scannerOverFixtures();
   const total = scans.reduce((n, s) => n + s.findings.length, 0);
   console.log(
-    `evasion mode (plan 20261119-079 T4) — Tier-0 scanner over the oracle fixtures + the variation report — ${live ? "LIVE typellm" : "recorded fixtures"}`
+    `evasion mode (plan 20261119-079 T4) — Tier-0 scanner over the oracle fixtures + the variation report — ${
+      live ? "LIVE typellm" : "recorded fixtures"
+    }`,
   );
   console.log(
-    `scanner: ${total} finding(s) across ${scans.length} fixture(s) (byte facts; the evasion fixtures are EXPECTED to be caught)`
+    `scanner: ${total} finding(s) across ${scans.length} fixture(s) (byte facts; the evasion fixtures are EXPECTED to be caught)`,
   );
   for (const s of scans) for (const f of s.findings) console.log(`  ${s.id}: ${renderScanFinding(f)}`);
   const rows = await evalOracleModes(backend);
@@ -2238,7 +2404,7 @@ async function main(argv: string[]): Promise<number> {
       const backend = live ? liveBackend() : recordedVerdictBackend();
       const rows = await evalVerdictModes(backend);
       console.log(
-        `review-verdicts mode comparison (plan 20261117-076 Phase 3) — ${live ? "LIVE typellm" : "recorded fixtures"}`
+        `review-verdicts mode comparison (plan 20261117-076 Phase 3) — ${live ? "LIVE typellm" : "recorded fixtures"}`,
       );
       for (const line of verdictModeLines(rows)) console.log(line);
       return 0;
@@ -2267,7 +2433,7 @@ async function main(argv: string[]): Promise<number> {
       return await cmdEvasion(rest);
     default:
       console.error(
-        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>] | sieve [--live] [--ask <proposal ask>] | initextract [--live] [--root <dir>] | plandag [--live] [--plan <file>] | auditbatch [--live] [--candidates <file>] | evasion [--live]"
+        "usage: bun scripts/bench-intake-triage.ts eval [--live] | verdicts [--live] [--mode per-scenario|batched|batched-dag|all] | verdicts --scenarios <file> --diff <file> | modes [--live] | triage --findings <file> | claims [--live] [--report <claims.json> --turns <turns.json>] | logmining [--live] [--log <file>] | doctrine [--live] [--incident <file>] | brief [--live] [--plan <file> --task <id>] | specdraft [--live] [--plan <file>] | sieve [--live] [--ask <proposal ask>] | initextract [--live] [--root <dir>] | plandag [--live] [--plan <file>] | auditbatch [--live] [--candidates <file>] | evasion [--live]",
       );
       return 2;
   }

@@ -64,11 +64,29 @@ export async function classify({ query, planText, threshold, ask: askFn }) {
   // One judge call (plans 20261026-030 + 033): kind and tier are parallel
   // choice questions — confidence and probabilities ride the choice answers.
   const questions = [
-    { id: "kind", question: `Live plan tasks: ${taskList}. Which does this request touch?`, schema: { type: "string", enum: ["current_spec", "amend_needed", "unrelated", "clarification"] } },
-    { id: "tier", question: "Is this request a problem (no solution chosen), a solution (approach chosen, design open), or a procedure (exact steps known)?", schema: { type: "string", enum: ["problem", "solution", "procedure"] } },
+    {
+      id: "kind",
+      question: `Live plan tasks: ${taskList}. Which does this request touch?`,
+      schema: { type: "string", enum: ["current_spec", "amend_needed", "unrelated", "clarification"] },
+    },
+    {
+      id: "tier",
+      question:
+        "Is this request a problem (no solution chosen), a solution (approach chosen, design open), or a procedure (exact steps known)?",
+      schema: { type: "string", enum: ["problem", "solution", "procedure"] },
+    },
   ];
   const r = await askFn({ questions });
-  if (!r || r.skipped) return { route: "ask-human", kind: null, tier: null, confidence: null, skipped: true, reason: "judge unavailable — ask the human (current behavior)" };
+  if (!r || r.skipped) {
+    return {
+      route: "ask-human",
+      kind: null,
+      tier: null,
+      confidence: null,
+      skipped: true,
+      reason: "judge unavailable — ask the human (current behavior)",
+    };
+  }
   const rows = Array.isArray(r.verdict) ? r.verdict : [];
   const kindRow = rows.find((x) => x.id === "kind") ?? {};
   const tierRow = rows.find((x) => x.id === "tier") ?? {};
@@ -88,14 +106,40 @@ export async function classify({ query, planText, threshold, ask: askFn }) {
 
 export async function main(argv, { ask: askFn = ask } = {}) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
   const planText = fs.existsSync(opts.plan) ? fs.readFileSync(opts.plan, "utf8") : "";
   const c = await classify({ query: opts.query, planText, threshold: opts.threshold, ask: askFn });
 
   fs.mkdirSync(path.dirname(opts.trail), { recursive: true });
-  fs.appendFileSync(opts.trail, JSON.stringify({ ts: new Date().toISOString(), query: opts.query, route: c.route, kind: c.kind, tier: c.tier ?? null, confidence: c.confidence, threshold: opts.threshold, skipped: c.skipped ?? false, ...(c.probabilities ? { probabilities: c.probabilities } : {}) }) + "\n");
+  fs.appendFileSync(
+    opts.trail,
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      query: opts.query,
+      route: c.route,
+      kind: c.kind,
+      tier: c.tier ?? null,
+      confidence: c.confidence,
+      threshold: opts.threshold,
+      skipped: c.skipped ?? false,
+      ...(c.probabilities ? { probabilities: c.probabilities } : {}),
+    }) + "\n",
+  );
 
-  console.log(JSON.stringify({ route: c.route, kind: c.kind, tier: c.tier ?? null, confidence: c.confidence, ...(c.tierConfidence !== undefined ? { tierConfidence: c.tierConfidence } : {}), threshold: opts.threshold, ...(c.skipped ? { reason: c.reason } : {}) }));
+  console.log(
+    JSON.stringify({
+      route: c.route,
+      kind: c.kind,
+      tier: c.tier ?? null,
+      confidence: c.confidence,
+      ...(c.tierConfidence !== undefined ? { tierConfidence: c.tierConfidence } : {}),
+      threshold: opts.threshold,
+      ...(c.skipped ? { reason: c.reason } : {}),
+    }),
+  );
   return 0;
 }
 

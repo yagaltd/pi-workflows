@@ -100,7 +100,7 @@ grows only through triage, never through prose.
 
 ## Gates
 
-`bash scripts/check-drift.sh` runs twelve drift sections on every commit
+`bash scripts/check-drift.sh` runs thirteen drift sections on every commit
 (`.githooks/pre-commit`) and push (CI) — views must agree with sources;
 exit 1 on drift:
 
@@ -108,7 +108,7 @@ exit 1 on drift:
 | --- | --- | --- |
 | 1 | Prompt frontmatter | only supported keys (`description`, `argument-hint`, `hidden`) |
 | 2 | Old-API remnants | no removed-extension API, dead integrations, or stale fork pointers |
-| 3 | Roles | role files exist + registered; every `@role:` ref resolves; skill modules resolve; extension registered |
+| 3 | Roles | role files registered; every `@role:` ref resolves |
 | 4 | Skills | every skill a prompt follows exists (`skills/<name>/SKILL.md`) |
 | 5 | Templates | template files referenced by skills/prompts exist |
 | 6 | peerDependencies | `@arhen/pi-core-subagent` pinned |
@@ -116,6 +116,9 @@ exit 1 on drift:
 | 8 | agents-lint | AGENTS.md doctrine: core + pointers + budget (`scripts/agents-lint.sh`) |
 | 9 | profile-lint | `.workflows/profile.json` schema + repo facts (`scripts/profile-lint.sh`) |
 | 10 | metric-gates | complexity + duplication thresholds (`scripts/metric-gates.sh`; absent tools skip) |
+| 11 | Archive coverage | Bundles for shipped plan IDs |
+| 12 | Durable knowledge | whitelisted `.workflows` paths are tracked |
+| 13 | WIP batch | verdict + scope proof before SHIP |
 
 ### Format Gate
 
@@ -125,7 +128,7 @@ the sole Markdown authority (gate: `.mise/tasks/format-check`,
 `scripts/docs-lint.sh`).
 Worker Verify runs that read-only format check scoped to the task's explicit
 paths, never `fmt` in that leg; `fmt` is allowed only in an explicitly
-contracted formatting task on explicit paths (gate: `agents/worker.md`).
+contracted formatting task on explicit paths (gate: `skills/init/SKILL.md`).
 The mutating `mise run format` task is optional and out of band (gate:
 `.mise/tasks/format`). Pre-commit runs a staged read-only check on staged
 source files and never rewrites files; `/review` Stage 1 runs
@@ -158,7 +161,7 @@ A flow is declarative data — `.workflows/flows/<slug>.json` with steps (`task`
 
 ## Decision steps + intent guard
 
-Flow `decision` steps make one calibrated judge call (`node scripts/judge.mjs ask` — the single judge client: typed question sets to the System One API `/v1/systemone`; key chain `TYPESAFE_API_KEY` env → `~/.pi/agent/auth.json`); `assert` gates on value or confidence, and an unavailable judge is a loud skip, never a pass. `node scripts/intent-guard.mjs --query "..."` classifies a query against the live plan before dispatch — proceed / amend / answer / ask — failing open to `ask-human`. Provenance: decision answers in the run report, guard verdicts in `.workflows/intent/trail.jsonl`.
+Flow `decision` steps make one calibrated judge call (`node scripts/judge.mjs ask` — the single judge client: typed question sets to the System One API `/v1/systemone`; key chain `TYPESAFE_API_KEY` environment → `~/.pi/agent/auth.json`); `assert` gates on value or confidence, and an unavailable judge is a loud skip, never a pass. `node scripts/intent-guard.mjs --query "..."` classifies a query against the live plan before dispatch — proceed / amend / answer / ask — failing open to `ask-human`. Provenance: decision answers in the run report, guard verdicts in `.workflows/intent/trail.jsonl`.
 
 Plan pre-flight binds contract text into every judge question: paths are pointers, not evidence. `bash scripts/wf.sh judge-context --questions <file> --context <spec>` rejects path-only question sets; `judge ask --context <spec>` embeds the spec in every instruction and fails closed before the network on cap breach. Low-confidence rows route to the human; judges never gate.
 
@@ -168,7 +171,7 @@ Plan pre-flight binds contract text into every judge question: paths are pointer
 
 ## Proof ledger
 
-Per-task proofs live in `.workflows/proofs/proofs.jsonl` — the Verify command, its exit code, and a sha256 of the verifier output: `node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" --spec <spec>`. `verify` re-runs the recorded command and flags drift by hash; `collect --plan <id>` merges the run journal, review verdicts, and proof counts into the SHIP evidence file. Proofs are recorded data: a failing verifier still records. Reviewer records are token-gated: `record --runner reviewer` requires the session token from `.workflows/proofs/.reviewer-token` (created by `proof-ledger init`); `verify` annotates reviewer rows `token-verified` vs legacy `self-attested, pre-token`.
+Per-task proofs live in `.workflows/proofs/proofs.jsonl` — the Verify command, its exit code, and an SHA-256 of the verifier output: `node scripts/proof-ledger.mjs record --plan <id> --task <id> --verify "<cmd>" --spec <spec>`. `verify` re-runs the recorded command and flags drift by hash; `collect --plan <id>` merges the run journal, review verdicts, and proof counts into the SHIP evidence file. Proofs are recorded data: a failing verifier still records. Reviewer records are token-gated: `record --runner reviewer` requires the session token from `.workflows/proofs/.reviewer-token` (created by `proof-ledger init`); `verify` annotates reviewer rows `token-verified` vs legacy `self-attested, pre-token`.
 
 ## Lessons ledger
 

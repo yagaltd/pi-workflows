@@ -20,28 +20,28 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
+import { QUESTION_CAP } from "../scripts/judge.mjs";
 import {
+  buildQuestions,
+  buildState,
+  chunkQuestions,
   DATA_DOC_EXTENSIONS,
-  SPECULATIVE_PII_SET,
   filterDataDocFiles,
   listChangedFiles,
-  buildState,
-  structureDigest,
-  buildQuestions,
-  chunkQuestions,
+  main,
+  NAME_BOUND,
   parseGitleaksReport,
   runScan,
-  main,
   sanitizeName,
-  NAME_BOUND,
+  SPECULATIVE_PII_SET,
+  structureDigest,
 } from "../scripts/pii-scan.mjs";
-import { QUESTION_CAP } from "../scripts/judge.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "pii-scan.mjs");
@@ -57,9 +57,18 @@ const SENTINELS = [EMAIL, SECRET];
 // private-key indicator + a per-file likely-credentials rollup). Distinct
 // `c`-prefixed ids never collide with historical `q` ruler keys.
 const CRED_IDS = [
-  "c01-cred-api-key", "c02-cred-token", "c03-cred-secret", "c04-cred-password",
-  "c05-cred-private-key", "c06-cred-credential", "c07-cred-auth", "c08-cred-oauth",
-  "c09-cred-session", "c10-cred-cookie", "c11-pem-private-key", "c12-likely-credentials",
+  "c01-cred-api-key",
+  "c02-cred-token",
+  "c03-cred-secret",
+  "c04-cred-password",
+  "c05-cred-private-key",
+  "c06-cred-credential",
+  "c07-cred-auth",
+  "c08-cred-oauth",
+  "c09-cred-session",
+  "c10-cred-cookie",
+  "c11-pem-private-key",
+  "c12-likely-credentials",
 ];
 const TOTAL_QUESTIONS = SPECULATIVE_PII_SET.length + CRED_IDS.length;
 
@@ -89,9 +98,18 @@ function makeFixtures(dir: string): Record<string, string> {
     return p;
   };
   return {
-    csv: f("contacts.csv", `name,email,api_token\nJane Doe,${EMAIL},${SECRET}\nSecond Person,other@example.invalid,notasecret\n`),
-    json: f("user.json", JSON.stringify({ user: { email: EMAIL, auth: { token: SECRET }, roles: ["admin", "dev"] } }, null, 2)),
-    yaml: f("config.yaml", `database:\n  host: db.invalid\n  admin_email: ${EMAIL}\nservice:\n  api_token: ${SECRET}\n`),
+    csv: f(
+      "contacts.csv",
+      `name,email,api_token\nJane Doe,${EMAIL},${SECRET}\nSecond Person,other@example.invalid,notasecret\n`,
+    ),
+    json: f(
+      "user.json",
+      JSON.stringify({ user: { email: EMAIL, auth: { token: SECRET }, roles: ["admin", "dev"] } }, null, 2),
+    ),
+    yaml: f(
+      "config.yaml",
+      `database:\n  host: db.invalid\n  admin_email: ${EMAIL}\nservice:\n  api_token: ${SECRET}\n`,
+    ),
     toml: f("settings.toml", `[mail]\nsender = "${EMAIL}"\n\n[secrets]\ntoken = "${SECRET}"\n`),
     md: f("notes.md", `# Contacts\n\nReach Jane at ${EMAIL}; rotation ${SECRET}.\n`),
     bin: f("blob.bin", Buffer.from(`binary\x00blob ${EMAIL} ${SECRET}\x00\x01`)),
@@ -145,9 +163,16 @@ describe("scenario 1: changed-file discovery", () => {
   test("git merge-base..HEAD filtered to json/csv/yaml/toml/md; --files overrides discovery", () => {
     // extension filter: data/doc only
     expect(DATA_DOC_EXTENSIONS).toEqual(expect.arrayContaining([".json", ".csv", ".yaml", ".toml", ".md"]));
-    expect(filterDataDocFiles(["a.json", "b.csv", "c.yaml", "d.yml", "e.toml", "f.md", "g.txt", "h.bin", "sub/i.json"])).toEqual([
-      "a.json", "b.csv", "c.yaml", "d.yml", "e.toml", "f.md", "sub/i.json",
-    ]);
+    expect(filterDataDocFiles(["a.json", "b.csv", "c.yaml", "d.yml", "e.toml", "f.md", "g.txt", "h.bin", "sub/i.json"]))
+      .toEqual([
+        "a.json",
+        "b.csv",
+        "c.yaml",
+        "d.yml",
+        "e.toml",
+        "f.md",
+        "sub/i.json",
+      ]);
 
     // git discovery in a throwaway repo
     const dir = initTmpRepo();
@@ -206,11 +231,15 @@ describe("scenario 2: per-file state builder", () => {
 
       const json = buildState(fx.json);
       expect(json.type).toBe("json");
-      expect(json.keyPaths).toEqual(expect.arrayContaining(["user.email", "user.auth", "user.auth.token", "user.roles"]));
+      expect(json.keyPaths).toEqual(
+        expect.arrayContaining(["user.email", "user.auth", "user.auth.token", "user.roles"]),
+      );
 
       const yaml = buildState(fx.yaml);
       expect(yaml.type).toBe("yaml");
-      expect(yaml.keyPaths).toEqual(expect.arrayContaining(["database.host", "database.admin_email", "service.api_token"]));
+      expect(yaml.keyPaths).toEqual(
+        expect.arrayContaining(["database.host", "database.admin_email", "service.api_token"]),
+      );
 
       const toml = buildState(fx.toml);
       expect(toml.type).toBe("toml");
@@ -257,11 +286,15 @@ describe("scenario 3: question fan-out", () => {
       for (const q of qs) {
         expect(String(q.id)).toMatch(/^[qc]\d+-/); // q = PII category, c = credential judgment (backlog #7)
         expect(q.schema).toEqual({ enum: ["yes", "no"] });
-        expect(String(q.question)).toContain('File "contacts.csv"');
+        expect(String(q.question)).toContain("File \"contacts.csv\"");
       }
 
       // chunker respects the cap
-      const many = Array.from({ length: 70 }, (_, i) => ({ id: `q${i}`, question: "x", schema: { enum: ["yes", "no"] } }));
+      const many = Array.from({ length: 70 }, (_, i) => ({
+        id: `q${i}`,
+        question: "x",
+        schema: { enum: ["yes", "no"] },
+      }));
       expect(chunkQuestions(many, QUESTION_CAP).map((c: any[]) => c.length)).toEqual([QUESTION_CAP, 6]);
 
       // integration: per-file asks, every chunk ≤ 64, never mixed across files
@@ -306,7 +339,15 @@ describe("scenario 4: judge wiring", () => {
       const { askImpl, calls } = fakeAsk(() => "yes");
       const rulerFile = path.join(dir, "pii", "reviewed_v1.jsonl");
 
-      const res = await runScan({ plan: "P-1", files: [fx.csv, fx.json], askImpl, cwd: dir, out: sink(), err: sink(), rulerFile });
+      const res = await runScan({
+        plan: "P-1",
+        files: [fx.csv, fx.json],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
       expect(res.exitCode).toBe(0);
       expect(calls.length).toBe(2); // one ask per file
       expect(calls[0].file).not.toBe(calls[1].file);
@@ -320,7 +361,15 @@ describe("scenario 4: judge wiring", () => {
         e.write("JUDGE SKIPPED (missing TYPESAFE_API_KEY)\n");
         return { status: 0, skipped: true };
       };
-      const res2 = await runScan({ plan: "P-1", files: [fx.csv], askImpl: skipAsk, cwd: dir, out: o, err: e, rulerFile });
+      const res2 = await runScan({
+        plan: "P-1",
+        files: [fx.csv],
+        askImpl: skipAsk,
+        cwd: dir,
+        out: o,
+        err: e,
+        rulerFile,
+      });
       expect(res2.exitCode).toBe(0); // never fails the task
       expect(e.text).toContain("JUDGE SKIPPED"); // judge's own signal surfaced
       expect(e.text + o.text).toMatch(/no ruler rows/i); // pii-scan says it loudly too
@@ -346,7 +395,15 @@ describe("scenario 5: gitleaks triage", () => {
       // (a) gitleaks absent (default on this machine): judge-only + loud note
       const oA = sink();
       const eA = sink();
-      const resA = await runScan({ plan: "P", files: [fx.csv, fx.json], askImpl, cwd: dir, out: oA, err: eA, rulerFile });
+      const resA = await runScan({
+        plan: "P",
+        files: [fx.csv, fx.json],
+        askImpl,
+        cwd: dir,
+        out: oA,
+        err: eA,
+        rulerFile,
+      });
       expect(resA.exitCode).toBe(0);
       expect(oA.text + eA.text).toContain("judge-based"); // secrets verdict source (backlog #7)
       expect(oA.text + eA.text).toContain("gitleaks retired");
@@ -357,8 +414,22 @@ describe("scenario 5: gitleaks triage", () => {
       fs.writeFileSync(
         report,
         JSON.stringify([
-          { RuleID: "generic-api-key", Description: "generic api key", File: "contacts.csv", StartLine: 2, Secret: SECRET, Match: SECRET },
-          { RuleID: "email-address", Description: "email address", File: "user.json", StartLine: 1, Secret: EMAIL, Match: EMAIL },
+          {
+            RuleID: "generic-api-key",
+            Description: "generic api key",
+            File: "contacts.csv",
+            StartLine: 2,
+            Secret: SECRET,
+            Match: SECRET,
+          },
+          {
+            RuleID: "email-address",
+            Description: "email address",
+            File: "user.json",
+            StartLine: 1,
+            Secret: EMAIL,
+            Match: EMAIL,
+          },
         ]),
       );
 
@@ -370,7 +441,16 @@ describe("scenario 5: gitleaks triage", () => {
 
       const oB = sink();
       const eB = sink();
-      const resB = await runScan({ plan: "P", files: [fx.csv, fx.json], gitleaksReport: report, askImpl, cwd: dir, out: oB, err: eB, rulerFile });
+      const resB = await runScan({
+        plan: "P",
+        files: [fx.csv, fx.json],
+        gitleaksReport: report,
+        askImpl,
+        cwd: dir,
+        out: oB,
+        err: eB,
+        rulerFile,
+      });
       expect(resB.exitCode).toBe(0);
       // contacts.csv: gitleaks flags + judge says clean → DISAGREEMENT, sorts first
       expect(resB.summary[0].file).toBe(fx.csv);
@@ -385,7 +465,16 @@ describe("scenario 5: gitleaks triage", () => {
       // (c) malformed report degrades loudly, judge-only continues
       fs.writeFileSync(report, "not json{");
       const eC = sink();
-      const resC = await runScan({ plan: "P", files: [fx.csv], gitleaksReport: report, askImpl, cwd: dir, out: sink(), err: eC, rulerFile: path.join(dir, "r2.jsonl") });
+      const resC = await runScan({
+        plan: "P",
+        files: [fx.csv],
+        gitleaksReport: report,
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: eC,
+        rulerFile: path.join(dir, "r2.jsonl"),
+      });
       expect(resC.exitCode).toBe(0);
       expect(eC.text).toMatch(/gitleaks report unparseable/i);
     } finally {
@@ -404,7 +493,15 @@ describe("scenario 6: ruler (reviewed_v1.jsonl)", () => {
       const rulerFile = path.join(dir, "never-existed", "pii", "reviewed_v1.jsonl");
       const { askImpl } = fakeAsk(() => "yes");
 
-      const res1 = await runScan({ plan: "PLAN-9", files: [fx.csv, fx.md], askImpl, cwd: dir, out: sink(), err: sink(), rulerFile });
+      const res1 = await runScan({
+        plan: "PLAN-9",
+        files: [fx.csv, fx.md],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
       expect(fs.existsSync(rulerFile)).toBe(true); // dir created on demand
       const lines1 = fs.readFileSync(rulerFile, "utf-8").trim().split("\n");
       const rows1 = lines1.map((l) => JSON.parse(l));
@@ -421,7 +518,15 @@ describe("scenario 6: ruler (reviewed_v1.jsonl)", () => {
       }
 
       // second identical run appends nothing new (idempotent by key)
-      const res2 = await runScan({ plan: "PLAN-9", files: [fx.csv, fx.md], askImpl, cwd: dir, out: sink(), err: sink(), rulerFile });
+      const res2 = await runScan({
+        plan: "PLAN-9",
+        files: [fx.csv, fx.md],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
       const lines2 = fs.readFileSync(rulerFile, "utf-8").trim().split("\n");
       expect(res2.appended).toBe(0);
       expect(lines2.length).toBe(lines1.length);
@@ -448,7 +553,11 @@ describe("guardrail: values-never-extract", () => {
       assertNoSentinels(...blobs);
 
       // CLI probe: non-data file → no judge call, exit 0, sentinels absent everywhere
-      const r = spawnSync("node", [SCRIPT, "--plan", "smoke-guard", "--files", fx.txt], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+      const r = spawnSync("node", [SCRIPT, "--plan", "smoke-guard", "--files", fx.txt], {
+        cwd: ROOT,
+        encoding: "utf-8",
+        timeout: 20000,
+      });
       expect(r.status).toBe(0);
       assertNoSentinels(r.stdout ?? "", r.stderr ?? "");
       expect(r.stdout + r.stderr).toContain("gitleaks retired"); // judge-based gate note (backlog #7)
@@ -618,18 +727,40 @@ describe("backlog #7: judge-based secrets gate", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-redact-"));
     try {
       const fx = makeNameFixtures(dir);
-      expect(buildState(fx.csvHeader).redactions).toEqual([{ position: "header", name: "[redacted:13]", originalLength: 13 }]);
-      expect(buildState(fx.mdHeading).redactions).toEqual([{ position: "heading", name: "[redacted:13] rotation n", originalLength: 28 }]);
-      expect(buildState(fx.jsonKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
-      expect(buildState(fx.yamlKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
-      expect(buildState(fx.tomlKey).redactions).toEqual([{ position: "key", name: "[redacted:13]", originalLength: 13 }]);
+      expect(buildState(fx.csvHeader).redactions).toEqual([{
+        position: "header",
+        name: "[redacted:13]",
+        originalLength: 13,
+      }]);
+      expect(buildState(fx.mdHeading).redactions).toEqual([{
+        position: "heading",
+        name: "[redacted:13] rotation n",
+        originalLength: 28,
+      }]);
+      expect(buildState(fx.jsonKey).redactions).toEqual([{
+        position: "key",
+        name: "[redacted:13]",
+        originalLength: 13,
+      }]);
+      expect(buildState(fx.yamlKey).redactions).toEqual([{
+        position: "key",
+        name: "[redacted:13]",
+        originalLength: 13,
+      }]);
+      expect(buildState(fx.tomlKey).redactions).toEqual([{
+        position: "key",
+        name: "[redacted:13]",
+        originalLength: 13,
+      }]);
 
       // innocuous names produce zero signals (skipped states have none either)
       const plain = makeFixtures(dir);
       for (const p of Object.values(plain)) expect(buildState(p).redactions ?? []).toEqual([]);
 
       // values guardrail: findings carry only the redacted marker + length
-      const allFindings = [fx.csvHeader, fx.mdHeading, fx.jsonKey, fx.yamlKey, fx.tomlKey].map((p) => buildState(p).redactions);
+      const allFindings = [fx.csvHeader, fx.mdHeading, fx.jsonKey, fx.yamlKey, fx.tomlKey].map((p) =>
+        buildState(p).redactions
+      );
       assertNoSentinels(JSON.stringify(allFindings));
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -698,7 +829,15 @@ describe("backlog #7: judge-based secrets gate", () => {
       const { askImpl } = fakeAsk();
       const o = sink();
       const e = sink();
-      const res = await runScan({ plan: "W", files: [fx.csv], askImpl, cwd: dir, out: o, err: e, rulerFile: path.join(dir, "ruler.jsonl") });
+      const res = await runScan({
+        plan: "W",
+        files: [fx.csv],
+        askImpl,
+        cwd: dir,
+        out: o,
+        err: e,
+        rulerFile: path.join(dir, "ruler.jsonl"),
+      });
       expect(res.exitCode).toBe(0);
       const both = o.text + e.text;
       expect(both).toContain("judge-based");
@@ -748,7 +887,10 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pii-bug2-"));
     try {
       const fx = makeFixtures(dir);
-      fs.writeFileSync(path.join(dir, "gl.json"), JSON.stringify([{ RuleID: "email-address", Description: "email", File: "contacts.csv", StartLine: 2 }]));
+      fs.writeFileSync(
+        path.join(dir, "gl.json"),
+        JSON.stringify([{ RuleID: "email-address", Description: "email", File: "contacts.csv", StartLine: 2 }]),
+      );
       const { askImpl } = fakeAsk();
       const res = await runScan({
         plan: "BUG2",
@@ -773,12 +915,20 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
     expect(await main(["--plan", "x", "--files", "--gitleaks", "r.json"])).toBe(2);
     expect(await main(["--gitleaks", "r.json", "--plan"])).toBe(2); // missing value at end
     // spawn probes: the usage error NAMES the flag it choked on; parse fails before any scan/judge work
-    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--gitleaks", "--files", "a.json"], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--gitleaks", "--files", "a.json"], {
+      cwd: ROOT,
+      encoding: "utf-8",
+      timeout: 20000,
+    });
     expect(r.status).toBe(2);
     expect(r.stderr).toContain("--gitleaks expects a value");
     expect(r.stderr).toContain("--files");
     expect(r.stderr).toContain("usage:");
-    const r2 = spawnSync("node", [SCRIPT, "--gitleaks", "r.json", "--plan"], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    const r2 = spawnSync("node", [SCRIPT, "--gitleaks", "r.json", "--plan"], {
+      cwd: ROOT,
+      encoding: "utf-8",
+      timeout: 20000,
+    });
     expect(r2.status).toBe(2);
     expect(r2.stderr).toContain("--plan expects a value");
   });
@@ -786,7 +936,11 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
   test("BUG-3b: --files with only empty entries (\",\") errors loudly — never silently falls back to git discovery", async () => {
     expect(await main(["--plan", "x", "--files", ","])).toBe(2);
     expect(await main(["--plan", "x", "--files", "  "])).toBe(2);
-    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--files", ","], { cwd: ROOT, encoding: "utf-8", timeout: 20000 });
+    const r = spawnSync("node", [SCRIPT, "--plan", "x", "--files", ","], {
+      cwd: ROOT,
+      encoding: "utf-8",
+      timeout: 20000,
+    });
     expect(r.status).toBe(2);
     expect(r.stderr).toContain("--files");
     expect(r.stderr.toLowerCase()).toContain("no usable entries");
@@ -807,7 +961,15 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
       const rulerFile = path.join(dir, "ruler.jsonl");
       const o = sink();
       const e = sink();
-      const res = await runScan({ plan: "BUG4", files: [fx.csv], askImpl: driftAsk, cwd: dir, out: o, err: e, rulerFile });
+      const res = await runScan({
+        plan: "BUG4",
+        files: [fx.csv],
+        askImpl: driftAsk,
+        cwd: dir,
+        out: o,
+        err: e,
+        rulerFile,
+      });
       expect(res.exitCode).toBe(0);
 
       // excluded from clean: order is NOT clean/judge-flagged, it names the drift
@@ -828,7 +990,15 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
 
       // idempotency unpoisoned: a follow-up run with a GOOD judge fills the drifted ids in
       const { askImpl } = fakeAsk(() => "yes");
-      const res2 = await runScan({ plan: "BUG4", files: [fx.csv], askImpl, cwd: dir, out: sink(), err: sink(), rulerFile });
+      const res2 = await runScan({
+        plan: "BUG4",
+        files: [fx.csv],
+        askImpl,
+        cwd: dir,
+        out: sink(),
+        err: sink(),
+        rulerFile,
+      });
       expect(res2.appended).toBe(2); // exactly the two previously-unanswered questions
       const rows2 = fs.readFileSync(rulerFile, "utf-8").trim().split("\n").map((l) => JSON.parse(l));
       for (const id of driftedIds) expect(rows2.map((r: any) => r.questionId)).toContain(id);
@@ -836,7 +1006,15 @@ describe("plan-049 review polish (BUG-2..BUG-5)", () => {
       // control: a fully-answered file stays clean — no drift line, order clean
       const o3 = sink();
       const { askImpl: goodAsk } = fakeAsk();
-      const res3 = await runScan({ plan: "BUG4", files: [fx.json], askImpl: goodAsk, cwd: dir, out: o3, err: sink(), rulerFile: path.join(dir, "r3.jsonl") });
+      const res3 = await runScan({
+        plan: "BUG4",
+        files: [fx.json],
+        askImpl: goodAsk,
+        cwd: dir,
+        out: o3,
+        err: sink(),
+        rulerFile: path.join(dir, "r3.jsonl"),
+      });
       expect(res3.summary[0].order).toBe("clean");
       expect(o3.text).not.toContain("judge answer drift");
       assertNoSentinels(o.text, e.text, JSON.stringify(res.summary));

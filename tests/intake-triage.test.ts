@@ -3,23 +3,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  TRIAGE_BUCKETS,
-  TRIAGE_CONFIDENCE_FLOOR,
-  TRIAGE_SCHEMA,
+  type JudgeBackend,
   makeTypellmBackend,
   renderTriageTable,
   resolveTypellmKey,
+  TRIAGE_BUCKETS,
+  TRIAGE_CONFIDENCE_FLOOR,
+  TRIAGE_SCHEMA,
   triageFinding,
   triageFindings,
-  type JudgeBackend,
 } from "../extensions/index.ts";
-import {
-  FIXTURES,
-  evalBackend,
-  evalBackends,
-  liveBackend,
-  recordedBackend,
-} from "../scripts/bench-intake-triage.ts";
+import { evalBackend, evalBackends, FIXTURES, liveBackend, recordedBackend } from "../scripts/bench-intake-triage.ts";
 
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "triage-"));
 const writeKeyFile = (content: string): string => {
@@ -332,20 +326,20 @@ describe("bench harness — EVAL-SLICE (the Phase-2 gate instrument)", () => {
 
 // ── plan 20261117-076 Phase 2: review verdicts over the seam ──────────────
 import {
-  REVIEW_VERDICTS,
-  REVIEW_VERDICT_SCHEMA,
   renderVerdictTable,
+  REVIEW_VERDICT_SCHEMA,
+  REVIEW_VERDICTS,
+  type ReviewScenario,
   reviewVerdicts,
   scenarioInput,
-  type ReviewScenario,
 } from "../extensions/index.ts";
+import { parseVerdictWrite } from "../extensions/index.ts";
 import {
-  VERDICT_FIXTURES,
   evalVerdictBackend,
   evalVerdictBackends,
   recordedVerdictBackend,
+  VERDICT_FIXTURES,
 } from "../scripts/bench-intake-triage.ts";
-import { parseVerdictWrite } from "../extensions/index.ts";
 
 const SCENARIOS: ReviewScenario[] = [
   { id: "S1", claim: "The report's claims match what the diff actually does." },
@@ -354,7 +348,7 @@ const SCENARIOS: ReviewScenario[] = [
 const DIFF = "diff summary text";
 
 const verdictBackend = (
-  verdicts: Record<string, { verdict: string; confidence: number; evidence?: string }>
+  verdicts: Record<string, { verdict: string; confidence: number; evidence?: string }>,
 ): JudgeBackend => ({
   name: "verdict-fake",
   async classify(schema, input) {
@@ -408,7 +402,10 @@ describe("review verdicts over the seam (plan 20261117-076 Phase 2)", () => {
     expect(r.skippedAll).toBe(false);
     expect(r.results).toHaveLength(2);
     expect(r.results[0]).toMatchObject({
-      scenario: "S1", verdict: "pass", confidence: 0.9, evidence: "report says X, diff does X",
+      scenario: "S1",
+      verdict: "pass",
+      confidence: 0.9,
+      evidence: "report says X, diff does X",
     });
     expect(r.results[1]).toMatchObject({ scenario: "S2", verdict: "fail" });
     expect(r.deepRead).toEqual([]);
@@ -525,7 +522,7 @@ describe("verdict harness — review-verdict fixtures (the Phase-2 gate instrume
   test("recorded verdict backend never invents an answer for unknown input (loud skip)", async () => {
     const v = await recordedVerdictBackend().classify(
       REVIEW_VERDICT_SCHEMA,
-      scenarioInput({ id: "X", claim: "not a fixture" }, "not a fixture diff")
+      scenarioInput({ id: "X", claim: "not a fixture" }, "not a fixture diff"),
     );
     expect(v.skipped).toBe(true);
     expect(v.reason).toBeTruthy();

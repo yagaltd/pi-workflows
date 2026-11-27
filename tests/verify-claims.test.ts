@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
   CLAIM_VERDICTS,
-  TRIAGE_CONFIDENCE_FLOOR,
-  verifyClaims,
   type JudgeBackend,
   type ReportClaim,
   type SessionTurn,
+  TRIAGE_CONFIDENCE_FLOOR,
+  verifyClaims,
 } from "../extensions/index.ts";
 
 /* ── plan 077 Task 2: worker-report normalization + CLAIM VERIFICATION ──
@@ -29,7 +29,7 @@ const TURNS: SessionTurn[] = [
 ];
 
 function transcriptBackend(
-  answer: (claims: ReportClaim[]) => Record<string, unknown>[] | { skip: string }
+  answer: (claims: ReportClaim[]) => Record<string, unknown>[] | { skip: string },
 ): { backend: JudgeBackend; calls: { schema: object; input: string }[] } {
   const calls: { schema: object; input: string }[] = [];
   return {
@@ -117,9 +117,7 @@ describe("verifyClaims — the batched judge pass (plan 077 T2)", () => {
   });
 
   test("the claim-verdict question is a native array with the TRUE/FALSE/UNVERIFIABLE enum", async () => {
-    const { backend, calls } = transcriptBackend(() =>
-      rows({ C1: {} })
-    );
+    const { backend, calls } = transcriptBackend(() => rows({ C1: {} }));
     const claims: ReportClaim[] = [{ claim: "c", type: "t", sessionTurn: 0 }];
     await verifyClaims(backend, claims, TURNS);
     const schema: any = calls[0].schema;

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 
 /* ── plan 20261127-083 TASK 2: profile-lint formatter block ──
  * Contract source: .workflows/specs/task-2.spec. profile-lint.sh gains an
@@ -79,13 +79,13 @@ function makeToolBin(withDprint: boolean): { log: string; pathEnv: string } {
       [
         "#!/usr/bin/env bash",
         `echo "$*" >> ${JSON.stringify(log)}`,
-        'case "$1" in',
+        "case \"$1\" in",
         "  --version|version|-V|--help) echo stub; exit 0 ;;",
         "esac",
         "exit 0",
         "",
       ].join("\n"),
-      { mode: 0o755 }
+      { mode: 0o755 },
     );
     fs.chmodSync(p, 0o755);
   }
@@ -106,8 +106,11 @@ async function detectWithPath(root: string, pathEnv: string): Promise<FormatterP
   process.env.PATH = pathEnv;
   try {
     const mod = (await import("../scripts/init-extract.ts")) as Record<string, unknown>;
-    if (typeof mod.detectFormatterProfiles !== "function")
-      throw new Error("scripts/init-extract.ts must export detectFormatterProfiles() for the formatter registry contract");
+    if (typeof mod.detectFormatterProfiles !== "function") {
+      throw new Error(
+        "scripts/init-extract.ts must export detectFormatterProfiles() for the formatter registry contract",
+      );
+    }
     const value = await (mod.detectFormatterProfiles as (r: string) => unknown)(root);
     if (Array.isArray(value)) return value as FormatterProfileLike[];
     if (value && typeof value === "object") return Object.values(value) as FormatterProfileLike[];
@@ -119,10 +122,15 @@ async function detectWithPath(root: string, pathEnv: string): Promise<FormatterP
 
 async function offerText(profile: FormatterProfileLike): Promise<string> {
   const mod = (await import("../scripts/init-extract.ts")) as Record<string, unknown>;
-  if (typeof mod.buildFormatterOffer !== "function")
+  if (typeof mod.buildFormatterOffer !== "function") {
     throw new Error("scripts/init-extract.ts must export buildFormatterOffer() for the owner-gate contract");
+  }
   const value = await (mod.buildFormatterOffer as (p: FormatterProfileLike) => unknown)(profile);
-  return typeof value === "string" ? value : value && typeof (value as any).text === "string" ? (value as any).text : JSON.stringify(value ?? "");
+  return typeof value === "string"
+    ? value
+    : value && typeof (value as any).text === "string"
+    ? (value as any).text
+    : JSON.stringify(value ?? "");
 }
 
 const idOf = (p: FormatterProfileLike) => (typeof p.id === "string" ? p.id : "");
@@ -152,7 +160,7 @@ const DPRINT_CONFIG = JSON.stringify(
     includes: ["**/*.ts"],
   },
   null,
-  2
+  2,
 );
 
 const BASE_FILES: Record<string, string> = {
@@ -203,7 +211,7 @@ describe("profile-lint (plan 20261127-083 T2) — formatter block", () => {
         includes: ["**/*.ts", "**/*.md", "**/*.mdx"],
       },
       null,
-      2
+      2,
     );
     const root = makeRepo({
       ...BASE_FILES,
@@ -234,13 +242,13 @@ describe("profile-lint (plan 20261127-083 T2) — formatter block", () => {
       root,
       validProfile({
         formatter: formatterBlock({ targets: ["docs/guide.md"], evidence: ["docs/guide.md"] }),
-      })
+      }),
     );
     const md = runLint(markdownOnly, stub.pathEnv);
     const mdOut = `${md.stdout ?? ""}${md.stderr ?? ""}`;
     expect(mdOut).not.toMatch(/(PASS|SKIP):\s*formatter[^\n]*\.mdx?/i);
     expect(mdOut, "a Markdown-only draft earns no formatter verdict at all").not.toMatch(
-      /(PASS|SKIP):\s*formatter/i
+      /(PASS|SKIP):\s*formatter/i,
     );
     expect(checkInvocations(stub.log), "Markdown validation must not run a formatter").toEqual([]);
   }, 30000);
@@ -252,7 +260,7 @@ describe("profile-lint (plan 20261127-083 T2) — formatter block", () => {
       validProfile({
         pointers: { overview: "does-not-exist.md" },
         formatter: formatterBlock(),
-      })
+      }),
     );
     const missing = makeToolBin(false);
 

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { decideOutputPolicy } from "../scripts/output-policy.mjs";
 import { main as policyCliMain } from "../scripts/output-policy-cli.mjs";
+import { decideOutputPolicy } from "../scripts/output-policy.mjs";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const MODULE = path.join(ROOT, "scripts", "output-policy.mjs");
@@ -134,6 +134,8 @@ describe("output policy (plan 20261123-075)", () => {
     expect(frozen).toEqual(input);
 
     const source = fs.readFileSync(MODULE, "utf8");
-    expect(source).not.toMatch(/\b(from\s+["']node:fs["']|require\(["']fs|fetch\s*\(|node:http|\bjudge\b|ask\s*\(|TypeLLM)/);
+    expect(source).not.toMatch(
+      /\b(from\s+["']node:fs["']|require\(["']fs|fetch\s*\(|node:http|\bjudge\b|ask\s*\(|TypeLLM)/,
+    );
   });
 });

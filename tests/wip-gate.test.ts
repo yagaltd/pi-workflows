@@ -64,7 +64,7 @@ afterEach(() => {
 describe("check-drift WIP section and pre-commit linkage", () => {
   test("test_check_drift_wip_fails_malformed_state", () => {
     const root = fixture();
-    writeState(root, '{"id": "batch-1",');
+    writeState(root, "{\"id\": \"batch-1\",");
     const result = drift(root);
     expect(result.status).toBe(1);
     expect(output(result)).toContain("DRIFT");
