@@ -53,9 +53,10 @@ never a silent pass:
   `agent-spec guard` (Allowed/Forbidden) — from the dispatch pack's gate outputs.
 - Test quality: `tdd-guard` lint + spec coverage — SKIP-loud when not installed
   (a skipped layer is a degraded pipeline, never a silent pass).
-- Project toolchain: the spec's verify line (tests/lint/types/build) — run once
-  by the task gate; rerun only when no recorded output exists (note the
-  adaptation if you must derive it).
+- Project toolchain: the spec's verify line (tests/lint/types/build) — run
+  once by the task gate; rerun only when no recorded output exists (note
+  adaptation). Read scoped `format-check` output as evidence: never re-derive,
+  widen, or repair; never run `fmt` (gate: `tests/prompt-doctrine.test.ts`).
 - Contracts syntax: `cc-check` (format only — the reviewer never judges contract
   prose). Property tests: `bombadil` — not installed, DEC-008 accepted gap;
   report the skip when the diff touches a web UI.

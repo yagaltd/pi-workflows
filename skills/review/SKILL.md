@@ -31,7 +31,12 @@ must be recorded proofs
 (`bash "${PI_WORKFLOWS_BIN:-./scripts/wf.sh}" proof-ledger record ...`),
 not prose claims.
 
-First, run the full verification suite (same as `/verify`):
+First, run the full verification suite (same as `/verify`). The full
+verification suite includes the read-only whole-tree `mise run format-check`
+(`dprint check --list-different`; gate: `.mise/tasks/format-check`). A scoped
+per-task result is not a substitute for that whole-tree check. Stage 1 never
+runs `fmt` or `format` to repair files — recorded worker output is evidence,
+not a repair license (gate: `agents/reviewer.md`).
 
 ### Layer 0: Executable-charter tasks (mise)
 
@@ -66,6 +71,7 @@ review needed.
 ```bash
 npm test && npm run lint && npm run typecheck && npm run build
 # Adapt to project stack
+mise run format-check
 ```
 
 ### Layer 3: Verdict history + context hygiene (audit trail)

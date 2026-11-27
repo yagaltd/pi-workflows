@@ -338,6 +338,20 @@ contract
 
 ## Rules
 
+- Detected formatter profiles are offered only at the owner gate:
+  `detectFormatterProfiles()` maps on-disk markers/config to a read-only
+  check; no formatter file is written and no `fmt` runs before explicit owner
+  approval (gate: `scripts/init-extract.ts`, `scripts/profile-lint.sh`).
+- A detected formatter whose executable is absent reports `SKIP` with the
+  reason and offers no command; nothing is written or run (gate:
+  `scripts/init-extract.ts`).
+- Worker Verify runs `format-check` read-only, scoped to the task's explicit
+  paths, never `fmt` there; `fmt` is allowed only in an explicitly contracted
+  formatting task on explicit paths (gate: `agents/worker.md`).
+- Markdown is excluded from `format-check`; `scripts/docs-lint.sh` is the sole
+  Markdown authority. The docs baseline regenerates only with
+  `bash scripts/docs-lint.sh --write-baseline`, never by hand (gate:
+  `scripts/docs-lint.sh`).
 - `/init` never implements features — architecture, tree, stubs only
 - The tree is an APPROVED artifact, not a side effect of the first task
 - `/init` on an existing project = `/audit` first (map what exists), then
