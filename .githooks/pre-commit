@@ -13,12 +13,127 @@ fi
 
 staged="$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.mjs' '*.json')"
 if [ -n "$staged" ]; then
-  files=()
-  while IFS= read -r file; do
-    [ -f "$file" ] && files+=("$file")
-  done <<< "$staged"
-  if [ "${#files[@]}" -gt 0 ]; then
-    mise exec -- dprint check --list-different "${files[@]}" || exit $?
+  # Eligibility follows the dprint config; the bytes checked come from the
+  # index, never from the working tree.
+  eligible="$(python3 - "$REPO_ROOT" "$staged" <<'PY'
+import json
+import os
+import re
+import sys
+
+root = sys.argv[1]
+config = next(
+    (
+        os.path.join(root, name)
+        for name in ("dprint.json", ".dprint.json", "dprint.jsonc", ".dprint.jsonc")
+        if os.path.isfile(os.path.join(root, name))
+    ),
+    None,
+)
+
+
+def normalize(text):
+    """Drop JSONC comments and trailing commas outside strings."""
+    out = []
+    i = 0
+    in_string = False
+    escaped = False
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            out.append(ch)
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == "\"":
+                in_string = False
+        elif ch == "\"":
+            in_string = True
+            out.append(ch)
+        elif text.startswith("//", i):
+            end = text.find("\n", i)
+            i = len(text) if end < 0 else end
+            continue
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = len(text) if end < 0 else end + 2
+            continue
+        elif ch == ",":
+            j = i + 1
+            while j < len(text) and text[j].isspace():
+                j += 1
+            if j < len(text) and text[j] in "}]":
+                i += 1
+                continue
+            out.append(ch)
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def pattern_re(pattern):
+    out = ""
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if ch == "*":
+            if pattern[i : i + 2] == "**":
+                i += 2
+                if i < len(pattern) and pattern[i] == "/":
+                    i += 1
+                    out += "(?:.*/)?"
+                else:
+                    out += ".*"
+                continue
+            out += "[^/]*"
+        elif ch == "?":
+            out += "[^/]"
+        else:
+            out += re.escape(ch)
+        i += 1
+    return re.compile("^" + out + "$")
+
+
+includes = []
+excludes = []
+if config:
+    with open(config, encoding="utf-8") as source:
+        parsed = json.loads(normalize(source.read()))
+    includes = [pattern_re(p) for p in parsed.get("includes", [])]
+    excludes = [pattern_re(p) for p in parsed.get("excludes", [])]
+
+for line in sys.argv[2].splitlines():
+    rel = line.strip()
+    if not rel:
+        continue
+    if (not includes or any(p.match(rel) for p in includes)) and not any(
+        p.match(rel) for p in excludes
+    ):
+        print(rel)
+PY
+)" || exit $?
+  if [ -n "$eligible" ]; then
+    scratch="$(mktemp -d "${TMPDIR:-/tmp}/precommit-index-XXXXXX")"
+    trap 'rm -rf "$scratch"' EXIT
+    files=()
+    while IFS= read -r file; do
+      [ -n "$file" ] || continue
+      mkdir -p "$scratch/$(dirname "$file")" || exit $?
+      git show ":$file" > "$scratch/$file" || exit $?
+      files+=("$scratch/$file")
+    done <<< "$eligible"
+    if [ "${#files[@]}" -gt 0 ]; then
+      mise exec -- dprint check --list-different "${files[@]}" || exit $?
+    fi
+  else
+    # Nothing eligible: resolve the toolchain without running a check.
+    mise exec -- true > /dev/null 2>&1 || exit $?
+  fi
+  if [ -n "${scratch:-}" ]; then
+    rm -rf "$scratch"
+    trap - EXIT
   fi
 fi
 

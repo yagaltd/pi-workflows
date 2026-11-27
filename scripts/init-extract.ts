@@ -173,6 +173,7 @@ export interface FormatterProfile {
 const DPRINT_CONFIG_PATHS = ["dprint.json", ".dprint.json", "dprint.jsonc", ".dprint.jsonc"];
 const MARKDOWN_PATH = /\.mdx?$/i;
 const PINNED_PLUGIN = /-\d+\.\d+\.\d+\.wasm$/;
+const PINNED_NPM_PLUGIN = /^(?:npm:)?@dprint\/[\w-]+@\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/i;
 
 /** Nested paths are walked; junk/state dirs are not evidence. `.shfmt` and
  *  other dotfiles on the root ARE markers, so they stay in the listing. */
@@ -236,9 +237,38 @@ function stripJsonComments(text: string): string {
   return out;
 }
 
+/** Drop trailing commas outside strings before parsing JSONC. */
+function stripTrailingCommas(text: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      out += ch;
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === "\"") inString = false;
+      continue;
+    }
+    if (ch === "\"") {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === ",") {
+      let next = i + 1;
+      while (next < text.length && /\s/.test(text[next])) next++;
+      if (text[next] === "}" || text[next] === "]") continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 function parseFormatterObject(text: string): Record<string, unknown> | null {
   try {
-    const value = JSON.parse(stripJsonComments(text));
+    const value = JSON.parse(stripTrailingCommas(stripJsonComments(text)));
     return value && typeof value === "object" && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : null;
@@ -308,7 +338,10 @@ function buildDprintProfile(m: FormatterMarkers): BuiltProfile | null {
   const { path: configPath, config } = m.dprint;
   const plugins = Array.isArray(config.plugins)
     ? config.plugins.filter(
-      (p): p is string => typeof p === "string" && PINNED_PLUGIN.test(p) && !/markdown/i.test(p),
+      (p): p is string =>
+        typeof p === "string"
+        && (PINNED_PLUGIN.test(p) || PINNED_NPM_PLUGIN.test(p))
+        && !/markdown/i.test(p),
     )
     : [];
   const exec = Array.isArray(config.exec)

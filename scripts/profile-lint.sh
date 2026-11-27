@@ -10,6 +10,8 @@
 # An optional `formatter` block (id, command, evidence, targets, status) is
 # validated read-only: OFFER/PASS when the named executable resolves, SKIP on
 # stderr with exit 3 only when no check failed (never a PASS, no command run).
+# Write-style verbs/flags (`fmt`, `format`, `--write`, `--staged`, `--dirty`)
+# are FAILs unless an explicit read-only `--check`/`--list-different` is named.
 # Markdown-only drafts get no formatter verdict; docs-lint owns Markdown.
 #   a) schema: commands.test + commands.lint required (build optional, no other
 #      keys); pointers >= 1 (each a repo path); tree >= 1 domain (name -> path);
@@ -292,6 +294,14 @@ if "formatter" in profile:
             fail("formatter.targets must be a list of repo paths")
             targets = []
         cmd_text = command if isinstance(command, str) else ""
+        write_flags = re.search(r"--(?:write|staged|dirty)\b", cmd_text, re.I)
+        write_verb = re.search(r"\b(?:fmt|format)\b", cmd_text, re.I)
+        read_only_flag = re.search(r"--(?:check|list-different)\b", cmd_text, re.I)
+        if write_flags or (write_verb and not read_only_flag):
+            fail(
+                "formatter.command must be a read-only check, not a write-style "
+                f"command: {cmd_text.strip()}"
+            )
         markdown_paths = [
             x for x in list(evidence or []) + list(targets)
             if isinstance(x, str) and re.search(r"\.mdx?$", x, re.I)
