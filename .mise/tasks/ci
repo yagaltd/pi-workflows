@@ -3,6 +3,7 @@
 # Usage: mise run ci
 set -euo pipefail
 
+mise run format-check
 ./scripts/check-drift.sh
 ./scripts/docs-lint.sh
 ./scripts/agents-lint.sh AGENTS.md

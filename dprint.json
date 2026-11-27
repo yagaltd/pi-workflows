@@ -1,0 +1,6 @@
+{
+  "includes": ["**/*.ts", "**/*.js", "**/*.mjs", "**/*.json"],
+  "plugins": ["npm:@dprint/typescript@0.101.0", "npm:@dprint/json@0.26.0"],
+  "typescript": {},
+  "json": {}
+}

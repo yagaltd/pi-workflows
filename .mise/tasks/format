@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Format TS/JS/MJS/JSON files in place"
+# Usage: mise run format
+set -euo pipefail
+
+dprint fmt "$@"
