@@ -335,3 +335,139 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
 function textOf(stream: unknown): string {
   return stream == null ? "" : String(stream);
 }
+
+describe("mise tasks — repo format gate (plan 20261127-083 TASK 1)", () => {
+  test("test_dprint_pin_and_config", () => {
+    const mise = read("mise.toml");
+    const toolsStart = mise.search(/^\[tools\]\s*$/m);
+    expect(toolsStart, "mise.toml is missing [tools]").toBeGreaterThanOrEqual(0);
+    const afterHeading = mise.slice(toolsStart + "[tools]".length);
+    const nextSection = afterHeading.search(/^\[/m);
+    const tools = nextSection < 0 ? afterHeading : afterHeading.slice(0, nextSection);
+    const toolLines = tools
+      .split("\n")
+      .filter((line) => /^\s*dprint\s*=/i.test(line));
+    expect(toolLines, "[tools] must pin dprint exactly once").toEqual([
+      'dprint = "0.65.0"',
+    ]);
+    const allDprintLines = mise
+      .split("\n")
+      .filter((line) => /^\s*["']?dprint["']?\s*=/i.test(line));
+    expect(allDprintLines, "no other dprint version assignment may exist").toEqual([
+      'dprint = "0.65.0"',
+    ]);
+
+    const config = JSON.parse(read("dprint.json"));
+    expect(config.includes).toEqual([
+      "**/*.ts",
+      "**/*.js",
+      "**/*.mjs",
+      "**/*.json",
+    ]);
+    expect(Object.prototype.hasOwnProperty.call(config, "typescript")).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(config, "json")).toBe(true);
+    expect(
+      Object.keys(config).some((key) => /markdown/i.test(key)),
+      "Markdown stays under docs-lint",
+    ).toBe(false);
+
+    const keysAndStrings: string[] = [];
+    const collect = (value: unknown): void => {
+      if (typeof value === "string") keysAndStrings.push(value);
+      else if (Array.isArray(value)) value.forEach(collect);
+      else if (value && typeof value === "object") {
+        for (const [key, nested] of Object.entries(value)) {
+          keysAndStrings.push(key);
+          collect(nested);
+        }
+      }
+    };
+    collect(config);
+    expect(
+      keysAndStrings.filter((text) => /exec|process/i.test(text)),
+      "no exec/process plugin key or value",
+    ).toEqual([]);
+    expect(JSON.stringify(config)).not.toContain("dprint-plugin-exec");
+  });
+
+  test("test_format_tasks_read_only", () => {
+    const sources: Record<string, string> = {};
+    for (const name of ["format-check", "format"]) {
+      const file = path.join(TASKS_DIR, name);
+      expect(fs.existsSync(file), `${name} must be a file task`).toBe(true);
+      expect(fs.statSync(file).mode & 0o111, `${name} must be executable`).not.toBe(0);
+      const source = fs.readFileSync(file, "utf8");
+      expect(source.startsWith("#!/usr/bin/env bash\n")).toBe(true);
+      expect(source).toContain("set -euo pipefail");
+      expect(source).toMatch(/^#MISE description="[^"]+"$/m);
+      expect(source).toMatch(new RegExp(`^# Usage: mise run ${name}$`, "m"));
+      sources[name] = source;
+    }
+
+    const check = sources["format-check"];
+    expect(check).toMatch(/dprint\s+check\s+--list-different/);
+    expect(check).not.toMatch(/\bdprint\s+(?:fmt|format)\b|--write|--staged|--dirty/);
+
+    const fmt = sources["format"];
+    expect(fmt).toMatch(/\bdprint\s+fmt\b/);
+    expect(fmt).not.toMatch(/--staged|--dirty/);
+    expect(fmt).not.toContain("mise run format-check");
+    expect(fmt).not.toContain("dprint check");
+  });
+
+  test("test_ci_chain_includes_format_check", () => {
+    const at = (source: string, token: string, label: string): number => {
+      const index = source.indexOf(token);
+      expect(index, `${label} is missing ${token}`).toBeGreaterThanOrEqual(0);
+      return index;
+    };
+    const ordered = (source: string, tokens: string[], label: string): void => {
+      let previous = -1;
+      for (const token of tokens) {
+        const index = at(source, token, label);
+        expect(index, `${label}: ${token} must follow ${tokens[tokens.indexOf(token) - 1]}`).toBeGreaterThan(previous);
+        previous = index;
+      }
+    };
+
+    for (const name of ["ci", "ci-lite"]) {
+      const source = read(path.join(".mise", "tasks", name));
+      const formatCheck = at(source, "mise run format-check", name);
+      expect(formatCheck).toBeGreaterThan(at(source, "set -euo pipefail", name));
+      expect(formatCheck).toBeLessThan(at(source, "./scripts/check-drift.sh", name));
+      expect(source.split("\n")).not.toContain("mise run format");
+      expect(source).not.toMatch(/dprint\s+(?:fmt|format)\b/);
+    }
+
+    const ci = read(path.join(".mise", "tasks", "ci"));
+    const ciLite = read(path.join(".mise", "tasks", "ci-lite"));
+    ordered(ci, [
+      "./scripts/check-drift.sh",
+      "./scripts/docs-lint.sh",
+      "./scripts/agents-lint.sh AGENTS.md",
+      "bun test",
+    ], "ci");
+    ordered(ciLite, [
+      "./scripts/check-drift.sh",
+      "./scripts/docs-lint.sh",
+      "./scripts/agents-lint.sh AGENTS.md",
+    ], "ci-lite");
+    expect(ciLite).not.toContain("bun test");
+  });
+
+  test("test_precommit_staged_read_only", () => {
+    const source = read(path.join(".githooks", "pre-commit"));
+    const stagedLine = `staged="$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.mjs' '*.json')"`;
+    const guardLine = 'if [ -n "$staged" ]; then';
+    expect(source.split("\n")).toContain(stagedLine);
+    expect(source.split("\n")).toContain(guardLine);
+    const checkAt = source.indexOf("dprint check --list-different");
+    expect(checkAt, "staged check must run dprint check --list-different").toBeGreaterThanOrEqual(0);
+    expect(checkAt).toBeGreaterThan(source.indexOf(guardLine));
+    for (const forbidden of ["dprint fmt", "dprint format", "--staged", "--dirty", "--write"]) {
+      expect(source, `pre-commit must not use ${forbidden}`).not.toContain(forbidden);
+    }
+    expect(source).toMatch(/scripts\/wf\.sh wip message/);
+    expect(source.trimEnd().split("\n").at(-1)).toBe('exec "$REPO_ROOT/scripts/check-drift.sh"');
+  });
+});

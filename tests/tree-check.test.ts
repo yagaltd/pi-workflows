@@ -64,3 +64,64 @@ describe("check-tree (plan 20261104-060 T2)", () => {
     expect(main(["--root", clean, "--manifest", path.join(clean, "tree.json"), "--strict"])).toBe(0);
   });
 });
+
+describe("tree manifest and pinned selectors (plan 20261127-083 TASK 1)", () => {
+  const repoRoot = path.resolve(import.meta.dir, "..");
+
+  test("test_tree_manifest_and_scope", () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.join(repoRoot, ".workflows", "tree.json"), "utf8"),
+    );
+    const expectedFiles = [
+      ".gitignore",
+      "AGENTS.md",
+      "CHANGELOG.md",
+      "CONTRACTS",
+      "LICENSE",
+      "README.md",
+      "dprint.json",
+      "mise.toml",
+      "package.json",
+    ];
+    expect([...manifest.files].sort()).toEqual([...expectedFiles].sort());
+    expect(manifest.roots).toEqual([
+      ".githooks",
+      ".mise",
+      "agents",
+      "asset",
+      "diagrams",
+      "docs",
+      "extensions",
+      "fixtures",
+      "models",
+      "prompts",
+      "scripts",
+      "skills",
+      "templates",
+      "tests",
+      "tooling",
+    ]);
+    expect(manifest.ignore).toEqual([".pi", ".seecode", ".workflows", "node_modules"]);
+
+    const selectorsByFile: Record<string, string[]> = {
+      "tests/mise-tasks.test.ts": [
+        "test_dprint_pin_and_config",
+        "test_format_tasks_read_only",
+        "test_ci_chain_includes_format_check",
+        "test_precommit_staged_read_only",
+      ],
+      "tests/tree-check.test.ts": ["test_tree_manifest_and_scope"],
+    };
+    for (const [relative, selectors] of Object.entries(selectorsByFile)) {
+      const source = fs.readFileSync(path.join(repoRoot, relative), "utf8");
+      const lines = source.split("\n");
+      for (const selector of selectors) {
+        const declaration = `test("${selector}"`;
+        expect(source, `${relative} must declare ${selector}`).toContain(declaration);
+        const line = lines.find((text) => text.includes(declaration));
+        expect(line, `${relative} must declare ${selector} on one line`).toBeDefined();
+        expect(line, `${selector} must not be skipped or todo`).not.toMatch(/\.(?:skip|todo)\b/);
+      }
+    }
+  });
+});
