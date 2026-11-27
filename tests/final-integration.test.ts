@@ -6,6 +6,56 @@ import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dir, "..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
+const gitShow = (revPath: string) => spawnSync("git", ["show", revPath], { cwd: ROOT, encoding: "utf8" }).stdout;
+const SHIP_OWNED = new Set([
+  "CHANGELOG.md",
+  "package.json",
+  "README.md",
+  "docs/architecture.md",
+  "docs/canon.md",
+]);
+
+function releaseState() {
+  const version = (JSON.parse(read("package.json")) as { version: string }).version;
+  const entries = read("CHANGELOG.md")
+    .split(/(?=^## )/m)
+    .filter((part) => part.startsWith("## "));
+  const entry = entries[0] ?? "";
+  // Pre-sweep releases put the plan id in the entry below the version bump;
+  // the newest plan-tagged release is the current pin in either state.
+  const planId = entries
+    .slice(0, 2)
+    .map((part) => part.match(/\bplan (\d{8}-\d{3})\b/)?.[1] ?? "")
+    .find(Boolean) ?? "";
+  return {
+    version,
+    entry,
+    planId,
+    valid: /^## \d{4}-\d{2}-\d{2} — v/.test(entry)
+      && entry.includes(`v${version}:`)
+      && /^\d{8}-\d{3}$/.test(planId),
+  };
+}
+
+function changelogReleaseOnly(): boolean {
+  const changelog = read("CHANGELOG.md");
+  const head = gitShow("HEAD:CHANGELOG.md");
+  if (changelog === head) return true;
+  const release = releaseState();
+  return release.valid && changelog === release.entry + head;
+}
+
+function packageReleaseOnly(): boolean {
+  const current = JSON.parse(read("package.json"));
+  const head = JSON.parse(gitShow("HEAD:package.json"));
+  const { version: currentVersion, ...currentRest } = current;
+  const { version: headVersion, ...headRest } = head;
+  const release = releaseState();
+  return JSON.stringify(currentRest) === JSON.stringify(headRest)
+    && (currentVersion === headVersion
+      || (release.valid && release.entry.includes(`v${currentVersion}:`)));
+}
+
 const pinned = (args: string[], input?: string) =>
   spawnSync(
     "mise",
@@ -46,10 +96,12 @@ describe("final integration cleanup (plan 20261127-083 TASK 4)", () => {
     expect(launcher).toContain(`"${hash}"`);
     expect(mise).not.toMatch(/^\[tasks\]/m);
 
-    const version = JSON.parse(read("package.json")).version;
-    const release = read("CHANGELOG.md").split("\n")[0];
-    expect(release).toContain(`v${version}:`);
-    expect(read("tests/chooser-wiring.test.ts")).toContain(`v${version.replaceAll(".", "\\.")}:`);
+    const release = releaseState();
+    expect(release.valid, "top release entry must pin the current version and plan id").toBe(true);
+    expect(release.entry.split("\n")[0]).toContain(`v${release.version}:`);
+    const chooser = read("tests/chooser-wiring.test.ts");
+    expect(chooser).toContain("v${version}:");
+    expect(chooser).toContain("JSON.parse(read(\"package.json\"))");
 
     const rawCall = /(?:^|[\s`"'|(])(?:node|bun|bash)\s+(?:\.\/)?scripts\//;
     const raw = markdownFiles("skills").concat(markdownFiles("prompts")).flatMap((rel) =>
@@ -112,26 +164,64 @@ describe("final integration cleanup (plan 20261127-083 TASK 4)", () => {
       "tests/final-integration.test.ts",
     ]);
     // Plan 20261127-083 TASK 5 owns the staged hook and the worker role rule;
-    // live .workflows/ state is orchestrator bookkeeping. The history, version,
-    // plugin, and allowed-path checks below still bind the release diff.
+    // live .workflows/ state is orchestrator bookkeeping. SHIP owns the
+    // release entry, version bump, and docs sweep. Only a current release pin
+    // makes those paths orchestrator-owned; every other live edit still fails.
+    expect(releaseState().valid).toBe(true);
+    expect(changelogReleaseOnly(), "CHANGELOG may only prepend the current release entry").toBe(true);
+    expect(packageReleaseOnly(), "package.json may only carry the current release version").toBe(true);
     expect(
       [...touched].filter(
         (p) =>
           !allowed.has(p)
+          && !SHIP_OWNED.has(p)
           && !p.startsWith("scripts/")
           && !p.startsWith("tests/")
           && !p.startsWith(".workflows/"),
       ),
     ).toEqual([]);
-    expect(touched.has("CHANGELOG.md")).toBe(false);
-
-    const headPackage = JSON.parse(
-      spawnSync("git", ["show", "HEAD:package.json"], { cwd: ROOT, encoding: "utf8" }).stdout,
-    );
-    expect(JSON.parse(read("package.json")).version).toBe(headPackage.version);
     expect(JSON.parse(read("dprint.json")).plugins).toHaveLength(2);
     expect(fs.existsSync(path.join(ROOT, "CHANGELOG.md"))).toBe(true);
   });
+
+  test("test_ship_owned_changes_allowed", () => {
+    const release = releaseState();
+    expect(release.valid).toBe(true);
+    for (const path of ["README.md", "docs/architecture.md", "docs/canon.md"]) {
+      expect(SHIP_OWNED.has(path), `${path} is SHIP-owned`).toBe(true);
+    }
+    for (const path of ["scripts/docs-lint.sh", "scripts/init-extract.ts", "dprint.json"]) {
+      expect(SHIP_OWNED.has(path), `${path} is never SHIP-owned`).toBe(false);
+    }
+    expect(changelogReleaseOnly()).toBe(true);
+    expect(packageReleaseOnly()).toBe(true);
+  });
+
+  test("test_formatter_pins_remain_green", () => {
+    const config = JSON.parse(read("dprint.json"));
+    expect(config.includes).toEqual(["**/*.ts", "**/*.js", "**/*.mjs", "**/*.json"]);
+    expect(config.plugins).toEqual([
+      "npm:@dprint/typescript@0.101.0",
+      "npm:@dprint/json@0.26.0",
+    ]);
+    expect(read(".mise/tasks/format-check")).toContain("dprint check --list-different");
+    const baseline = JSON.parse(read("scripts/docs-lint-baseline.json"));
+    expect(baseline.generated_by).toBe("bash scripts/docs-lint.sh --write-baseline");
+    const check = pinned(["dprint", "check", "--list-different"]);
+    expect(check.status, `${check.stdout}\n${check.stderr}`).toBe(0);
+  });
+
+  test("test_ship_pin_gates_green", () => {
+    expect(releaseState().valid).toBe(true);
+    for (const args of [
+      ["dprint", "check", "--list-different"],
+      ["bash", "scripts/docs-lint.sh"],
+      ["bash", "scripts/check-drift.sh"],
+    ]) {
+      const result = pinned(args);
+      expect(result.status, `${args.join(" ")}: ${result.stdout}\n${result.stderr}`).toBe(0);
+    }
+  }, 600_000);
 
   test("test_final_gates_green", () => {
     for (const args of [
@@ -226,6 +316,8 @@ describe("final review fixes (TASK 5, plan 20261127-083)", () => {
       "tests/profile-lint.test.ts",
       "tests/prompt-doctrine.test.ts",
       "tests/final-integration.test.ts",
+      "tests/chooser-wiring.test.ts",
+      "tests/mise-tasks.test.ts",
     ]);
     // Orchestrator bookkeeping (.workflows/ LOG, reviews, live plan) is not
     // shipped behavior; the content pins above still bind release surfaces.

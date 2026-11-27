@@ -1623,12 +1623,57 @@ function formatterOnlyDelta081(rel: string): boolean {
   return formatted.status === 0 && fs.readFileSync(rel, "utf8") === formatted.stdout;
 }
 
+const SHIP_OWNED_081 = new Set([
+  "CHANGELOG.md",
+  "package.json",
+  "README.md",
+  "docs/architecture.md",
+  "docs/canon.md",
+]);
+function shipReleasePin081(): boolean {
+  const version = (JSON.parse(read081("package.json")) as { version: string }).version;
+  const entries = read081("CHANGELOG.md")
+    .split(/(?=^## )/m)
+    .filter((part) => part.startsWith("## "));
+  const entry = entries[0] ?? "";
+  const planId = entries
+    .slice(0, 2)
+    .map((part) => part.match(/\bplan (\d{8}-\d{3})\b/)?.[1] ?? "")
+    .find(Boolean) ?? "";
+  return /^## \d{4}-\d{2}-\d{2} — v/.test(entry)
+    && entry.includes(`v${version}:`)
+    && /^\d{8}-\d{3}$/.test(planId);
+}
+function shipReleaseOnly081(rel: string): boolean {
+  if (!SHIP_OWNED_081.has(rel) || !shipReleasePin081()) return false;
+  if (rel === "README.md" || rel.startsWith("docs/")) return true;
+  if (rel === "CHANGELOG.md") {
+    const current = read081("CHANGELOG.md");
+    const head = gitOutput081(["show", "HEAD:CHANGELOG.md"]);
+    const entry = current
+      .split(/(?=^## )/m)
+      .find((part) => part.startsWith("## ")) ?? "";
+    return current === head || current === entry + head;
+  }
+  const current = JSON.parse(read081("package.json"));
+  const head = JSON.parse(gitOutput081(["show", "HEAD:package.json"]));
+  const { version: currentVersion, ...currentRest } = current;
+  const { version: headVersion, ...headRest } = head;
+  return JSON.stringify(currentRest) === JSON.stringify(headRest)
+    && (currentVersion === headVersion || shipReleasePin081());
+}
+
 function changedPaths081(): string[] {
   // Plan 20261127-083 TASK 5 owns this lint surface; an uncommitted fix to it
   // is contracted churn, not plan 081 boundary drift.
   const task5Owned = new Set(["scripts/profile-lint.sh"]);
   const dirty = gitPaths081(["diff", "--name-only", "HEAD", "--"])
-    .filter((p) => !formatterOnlyDelta081(p) && !task5Owned.has(p));
+    .filter(
+      (p) =>
+        !formatterOnlyDelta081(p)
+        && !task5Owned.has(p)
+        && !shipReleaseOnly081(p),
+    );
   const untracked = gitPaths081([
     "ls-files",
     "--others",
@@ -1639,11 +1684,10 @@ function changedPaths081(): string[] {
   // path touched across the whole plan delta from its known base: a commit
   // window misses late task wiring, and a tree diff alone misses files whose
   // net change is zero (e.g. the universal template round-trip).
-  // SHIP's plan-complete commit (07defa4) versions the package and writes
-  // CHANGELOG.md; that churn is SHIP-owned, not worker-boundary drift. Filter
-  // it from the committed slice only: a live edit to either path still shows
-  // up in dirty/untracked and is checked against the forbidden list.
-  const shipOwned = new Set(["CHANGELOG.md", "package.json"]);
+  // SHIP's release sweep versions the package, writes CHANGELOG.md, and
+  // refreshes orchestrator-owned docs. A live edit to a release path is only
+  // filtered when it is the current release sweep; history/version rewrites
+  // stay in dirty/untracked and hit the forbidden list below.
   // Plan 20261127-083 TASK 1/2 legitimately own the formatter gate and the
   // profile lint; their committed churn is not plan 081 boundary drift. Only
   // the committed slice is filtered: live edits to those paths still land in
@@ -1662,7 +1706,10 @@ function changedPaths081(): string[] {
     "2a938e0..HEAD",
     "--",
   ]).filter(
-    (p) => !shipOwned.has(p) && !plan083Owned.has(p) && !formatterOnlyDelta081(p),
+    (p) =>
+      !SHIP_OWNED_081.has(p)
+      && !plan083Owned.has(p)
+      && !formatterOnlyDelta081(p),
   );
   return [...new Set([...committed, ...dirty, ...untracked])];
 }
