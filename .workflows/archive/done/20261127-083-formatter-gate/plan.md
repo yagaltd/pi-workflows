@@ -72,7 +72,7 @@ Outcome: propose. The scout artifact is the inspection evidence.
 - `docs/architecture.md` — add the format gate to the verification surface and show its position relative to check-drift/docs-lint.
 - `docs/canon.md` — name docs-lint as the sole Markdown authority; format check excludes Markdown.
 - `skills/init/SKILL.md` — detected formatter profiles, owner-gated offer, and loud-skip wording.
-- `agents/reviewer.md` — consume recorded scoped check output; no auto-format; `/review` Stage 1 whole-tree check.
+- `agents/reviewer.md` — consume recorded scoped check output; no auto-format; Stage 1 whole-tree check.
 - `skills/review/SKILL.md` — Stage 1 whole-tree format check and Markdown boundary.
 - `scripts/docs-lint-baseline.json` — regenerate only through the docs-lint gate.
 - Test surfaces: `tests/mise-tasks.test.ts`, `tests/tree-check.test.ts`, `tests/init-extract.test.ts`, `tests/profile-lint.test.ts`, `tests/prompt-doctrine.test.ts`.

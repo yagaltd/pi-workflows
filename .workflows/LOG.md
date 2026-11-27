@@ -413,3 +413,5 @@ All 6 checks PASS. No FAILs, no SKIPs. Archive-state note (check 1, transparent)
 20261125 SHIP 20261125-082 judge-content-binding — plan complete (four tasks); judge pre-flight binds contract evidence.
 
 20261127 EXECUTE 20261127-083 approved by owner — formatter gate and init formatter profiles; wave 1 TDD testers dispatched.
+
+20261127 SHIP 20261127-083 formatter-gate — deterministic format checking and opt-in init formatter profiles.

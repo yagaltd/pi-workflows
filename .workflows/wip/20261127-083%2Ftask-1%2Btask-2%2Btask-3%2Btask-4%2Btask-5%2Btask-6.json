@@ -1,0 +1,50 @@
+{
+  "id": "20261127-083/task-1+task-2+task-3+task-4+task-5+task-6",
+  "kind": "ship",
+  "scope": [
+    ".workflows",
+    "CHANGELOG.md",
+    "README.md",
+    "docs/architecture.md",
+    "docs/canon.md",
+    "package.json",
+    "tests/final-integration.test.ts"
+  ],
+  "root_cause": "plan 20261127-083 complete with final review pass",
+  "verdict": ".workflows/reviews/plan-final-20261127-083.md",
+  "status": "shipped",
+  "created_at": "2026-11-27T14:19:10.221Z",
+  "task_ids": [
+    "task-1",
+    "task-2",
+    "task-3",
+    "task-4",
+    "task-5",
+    "task-6"
+  ],
+  "verified_files": [
+    "CHANGELOG.md",
+    "docs/architecture.md",
+    "docs/canon.md",
+    "package.json",
+    "README.md",
+    "tests/final-integration.test.ts",
+    ".workflows/CONTEXT.md",
+    ".workflows/LOG.md",
+    ".workflows/plan.md",
+    ".workflows/reviews/judge-20261127-083.md",
+    ".workflows/reviews/plan-final-20261127-083.md",
+    ".workflows/reviews/task-1.md",
+    ".workflows/reviews/task-2.md",
+    ".workflows/reviews/task-3.md",
+    ".workflows/reviews/task-4.md",
+    ".workflows/reviews/task-5.md",
+    ".workflows/reviews/task-6.md",
+    ".workflows/specs/task-1.spec",
+    ".workflows/specs/task-2.spec",
+    ".workflows/specs/task-3.spec",
+    ".workflows/specs/task-4.spec",
+    ".workflows/specs/task-5.spec",
+    ".workflows/specs/task-6.spec"
+  ]
+}
