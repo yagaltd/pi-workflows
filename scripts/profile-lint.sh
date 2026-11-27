@@ -9,7 +9,8 @@
 # Checks — one "FAIL: <reason>" line per violation, exit 0 clean / 1 on any FAIL.
 # An optional `formatter` block (id, command, evidence, targets, status) is
 # validated read-only: OFFER/PASS when the named executable resolves, SKIP on
-# stderr with a distinct exit 3 when it does not (never a PASS, no command run).
+# stderr with exit 3 only when no check failed (never a PASS, no command run).
+# Markdown-only drafts get no formatter verdict; docs-lint owns Markdown.
 #   a) schema: commands.test + commands.lint required (build optional, no other
 #      keys); pointers >= 1 (each a repo path); tree >= 1 domain (name -> path);
 #      gates >= 1 (each a path under scripts/); scaffolds an object (may be
@@ -296,14 +297,20 @@ if "formatter" in profile:
             if isinstance(x, str) and re.search(r"\.mdx?$", x, re.I)
         ]
         markdown_arg = bool(re.search(r"\.(?:md|mdx)(?:\s|$)", cmd_text, re.I))
+        markdown_only = bool(markdown_paths or markdown_arg) and not any(
+            isinstance(x, str) and not re.search(r"\.mdx?$", x, re.I) for x in targets
+        )
         missing_tool = ""
         if cmd_text.strip() and status == "offer":
             executable = cmd_text.strip().split()[0]
             if shutil.which(executable) is None:
                 missing_tool = executable
-        if missing_tool or markdown_paths or markdown_arg or status == "skip":
-            reason = f"(tool not found) {missing_tool}; no command offered" if missing_tool else (
-                "Markdown excluded; docs-lint is authoritative" if (markdown_paths or markdown_arg)
+        if markdown_only:
+            pass  # docs-lint is authoritative; no formatter PASS/SKIP verdict
+        elif missing_tool or status == "skip":
+            reason = (
+                f"(tool not found) {missing_tool}; no command offered"
+                if missing_tool
                 else "status skip; no command offered"
             )
             print(f"SKIP: formatter {fid or 'unknown'} — {reason}", file=sys.stderr)
@@ -314,5 +321,5 @@ if "formatter" in profile:
                 f"OFFER: formatter {fid} — requires explicit owner approval; check: {cmd_text.strip()}"
             )
 
-sys.exit(3 if formatter_skipped else (1 if fails else 0))
+sys.exit(1 if fails else (3 if formatter_skipped else 0))
 PY

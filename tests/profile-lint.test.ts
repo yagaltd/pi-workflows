@@ -237,9 +237,31 @@ describe("profile-lint (plan 20261127-083 T2) — formatter block", () => {
       })
     );
     const md = runLint(markdownOnly, stub.pathEnv);
-    expect(`${md.stdout ?? ""}${md.stderr ?? ""}`).not.toMatch(
-      /(PASS|SKIP):\s*formatter[^\n]*\.mdx?/i
+    const mdOut = `${md.stdout ?? ""}${md.stderr ?? ""}`;
+    expect(mdOut).not.toMatch(/(PASS|SKIP):\s*formatter[^\n]*\.mdx?/i);
+    expect(mdOut, "a Markdown-only draft earns no formatter verdict at all").not.toMatch(
+      /(PASS|SKIP):\s*formatter/i
     );
     expect(checkInvocations(stub.log), "Markdown validation must not run a formatter").toEqual([]);
+  }, 30000);
+
+  test("test_fail_takes_precedence_over_formatter_skip", async () => {
+    const root = makeRepo({ ...BASE_FILES, "dprint.json": DPRINT_CONFIG });
+    const draft = writeDraft(
+      root,
+      validProfile({
+        pointers: { overview: "does-not-exist.md" },
+        formatter: formatterBlock(),
+      })
+    );
+    const missing = makeToolBin(false);
+
+    const r = runLint(draft, missing.pathEnv);
+    const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+    expect(out).toMatch(/FAIL:\s*pointers\.overview/);
+    expect(out).toMatch(/SKIP:\s*formatter\s+dprint[^\n]*\(tool not found\)/i);
+    expect(out, "a real FAIL forbids a formatter PASS").not.toMatch(/PASS:\s*formatter/i);
+    expect(r.status, "an existing FAIL outranks a formatter SKIP (exit 1, not 3)").toBe(1);
+    expect(checkInvocations(missing.log), "no format/check command may be executed").toEqual([]);
   }, 30000);
 });
