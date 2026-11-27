@@ -160,6 +160,340 @@ export function buildInitMiseFragment(): string {
   return lines.join("\n").trimEnd() + "\n";
 }
 
+/* ── plan 20261127-083 TASK 2: formatter profile registry ──
+ * Marker→profile table over on-disk evidence only: manifest/config files,
+ * pinned tools and observed source paths. No language guess, no judge answer,
+ * no check/fmt process and no consumer write before owner approval. */
+
+export interface FormatterProfile {
+  id: string;
+  tool: string;
+  /** Empty when the tool cannot be resolved — no command is invented. */
+  command: string;
+  evidence: string[];
+  targets: string[];
+  status: "offer" | "skip";
+}
+
+const DPRINT_CONFIG_PATHS = ["dprint.json", ".dprint.json", "dprint.jsonc", ".dprint.jsonc"];
+const MARKDOWN_PATH = /\.mdx?$/i;
+const PINNED_PLUGIN = /-\d+\.\d+\.\d+\.wasm$/;
+
+/** Nested paths are walked; junk/state dirs are not evidence. `.shfmt` and
+ *  other dotfiles on the root ARE markers, so they stay in the listing. */
+function listFormatterFiles(root: string): string[] {
+  const found: string[] = [];
+  const walk = (dir: string, rel: string, depth: number) => {
+    if (depth > 8 || found.length > 4000) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const e of entries) {
+      if (JUNK_DIRS.has(e.name) || e.name === ".git") continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(path.join(dir, e.name), r, depth + 1);
+      else if (e.isFile()) found.push(r);
+    }
+  };
+  walk(root, "", 0);
+  return found.sort();
+}
+
+function readFormatterText(root: string, rel: string): string {
+  try {
+    return fs.readFileSync(path.join(root, rel), "utf8").slice(0, 64_000);
+  } catch {
+    return "";
+  }
+}
+
+/** Strip JSONC comments without touching `//` or `/*` inside strings. */
+function stripJsonComments(text: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = text[i + 1];
+    if (inString) {
+      out += ch;
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      out += ch;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+      out += "\n";
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      i += 2;
+      while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++;
+      i++;
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+function parseFormatterObject(text: string): Record<string, unknown> | null {
+  try {
+    const value = JSON.parse(stripJsonComments(text));
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))];
+
+/** dprint include globs decide the target set; Markdown is never a target. */
+function globMatches(pattern: string, rel: string): boolean {
+  const escaped = pattern.replace(/^\.\//, "").replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  const source = escaped
+    .replace(/\*\*\//g, "\u0001")
+    .replace(/\*\*/g, "\u0002")
+    .replace(/\*/g, "[^/]*")
+    .replace(/\?/g, "[^/]")
+    .replace(/\u0001/g, "(?:.*/)?")
+    .replace(/\u0002/g, ".*");
+  return new RegExp(`^${source}$`).test(rel);
+}
+
+function includedTargets(files: string[], includes: unknown): string[] {
+  const patterns = Array.isArray(includes)
+    ? includes.filter((p): p is string => typeof p === "string" && p.length > 0)
+    : [];
+  return files.filter((f) => !MARKDOWN_PATH.test(f) && patterns.some((p) => globMatches(p, f))).slice(0, 200);
+}
+
+interface FormatterMarkers {
+  files: string[];
+  text: (rel: string) => string;
+  dprint: { path: string; config: Record<string, unknown> } | null;
+  ruffConfig: string | null;
+  cargo: boolean;
+  shfmtConfig: string | null;
+}
+
+function readFormatterMarkers(root: string): FormatterMarkers {
+  const files = listFormatterFiles(root);
+  const text = (rel: string) => readFormatterText(root, rel);
+  const dprintPath = DPRINT_CONFIG_PATHS.find((p) => files.includes(p)) ?? null;
+  const dprintConfig = dprintPath ? parseFormatterObject(text(dprintPath)) : null;
+  const ruffConfig = [".ruff.toml", "ruff.toml"].find((p) => files.includes(p))
+    ?? (files.includes("pyproject.toml") && /\[tool\.ruff\]/.test(text("pyproject.toml"))
+      ? "pyproject.toml"
+      : null);
+  const mentions = (name: string) =>
+    ["package.json", "mise.toml", ".shfmt"].some((p) => files.includes(p) && new RegExp(`\\b${name}\\b`, "i").test(text(p)));
+  return {
+    files,
+    text,
+    dprint: dprintConfig ? { path: dprintPath!, config: dprintConfig } : null,
+    ruffConfig,
+    cargo: files.includes("Cargo.toml"),
+    shfmtConfig: [".shfmt", "shfmt.toml"].find((p) => files.includes(p)) ?? (mentions("shfmt") ? "package.json" : null),
+  };
+}
+
+type BuiltProfile = Omit<FormatterProfile, "status">;
+
+function buildDprintProfile(m: FormatterMarkers): BuiltProfile | null {
+  if (!m.dprint) return null;
+  const { path: configPath, config } = m.dprint;
+  const plugins = Array.isArray(config.plugins)
+    ? config.plugins.filter(
+        (p): p is string => typeof p === "string" && PINNED_PLUGIN.test(p) && !/markdown/i.test(p),
+      )
+    : [];
+  const exec = Array.isArray(config.exec)
+    ? config.exec.filter(
+        (e): e is Record<string, unknown> => !!e && typeof e === "object" && typeof e.command === "string",
+      )
+    : [];
+  if (!plugins.length && !exec.length) return null;
+
+  if (!plugins.length) {
+    const command = exec[0].command.trim();
+    if (!/^[\w\s./:+=@_-]+$/.test(command)) return null;
+    const ext = typeof exec[0].ext === "string" ? exec[0].ext.replace(/^\./, "") : "";
+    const targets = m.files.filter(
+      (f) => !MARKDOWN_PATH.test(f) && (ext ? f.endsWith(`.${ext}`) : false),
+    );
+    const tool = command.split(/\s+/)[0] ?? "dprint";
+    return {
+      id: `dprint-${slug(tool)}`,
+      tool: "dprint",
+      command: unique([`dprint exec ${command}`, ...targets]).join(" "),
+      evidence: unique([configPath, ...targets.slice(0, 3)]),
+      targets,
+    };
+  }
+
+  const targets = includedTargets(m.files, config.includes);
+  return {
+    id: "dprint",
+    tool: "dprint",
+    command: unique([`dprint check --config ${configPath}`, ...targets]).join(" "),
+    evidence: unique([configPath, ...targets.slice(0, 3)]),
+    targets,
+  };
+}
+
+function buildRuffProfile(m: FormatterMarkers): BuiltProfile | null {
+  if (!m.ruffConfig) return null;
+  const targets = m.files.filter((f) => /\.pyi?$/i.test(f) && !MARKDOWN_PATH.test(f));
+  return {
+    id: "ruff",
+    tool: "ruff",
+    command: unique(["ruff format --check", ...targets]).join(" "),
+    evidence: unique([m.ruffConfig, ...targets.slice(0, 3)]),
+    targets,
+  };
+}
+
+function buildRustProfile(m: FormatterMarkers): BuiltProfile | null {
+  if (!m.cargo) return null;
+  const targets = m.files.filter((f) => f.endsWith(".rs"));
+  return {
+    id: "rust-cargo",
+    tool: "cargo",
+    command: "cargo fmt --check",
+    evidence: unique(["Cargo.toml", ...targets.slice(0, 3)]),
+    targets,
+  };
+}
+
+function buildShellProfile(m: FormatterMarkers): BuiltProfile | null {
+  if (!m.shfmtConfig) return null;
+  const targets = m.files.filter((f) => /\.sh$/i.test(f));
+  return {
+    id: "shfmt",
+    tool: "shfmt",
+    command: unique(["shfmt -d", ...targets]).join(" "),
+    evidence: unique([m.shfmtConfig, ...targets.slice(0, 3)]),
+    targets,
+  };
+}
+
+/** The registry: marker predicate → profile definition, in stable order. */
+const FORMATTER_REGISTRY: { tool: string; marker: (m: FormatterMarkers) => boolean; build: (m: FormatterMarkers) => BuiltProfile | null }[] = [
+  { tool: "dprint", marker: (m) => !!m.dprint, build: buildDprintProfile },
+  { tool: "ruff", marker: (m) => !!m.ruffConfig, build: buildRuffProfile },
+  { tool: "cargo", marker: (m) => m.cargo, build: buildRustProfile },
+  { tool: "shfmt", marker: (m) => !!m.shfmtConfig, build: buildShellProfile },
+];
+
+/** Live PATH lookup (Bun.which snapshots PATH at process start); this read
+ *  follows a controlled PATH stub per call and spawns no process. */
+function toolOnPath(name: string): boolean {
+  for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
+    if (!dir) continue;
+    const candidate = path.join(dir, name);
+    try {
+      if (fs.statSync(candidate).isFile()) {
+        fs.accessSync(candidate, fs.constants.X_OK);
+        return true;
+      }
+    } catch {
+      // not this PATH entry
+    }
+  }
+  return false;
+}
+
+/** Deterministic detection: same root (and PATH) ⇒ byte-identical profiles. */
+export function detectFormatterProfiles(root: string): FormatterProfile[] {
+  const markers = readFormatterMarkers(root);
+  const profiles: FormatterProfile[] = [];
+  for (const rule of FORMATTER_REGISTRY) {
+    if (!rule.marker(markers)) continue;
+    const built = rule.build(markers);
+    if (!built) continue;
+    profiles.push(
+      toolOnPath(rule.tool)
+        ? { ...built, status: "offer" }
+        : { ...built, command: "", status: "skip" },
+    );
+  }
+  profiles.sort((a, b) => a.id.localeCompare(b.id));
+  for (const p of profiles)
+    if (p.status === "skip")
+      console.error(`SKIP: formatter ${p.id} — (tool not found) ${p.tool}; no command offered, nothing written or run`);
+  return profiles;
+}
+
+/**
+ * @cc [label:init-formatter-offer] owner-gated-offer-only
+ * The formatter offer names the exact read-only check and requires explicit
+ * owner approval; detection and offers never write consumer files or run a
+ * format/check process, and Markdown stays under docs-lint.
+ */
+export function buildFormatterOffer(profile: FormatterProfile): string {
+  const id = profile.id || "unknown";
+  const command = profile.command.trim();
+  if (profile.status === "skip" || !command)
+    return `SKIP: formatter ${id} — (tool not found) ${profile.tool || "formatter executable"}; no command offered, nothing written or run`;
+  const lines = [
+    `OFFER: formatter ${id}`,
+    `  read-only check: ${command}`,
+    `  evidence: ${profile.evidence.join(", ")}`,
+    `  targets: ${profile.targets.join(", ") || "(none observed)"}`,
+    "  requires explicit owner approval before any write or run",
+    "  Markdown is excluded from formatter scope; docs-lint is authoritative",
+  ];
+  if (/^(rust-cargo|cargo)/i.test(id))
+    lines.push(
+      "  opt-in alternate only: dprint exec for a single dprint surface, on explicit owner request",
+      "  the check above stays cargo fmt --check unless the owner changes it",
+    );
+  return lines.join("\n");
+}
+
+/** Owner-approved apply stays draft-only: no format/check process is run. */
+function applyFormatterDraft(root: string, profiles: FormatterProfile[]): number {
+  const draft = path.join(root, ".workflows", "profile.json.draft");
+  if (!fs.existsSync(draft)) {
+    console.error(`SKIP: formatter draft not applied — no existing draft at ${draft}`);
+    return 1;
+  }
+  const offered = profiles.find((p) => p.status === "offer");
+  if (!offered) {
+    console.error("SKIP: formatter draft not applied — no tool-resolved profile to offer");
+    return 1;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(draft, "utf8"));
+  } catch (e) {
+    console.error(`SKIP: formatter draft not applied — unreadable draft JSON: ${e}`);
+    return 1;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    console.error("SKIP: formatter draft not applied — draft is not a JSON object");
+    return 1;
+  }
+  const profileDraft = parsed as Record<string, unknown>;
+  profileDraft.formatter = {
+    id: offered.id,
+    command: offered.command,
+    evidence: offered.evidence,
+    targets: offered.targets,
+    status: offered.status,
+  };
+  fs.writeFileSync(draft, `${JSON.stringify(profileDraft, null, 2)}\n`);
+  console.log(`APPLIED (owner approved): formatter offer recorded in ${draft}; no format/check process was run`);
+  return 0;
+}
+
 /** Directories never drafted as tree domains (junk / state / deps). */
 const JUNK_DIRS = new Set([
   ".git",
@@ -579,21 +913,37 @@ export async function initExtractMain(argv: string[]): Promise<number> {
   let root: string | null = null;
   let outDir: string | null = null;
   const recorded = argv.includes("--recorded");
+  const formatterOffer = argv.includes("--formatter-offer");
+  const applyFormatter = argv.includes("--apply-formatter");
+  const formatterApproved = argv.includes("--formatter-approve");
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--root") root = argv[++i] ?? null;
     else if (argv[i] === "--out-dir") outDir = argv[++i] ?? null;
-    else if (argv[i] === "--recorded") continue;
+    else if (["--recorded", "--formatter-offer", "--apply-formatter", "--formatter-approve"].includes(argv[i])) continue;
     else {
       console.error(`usage error: unknown argument ${argv[i]}`);
       return 2;
     }
   }
   if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
-    console.error("usage: bun scripts/init-extract.ts --root <brownfield-repo-root> [--recorded] [--out-dir <dir>]");
+    console.error("usage: bun scripts/init-extract.ts --root <brownfield-repo-root> [--recorded] [--out-dir <dir>] [--formatter-offer | --apply-formatter --formatter-approve]");
     return 2;
   }
   if (!isRepoRoot(root))
     console.error("note: --root has no .git / .gitignore — the lints still run against this directory");
+  if (applyFormatter && !formatterApproved) {
+    console.error("REFUSED: applying a formatter profile requires explicit owner approval (--formatter-approve); nothing was written or run");
+    return 1;
+  }
+  if (formatterOffer || applyFormatter) {
+    const profiles = detectFormatterProfiles(root);
+    if (formatterOffer) {
+      for (const p of profiles) console.log(buildFormatterOffer(p));
+      if (!profiles.length) console.log("SKIP: formatter none — no on-disk marker/config; nothing written or run");
+      return 0;
+    }
+    return applyFormatterDraft(root, profiles);
+  }
   const backend: JudgeBackend = recorded ? recordedAdoptBackend(root) : makeTypellmBackend();
   const context = buildAdoptContext(root);
   const r = await extractAdoptDraft(backend, context);

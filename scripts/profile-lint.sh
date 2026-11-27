@@ -6,7 +6,10 @@
 #
 # Usage: bash scripts/profile-lint.sh <path/to/profile.json>
 #
-# Checks — one "FAIL: <reason>" line per violation, exit 0 clean / 1 on any FAIL:
+# Checks — one "FAIL: <reason>" line per violation, exit 0 clean / 1 on any FAIL.
+# An optional `formatter` block (id, command, evidence, targets, status) is
+# validated read-only: OFFER/PASS when the named executable resolves, SKIP on
+# stderr with a distinct exit 3 when it does not (never a PASS, no command run).
 #   a) schema: commands.test + commands.lint required (build optional, no other
 #      keys); pointers >= 1 (each a repo path); tree >= 1 domain (name -> path);
 #      gates >= 1 (each a path under scripts/); scaffolds an object (may be
@@ -257,5 +260,59 @@ if generated and stale:
     if stale < date.today():
         fail(f"meta.stale_after {stale} is already past (profile is stale today, {date.today()})")
 
-sys.exit(1 if fails else 0)
+# (g) formatter (optional block) — validate the offer, resolve the executable
+# read-only, and SKIP loudly when it is absent. No formatter is ever run.
+formatter_skipped = False
+if "formatter" in profile:
+    block = profile["formatter"]
+    if not isinstance(block, dict):
+        fail("formatter must be an object when present (id, command, evidence, status)")
+    else:
+        fid = block.get("id")
+        command = block.get("command")
+        evidence = block.get("evidence")
+        status = block.get("status")
+        targets = block.get("targets", [])
+        if not isinstance(fid, str) or not fid.strip():
+            fail("formatter.id must be a non-empty string")
+        if not isinstance(command, str) or not command.strip():
+            fail("formatter.command must be a non-empty read-only check command")
+        if not isinstance(evidence, list) or not evidence or not all(
+            isinstance(x, str) and x.strip() for x in evidence
+        ):
+            fail("formatter.evidence must be a non-empty list of repo paths")
+        else:
+            for rel in evidence:
+                if not on_disk(rel):
+                    fail(f"formatter.evidence: path does not exist: {rel}")
+        if status not in ("offer", "skip"):
+            fail("formatter.status must be 'offer' or 'skip'")
+        if not isinstance(targets, list) or not all(isinstance(x, str) for x in targets):
+            fail("formatter.targets must be a list of repo paths")
+            targets = []
+        cmd_text = command if isinstance(command, str) else ""
+        markdown_paths = [
+            x for x in list(evidence or []) + list(targets)
+            if isinstance(x, str) and re.search(r"\.mdx?$", x, re.I)
+        ]
+        markdown_arg = bool(re.search(r"\.(?:md|mdx)(?:\s|$)", cmd_text, re.I))
+        missing_tool = ""
+        if cmd_text.strip() and status == "offer":
+            executable = cmd_text.strip().split()[0]
+            if shutil.which(executable) is None:
+                missing_tool = executable
+        if missing_tool or markdown_paths or markdown_arg or status == "skip":
+            reason = f"(tool not found) {missing_tool}; no command offered" if missing_tool else (
+                "Markdown excluded; docs-lint is authoritative" if (markdown_paths or markdown_arg)
+                else "status skip; no command offered"
+            )
+            print(f"SKIP: formatter {fid or 'unknown'} — {reason}", file=sys.stderr)
+            formatter_skipped = True
+        elif not fails:
+            print(f"PASS: formatter {fid}")
+            print(
+                f"OFFER: formatter {fid} — requires explicit owner approval; check: {cmd_text.strip()}"
+            )
+
+sys.exit(3 if formatter_skipped else (1 if fails else 0))
 PY

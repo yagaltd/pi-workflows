@@ -502,15 +502,15 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
 
   test("test_adopt_no_forbidden_changes", () => {
     const repoRoot = path.resolve(import.meta.dir, "..");
-    // TASK 4 owns the live judge schema in extensions/index.ts; the shell
-    // gates and profile lint stay outside its boundary.
+    // TASK 4 owns the live judge schema in extensions/index.ts and the shell
+    // gate; profile-lint.sh is owned by plan 20261127-083 TASK 2, so its
+    // formatter-block change is no longer a forbidden diff here.
     const diff = spawnSync(
       "git",
       [
         "diff",
         "--exit-code",
         "--",
-        "scripts/profile-lint.sh",
         "scripts/flow-gates.mjs",
       ],
       { cwd: repoRoot, encoding: "utf-8" }
