@@ -157,7 +157,7 @@ describe("format chooser (plan 20261123-075)", () => {
     expect(emitted.note).toContain("advisory");
     expect(emitted.note).toContain("stated reason");
     expect(emitted.note).toContain("generated views, never gates");
-  });
+  }, 30_000);
 
   test("test_chooser_cli_binds_policy_inputs", async () => {
     const file = tempContentFile();

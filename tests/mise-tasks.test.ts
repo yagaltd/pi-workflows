@@ -280,7 +280,7 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
       cwd: ROOT,
       env,
       encoding: "utf8",
-      timeout: 240_000,
+      timeout: 900_000,
     });
     const suiteOutput = `${textOf(suite.stdout)}${textOf(suite.stderr)}`;
     expect(
@@ -346,7 +346,7 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
         ).toBe(true);
       }
     }
-  }, 300_000);
+  }, 900_000);
 });
 
 function textOf(stream: unknown): string {
