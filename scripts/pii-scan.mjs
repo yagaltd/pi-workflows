@@ -48,9 +48,9 @@
  * Zero dependencies (node: builtins + scripts/judge.mjs), ESM, Node ≥ 18.
  */
 
-import { readFileSync, existsSync, mkdirSync, appendFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, basename, extname } from "node:path";
 import { execFileSync } from "node:child_process";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ask, QUESTION_CAP } from "./judge.mjs";
 
@@ -116,8 +116,9 @@ export const NAME_BOUND = 24;
  * itself). Unit-tested in tests/pii-scan.test.ts.
  */
 export function sanitizeName(name) {
-  const redacted = String(name).replace(/[A-Za-z0-9]+/g, (run) =>
-    run.length >= 8 && /[A-Za-z]/.test(run) && /\d/.test(run) ? `[redacted:${run.length}]` : run,
+  const redacted = String(name).replace(
+    /[A-Za-z0-9]+/g,
+    (run) => run.length >= 8 && /[A-Za-z]/.test(run) && /\d/.test(run) ? `[redacted:${run.length}]` : run,
   );
   return redacted.slice(0, NAME_BOUND).trim();
 }
@@ -167,7 +168,10 @@ export function listChangedFiles({ cwd = repoRoot(), base = process.env.PII_SCAN
     }
   }
   if (!mergeBase) {
-    return { files: [], note: `no merge-base resolvable from HEAD (tried: ${candidates.join(", ")}; set PII_SCAN_BASE)` };
+    return {
+      files: [],
+      note: `no merge-base resolvable from HEAD (tried: ${candidates.join(", ")}; set PII_SCAN_BASE)`,
+    };
   }
   const out = git(cwd, ["diff", "--name-only", `${mergeBase}..HEAD`]);
   if (out === null) return { files: [], note: "git diff failed (not a git worktree?)" };
@@ -214,7 +218,11 @@ export function buildState(file) {
         };
     }
   } catch (e) {
-    return { file, skipped: true, reason: `unparseable ${ext.slice(1) || "file"}: ${String(e.message).split("\n")[0]}` };
+    return {
+      file,
+      skipped: true,
+      reason: `unparseable ${ext.slice(1) || "file"}: ${String(e.message).split("\n")[0]}`,
+    };
   }
 }
 
@@ -225,13 +233,13 @@ function splitCsvLine(line) {
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (inQ) {
-      if (c === '"' && line[i + 1] === '"') {
-        cur += '"';
+      if (c === "\"" && line[i + 1] === "\"") {
+        cur += "\"";
         i++;
-      } else if (c === '"') {
+      } else if (c === "\"") {
         inQ = false;
       } else cur += c;
-    } else if (c === '"') inQ = true;
+    } else if (c === "\"") inQ = true;
     else if (c === ",") {
       out.push(cur.trim());
       cur = "";
@@ -286,7 +294,13 @@ function jsonState(file, text) {
     }
   };
   walk(parsed, "");
-  return { file, type: "json", keyPaths, redactions: redactionSignals(rawKeys, "key"), ...(truncated && { truncated: true }) };
+  return {
+    file,
+    type: "json",
+    keyPaths,
+    redactions: redactionSignals(rawKeys, "key"),
+    ...(truncated && { truncated: true }),
+  };
 }
 
 /** YAML → key paths via indentation-aware line scan (values after `:` never read; keys sanitized). */
@@ -340,7 +354,13 @@ function tomlState(file, text) {
       keyPaths.push(table ? `${table}.${sanitizeName(kv[1] || kv[2])}` : sanitizeName(kv[1] || kv[2]));
     }
   }
-  return { file, type: "toml", keyPaths, redactions: redactionSignals(rawNames, "key"), ...(truncated && { truncated: true }) };
+  return {
+    file,
+    type: "toml",
+    keyPaths,
+    redactions: redactionSignals(rawNames, "key"),
+    ...(truncated && { truncated: true }),
+  };
 }
 
 /** MD → heading inventory (sanitized) + free-text flag (fenced content never read); redacted headings become signals. */
@@ -379,7 +399,9 @@ export function structureDigest(state) {
     case "toml": {
       const all = state.keyPaths;
       const shown = all.slice(0, 12).join(", ");
-      return `${state.type} key paths (${all.length}${state.truncated ? "+, truncated" : ""}): ${shown}${all.length > 12 ? " …" : ""}`;
+      return `${state.type} key paths (${all.length}${state.truncated ? "+, truncated" : ""}): ${shown}${
+        all.length > 12 ? " …" : ""
+      }`;
     }
     default:
       return "unknown structure";
@@ -395,7 +417,8 @@ function buildPiiQuestions(file, state) {
   const digest = structureDigest(state);
   return SPECULATIVE_PII_SET.map((category, i) => ({
     id: `q${String(i + 1).padStart(2, "0")}-${slug(category)}`,
-    question: `File "${base}" (${digest}). You see only this structural description, never file values. Could this file plausibly contain ${category}?`,
+    question:
+      `File "${base}" (${digest}). You see only this structural description, never file values. Could this file plausibly contain ${category}?`,
     schema: { enum: ["yes", "no"] },
   }));
 }
@@ -417,7 +440,7 @@ export function buildCredentialQuestions(file, state) {
       q(
         `c${String(i + 1).padStart(2, "0")}-cred-${slug(pattern.replace(/ \(.*\)$/, ""))}`,
         `File "${base}" (${digest}). You see only this structural description, never file values. Does it name any field matching credential shape "${pattern}"?`,
-      ),
+      )
     ),
     q(
       "c11-pem-private-key",
@@ -527,7 +550,17 @@ function appendRuler(rulerFile, file, entries) {
   appendFileSync(
     rulerFile,
     fresh
-      .map((e) => JSON.stringify({ v: 1, ts, plan: e.plan, file, questionId: e.questionId, verdict: e.verdict, confidence: e.confidence }))
+      .map((e) =>
+        JSON.stringify({
+          v: 1,
+          ts,
+          plan: e.plan,
+          file,
+          questionId: e.questionId,
+          verdict: e.verdict,
+          confidence: e.confidence,
+        })
+      )
       .join("\n") + "\n",
   );
   return fresh.length;
@@ -572,7 +605,9 @@ export async function runScan({
     if (gl.note) notes.push(gl.note);
   } else {
     gitleaksAbsent = true;
-    notes.push("secrets gate: judge-based (gitleaks retired — owner decision 20261102); pass --gitleaks <report> to add legacy regex triage");
+    notes.push(
+      "secrets gate: judge-based (gitleaks retired — owner decision 20261102); pass --gitleaks <report> to add legacy regex triage",
+    );
   }
 
   // 3. per file: build state → questions → chunked asks → ruler
@@ -583,7 +618,15 @@ export async function runScan({
     const state = buildState(file);
     if (state.skipped) {
       notes.push(`skipped ${basename(file)} (${state.reason})`);
-      summary.push({ file, order: "skipped", skipped: true, reason: state.reason, judge: null, gitleaksFindings: [], redactionFindings: [] });
+      summary.push({
+        file,
+        order: "skipped",
+        skipped: true,
+        reason: state.reason,
+        judge: null,
+        gitleaksFindings: [],
+        redactionFindings: [],
+      });
       continue;
     }
 
@@ -595,7 +638,9 @@ export async function runScan({
       if (res?.skipped) {
         judgeSkipped = true;
         err.write(
-          `pii-scan: JUDGE SKIPPED for ${basename(file)} — judge unavailable; NO ruler rows written for this file (advisory pass degraded, exit stays 0)\n`,
+          `pii-scan: JUDGE SKIPPED for ${
+            basename(file)
+          } — judge unavailable; NO ruler rows written for this file (advisory pass degraded, exit stays 0)\n`,
         );
         break;
       }
@@ -604,7 +649,14 @@ export async function runScan({
     const glFindings = gitleaksFindingsFor(gl.perFile, target, cwd);
     const redactionFindings = state.redactions || [];
     if (judgeSkipped) {
-      summary.push({ file, order: "judge-skipped", skipped: false, judge: { skipped: true }, gitleaksFindings: glFindings, redactionFindings });
+      summary.push({
+        file,
+        order: "judge-skipped",
+        skipped: false,
+        judge: { skipped: true },
+        gitleaksFindings: glFindings,
+        redactionFindings,
+      });
       continue;
     }
 
@@ -632,23 +684,38 @@ export async function runScan({
 
     const judgeFlagged = flagged.length > 0;
     const glFlagged = glFindings.length > 0;
-    const order =
-      unanswered > 0
-        ? "judge-drift" // unanswered beats every verdict-based ordering — never reads as clean
-        : gitleaksAbsent
-          ? judgeFlagged
-            ? "judge-flagged"
-            : "clean"
-          : judgeFlagged !== glFlagged
-            ? "disagreement"
-            : glFlagged
-              ? "agree-flagged"
-              : "agree-clean";
-    summary.push({ file, order, skipped: false, judge: { asked: questions.length, unanswered, flagged }, gitleaksFindings: glFindings, redactionFindings });
+    const order = unanswered > 0
+      ? "judge-drift" // unanswered beats every verdict-based ordering — never reads as clean
+      : gitleaksAbsent
+      ? judgeFlagged
+        ? "judge-flagged"
+        : "clean"
+      : judgeFlagged !== glFlagged
+      ? "disagreement"
+      : glFlagged
+      ? "agree-flagged"
+      : "agree-clean";
+    summary.push({
+      file,
+      order,
+      skipped: false,
+      judge: { asked: questions.length, unanswered, flagged },
+      gitleaksFindings: glFindings,
+      redactionFindings,
+    });
   }
 
   // 4. disagreement-first ordering + report
-  const rank = { disagreement: 0, "agree-flagged": 1, "judge-flagged": 1, "agree-clean": 2, clean: 2, "judge-drift": 3, "judge-skipped": 4, skipped: 4 };
+  const rank = {
+    disagreement: 0,
+    "agree-flagged": 1,
+    "judge-flagged": 1,
+    "agree-clean": 2,
+    clean: 2,
+    "judge-drift": 3,
+    "judge-skipped": 4,
+    skipped: 4,
+  };
   summary.sort((a, b) => rank[a.order] - rank[b.order] || String(a.file).localeCompare(String(b.file)));
 
   out.write(`pii-scan — PII + secrets advisory pass, judge-based gate (plan ${plan})\n`);
@@ -656,15 +723,22 @@ export async function runScan({
     if (r.skipped) {
       out.write(`  [skipped] ${basename(r.file)} — ${r.reason}\n`);
     } else if (r.judge?.skipped) {
-      const redPart = r.redactionFindings.length ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})` : "";
+      const redPart = r.redactionFindings.length
+        ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})`
+        : "";
       out.write(`  [judge-skipped] ${basename(r.file)} — no verdicts (judge unavailable)${redPart}\n`);
     } else {
       const glPart = gitleaksAbsent ? "" : `; gitleaks: ${r.gitleaksFindings.length} finding(s)`;
-      const redPart = r.redactionFindings.length ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})` : "";
-      const driftPart =
-        r.judge.unanswered > 0 ? `; judge answer drift: ${r.judge.unanswered} questions unanswered — treating as unanswered, not clean` : "";
+      const redPart = r.redactionFindings.length
+        ? `; redaction signals: ${r.redactionFindings.length} (${REDACTED_NAME_CLASS})`
+        : "";
+      const driftPart = r.judge.unanswered > 0
+        ? `; judge answer drift: ${r.judge.unanswered} questions unanswered — treating as unanswered, not clean`
+        : "";
       out.write(
-        `  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${r.judge.asked - r.judge.unanswered} questions${glPart}${redPart}${driftPart}\n`,
+        `  [${r.order}] ${basename(r.file)} — judge flagged ${r.judge.flagged.length}/${
+          r.judge.asked - r.judge.unanswered
+        } questions${glPart}${redPart}${driftPart}\n`,
       );
     }
   }
@@ -695,7 +769,9 @@ export async function main(argv = process.argv.slice(2)) {
       // never be silently swallowed as the value (e.g. "--gitleaks --files")
       if (val === undefined || val.startsWith("--")) {
         process.stderr.write(
-          `pii-scan: ${a} expects a value${val === undefined ? " (missing)" : ` but got flag-like token "${val}"`} — pass the value as a separate argument\n${USAGE}\n`,
+          `pii-scan: ${a} expects a value${
+            val === undefined ? " (missing)" : ` but got flag-like token "${val}"`
+          } — pass the value as a separate argument\n${USAGE}\n`,
         );
         return 2;
       }
@@ -717,7 +793,9 @@ export async function main(argv = process.argv.slice(2)) {
     fileList = files.split(",").map((s) => s.trim()).filter(Boolean);
     if (fileList.length === 0) {
       // never silently fall back to git discovery when --files was given but empty
-      process.stderr.write(`pii-scan: --files "${files}" produced no usable entries — refusing to fall back to git discovery\n${USAGE}\n`);
+      process.stderr.write(
+        `pii-scan: --files "${files}" produced no usable entries — refusing to fall back to git discovery\n${USAGE}\n`,
+      );
       return 2;
     }
   }

@@ -18,8 +18,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ask } from "./judge.mjs";
-import { decideOutputPolicy } from "./output-policy.mjs";
 import { renderDiagram } from "./open-diagram-render.mjs";
+import { decideOutputPolicy } from "./output-policy.mjs";
 
 const SECTIONS = ["Shipped", "Deviations", "Discoveries", "Deferred", "Watch"];
 const DIAGRAM_HEADER = "### Generated view";
@@ -41,7 +41,18 @@ export function stripDiagramArtifact(reportText) {
 }
 
 export function parseArgs(argv) {
-  const o = { cmd: null, plan: ".workflows/plan.md", journal: ".workflows/journal.jsonl", proofs: ".workflows/proofs/proofs.jsonl", lessons: ".workflows/lessons/lessons.jsonl", queue: ".workflows/queue.json", golden: 11, diagram: false, reportFile: null, audit: null };
+  const o = {
+    cmd: null,
+    plan: ".workflows/plan.md",
+    journal: ".workflows/journal.jsonl",
+    proofs: ".workflows/proofs/proofs.jsonl",
+    lessons: ".workflows/lessons/lessons.jsonl",
+    queue: ".workflows/queue.json",
+    golden: 11,
+    diagram: false,
+    reportFile: null,
+    audit: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "report" || a === "judge") o.cmd = a;
@@ -62,10 +73,11 @@ export function parseArgs(argv) {
 
 const readLines = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8").split("\n").filter(Boolean) : []);
 const jsonLines = (f) => readLines(f).map((l) => JSON.parse(l));
-const marker = (notes, tag) => notes
-  .split("\n")
-  .filter((l) => l.trim().startsWith(`- ${tag}:`))
-  .map((l) => l.trim().replace(`- ${tag}:`, "").trim());
+const marker = (notes, tag) =>
+  notes
+    .split("\n")
+    .filter((l) => l.trim().startsWith(`- ${tag}:`))
+    .map((l) => l.trim().replace(`- ${tag}:`, "").trim());
 
 export function gather({ plan, journal, proofs, lessons, golden, queue = ".workflows/queue.json" }) {
   const text = fs.readFileSync(plan, "utf8");
@@ -160,7 +172,9 @@ export function renderReport(g, { diagram = false } = {}) {
   } else {
     out.push("| Option | What | Effort | Risk | Unblocks | Recommend |");
     out.push("|---|---|---|---|---|---|");
-    for (const q of g.queue) out.push(`| ${q.option} | ${q.what} | ${q.effort} | ${q.risk} | ${q.unblocks} | ${q.recommend} |`);
+    for (const q of g.queue) {
+      out.push(`| ${q.option} | ${q.what} | ${q.effort} | ${q.risk} | ${q.unblocks} | ${q.recommend} |`);
+    }
   }
   if (diagram) out.push(mermaid(g));
   return out.join("\n");
@@ -204,7 +218,11 @@ function diagramPaths(g) {
  * Close-out calls TASK 1 policy once and renders only on its diagram positive;
  * otherwise the explicit --diagram mermaid text fallback is preserved.
  */
-export async function renderCloseout(g, { diagram = false, policy = decideOutputPolicy, renderer = renderDiagram, specPath, out, onReport, onRendererError } = {}) {
+export async function renderCloseout(
+  g,
+  { diagram = false, policy = decideOutputPolicy, renderer = renderDiagram, specPath, out, onReport, onRendererError } =
+    {},
+) {
   const report = renderReport(g);
   if (!diagram) return report;
   if (!policy(closeoutPolicyInput(g)).diagram) return renderReport(g, { diagram: true });
@@ -220,12 +238,15 @@ export async function renderCloseout(g, { diagram = false, policy = decideOutput
       spec: { path: spec, title: `Close-out — ${g.planId}`, subtitle: "Task delivery status" },
       out: out ?? paths.out,
     });
-    fs.writeFileSync(paths.viewPath, JSON.stringify({
-      surface: "closeout",
-      policy: { diagram: true },
-      diagram: { svgPath: artifact.svgPath, pngPath: artifact.pngPath, altText: artifact.altText },
-      text: report,
-    }));
+    fs.writeFileSync(
+      paths.viewPath,
+      JSON.stringify({
+        surface: "closeout",
+        policy: { diagram: true },
+        diagram: { svgPath: artifact.svgPath, pngPath: artifact.pngPath, altText: artifact.altText },
+        text: report,
+      }),
+    );
     return `${report}\n\n${diagramArtifact(artifact)}`;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -255,11 +276,33 @@ export function mermaid(g) {
 }
 
 export const settleQuestions = [
-  { id: "deviations_complete", question: "Does the close-out list every deviation declared in the plan Execution Notes?", schema: { type: "string", enum: ["yes", "no"] } },
-  { id: "implications_stated", question: "Does every deviation and deferral state its implication?", schema: { type: "string", enum: ["yes", "no"] } },
-  { id: "deferrals_named", question: "Are all deferred items named in the Deferred section?", schema: { type: "string", enum: ["yes", "no"] } },
-  { id: "watch_present", question: "Does the Watch section carry open dispatches, proof count, untrusted lesson count and golden case count?", schema: { type: "string", enum: ["yes", "no"] } },
-  { id: "decision_brief_present", question: "Does the Next moves section carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)? An explicitly empty queue — the line 'queue empty — nothing open' — is a valid brief and counts as yes.", schema: { type: "string", enum: ["yes", "no"] } },
+  {
+    id: "deviations_complete",
+    question: "Does the close-out list every deviation declared in the plan Execution Notes?",
+    schema: { type: "string", enum: ["yes", "no"] },
+  },
+  {
+    id: "implications_stated",
+    question: "Does every deviation and deferral state its implication?",
+    schema: { type: "string", enum: ["yes", "no"] },
+  },
+  {
+    id: "deferrals_named",
+    question: "Are all deferred items named in the Deferred section?",
+    schema: { type: "string", enum: ["yes", "no"] },
+  },
+  {
+    id: "watch_present",
+    question:
+      "Does the Watch section carry open dispatches, proof count, untrusted lesson count and golden case count?",
+    schema: { type: "string", enum: ["yes", "no"] },
+  },
+  {
+    id: "decision_brief_present",
+    question:
+      "Does the Next moves section carry every open item with all six columns (option, what, effort, risk, unblocks, recommend)? An explicitly empty queue — the line 'queue empty — nothing open' — is a valid brief and counts as yes.",
+    schema: { type: "string", enum: ["yes", "no"] },
+  },
 ];
 
 /**
@@ -269,7 +312,11 @@ export const settleQuestions = [
  */
 export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) {
   const text = stripDiagramArtifact(reportText).slice(0, 4000);
-  const questions = settleQuestions.map((q) => ({ id: q.id, question: `${q.question}\n\nREPORT:\n${text}`, schema: q.schema }));
+  const questions = settleQuestions.map((q) => ({
+    id: q.id,
+    question: `${q.question}\n\nREPORT:\n${text}`,
+    schema: q.schema,
+  }));
   const r = await askFn({ questions, auditFile: audit });
   if (!r || r.skipped) {
     return { status: "skipped", reason: "judge unavailable (NO-JUDGE degradation)", findings: [] };
@@ -278,14 +325,19 @@ export async function settleJudge(reportText, { ask: askFn = ask, audit } = {}) 
   const findings = [];
   for (const q of settleQuestions) {
     const row = rows.find((x) => x.id === q.id);
-    if (!row || row.verdict !== "yes") findings.push(`${q.id}: not confirmed${row?.verdict ? ` (${row.verdict})` : ""}`);
+    if (!row || row.verdict !== "yes") {
+      findings.push(`${q.id}: not confirmed${row?.verdict ? ` (${row.verdict})` : ""}`);
+    }
   }
   return { status: findings.length ? "findings" : "pass", findings, answers: rows };
 }
 
 export async function main(argv, { ask: askFn = ask, policy = decideOutputPolicy, renderer = renderDiagram } = {}) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
   const g = gather(opts);
 
   if (opts.cmd === "report") {
@@ -295,7 +347,10 @@ export async function main(argv, { ask: askFn = ask, policy = decideOutputPolicy
       diagram: opts.diagram,
       policy,
       renderer,
-      onReport: (canonical) => { console.log(canonical); emittedReport = true; },
+      onReport: (canonical) => {
+        console.log(canonical);
+        emittedReport = true;
+      },
     });
     if (!emittedReport) console.log(text);
     else if (text.startsWith(report) && text.length > report.length) console.log(text.slice(report.length).trim());

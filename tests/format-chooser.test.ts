@@ -2,16 +2,27 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ARTIFACTS, BOUNDARIES, buildQuestions, choose, main, parseArgs, readVerdict } from "../scripts/format-chooser.mjs";
+import {
+  ARTIFACTS,
+  BOUNDARIES,
+  buildQuestions,
+  choose,
+  main,
+  parseArgs,
+  readVerdict,
+} from "../scripts/format-chooser.mjs";
 
-const CONTENT = `# Plan: fixture\n\n### TASK 1: the loop — three stages feed each other in a cycle.\n### TASK 2: docs pass.\n`;
+const CONTENT =
+  `# Plan: fixture\n\n### TASK 1: the loop — three stages feed each other in a cycle.\n### TASK 2: docs pass.\n`;
 const POLICY = { prose: true, statusTokens: true, table: false, diagram: false };
 const TABLE_POLICY = { ...POLICY, table: true };
 const DIAGRAM_POLICY = { ...POLICY, diagram: true };
 
 const stubAsk = (artifact, type, aConf = 0.9, tConf = 0.8, reason?: string) => async ({ questions }) => {
   // questions reach the judge client; assert shape at the boundary
-  if (!questions.some((q) => q.id === "artifact") || !questions.some((q) => q.id === "type")) throw new Error("missing questions");
+  if (!questions.some((q) => q.id === "artifact") || !questions.some((q) => q.id === "type")) {
+    throw new Error("missing questions");
+  }
   return {
     status: 0,
     verdict: [
@@ -33,7 +44,7 @@ describe("format chooser (plan 20261123-075)", () => {
     const seen: string[][] = [];
     const ask = async ({ questions }) => {
       seen.push(questions.map((q) => q.id));
-      return stubAsk("none", "loop", 0.95) ({ questions });
+      return stubAsk("none", "loop", 0.95)({ questions });
     };
 
     const c = await choose({ boundary: "closeout", content: CONTENT, policy: TABLE_POLICY, ask });
@@ -42,12 +53,22 @@ describe("format chooser (plan 20261123-075)", () => {
     expect(c.skipped).toBe(false);
     expect(seen).toEqual([["artifact", "type"]]); // one call, two typed questions, no third
 
-    const visual = await choose({ boundary: "closeout", content: CONTENT, policy: DIAGRAM_POLICY, ask: stubAsk("html", "loop") });
+    const visual = await choose({
+      boundary: "closeout",
+      content: CONTENT,
+      policy: DIAGRAM_POLICY,
+      ask: stubAsk("html", "loop"),
+    });
     expect(visual.artifact).toBe("mermaid");
     expect(visual.diagram).toBe(true);
     expect(visual.type).toBe("loop"); // judge refines the advisory type family only
 
-    const both = await choose({ boundary: "closeout", content: CONTENT, policy: { ...DIAGRAM_POLICY, table: true }, ask: stubAsk("html", "loop") });
+    const both = await choose({
+      boundary: "closeout",
+      content: CONTENT,
+      policy: { ...DIAGRAM_POLICY, table: true },
+      ask: stubAsk("html", "loop"),
+    });
     expect(both.artifact).toBe("table"); // text table stays authoritative
 
     const qs = buildQuestions("challenge", CONTENT);
@@ -60,14 +81,24 @@ describe("format chooser (plan 20261123-075)", () => {
   });
 
   test("test_chooser_rejects_judge_only_diagram", async () => {
-    const c = await choose({ boundary: "closeout", content: CONTENT, policy: POLICY, ask: stubAsk("html", "loop", 0.99) });
+    const c = await choose({
+      boundary: "closeout",
+      content: CONTENT,
+      policy: POLICY,
+      ask: stubAsk("html", "loop", 0.99),
+    });
     expect(c.artifact).toBe("none");
     expect(c.diagram).toBe(false);
     expect(c.judgeSuggestion.artifact).toBe("html"); // advisory metadata only
     expect(c.judgeSuggestion.artifactConfidence).toBe(0.99);
     expect(c.judgeSuggestion.type).toBe("loop");
 
-    const withTable = await choose({ boundary: "closeout", content: CONTENT, policy: TABLE_POLICY, ask: stubAsk("html", "loop", 0.99) });
+    const withTable = await choose({
+      boundary: "closeout",
+      content: CONTENT,
+      policy: TABLE_POLICY,
+      ask: stubAsk("html", "loop", 0.99),
+    });
     expect(withTable.artifact).toBe("table");
     expect(withTable.diagram).toBe(false);
 
@@ -77,7 +108,12 @@ describe("format chooser (plan 20261123-075)", () => {
 
   test("test_chooser_fail_open_without_judge", async () => {
     const skipped = { status: 0, skipped: true };
-    const c = await choose({ boundary: "plan-approval", content: CONTENT, policy: DIAGRAM_POLICY, ask: async () => skipped });
+    const c = await choose({
+      boundary: "plan-approval",
+      content: CONTENT,
+      policy: DIAGRAM_POLICY,
+      ask: async () => skipped,
+    });
     expect(c.artifact).toBe("none");
     expect(c.diagram).toBe(false);
     expect(c.skipped).toBe(true);
@@ -157,10 +193,14 @@ describe("format chooser (plan 20261123-075)", () => {
   });
 
   test("chooser rejects unknown boundaries and missing content files", async () => {
-    expect(parseArgs(["choose", "--for", "casual-chat", "--content-file", "x"]).error).toContain("--for must be one of");
+    expect(parseArgs(["choose", "--for", "casual-chat", "--content-file", "x"]).error).toContain(
+      "--for must be one of",
+    );
     expect(parseArgs(["choose", "--for", "closeout"]).error).toContain("--content-file is required");
     const errs: string[] = [];
-    const code = await main(["choose", "--for", "closeout", "--content-file", "/nonexistent.md"], { err: { write: (s) => errs.push(s) } });
+    const code = await main(["choose", "--for", "closeout", "--content-file", "/nonexistent.md"], {
+      err: { write: (s) => errs.push(s) },
+    });
     expect(code).toBe(2);
     expect(errs.join("")).toContain("not found");
   });

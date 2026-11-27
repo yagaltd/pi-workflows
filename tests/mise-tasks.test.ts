@@ -133,7 +133,7 @@ describe("mise file-task command surface", () => {
         .readFileSync(file, "utf8")
         .split("\n")
         .map((line, i) => ({ file: path.relative(ROOT, file), line: i + 1, text: line }))
-        .filter(({ text }) => legacyCommand.test(text)),
+        .filter(({ text }) => legacyCommand.test(text))
     );
     expect(hits).toEqual([]);
   });
@@ -174,7 +174,9 @@ describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", 
     const positions = RUST_CHAIN_TOKENS.map(at);
     expect(positions[0]).toBe(0);
     for (let i = 1; i < positions.length; i++) {
-      expect(positions[i], `${RUST_CHAIN_TOKENS[i]} must follow ${RUST_CHAIN_TOKENS[i - 1]}`).toBeGreaterThan(positions[i - 1]);
+      expect(positions[i], `${RUST_CHAIN_TOKENS[i]} must follow ${RUST_CHAIN_TOKENS[i - 1]}`).toBeGreaterThan(
+        positions[i - 1],
+      );
     }
     expect(check).toContain("command -v cargo-deny");
     expect(check).toContain("command -v deslop-please");
@@ -235,7 +237,8 @@ describe("mise tasks — Rust structural gate docs (plan 20261124-081 TASK 3)", 
       expect(keys, `${name} budgets must be sorted`).toEqual([...keys].sort());
       expect(section.total).toBe(Object.values(section.files).reduce((sum: number, n) => sum + Number(n), 0));
       for (const [file, ceiling] of Object.entries(ceilings)) {
-        expect(section.files[file] ?? 0, `${name} budget for ${file} rose above the pre-change reference`).toBeLessThanOrEqual(ceiling);
+        expect(section.files[file] ?? 0, `${name} budget for ${file} rose above the pre-change reference`)
+          .toBeLessThanOrEqual(ceiling);
       }
     }
 
@@ -268,7 +271,7 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
     const suiteOutput = `${textOf(suite.stdout)}${textOf(suite.stderr)}`;
     expect(
       suite.exitCode,
-      `bun test failed:\n${suiteOutput.slice(-4000)}`
+      `bun test failed:\n${suiteOutput.slice(-4000)}`,
     ).toBe(0);
     expect(suiteOutput).toMatch(/\b0 fail\b/);
     expect(suiteOutput).toMatch(/\b\d+ pass\b/);
@@ -284,7 +287,7 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
     );
     expect(
       docs.exitCode,
-      `docs-lint failed:\n${textOf(docs.stdout)}${textOf(docs.stderr)}`
+      `docs-lint failed:\n${textOf(docs.stdout)}${textOf(docs.stderr)}`,
     ).toBe(0);
 
     const drift = Bun.spawnSync(["bash", "scripts/check-drift.sh"], {
@@ -295,13 +298,13 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
     });
     expect(
       drift.exitCode,
-      `check-drift failed:\n${textOf(drift.stdout)}${textOf(drift.stderr)}`
+      `check-drift failed:\n${textOf(drift.stdout)}${textOf(drift.stderr)}`,
     ).toBe(0);
 
     // No budget rise: every committed budget still bounds the live baseline.
     const committed = Bun.spawnSync(
       ["git", "show", "HEAD:scripts/docs-lint-baseline.json"],
-      { cwd: ROOT, encoding: "utf8" }
+      { cwd: ROOT, encoding: "utf8" },
     );
     expect(committed.exitCode).toBe(0);
     const before = JSON.parse(textOf(committed.stdout));
@@ -310,22 +313,22 @@ describe("mise tasks — final review integration gates (TASK 4, plan 20261124-0
       string,
       { total: number; files: Record<string, number> },
     ][]) {
-      const afterSection: { total: number; files: Record<string, number> } =
-        after.sections[name] ?? { total: 0, files: {} };
+      const afterSection: { total: number; files: Record<string, number> } = after.sections[name]
+        ?? { total: 0, files: {} };
       expect(
         Number(afterSection.total),
-        `${name} total budget rose`
+        `${name} total budget rose`,
       ).toBeLessThanOrEqual(Number(beforeSection.total));
       for (const [file, budget] of Object.entries(beforeSection.files)) {
         expect(
           Number(afterSection.files[file] ?? 0),
-          `${name} budget for ${file} rose`
+          `${name} budget for ${file} rose`,
         ).toBeLessThanOrEqual(Number(budget));
       }
       for (const file of Object.keys(afterSection.files)) {
         expect(
           Object.prototype.hasOwnProperty.call(beforeSection.files, file),
-          `${name} gained a new budget for ${file}`
+          `${name} gained a new budget for ${file}`,
         ).toBe(true);
       }
     }
@@ -348,13 +351,13 @@ describe("mise tasks — repo format gate (plan 20261127-083 TASK 1)", () => {
       .split("\n")
       .filter((line) => /^\s*dprint\s*=/i.test(line));
     expect(toolLines, "[tools] must pin dprint exactly once").toEqual([
-      'dprint = "0.65.0"',
+      "dprint = \"0.65.0\"",
     ]);
     const allDprintLines = mise
       .split("\n")
       .filter((line) => /^\s*["']?dprint["']?\s*=/i.test(line));
     expect(allDprintLines, "no other dprint version assignment may exist").toEqual([
-      'dprint = "0.65.0"',
+      "dprint = \"0.65.0\"",
     ]);
 
     const config = JSON.parse(read("dprint.json"));
@@ -458,7 +461,7 @@ describe("mise tasks — repo format gate (plan 20261127-083 TASK 1)", () => {
   test("test_precommit_staged_read_only", () => {
     const source = read(path.join(".githooks", "pre-commit"));
     const stagedLine = `staged="$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.mjs' '*.json')"`;
-    const guardLine = 'if [ -n "$staged" ]; then';
+    const guardLine = "if [ -n \"$staged\" ]; then";
     expect(source.split("\n")).toContain(stagedLine);
     expect(source.split("\n")).toContain(guardLine);
     const checkAt = source.indexOf("dprint check --list-different");
@@ -468,6 +471,6 @@ describe("mise tasks — repo format gate (plan 20261127-083 TASK 1)", () => {
       expect(source, `pre-commit must not use ${forbidden}`).not.toContain(forbidden);
     }
     expect(source).toMatch(/scripts\/wf\.sh wip message/);
-    expect(source.trimEnd().split("\n").at(-1)).toBe('exec "$REPO_ROOT/scripts/check-drift.sh"');
+    expect(source.trimEnd().split("\n").at(-1)).toBe("exec \"$REPO_ROOT/scripts/check-drift.sh\"");
   });
 });

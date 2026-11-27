@@ -22,7 +22,16 @@ export const EVENTS = ["dispatched", "done", "failed", "blocked", "budget-exhaus
 const round4 = (n) => Math.round(n * 10000) / 10000;
 
 export function parseArgs(argv) {
-  const o = { journal: ".workflows/journal.jsonl", budget: ".workflows/budget.json", plan: null, task: null, event: null, cost: null, note: null, cmd: null };
+  const o = {
+    journal: ".workflows/journal.jsonl",
+    budget: ".workflows/budget.json",
+    plan: null,
+    task: null,
+    event: null,
+    cost: null,
+    note: null,
+    cmd: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "record" || a === "check" || a === "resume") o.cmd = a;
@@ -71,10 +80,16 @@ export function spent(entries) {
 export function checkBudget(entries, budget) {
   const spentNow = spent(entries);
   if (!budget) return { ok: true, spent: spentNow };
-  if (budget.max_tasks !== undefined && spentNow.tasks >= budget.max_tasks)
+  if (budget.max_tasks !== undefined && spentNow.tasks >= budget.max_tasks) {
     return { ok: false, reason: `max_tasks reached (${spentNow.tasks}/${budget.max_tasks})`, spent: spentNow };
-  if (budget.max_cost_usd !== undefined && spentNow.cost > budget.max_cost_usd)
-    return { ok: false, reason: `max_cost_usd exceeded ($${spentNow.cost} > $${budget.max_cost_usd})`, spent: spentNow };
+  }
+  if (budget.max_cost_usd !== undefined && spentNow.cost > budget.max_cost_usd) {
+    return {
+      ok: false,
+      reason: `max_cost_usd exceeded ($${spentNow.cost} > $${budget.max_cost_usd})`,
+      spent: spentNow,
+    };
+  }
   return { ok: true, spent: spentNow };
 }
 
@@ -92,20 +107,29 @@ export function resumeState(entries, budget) {
   const exhausted = inPlan.some((e) => e.event === "budget-exhausted");
   const budgetLeft = budget
     ? {
-        tasks: budget.max_tasks !== undefined ? Math.max(0, budget.max_tasks - spentNow.tasks) : null,
-        cost: budget.max_cost_usd !== undefined ? round4(Math.max(0, budget.max_cost_usd - spentNow.cost)) : null,
-      }
+      tasks: budget.max_tasks !== undefined ? Math.max(0, budget.max_tasks - spentNow.tasks) : null,
+      cost: budget.max_cost_usd !== undefined ? round4(Math.max(0, budget.max_cost_usd - spentNow.cost)) : null,
+    }
     : null;
   return { done, failed, openDispatches: open, spent: spentNow, budgetExhausted: exhausted, budgetLeft };
 }
 
 export async function main(argv) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
   const budget = budgetFrom(opts.budget);
 
   if (opts.cmd === "record") {
-    appendEntry(opts.journal, { planId: opts.plan, ...(opts.task ? { taskId: opts.task } : {}), event: opts.event, ...(typeof opts.cost === "number" ? { cost: round4(opts.cost) } : {}), ...(opts.note ? { note: opts.note } : {}) });
+    appendEntry(opts.journal, {
+      planId: opts.plan,
+      ...(opts.task ? { taskId: opts.task } : {}),
+      event: opts.event,
+      ...(typeof opts.cost === "number" ? { cost: round4(opts.cost) } : {}),
+      ...(opts.note ? { note: opts.note } : {}),
+    });
     console.log(`recorded ${opts.event}${opts.task ? ` ${opts.task}` : ""} → ${opts.journal}`);
     return 0;
   }
@@ -113,7 +137,9 @@ export async function main(argv) {
   const entries = readJournal(opts.journal).filter((e) => e.planId === opts.plan);
   if (opts.cmd === "check") {
     const c = checkBudget(entries, budget);
-    console.log(JSON.stringify({ ok: c.ok, spent: c.spent, ...(c.reason ? { reason: c.reason } : {}), budget: budget ?? null }));
+    console.log(
+      JSON.stringify({ ok: c.ok, spent: c.spent, ...(c.reason ? { reason: c.reason } : {}), budget: budget ?? null }),
+    );
     if (!c.ok) {
       appendEntry(opts.journal, { planId: opts.plan, event: "budget-exhausted", note: c.reason });
       return 1;

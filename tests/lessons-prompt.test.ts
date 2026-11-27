@@ -15,13 +15,18 @@ describe("lessons in plan + challenge (plan 20261026-031)", () => {
     expect(challenge).toContain("verified");
   });
 
-  const queueLive = requireLiveState(".workflows/queue.json", "live queue: no D-option row remains after shipping, the queue may be empty, and any row keeps all columns as strings");
+  const queueLive = requireLiveState(
+    ".workflows/queue.json",
+    "live queue: no D-option row remains after shipping, the queue may be empty, and any row keeps all columns as strings",
+  );
   test.skipIf(!queueLive)("queue json drops the shipped d row", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
     // Structural (032): D never returns; queue may be empty; any row keeps all columns.
     expect(rows.some((r) => r.option.startsWith("D "))).toBe(false);
-    for (const r of rows) for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) {
-      expect(typeof r[c]).toBe("string");
+    for (const r of rows) {
+      for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) {
+        expect(typeof r[c]).toBe("string");
+      }
     }
   });
 });

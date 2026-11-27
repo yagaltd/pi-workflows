@@ -18,7 +18,9 @@ describe("proof docs (plan 20261025-025)", () => {
   test("example proof round-trips through record and verify", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "proofdoc-"));
     const ledger = path.join(dir, "proofs.jsonl");
-    expect(await main(["record", "--plan", "demo", "--task", "task-1", "--verify", "echo proof-demo", "--ledger", ledger])).toBe(0);
+    expect(
+      await main(["record", "--plan", "demo", "--task", "task-1", "--verify", "echo proof-demo", "--ledger", ledger]),
+    ).toBe(0);
     expect(await main(["verify", "--plan", "demo", "--task", "task-1", "--ledger", ledger])).toBe(0);
   });
 

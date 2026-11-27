@@ -7,7 +7,10 @@ import { validateFlow } from "../scripts/flow-validate.mjs";
 import { requireLiveState } from "./state-helpers";
 
 const EXAMPLES = ".workflows/flows";
-const examplesLive = requireLiveState([path.join(EXAMPLES, "two-phase-tdd.json"), path.join(EXAMPLES, "docs-ship.json")], "example flows two-phase-tdd and docs-ship validate clean and dry-run through flow-run.mjs with exit 0");
+const examplesLive = requireLiveState([
+  path.join(EXAMPLES, "two-phase-tdd.json"),
+  path.join(EXAMPLES, "docs-ship.json"),
+], "example flows two-phase-tdd and docs-ship validate clean and dry-run through flow-run.mjs with exit 0");
 
 describe("flows examples (plan 20261025-022)", () => {
   test.skipIf(!examplesLive)("example flows validate and dry-run clean", () => {
@@ -16,7 +19,9 @@ describe("flows examples (plan 20261025-022)", () => {
       const flow = JSON.parse(fs.readFileSync(file, "utf8"));
       expect(validateFlow(flow).ok).toBe(true);
       const runs = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "flowex-")), "runs");
-      const s = spawnSync("node", ["scripts/flow-run.mjs", file, "--dry-run", "--runs-dir", runs], { encoding: "utf8" });
+      const s = spawnSync("node", ["scripts/flow-run.mjs", file, "--dry-run", "--runs-dir", runs], {
+        encoding: "utf8",
+      });
       expect(s.status).toBe(0);
     }
   });

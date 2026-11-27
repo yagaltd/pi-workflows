@@ -16,16 +16,8 @@
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
 import { spawnSync } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -75,8 +67,8 @@ function foreignRepo(planId: string): string {
   mkdirSync(join(dir, ".workflows"), { recursive: true });
   writeFileSync(
     join(dir, ".workflows", "plan.md"),
-    `# Plan ${planId} — foreign\n\n> Plan ID: ${planId}\n> Status: IN PROGRESS\n\n` +
-      "- [ ] TASK 1 · wave 1 — foreign work\n",
+    `# Plan ${planId} — foreign\n\n> Plan ID: ${planId}\n> Status: IN PROGRESS\n\n`
+      + "- [ ] TASK 1 · wave 1 — foreign work\n",
   );
   expect(git(dir, ["add", "-A"]).status).toBe(0);
   expect(git(dir, ["commit", "-q", "-m", `plan ${planId}: foreign task`]).status).toBe(0);

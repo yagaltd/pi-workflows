@@ -19,8 +19,8 @@
  */
 
 import { afterAll, describe, expect, test } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -265,7 +265,9 @@ describe("profile-lint — a target needs a filename placeholder", () => {
   }
 
   test("a {{next:<N>}}-only target is accepted (the DEC-<nnn>.md ledger convention)", () => {
-    const result = run(join(ROOT, "scripts", "profile-lint.sh"), [profileWith(".workflows/decisions/DEC-{{next:3}}.md")]);
+    const result = run(join(ROOT, "scripts", "profile-lint.sh"), [
+      profileWith(".workflows/decisions/DEC-{{next:3}}.md"),
+    ]);
 
     expect(result.stdout).toBe("");
     expect(result.status).toBe(0);

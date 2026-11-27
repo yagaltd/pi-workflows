@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import crypto from "node:crypto";
 import {
-  INIT_EXTRACT_SCHEMA,
-  buildAdoptContext,
-  extractAdoptDraft,
-  writeAdoptDrafts,
-  verifyAdoptDrafts,
-  recordedAdoptBackend,
-  noKeyMaterialIn,
-  buildInitMiseFragment,
-  INIT_MISE_FRAGMENT_PATH,
   type AdoptDraft,
+  buildAdoptContext,
+  buildInitMiseFragment,
+  extractAdoptDraft,
+  INIT_EXTRACT_SCHEMA,
+  INIT_MISE_FRAGMENT_PATH,
+  noKeyMaterialIn,
+  recordedAdoptBackend,
+  verifyAdoptDrafts,
+  writeAdoptDrafts,
 } from "../scripts/init-extract.ts";
 
 /* ── plan 078 T2: /init --adopt brownfield extraction draft ──
@@ -45,11 +45,11 @@ const CLEAN_REPO: Record<string, string> = {
       scripts: { test: "bun test", lint: "bunx eslint ." },
     },
     null,
-    2
+    2,
   ),
   "src/index.ts": "export const main = () => 0;\n",
   "src/util.ts": "export const id = <T>(x: T): T => x;\n",
-  "tests/app.test.ts": 'import { expect, test } from "bun:test";\ntest("app", () => expect(1).toBe(1));\n',
+  "tests/app.test.ts": "import { expect, test } from \"bun:test\";\ntest(\"app\", () => expect(1).toBe(1));\n",
   "docs/architecture.md": "# Architecture\n\nSingle-entry CLI.\n",
   "CONTRIBUTING.md": "# Contributing\n\nbun test before push.\n",
   "scripts/agents-lint.sh": "#!/usr/bin/env bash\n# charter gate stub\n",
@@ -64,7 +64,7 @@ const MESSY_REPO: Record<string, string> = {
       scripts: { test: "definitely-missing-cmd-078 test" }, // bogus command → profile-lint FAIL
     },
     null,
-    2
+    2,
   ),
   "src/index.ts": "export const x = 1;\n",
   "stray-notes.md": "loose root note\n",
@@ -265,8 +265,8 @@ describe("init-extract (plan 078 T2) — verify-by-gate (lints on the drafts)", 
 describe("init-extract (plan 078 T2) — key-material gate question", () => {
   test("noKeyMaterialIn flags key-shaped assignments in draft text", () => {
     expect(noKeyMaterialIn("- Build: `package.json`\n- Test: bun test")).toBe(true);
-    expect(noKeyMaterialIn('TOKEN=ghp_abcdefghij1234567890\n')).toBe(false);
-    expect(noKeyMaterialIn('api_key = "sk-abc123def456"\n')).toBe(false);
+    expect(noKeyMaterialIn("TOKEN=ghp_abcdefghij1234567890\n")).toBe(false);
+    expect(noKeyMaterialIn("api_key = \"sk-abc123def456\"\n")).toBe(false);
   });
 
   test("the recorded gate question answers false when the manifest carries key material", async () => {
@@ -324,7 +324,7 @@ describe("init-extract (plan 078 T2) — CLI", () => {
           TYPELLM_API_KEY: "",
           TYPELLM_BASE_URL: "http://127.0.0.1:1", // dead port — fast loud skip even when a key file exists
         },
-      }
+      },
     );
     expect(`${r.stdout}${r.stderr}`).toContain("JUDGE SKIPPED");
     expect(r.status).toBe(1);
@@ -347,7 +347,7 @@ const RUST_REVIEW_SKILLS = [
 
 const RUST_FIXTURE: Record<string, string> = {
   "README.md": "# fixture-rs\n\nA small Rust CLI maintained by one team.\n",
-  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "Cargo.toml": "[package]\nname = \"fixture-rs\"\nversion = \"0.1.0\"\n",
   "src/main.rs": "fn main() {}\n",
   "docs/architecture.md": "# Architecture\n\nSingle-crate CLI.\n",
   "CONTRIBUTING.md": "# Contributing\n\ncargo test before push.\n",
@@ -358,7 +358,7 @@ type AdoptBackend = ReturnType<typeof recordedAdoptBackend>;
 
 async function draftAdopt(
   root: string,
-  backend: AdoptBackend = recordedAdoptBackend(root)
+  backend: AdoptBackend = recordedAdoptBackend(root),
 ) {
   const ctx = buildAdoptContext(root);
   const er = await extractAdoptDraft(backend, ctx);
@@ -376,7 +376,7 @@ async function draftAdopt(
  *  separate "Cargo.toml was detected" from "the stack resolved to Rust". */
 function withStack(
   backend: AdoptBackend,
-  stackDetection: { stack: string; reviewSkills: string[] }
+  stackDetection: { stack: string; reviewSkills: string[] },
 ): AdoptBackend {
   return {
     name: backend.name,
@@ -418,7 +418,7 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
       withStack(recordedAdoptBackend(cargoNoRust), {
         stack: "TypeScript (npm)",
         reviewSkills: ["security-audit"],
-      })
+      }),
     );
     expect(Object.prototype.hasOwnProperty.call(noRustStack.profile, "architectureGate")).toBe(false);
 
@@ -428,7 +428,7 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
       withStack(recordedAdoptBackend(rustNoCargo), {
         stack: "Rust (cargo)",
         reviewSkills: RUST_REVIEW_SKILLS,
-      })
+      }),
     );
     expect(Object.prototype.hasOwnProperty.call(noCargo.profile, "architectureGate")).toBe(false);
   });
@@ -475,8 +475,7 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
     expect(suggestions).not.toContain("rust-crate-architecture");
 
     // byte-identical to the pre-change output (dates computed, not pinned)
-    const day = (offset: number) =>
-      new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+    const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
     expect(profile).toEqual({
       commands: { test: "bun test", lint: "bunx eslint ." },
       pointers: {
@@ -502,21 +501,24 @@ describe("init-extract (plan 081 T2) — Rust adopt draft wiring", () => {
 
   test("test_adopt_no_forbidden_changes", () => {
     const repoRoot = path.resolve(import.meta.dir, "..");
-    // TASK 4 owns the live judge schema in extensions/index.ts and the shell
-    // gate; profile-lint.sh is owned by plan 20261127-083 TASK 2, so its
-    // formatter-block change is no longer a forbidden diff here.
-    const diff = spawnSync(
-      "git",
-      [
-        "diff",
-        "--exit-code",
-        "--",
-        "scripts/flow-gates.mjs",
-      ],
-      { cwd: repoRoot, encoding: "utf-8" }
+    // TASK 4 owns the live judge schema in extensions/index.ts. Plan
+    // 20261127-083 TASK 4 also contracts the whole-tree dprint fmt run, so
+    // flow-gates.mjs may differ from HEAD by formatter output only: compare
+    // the live bytes with dprint's rendering of the HEAD bytes. A hand edit
+    // cannot pass this, and a committed format-only diff stays clean.
+    const head = spawnSync("git", ["show", "HEAD:scripts/flow-gates.mjs"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+    });
+    expect(head.status, head.stderr).toBe(0);
+    const formatted = spawnSync(
+      "mise",
+      ["exec", "--", "dprint", "fmt", "--stdin", "scripts/flow-gates.mjs"],
+      { cwd: repoRoot, input: head.stdout, encoding: "utf8" },
     );
-    expect(`${diff.stdout}${diff.stderr}`).toBe("");
-    expect(diff.status).toBe(0);
+    expect(formatted.status, formatted.stderr).toBe(0);
+    expect(fs.readFileSync(path.join(repoRoot, "scripts/flow-gates.mjs"), "utf8"))
+      .toBe(formatted.stdout);
     expect(fs.existsSync(path.join(repoRoot, ".deslop-please.allow"))).toBe(false);
     expect(fs.readdirSync(repoRoot).filter((f) => f.endsWith(".allow"))).toEqual([]);
     expect(Object.keys((INIT_EXTRACT_SCHEMA as any).properties).sort()).toEqual([
@@ -538,11 +540,11 @@ describe("init-extract (plan 081 T4) — live schema four-skill parity", () => {
       .properties.reviewSkills;
     const description = String(reviewSkills?.description ?? "");
     const namedRustSkills = [...description.matchAll(/\brust-[a-z0-9-]+/g)].map(
-      (m) => m[0]
+      (m) => m[0],
     );
     expect(
       [...new Set(namedRustSkills)].sort(),
-      "the live judge schema must name the same four-skill Rust family as the recorded backend"
+      "the live judge schema must name the same four-skill Rust family as the recorded backend",
     ).toEqual([...RUST_REVIEW_SKILLS].sort());
 
     // The recorded backend (and therefore the generated Rust charter) must
@@ -559,16 +561,15 @@ describe("init-extract (plan 081 T4) — live schema four-skill parity", () => {
 describe("init-extract (plan 20261125-082 TASK 2) — generated mise wrapper", () => {
   test("test_init_mise_wrapper", () => {
     const fragment = buildInitMiseFragment();
-    expect(fragment).toContain('[tasks."wf:judge-context"]');
+    expect(fragment).toContain("[tasks.\"wf:judge-context\"]");
     expect(fragment).toMatch(/^run = .*"\$PI_WORKFLOWS_BIN" judge-context "\$@".*$/m);
 
     // A fragment is TOML wrapper definitions, never a script body or a path
     // into the installed package's scripts directory.
     for (const line of fragment.split("\n").filter((l) => l.trim() !== "")) {
-      const wrapperLine =
-        /^\[tasks\."wf:[a-z0-9-]+"\]$/.test(line) ||
-        line.startsWith("description = ") ||
-        line.startsWith("run = ");
+      const wrapperLine = /^\[tasks\."wf:[a-z0-9-]+"\]$/.test(line)
+        || line.startsWith("description = ")
+        || line.startsWith("run = ");
       expect(line.startsWith("#") || wrapperLine).toBe(true);
     }
     expect(fragment).not.toContain("exec ");
@@ -625,13 +626,13 @@ function makeFormatterStubs(): { dir: string; log: string; pathEnv: string } {
       [
         "#!/usr/bin/env bash",
         `echo "$*" >> ${JSON.stringify(log)}`,
-        'case "$1" in',
+        "case \"$1\" in",
         "  --version|version|-V|--help) echo stub; exit 0 ;;",
         "esac",
         "exit 0",
         "",
       ].join("\n"),
-      { mode: 0o755 }
+      { mode: 0o755 },
     );
     fs.chmodSync(p, 0o755);
   }
@@ -640,9 +641,11 @@ function makeFormatterStubs(): { dir: string; log: string; pathEnv: string } {
 
 async function formatterModule(names: string[]): Promise<Record<string, (...args: any[]) => any>> {
   const mod = (await import("../scripts/init-extract.ts")) as Record<string, unknown>;
-  for (const name of names)
-    if (typeof mod[name] !== "function")
+  for (const name of names) {
+    if (typeof mod[name] !== "function") {
       throw new Error(`scripts/init-extract.ts must export ${name}() for the formatter registry contract`);
+    }
+  }
   return mod as Record<string, (...args: any[]) => any>;
 }
 
@@ -662,8 +665,7 @@ function flattenPaths(value: unknown): string[] {
 const idOf = (p: FormatterProfileLike) => (typeof p.id === "string" ? p.id : "");
 const cmdOf = (p: FormatterProfileLike) =>
   typeof p.command === "string" ? p.command : typeof p.checkCommand === "string" ? p.checkCommand : "";
-const targetsOf = (p: FormatterProfileLike) =>
-  flattenPaths((p as any).targets ?? (p as any).files ?? (p as any).paths);
+const targetsOf = (p: FormatterProfileLike) => flattenPaths((p as any).targets ?? (p as any).files ?? (p as any).paths);
 
 async function detectFormatters(root: string): Promise<FormatterProfileLike[]> {
   const mod = await formatterModule(["detectFormatterProfiles"]);
@@ -700,7 +702,7 @@ const DPRINT_TS_FILES: Record<string, string> = {
       devDependencies: { dprint: "0.50.0" },
     },
     null,
-    2
+    2,
   ),
   "dprint.json": JSON.stringify(
     {
@@ -712,24 +714,24 @@ const DPRINT_TS_FILES: Record<string, string> = {
       typescript: { lineWidth: 100 },
     },
     null,
-    2
+    2,
   ),
   "src/index.ts": "export const x = 1;\n",
   "src/util.js": "module.exports = 1;\n",
-  "data/config.json": '{"a":1}\n',
+  "data/config.json": "{\"a\":1}\n",
   "scripts/agents-lint.sh": GATE_STUB,
 };
 
 const PYTHON_RUFF_FILES: Record<string, string> = {
   "README.md": "# python fixture\n",
-  "pyproject.toml": '[tool.ruff]\nline-length = 100\n',
+  "pyproject.toml": "[tool.ruff]\nline-length = 100\n",
   "src/app.py": "x=1\n",
   "scripts/agents-lint.sh": GATE_STUB,
 };
 
 const RUST_FILES: Record<string, string> = {
   "README.md": "# rust fixture\n",
-  "Cargo.toml": '[package]\nname = "fixture-rs"\nversion = "0.1.0"\n',
+  "Cargo.toml": "[package]\nname = \"fixture-rs\"\nversion = \"0.1.0\"\n",
   "src/main.rs": "fn main() {}\n",
   "scripts/agents-lint.sh": GATE_STUB,
 };
@@ -755,7 +757,7 @@ const PLUGIN_FILES: Record<string, string> = {
       includes: ["**/*.ts", "**/*.toml", "**/*.sql", "**/*.ipynb", "**/Dockerfile"],
     },
     null,
-    2
+    2,
   ),
   "conf.toml": "key = 1\n",
   "query.sql": "SELECT 1;\n",
@@ -779,11 +781,12 @@ function snapshot(root: string): FileSnapshot {
       const full = path.join(dir, e.name);
       const r = rel ? `${rel}/${e.name}` : e.name;
       if (e.isDirectory()) walk(full, r);
-      else if (e.isFile())
+      else if (e.isFile()) {
         out.set(r, {
           sha: crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex"),
           mode: fs.statSync(full).mode & 0o777,
         });
+      }
     }
   };
   walk(root, "");
@@ -803,8 +806,9 @@ function expectOnlyDraftChanges(before: FileSnapshot, after: FileSnapshot, label
 function seedDrafts(root: string): void {
   const dir = path.join(root, ".workflows");
   fs.mkdirSync(dir, { recursive: true });
-  for (const f of ["profile.json.draft", "AGENTS.md.draft", "tree.json.draft", "charter-pointers.draft.md"])
+  for (const f of ["profile.json.draft", "AGENTS.md.draft", "tree.json.draft", "charter-pointers.draft.md"]) {
     fs.writeFileSync(path.join(dir, f), `seeded ${f}\n`);
+  }
 }
 
 describe("init-extract (plan 20261127-083 T2) — formatter detection + owner gate", () => {
@@ -818,7 +822,7 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
         const first = await detectFormatters(root);
         const second = await detectFormatters(root);
         expect(JSON.stringify(first), "detection must be byte-identical across two runs").toBe(
-          JSON.stringify(second)
+          JSON.stringify(second),
         );
         return first;
       };
@@ -849,29 +853,31 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
 
       expect(
         ts.some((p) => /\bdprint\b/.test(cmdOf(p)) && /\bcheck\b/.test(cmdOf(p))),
-        "TS/JS/JSON must resolve to a dprint check command"
+        "TS/JS/JSON must resolve to a dprint check command",
       ).toBe(true);
       expect(py.some((p) => cmdOf(p).includes("ruff format --check")), "Python must resolve to Ruff").toBe(true);
       expect(py.every((p) => !cmdOf(p).includes("dprint")), "no dprint Ruff wrapper without config").toBe(true);
       expect(
         wrapped.some((p) => /dprint/.test(cmdOf(p)) && /ruff/.test(cmdOf(p))),
-        "dprint Ruff wrapper only when existing config names it"
+        "dprint Ruff wrapper only when existing config names it",
       ).toBe(true);
       expect(rust.some((p) => cmdOf(p).includes("cargo fmt --check")), "Rust must prefer cargo fmt --check").toBe(true);
       expect(rust.every((p) => !/\bdprint\b/.test(cmdOf(p))), "no dprint exec as a Rust default").toBe(true);
       expect(
         shell.some((p) => /\bshfmt\b/.test(cmdOf(p)) && !/(^|\s)-w(\s|$)/.test(cmdOf(p))),
-        "shell must use a read-only shfmt check"
+        "shell must use a read-only shfmt check",
       ).toBe(true);
       const pluginProfile = plugins.find((p) => /\bdprint\b/.test(cmdOf(p)));
       expect(pluginProfile, "pinned dprint plugins must produce a dprint profile").toBeDefined();
       const pluginTargets = targetsOf(pluginProfile!).join("\n");
-      for (const rel of ["conf.toml", "query.sql", "notebook.ipynb", "Dockerfile"])
+      for (const rel of ["conf.toml", "query.sql", "notebook.ipynb", "Dockerfile"]) {
         expect(pluginTargets, `dprint plugin target ${rel}`).toContain(rel);
+      }
 
       expect(control, "source files without markers/config must yield no profile").toHaveLength(0);
-      for (const p of [...ts, ...py, ...wrapped, ...rust, ...shell, ...plugins, ...control])
+      for (const p of [...ts, ...py, ...wrapped, ...rust, ...shell, ...plugins, ...control]) {
         expect(targetsOf(p).join("\n")).not.toMatch(/\.mdx?(?:\s|$)/);
+      }
       expect(checkInvocations(stubs.log), "detection must not run a check").toEqual([]);
     } finally {
       process.env.PATH = previousPath;
@@ -901,7 +907,7 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
       const rustOffer = await offerText(rust!);
       expect(rustOffer).toContain("cargo fmt --check");
       expect(rustOffer, "dprint exec is an opt-in alternate only").toMatch(
-        /opt[- ]?in|optional|alternate|only on (?:explicit )?request/i
+        /opt[- ]?in|optional|alternate|only on (?:explicit )?request/i,
       );
       expect(rustOffer).not.toMatch(/default[^\n]*dprint/i);
 
@@ -937,7 +943,7 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
         const cli = spawnSync(
           "bun",
           [FORMATTER_SCRIPT, "--root", root, "--recorded", "--formatter-offer"],
-          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } }
+          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } },
         );
         const cliOut = `${cli.stdout ?? ""}${cli.stderr ?? ""}`;
         expect(cliOut, "CLI must present the formatter OFFER").toMatch(/\bOFFER\b/i);
@@ -947,7 +953,7 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
         const denied = spawnSync(
           "bun",
           [FORMATTER_SCRIPT, "--root", root, "--recorded", "--apply-formatter"],
-          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } }
+          { encoding: "utf-8", timeout: 60000, env: { ...process.env, PATH: stubs.pathEnv } },
         );
         expect(denied.status, "apply without the approval flag must be rejected").not.toBe(0);
         expect(`${denied.stdout ?? ""}${denied.stderr ?? ""}`.toLowerCase()).toContain("approval");
@@ -959,4 +965,3 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
     }
   }, 60000);
 });
-

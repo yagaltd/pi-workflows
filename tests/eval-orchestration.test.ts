@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { QUESTION_CAP } from "../scripts/judge.mjs";
 import {
   appendHistory,
   buildQuestions,
@@ -15,6 +14,7 @@ import {
   runOrchestration,
   scoreAnswers,
 } from "../scripts/eval-orchestration.mjs";
+import { QUESTION_CAP } from "../scripts/judge.mjs";
 
 const FIX_PACKS = "fixtures/evals/packs";
 const FIX_RUBRIC = "fixtures/evals/rubric.json";
@@ -78,7 +78,14 @@ describe("eval-orchestration fixtures (plan 20261102-052 T1)", () => {
     const { rubric, questionCount, error } = loadRubric(FIX_RUBRIC);
     expect(error).toBeUndefined();
     expect(Object.keys(rubric.dimensions).sort()).toEqual([
-      "boundaries", "budget", "citations", "done-when", "guard", "report", "secrets", "tdd",
+      "boundaries",
+      "budget",
+      "citations",
+      "done-when",
+      "guard",
+      "report",
+      "secrets",
+      "tdd",
     ]);
     expect(questionCount).toBe(14);
     const ids = Object.entries(rubric.dimensions).flatMap(([d, qs]) => qs.map((q) => `${d}:${q.id}`));
@@ -100,7 +107,9 @@ describe("eval-orchestration fixtures (plan 20261102-052 T1)", () => {
 
   test("loadRubric rejects a rubric exceeding the judge QUESTION_CAP", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "eo-bad-"));
-    const big = { dimensions: { x: Array.from({ length: QUESTION_CAP + 1 }, (_, i) => ({ id: `q${i}`, question: "q?" })) } };
+    const big = {
+      dimensions: { x: Array.from({ length: QUESTION_CAP + 1 }, (_, i) => ({ id: `q${i}`, question: "q?" })) },
+    };
     fs.writeFileSync(path.join(dir, "rubric.json"), JSON.stringify(big));
     const { error } = loadRubric(path.join(dir, "rubric.json"));
     expect(error).toMatch(/cap/i);
@@ -120,14 +129,20 @@ describe("eval-orchestration questions + scoring", () => {
       expect(q.question).toContain(packs[0].packText);
     }
     expect(qs.map((q) => q.id).sort()).toEqual([
-      "boundaries:allowed-changes", "boundaries:forbidden", "boundaries:scope-in-tree",
-      "budget:budget-number", "budget:budget-stated",
+      "boundaries:allowed-changes",
+      "boundaries:forbidden",
+      "boundaries:scope-in-tree",
+      "budget:budget-number",
+      "budget:budget-stated",
       "citations:file-citations",
-      "done-when:done-when-criteria", "done-when:done-when-verify",
+      "done-when:done-when-criteria",
+      "done-when:done-when-verify",
       "guard:guard-step",
-      "report:report-evidence", "report:report-sections",
+      "report:report-evidence",
+      "report:report-sections",
       "secrets:no-key-instructions",
-      "tdd:tdd-green-suite", "tdd:tdd-red-first",
+      "tdd:tdd-green-suite",
+      "tdd:tdd-red-first",
     ]);
   });
 
@@ -135,7 +150,10 @@ describe("eval-orchestration questions + scoring", () => {
     const { packs } = loadPacks(FIX_PACKS);
     const { rubric } = loadRubric(FIX_RUBRIC);
     const qs = buildQuestions(packs[0], rubric);
-    const rows = qs.map((q) => ({ id: q.id, verdict: q.id.startsWith("boundaries:") && q.id !== "boundaries:allowed-changes" ? "no" : "yes" }));
+    const rows = qs.map((q) => ({
+      id: q.id,
+      verdict: q.id.startsWith("boundaries:") && q.id !== "boundaries:allowed-changes" ? "no" : "yes",
+    }));
     const { perDimension, overall } = scoreAnswers(qs, rows);
     expect(perDimension.boundaries).toBeCloseTo(1 / 3);
     expect(perDimension.budget).toBe(1);
@@ -156,7 +174,10 @@ describe("eval-orchestration questions + scoring", () => {
 });
 
 describe("eval-orchestration trigger rules (pure)", () => {
-  const entry = (perDimension) => ({ perDimension, overall: Object.values(perDimension).reduce((a, b) => a + b, 0) / Object.values(perDimension).length });
+  const entry = (perDimension) => ({
+    perDimension,
+    overall: Object.values(perDimension).reduce((a, b) => a + b, 0) / Object.values(perDimension).length,
+  });
 
   test("stable: healthy pair", () => {
     const good = entry({ boundaries: 1, budget: 1 });
@@ -216,15 +237,24 @@ describe("eval-orchestration history", () => {
 
 describe("eval-orchestration run (fake askImpl — zero network)", () => {
   const opts = (historyFile, askImpl, extra = {}) => ({
-    packsDir: FIX_PACKS, rubricFile: FIX_RUBRIC, thresholdsFile: FIX_THRESHOLDS,
-    historyFile, askImpl, shaImpl: () => "deadbeef", nowImpl: () => "2026-11-02T00:00:00.000Z",
-    ...silent, ...extra,
+    packsDir: FIX_PACKS,
+    rubricFile: FIX_RUBRIC,
+    thresholdsFile: FIX_THRESHOLDS,
+    historyFile,
+    askImpl,
+    shaImpl: () => "deadbeef",
+    nowImpl: () => "2026-11-02T00:00:00.000Z",
+    ...silent,
+    ...extra,
   });
 
   test("one ask per pack (14 questions, under the cap), history row appended, first run prints stable", async () => {
     const f = tmpHistory();
     const calls = [];
-    const askImpl = async (args) => { calls.push(args); return allYes()(args); };
+    const askImpl = async (args) => {
+      calls.push(args);
+      return allYes()(args);
+    };
     const outLines = [];
     const code = await runOrchestration(opts(f, askImpl, { out: { write: (s) => outLines.push(s) } }));
     expect(code).toBe(0);
@@ -274,7 +304,9 @@ describe("eval-orchestration run (fake askImpl — zero network)", () => {
   test("usage error: missing packs dir → exit 2, no history write", async () => {
     const f = tmpHistory();
     const errs = [];
-    const code = await runOrchestration(opts(f, allYes(), { packsDir: "/nonexistent/packs", err: { write: (s) => errs.push(s) } }));
+    const code = await runOrchestration(
+      opts(f, allYes(), { packsDir: "/nonexistent/packs", err: { write: (s) => errs.push(s) } }),
+    );
     expect(code).toBe(2);
     expect(errs.join("")).toMatch(/not found|EVAL ORCHESTRATION ERROR/i);
     expect(fs.existsSync(f)).toBe(false);

@@ -15,12 +15,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import {
-  parsePlan,
-  parseSpec,
-  buildDiagrams,
-  run,
-} from "../scripts/plan-diagram.mjs";
+import { buildDiagrams, parsePlan, parseSpec, run } from "../scripts/plan-diagram.mjs";
 
 function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "plan-diagram-"));
@@ -161,8 +156,14 @@ describe("run (CLI)", () => {
     const dir = tmp();
     writeFixture(dir);
     const out = path.join(dir, "diagrams", "pi-workflows.json");
-    const code = run(["--plan", path.join(dir, ".workflows", "plan.md"),
-      "--specs-dir", path.join(dir, ".workflows", "specs"), "--out", out]);
+    const code = run([
+      "--plan",
+      path.join(dir, ".workflows", "plan.md"),
+      "--specs-dir",
+      path.join(dir, ".workflows", "specs"),
+      "--out",
+      out,
+    ]);
     expect(code).toBe(0);
     const parsed = JSON.parse(fs.readFileSync(out, "utf8"));
     const list = Array.isArray(parsed) ? parsed : [parsed];

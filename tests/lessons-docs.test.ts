@@ -16,8 +16,17 @@ describe("lessons docs + distill (plan 20261025-026)", () => {
     const ledger = ".workflows/lessons/lessons.jsonl";
     const before = fs.existsSync(ledger) ? fs.readFileSync(ledger, "utf8").trim().split("\n").length : 0;
     const code = await main([
-      "distill", "--plan-file", `${bundle}/plan.md`, "--reviews-dir", `${bundle}/reviews`,
-      "--plan-id", "20261025-021", "--proofs", ".workflows/proofs/proofs.jsonl", "--ledger", ledger,
+      "distill",
+      "--plan-file",
+      `${bundle}/plan.md`,
+      "--reviews-dir",
+      `${bundle}/reviews`,
+      "--plan-id",
+      "20261025-021",
+      "--proofs",
+      ".workflows/proofs/proofs.jsonl",
+      "--ledger",
+      ledger,
     ]);
     const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     const mine = rows.filter((x) => x.planId === "20261025-021");

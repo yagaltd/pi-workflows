@@ -10,8 +10,40 @@ const run = (argv) => main(argv);
 const seed = (dir) => {
   fs.writeFileSync(path.join(dir, "plan.md"), "# Plan\n\nadr: DEC-001 stays the decision link (see also DEC-002).\n");
   return [
-    ["record", "--id", "DEC-001", "--title", "Single judge client", "--rule", "All typed calls go through scripts/judge.mjs ask", "--scope", "scripts/**", "--decided-by", "20261025-017", "--revisit", "a second judge need appears", "--dir", dir],
-    ["record", "--id", "DEC-002", "--title", "Flows compile onto resolveNext", "--rule", "No second scheduler", "--scope", "scripts/flow-*.mjs", "--decided-by", "20261025-022", "--revisit", "the dispatcher contract changes", "--dir", dir],
+    [
+      "record",
+      "--id",
+      "DEC-001",
+      "--title",
+      "Single judge client",
+      "--rule",
+      "All typed calls go through scripts/judge.mjs ask",
+      "--scope",
+      "scripts/**",
+      "--decided-by",
+      "20261025-017",
+      "--revisit",
+      "a second judge need appears",
+      "--dir",
+      dir,
+    ],
+    [
+      "record",
+      "--id",
+      "DEC-002",
+      "--title",
+      "Flows compile onto resolveNext",
+      "--rule",
+      "No second scheduler",
+      "--scope",
+      "scripts/flow-*.mjs",
+      "--decided-by",
+      "20261025-022",
+      "--revisit",
+      "the dispatcher contract changes",
+      "--dir",
+      dir,
+    ],
   ];
 };
 
@@ -19,7 +51,19 @@ describe("decisions (plan 20261025-027)", () => {
   test("decision records round-trip through record list and supersede", async () => {
     const dir = tmp();
     for (const argv of seed(dir)) expect(await run(argv)).toBe(0);
-    expect(await run(["supersede", "--id", "DEC-002", "--by", "DEC-001", "--reason", "consolidated into the judge client", "--dir", dir])).toBe(0);
+    expect(
+      await run([
+        "supersede",
+        "--id",
+        "DEC-002",
+        "--by",
+        "DEC-001",
+        "--reason",
+        "consolidated into the judge client",
+        "--dir",
+        dir,
+      ]),
+    ).toBe(0);
     const rec = fs.readFileSync(path.join(dir, "DEC-002.md"), "utf8");
     expect(rec).toContain("superseded (by DEC-001 — consolidated into the judge client)");
     const index = fs.readFileSync(path.join(dir, "INDEX.md"), "utf8");

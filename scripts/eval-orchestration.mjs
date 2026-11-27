@@ -80,11 +80,18 @@ export function loadPacks(dir) {
     } catch (e) {
       return { error: e.message };
     }
-    if (!p || typeof p.packText !== "string" || !p.packText.trim())
+    if (!p || typeof p.packText !== "string" || !p.packText.trim()) {
       return { error: `${f}: pack needs a non-empty packText (the literal dispatch prompt)` };
-    if (typeof p.scenario !== "string" || !p.scenario.trim())
+    }
+    if (typeof p.scenario !== "string" || !p.scenario.trim()) {
       return { error: `${f}: pack needs a scenario` };
-    packs.push({ id: f.replace(/\.json$/, ""), scenario: p.scenario, roleContext: p.roleContext ?? "worker", packText: p.packText });
+    }
+    packs.push({
+      id: f.replace(/\.json$/, ""),
+      scenario: p.scenario,
+      roleContext: p.roleContext ?? "worker",
+      packText: p.packText,
+    });
   }
   return { packs };
 }
@@ -97,20 +104,25 @@ export function loadRubric(file) {
     return { error: e.message };
   }
   const dimensions = r?.dimensions;
-  if (!dimensions || typeof dimensions !== "object" || Array.isArray(dimensions))
+  if (!dimensions || typeof dimensions !== "object" || Array.isArray(dimensions)) {
     return { error: `${file}: rubric needs a dimensions object` };
+  }
   const ids = [];
   for (const [dim, qs] of Object.entries(dimensions)) {
-    if (!Array.isArray(qs) || qs.length === 0) return { error: `${file}: dimension ${dim} needs a non-empty question list` };
+    if (!Array.isArray(qs) || qs.length === 0) {
+      return { error: `${file}: dimension ${dim} needs a non-empty question list` };
+    }
     for (const q of qs) {
-      if (!q || typeof q.id !== "string" || !q.id.trim() || typeof q.question !== "string" || !q.question.trim())
+      if (!q || typeof q.id !== "string" || !q.id.trim() || typeof q.question !== "string" || !q.question.trim()) {
         return { error: `${file}: dimension ${dim} question needs non-empty id + question` };
+      }
       ids.push(`${dim}:${q.id}`);
     }
   }
   const questionCount = ids.length;
-  if (questionCount > QUESTION_CAP)
+  if (questionCount > QUESTION_CAP) {
     return { error: `${file}: ${questionCount} questions exceeds the ${QUESTION_CAP}-question judge cap` };
+  }
   if (new Set(ids).size !== ids.length) return { error: `${file}: duplicate question ids in rubric` };
   return { rubric: { dimensions }, questionCount };
 }
@@ -123,10 +135,9 @@ export function loadThresholds(file) {
     return { error: e.message };
   }
   const { floor, drift, consecutive } = t ?? {};
-  const ok =
-    typeof floor === "number" && floor > 0 && floor <= 1 &&
-    typeof drift === "number" && drift >= 0 &&
-    Number.isInteger(consecutive) && consecutive >= 2;
+  const ok = typeof floor === "number" && floor > 0 && floor <= 1
+    && typeof drift === "number" && drift >= 0
+    && Number.isInteger(consecutive) && consecutive >= 2;
   if (!ok) return { error: `${file}: thresholds need floor (0,1], drift >= 0, consecutive int >= 2` };
   return { thresholds: { floor, drift, consecutive } };
 }
@@ -185,7 +196,9 @@ export function classifyTrigger(entries, thresholds) {
   if (below.length >= 2) return "kaizen-event";
   if (entries.length >= consecutive && below.length >= 1) {
     const window = entries.slice(-consecutive);
-    const streak = below.some((d) => window.every((e) => e.perDimension?.[d] !== undefined && e.perDimension[d] < floor));
+    const streak = below.some((d) =>
+      window.every((e) => e.perDimension?.[d] !== undefined && e.perDimension[d] < floor)
+    );
     if (streak) return "kaizen-event";
   }
   if (prev && drop > drift) return "kaizen-event";
@@ -251,15 +264,21 @@ export async function runOrchestration({
     }
     const s = scoreAnswers(questions, r.verdict ?? []);
     packScores.push({ id: pack.id, ...s });
-    out.write(`pack ${pack.id}: ` +
-      Object.entries(s.perDimension).map(([d, v]) => `${d}=${fmt(v)}`).join(" ") +
-      ` overall=${fmt(s.overall)}\n`);
+    out.write(
+      `pack ${pack.id}: `
+        + Object.entries(s.perDimension).map(([d, v]) => `${d}=${fmt(v)}`).join(" ")
+        + ` overall=${fmt(s.overall)}\n`,
+    );
   }
 
   // NO-JUDGE degradation: any skipped pack makes the run incomplete — loud
   // skip, exit 0, and NO history row (scores must never fabricate coverage).
   if (skippedPacks.length > 0) {
-    err.write(`JUDGE SKIPPED (judge skipped for ${skippedPacks.length}/${packs.length} packs: ${skippedPacks.join(", ")}) — no history row appended\n`);
+    err.write(
+      `JUDGE SKIPPED (judge skipped for ${skippedPacks.length}/${packs.length} packs: ${
+        skippedPacks.join(", ")
+      }) — no history row appended\n`,
+    );
     return 0;
   }
 
@@ -283,15 +302,31 @@ export async function runOrchestration({
   const below = dims.filter((d) => perDimension[d] < thresholds.floor);
   const drop = previous.overall - overall;
   if (trigger === "stable") {
-    out.write(`trigger: stable (no dimension below floor ${fmt(thresholds.floor)}; overall drift ${fmt(drop)} vs previous ≤ drift ${fmt(thresholds.drift)})\n`);
+    out.write(
+      `trigger: stable (no dimension below floor ${fmt(thresholds.floor)}; overall drift ${
+        fmt(drop)
+      } vs previous ≤ drift ${fmt(thresholds.drift)})\n`,
+    );
   } else if (trigger === "daily-kaizen") {
     const d = below[0];
-    out.write(`trigger: daily-kaizen (${d} dipped below floor ${fmt(thresholds.floor)}: ${fmt(previous.perDimension[d] ?? 0)} → ${fmt(perDimension[d])}; overall drop ${fmt(drop)} ≤ drift ${fmt(thresholds.drift)})\n`);
+    out.write(
+      `trigger: daily-kaizen (${d} dipped below floor ${fmt(thresholds.floor)}: ${
+        fmt(previous.perDimension[d] ?? 0)
+      } → ${fmt(perDimension[d])}; overall drop ${fmt(drop)} ≤ drift ${fmt(thresholds.drift)})\n`,
+    );
   } else {
     const evidence = [];
-    if (below.length >= 2) evidence.push(`${below.length} dimensions below floor ${fmt(thresholds.floor)} in one run: ${below.join(", ")}`);
+    if (below.length >= 2) {
+      evidence.push(`${below.length} dimensions below floor ${fmt(thresholds.floor)} in one run: ${below.join(", ")}`);
+    }
     const streak = below.filter((d) => (previous.perDimension?.[d] ?? 1) < thresholds.floor);
-    if (streak.length) evidence.push(`below floor in 2 consecutive entries: ${streak.join(", ")} (${streak.map((d) => fmt(previous.perDimension[d])).join(", ")} → ${streak.map((d) => fmt(perDimension[d])).join(", ")})`);
+    if (streak.length) {
+      evidence.push(
+        `below floor in 2 consecutive entries: ${streak.join(", ")} (${
+          streak.map((d) => fmt(previous.perDimension[d])).join(", ")
+        } → ${streak.map((d) => fmt(perDimension[d])).join(", ")})`,
+      );
+    }
     if (drop > thresholds.drift) evidence.push(`overall drop ${fmt(drop)} > drift ${fmt(thresholds.drift)}`);
     out.write(`trigger: kaizen-event (${evidence.join("; ")})\n`);
   }
@@ -303,8 +338,10 @@ export async function runOrchestration({
 async function main(argv) {
   const { opts, error } = parseArgs(argv);
   if (error) {
-    process.stderr.write(`EVAL ORCHESTRATION ERROR: ${error}\n` +
-      "usage: eval-orchestration.mjs [--packs DIR] [--rubric FILE] [--thresholds FILE] [--history FILE]\n");
+    process.stderr.write(
+      `EVAL ORCHESTRATION ERROR: ${error}\n`
+        + "usage: eval-orchestration.mjs [--packs DIR] [--rubric FILE] [--thresholds FILE] [--history FILE]\n",
+    );
     return 2;
   }
   return runOrchestration(opts);

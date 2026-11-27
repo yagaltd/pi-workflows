@@ -13,7 +13,7 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { readProofs, evidenceVerdict } from "./proof-ledger.mjs";
+import { evidenceVerdict, readProofs } from "./proof-ledger.mjs";
 
 const PROOF_LEDGER = ".workflows/proofs/proofs.jsonl";
 
@@ -29,7 +29,11 @@ export function evidenceGate(taskId, { ledger = PROOF_LEDGER, planId } = {}) {
   }
   const rows = readProofs(ledger).filter((r) => r.taskId === taskId && r.planId === planId);
   if (rows.length === 0) {
-    return { status: "fail", reason: `evidence: not_checked — no proofs recorded for task ${taskId}${planId ? ` under plan ${planId}` : ""}`, results: [] };
+    return {
+      status: "fail",
+      reason: `evidence: not_checked — no proofs recorded for task ${taskId}${planId ? ` under plan ${planId}` : ""}`,
+      results: [],
+    };
   }
   const checks = rows.map((row) => ({
     runner: row.runner ?? "worker",
@@ -39,13 +43,21 @@ export function evidenceGate(taskId, { ledger = PROOF_LEDGER, planId } = {}) {
   const verdict = evidenceVerdict("worker", checks);
   if (verdict === "passed") return { status: "pass", reason: null, results: checks };
   if (verdict === "not_independent") {
-    return { status: "fail", reason: `evidence: not_independent — task ${taskId} has no independent replayable proof (owner-run only)`, results: checks };
+    return {
+      status: "fail",
+      reason: `evidence: not_independent — task ${taskId} has no independent replayable proof (owner-run only)`,
+      results: checks,
+    };
   }
   if (verdict === "not_checked") {
     return { status: "fail", reason: `evidence: not_checked — task ${taskId} has no counted proofs`, results: checks };
   }
   const bad = rows.find((row, i) => checks[i].status !== "passed" || checks[i].replayable === false);
-  return { status: "fail", reason: `evidence: failed — task ${taskId} failing proof: ${bad?.command ?? "(unknown)"}`, results: checks };
+  return {
+    status: "fail",
+    reason: `evidence: failed — task ${taskId} failing proof: ${bad?.command ?? "(unknown)"}`,
+    results: checks,
+  };
 }
 
 // Version tolerance - plan 20261031-048 fix round: the per-spec loop needs
@@ -55,9 +67,8 @@ export function evidenceGate(taskId, { ledger = PROOF_LEDGER, planId } = {}) {
 // specs dir — skip-only specs then count as failing, so reviewers must scope
 // boundaries per task by hand (that cost is named in the warning).
 const AGGREGATE_SPEC_GUARD = "agent-spec guard --spec-dir .workflows/specs --code .";
-const SPEC_GUARD_DEGRADED =
-  "contract gate: agent-spec lacks --spec — using aggregate --spec-dir form " +
-  "(skip-only specs count as failing; reviewers judge boundaries scoped per task)";
+const SPEC_GUARD_DEGRADED = "contract gate: agent-spec lacks --spec — using aggregate --spec-dir form "
+  + "(skip-only specs count as failing; reviewers judge boundaries scoped per task)";
 
 let specFlagSupport; // memo: "supported" | "unsupported" | "absent"
 function specGuardSupport() {
@@ -95,11 +106,16 @@ export function gateCommands(name, dir = ".") {
     // Any failing spec fails the gate; outputs incl. skip verdicts are kept.
     // Version tolerance - plan 20261031-048: --spec-less agent-spec degrades to
     // the aggregate --spec-dir guard, loudly (see specGuardSupport).
-    case "contract": return contractGateCommands();
-    case "test-quality": return testQualityCommands(dir);
-    case "review": return ["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"];
-    case "evidence": return []; // handled by evidenceGate in runGate — no shell commands
-    default: return null;
+    case "contract":
+      return contractGateCommands();
+    case "test-quality":
+      return testQualityCommands(dir);
+    case "review":
+      return ["bash scripts/check-drift.sh", "bash scripts/docs-lint.sh"];
+    case "evidence":
+      return []; // handled by evidenceGate in runGate — no shell commands
+    default:
+      return null;
   }
 }
 
@@ -137,7 +153,8 @@ export function miseTasks(text) {
   return check && verify ? { check, verify } : null;
 }
 
-const MISE_TASK_SKIP = "test-quality gate: mise.toml defines [tasks] check/verify but the mise binary is absent — skipping the executable-charter tasks LOUDLY";
+const MISE_TASK_SKIP =
+  "test-quality gate: mise.toml defines [tasks] check/verify but the mise binary is absent — skipping the executable-charter tasks LOUDLY";
 
 // Absent tdd-guard is a loud skip that names the binary AND the install hint —
 // never a silent pass (DEC-003).
@@ -155,24 +172,32 @@ export function testQualityCommands(dir = ".") {
   return miseTasks(text) ? [...base, "mise run check", "mise run verify"] : base;
 }
 
-export function runGate(name, { exec = (cmd) => spawnSync("bash", ["-c", cmd], {
-      encoding: "utf8",
-      // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
-      env: process.env,
-      // bounded: a hung check/verify task must not wedge the gate (T10)
-      timeout: 120_000,
-    }), present, taskId, task, ledger, planId, dir } = {}) {
+export function runGate(name, {
+  exec = (cmd) => spawnSync("bash", ["-c", cmd], {
+    encoding: "utf8",
+    // env pinned: Bun's spawnSync resolves against the process-STARTUP env/PATH snapshot when env is omitted, silently ignoring later PATH mutations.
+    env: process.env,
+    // bounded: a hung check/verify task must not wedge the gate (T10)
+    timeout: 120_000,
+  }),
+  present,
+  taskId,
+  task,
+  ledger,
+  planId,
+  dir,
+} = {}) {
   if (name === "evidence") return evidenceGate(taskId ?? task, { ledger, planId });
   const commands = gateCommands(name, dir);
   if (!commands) return { status: "fail", reason: `unknown gate: ${name}`, results: [] };
 
   const bin = firstToken(commands[0]);
-  const here = present ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`], { env: process.env }).status === 0);
+  const here = present
+    ?? ((b) => b === "bash" || spawnSync("bash", ["-c", `command -v ${b}`], { env: process.env }).status === 0);
   if (!here(bin)) {
-    const reason =
-      name === "test-quality"
-        ? `toolchain absent: ${bin} — ${TEST_QUALITY_INSTALL}; the test-quality gate is skipped, never a pass`
-        : `toolchain absent: ${bin}`;
+    const reason = name === "test-quality"
+      ? `toolchain absent: ${bin} — ${TEST_QUALITY_INSTALL}; the test-quality gate is skipped, never a pass`
+      : `toolchain absent: ${bin}`;
     return { status: "skipped", reason, results: [] };
   }
   // mise tasks appended by testQualityCommands need the mise binary; absent →

@@ -28,10 +28,9 @@ export function decideOutputPolicy(input = {}) {
     prose: true,
     statusTokens: true,
     table: (rows >= 3 && fields >= 3) || artifact === "closeout-next-moves",
-    diagram:
-      (tasks >= 4 && (dependencies >= 2 || waves >= 2 || statusMix >= 2)) ||
-      fixLoop === true ||
-      stateMachine === true ||
-      (components >= 3 && links >= 2),
+    diagram: (tasks >= 4 && (dependencies >= 2 || waves >= 2 || statusMix >= 2))
+      || fixLoop === true
+      || stateMachine === true
+      || (components >= 3 && links >= 2),
   };
 }

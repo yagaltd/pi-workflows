@@ -7,8 +7,11 @@ describe("proof-verdict (plan 20261031-048)", () => {
     // kwant foundry.rs:939 cases, verbatim mapping: not_replayable never counts.
     expect(exampleVerdict([{ status: "not_replayable", replayable: false }])).toBe("not_checked");
     expect(exampleVerdict([])).toBe("not_checked");
-    expect(exampleVerdict([{ status: "passed", replayable: true }, { status: "not_replayable", replayable: false }])).toBe("passed");
-    expect(exampleVerdict([{ status: "passed", replayable: true }, { status: "failed", replayable: true }])).toBe("failed");
+    expect(exampleVerdict([{ status: "passed", replayable: true }, { status: "not_replayable", replayable: false }]))
+      .toBe("passed");
+    expect(exampleVerdict([{ status: "passed", replayable: true }, { status: "failed", replayable: true }])).toBe(
+      "failed",
+    );
     expect(exampleVerdict([{ status: "error", replayable: true }])).toBe("failed");
   });
 

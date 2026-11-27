@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type { JudgeBackend } from "../extensions/index.ts";
 import {
   AUDIT_BATCH_FIXTURES,
-  INIT_ADOPT_FIXTURES,
-  PLAN_DAG_FIXTURES,
   evalAuditBatchBackend,
   evalInitAdoptBackend,
   evalPlanDagBackend,
+  INIT_ADOPT_FIXTURES,
+  PLAN_DAG_FIXTURES,
   recordedAuditBatchBackend,
   recordedPlanDagBackend,
 } from "../scripts/bench-intake-triage.ts";
@@ -34,7 +34,7 @@ describe("harness initextract mode (plan 078 T2 — draft-by-judge, verify-by-ga
       expect(s.lintVerdictCorrect).toBe(s.total);
       expect(s.skipped).toBe(0);
     },
-    60000
+    60000,
   );
 
   test(
@@ -45,7 +45,7 @@ describe("harness initextract mode (plan 078 T2 — draft-by-judge, verify-by-ga
       expect(s.skipped).toBe(INIT_ADOPT_FIXTURES.length);
       expect(s.accuracy).toBe(0);
     },
-    60000
+    60000,
   );
 
   test("the fixture repos exist on disk (fake brownfield trees in tests/)", () => {

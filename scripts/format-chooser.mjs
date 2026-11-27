@@ -19,8 +19,8 @@
 
 import fs from "node:fs";
 import { ask } from "./judge.mjs";
-import { decideOutputPolicy } from "./output-policy.mjs";
 import { parsePolicyArgs } from "./output-policy-cli.mjs";
+import { decideOutputPolicy } from "./output-policy.mjs";
 
 export const BOUNDARIES = ["closeout", "plan-approval", "challenge", "brainstorm-graduation"];
 export const ARTIFACTS = ["none", "table", "mermaid", "html"];
@@ -38,7 +38,8 @@ const TYPE_GROUPS = {
   other: "none of these — pick from the 45-type guide",
 };
 
-const LADDER = `Prose is the default. Use a table when 3 columns communicate the same thing. Use a diagram only when the reader learns more from a visual than from prose or a table: multi-system architecture, state machines, decision graphs, flows of quantity. Lists of things are not diagrams. One-shape diagrams are a sentence.`;
+const LADDER =
+  `Prose is the default. Use a table when 3 columns communicate the same thing. Use a diagram only when the reader learns more from a visual than from prose or a table: multi-system architecture, state machines, decision graphs, flows of quantity. Lists of things are not diagrams. One-shape diagrams are a sentence.`;
 
 export function parseArgs(argv) {
   const o = { cmd: null, for: null, contentFile: null, audit: null };
@@ -61,12 +62,16 @@ export function buildQuestions(boundary, content) {
   return [
     {
       id: "artifact",
-      question: `Which artifact form serves a human decision on this output best? Ladder: ${LADDER}\nAnswer none when prose suffices — none is the correct default, not a failure.`,
+      question:
+        `Which artifact form serves a human decision on this output best? Ladder: ${LADDER}\nAnswer none when prose suffices — none is the correct default, not a failure.`,
       schema: { type: "string", enum: ARTIFACTS },
     },
     {
       id: "type",
-      question: `Speculative premise: a visual artifact is chosen. If the artifact is none or table, this answer is unused. Which diagram family fits the content best? Groups: ${Object.entries(TYPE_GROUPS).map(([k, v]) => `${k} = ${v}`).join("; ")}`,
+      question:
+        `Speculative premise: a visual artifact is chosen. If the artifact is none or table, this answer is unused. Which diagram family fits the content best? Groups: ${
+          Object.entries(TYPE_GROUPS).map(([k, v]) => `${k} = ${v}`).join("; ")
+        }`,
       schema: { type: "string", enum: Object.keys(TYPE_GROUPS) },
     },
   ];
@@ -99,7 +104,14 @@ export async function choose({ boundary, content, auditFile, policy, ask: askFn 
   const policyFlags = { table: decision.table === true, diagram: decision.diagram === true };
   const r = await askFn({ questions: buildQuestions(boundary, content), ...(auditFile ? { auditFile } : {}) });
   if (!r || r.skipped) {
-    return { boundary, policy: policyFlags, artifact: "none", diagram: false, skipped: true, reason: "judge unavailable — prose stands (ladder rung 1)" };
+    return {
+      boundary,
+      policy: policyFlags,
+      artifact: "none",
+      diagram: false,
+      skipped: true,
+      reason: "judge unavailable — prose stands (ladder rung 1)",
+    };
   }
   const verdict = readVerdict(r);
   const artifact = policyFlags.table ? "table" : policyFlags.diagram ? POLICY_DIAGRAM_FORM : "none";
@@ -120,15 +132,35 @@ export async function choose({ boundary, content, auditFile, policy, ask: askFn 
 
 export async function main(argv, { ask: askFn = ask, err = process.stderr, out = (s) => console.log(s), policy } = {}) {
   const { input: policyInput, rest, error: policyError } = parsePolicyArgs(argv);
-  if (policyError) { err.write(`usage error: ${policyError}\n`); return 2; }
+  if (policyError) {
+    err.write(`usage error: ${policyError}\n`);
+    return 2;
+  }
   const { opts, error } = parseArgs(rest);
-  if (error) { err.write(`usage error: ${error}\n`); return 2; }
-  if (!fs.existsSync(opts.contentFile)) { err.write(`usage error: content file not found: ${opts.contentFile}\n`); return 2; }
+  if (error) {
+    err.write(`usage error: ${error}\n`);
+    return 2;
+  }
+  if (!fs.existsSync(opts.contentFile)) {
+    err.write(`usage error: content file not found: ${opts.contentFile}\n`);
+    return 2;
+  }
   const content = fs.readFileSync(opts.contentFile, "utf8");
   const effectivePolicy = policy ?? (Object.keys(policyInput).length ? decideOutputPolicy(policyInput) : undefined);
-  const c = await choose({ boundary: opts.for, content, ...(opts.audit ? { auditFile: opts.audit } : {}), ...(effectivePolicy ? { policy: effectivePolicy } : {}), ask: askFn });
+  const c = await choose({
+    boundary: opts.for,
+    content,
+    ...(opts.audit ? { auditFile: opts.audit } : {}),
+    ...(effectivePolicy ? { policy: effectivePolicy } : {}),
+    ask: askFn,
+  });
   if (c.skipped) err.write(`FORMAT CHOOSER SKIPPED (${c.reason})\n`);
-  out(JSON.stringify({ ...c, note: "advisory — the agent may overrule with a stated reason; html artifacts are generated views, never gates" }));
+  out(
+    JSON.stringify({
+      ...c,
+      note: "advisory — the agent may overrule with a stated reason; html artifacts are generated views, never gates",
+    }),
+  );
   return 0;
 }
 

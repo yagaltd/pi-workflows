@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  draftSpecScenarios,
-  renderSpecDraft,
-  type JudgeBackend,
-} from "../extensions/index.ts";
+import { draftSpecScenarios, type JudgeBackend, renderSpecDraft } from "../extensions/index.ts";
 
 /* ── Task 6: spec-draft extraction ── */
 
@@ -16,7 +12,7 @@ const PLAN_TEXT = [
 ].join("\n");
 
 function draftBackend(
-  answer: (input: string) => Record<string, unknown> | { skip: string }
+  answer: (input: string) => Record<string, unknown> | { skip: string },
 ): { backend: JudgeBackend; calls: string[] } {
   const calls: string[] = [];
   return {
@@ -84,7 +80,7 @@ describe("draftSpecScenarios — the draft-only skeleton (plan 077 T6)", () => {
     const r = await draftSpecScenarios(backend, PLAN_TEXT);
     const text = renderSpecDraft(r.draft);
     expect(text).toContain("spec: task");
-    expect(text).toContain('name: "Widget gate"');
+    expect(text).toContain("name: \"Widget gate\"");
     expect(text).toContain("## Intent");
     expect(text).toContain("Scenario: empty pattern rejected");
     expect(text).toContain("Test: bash scripts/widget-gate.sh fixtures/bad.spec");

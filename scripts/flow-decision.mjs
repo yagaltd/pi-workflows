@@ -7,11 +7,16 @@ import { QUESTION_CAP } from "./judge.mjs";
 
 const schemaFor = (q) => {
   switch (q.kind) {
-    case "choose": return { type: "string", enum: q.options };
-    case "rate": return { type: "string", enum: q.levels };
-    case "verify": return { type: "string", enum: ["yes", "no"] };
-    case "probability": return { type: "number", minimum: 0, maximum: 1 };
-    default: return { type: "string" };
+    case "choose":
+      return { type: "string", enum: q.options };
+    case "rate":
+      return { type: "string", enum: q.levels };
+    case "verify":
+      return { type: "string", enum: ["yes", "no"] };
+    case "probability":
+      return { type: "number", minimum: 0, maximum: 1 };
+    default:
+      return { type: "string" };
   }
 };
 
@@ -55,12 +60,23 @@ export async function runDecisionStep(step, { ask }) {
   if (a) {
     const ans = answers[a.question];
     if (!ans) return { status: "fail", reason: `assert references unanswered question "${a.question}"`, answers };
-    if (a.equals !== undefined && ans.value !== a.equals)
-      return { status: "fail", reason: `${a.question} = ${JSON.stringify(ans.value)}, expected ${JSON.stringify(a.equals)}`, answers };
-    if (Array.isArray(a.in) && !a.in.includes(ans.value))
-      return { status: "fail", reason: `${a.question} = ${JSON.stringify(ans.value)}, expected one of [${a.in.join(", ")}]`, answers };
-    if (typeof a.min_confidence === "number" && ans.confidence < a.min_confidence)
+    if (a.equals !== undefined && ans.value !== a.equals) {
+      return {
+        status: "fail",
+        reason: `${a.question} = ${JSON.stringify(ans.value)}, expected ${JSON.stringify(a.equals)}`,
+        answers,
+      };
+    }
+    if (Array.isArray(a.in) && !a.in.includes(ans.value)) {
+      return {
+        status: "fail",
+        reason: `${a.question} = ${JSON.stringify(ans.value)}, expected one of [${a.in.join(", ")}]`,
+        answers,
+      };
+    }
+    if (typeof a.min_confidence === "number" && ans.confidence < a.min_confidence) {
       return { status: "fail", reason: `${a.question} confidence ${ans.confidence} < ${a.min_confidence}`, answers };
+    }
   }
   return { status: "pass", answers };
 }

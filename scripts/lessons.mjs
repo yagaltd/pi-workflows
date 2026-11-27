@@ -22,7 +22,16 @@ const STATUSES = ["valid", "superseded", "failed", "speculative"];
 const DEFAULT_LEDGER = ".workflows/lessons/lessons.jsonl";
 
 export function parseArgs(argv) {
-  const o = { cmd: null, ledger: DEFAULT_LEDGER, status: null, tag: null, text: null, id: null, reason: null, to: null };
+  const o = {
+    cmd: null,
+    ledger: DEFAULT_LEDGER,
+    status: null,
+    tag: null,
+    text: null,
+    id: null,
+    reason: null,
+    to: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "distill" || a === "set" || a === "list") o.cmd = a;
@@ -40,11 +49,17 @@ export function parseArgs(argv) {
     else return { error: `unknown argument: ${a}` };
   }
   if (!o.cmd) return { error: "subcommand required: distill | set | list" };
-  if (o.cmd === "distill" && (!o.planFile || !o.reviewsDir || !o.planId)) return { error: "distill needs --plan-file, --reviews-dir, --plan-id" };
+  if (o.cmd === "distill" && (!o.planFile || !o.reviewsDir || !o.planId)) {
+    return { error: "distill needs --plan-file, --reviews-dir, --plan-id" };
+  }
   if (o.cmd === "set" && (!o.id || !o.to)) return { error: "set needs --id and --to" };
-  if (o.cmd === "set" && !o.reason) return { error: "set needs --reason — never change a lesson status without a recorded reason" };
+  if (o.cmd === "set" && !o.reason) {
+    return { error: "set needs --reason — never change a lesson status without a recorded reason" };
+  }
   if (o.cmd === "set" && !STATUSES.includes(o.to)) return { error: `--to must be one of ${STATUSES.join("|")}` };
-  if (o.cmd === "list" && o.status && !STATUSES.includes(o.status)) return { error: `--status must be one of ${STATUSES.join("|")}` };
+  if (o.cmd === "list" && o.status && !STATUSES.includes(o.status)) {
+    return { error: `--status must be one of ${STATUSES.join("|")}` };
+  }
   return { opts: o };
 }
 
@@ -78,7 +93,9 @@ export function distill({ planFile, reviewsDir, planId, proofsFile, ledger }) {
   const planText = fs.readFileSync(planFile, "utf8");
   const tasks = parsePlanTasks(planText);
   const proofs = fs.existsSync(proofsFile)
-    ? fs.readFileSync(proofsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((r) => r.planId === planId)
+    ? fs.readFileSync(proofsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((r) =>
+      r.planId === planId
+    )
     : [];
   const existing = readLedger(ledger).filter((e) => e.type === "lesson" && e.planId === planId);
   const seen = new Set(existing.map((e) => e.taskId));
@@ -89,7 +106,11 @@ export function distill({ planFile, reviewsDir, planId, proofsFile, ledger }) {
     if (seen.has(taskId)) continue; // idempotent per (planId, taskId)
     const taskProofs = proofs.filter((p) => p.taskId === taskId);
     const verdict = reviewVerdict(reviewsDir, t.num);
-    const status = t.status === "failed" ? "failed" : t.status === "done" && verdict === "ok:true" ? "valid" : "speculative";
+    const status = t.status === "failed"
+      ? "failed"
+      : t.status === "done" && verdict === "ok:true"
+      ? "valid"
+      : "speculative";
     const provenance = taskProofs.length > 0 ? "verified" : "from_untrusted";
     const entry = {
       type: "lesson",
@@ -129,11 +150,17 @@ export function currentStatus(entries, lessonId) {
 
 export async function main(argv) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
 
   if (opts.cmd === "distill") {
     const appended = distill({ ...opts, proofsFile: opts.proofs });
-    if (appended.length === 0) { console.log("distill: nothing new (bundle already distilled)"); return 1; }
+    if (appended.length === 0) {
+      console.log("distill: nothing new (bundle already distilled)");
+      return 1;
+    }
     for (const e of appended) console.log(`lesson ${e.id} [${e.status}/${e.provenance}] ${e.lesson}`);
     console.log(`distill: ${appended.length} lesson(s) → ${opts.ledger}`);
     return 0;
@@ -142,8 +169,17 @@ export async function main(argv) {
   if (opts.cmd === "set") {
     const entries = readLedger(opts.ledger);
     const exists = entries.some((e) => e.type === "lesson" && e.id === opts.id);
-    if (!exists) { console.error(`unknown lesson id: ${opts.id}`); return 1; }
-    appendLesson(opts.ledger, { type: "transition", target: opts.id, to: opts.to, reason: opts.reason, ts: new Date().toISOString() });
+    if (!exists) {
+      console.error(`unknown lesson id: ${opts.id}`);
+      return 1;
+    }
+    appendLesson(opts.ledger, {
+      type: "transition",
+      target: opts.id,
+      to: opts.to,
+      reason: opts.reason,
+      ts: new Date().toISOString(),
+    });
     console.log(`transition recorded: ${opts.id} → ${opts.to} (${opts.reason})`);
     return 0;
   }

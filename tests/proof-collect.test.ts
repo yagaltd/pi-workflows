@@ -11,16 +11,36 @@ describe("proof-collect (plan 20261025-025)", () => {
     const reviews = path.join(dir, "reviews");
     const ledger = path.join(dir, "proofs.jsonl");
     fs.mkdirSync(reviews);
-    fs.writeFileSync(journal, [
-      JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", event: "dispatched" }),
-      JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", event: "done" }),
-      JSON.stringify({ ts: "t", planId: "p1", taskId: "task-2", event: "dispatched" }),
-    ].join("\n") + "\n");
+    fs.writeFileSync(
+      journal,
+      [
+        JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", event: "dispatched" }),
+        JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", event: "done" }),
+        JSON.stringify({ ts: "t", planId: "p1", taskId: "task-2", event: "dispatched" }),
+      ].join("\n") + "\n",
+    );
     fs.writeFileSync(path.join(reviews, "task-1.md"), "## Round 1\n**ok: true**");
-    fs.writeFileSync(ledger, JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", command: "true", exit: 0, outputHash: "x" }) + "\n");
+    fs.writeFileSync(
+      ledger,
+      JSON.stringify({ ts: "t", planId: "p1", taskId: "task-1", command: "true", exit: 0, outputHash: "x" }) + "\n",
+    );
 
     const out = path.join(dir, "evidence-p1.json");
-    expect(await main(["collect", "--plan", "p1", "--journal", journal, "--reviews", reviews, "--ledger", ledger, "--out", out])).toBe(0);
+    expect(
+      await main([
+        "collect",
+        "--plan",
+        "p1",
+        "--journal",
+        journal,
+        "--reviews",
+        reviews,
+        "--ledger",
+        ledger,
+        "--out",
+        out,
+      ]),
+    ).toBe(0);
     const e = JSON.parse(fs.readFileSync(out, "utf8"));
     expect(e.tasks["task-1"].journal).toEqual(["dispatched", "done"]);
     expect(e.tasks["task-1"].verdictOk).toBe(true);

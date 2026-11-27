@@ -14,7 +14,10 @@ describe("typesafe + queue wiring (plan 20261025-029)", () => {
     expect(flow).not.toContain("TYPEDLLM_API_KEY");
   });
 
-  const queueLive = requireLiveState(".workflows/queue.json", "live queue rows carry all six columns as strings and shipped or cancelled C D E rows never return; an empty queue is valid");
+  const queueLive = requireLiveState(
+    ".workflows/queue.json",
+    "live queue rows carry all six columns as strings and shipped or cancelled C D E rows never return; an empty queue is valid",
+  );
   test.skipIf(!queueLive)("queue json carries c d e options with all columns", () => {
     const rows = JSON.parse(fs.readFileSync(".workflows/queue.json", "utf8"));
     // Structural invariant (032): rows carry all columns; shipped/cancelled

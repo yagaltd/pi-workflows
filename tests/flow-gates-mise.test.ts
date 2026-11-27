@@ -239,10 +239,11 @@ exit 0
     fs.writeFileSync(path.join(bin, "cargo"), CARGO_LOCK_AWARE_STUB, { mode: 0o755 });
     fs.writeFileSync(
       path.join(dir, "Cargo.toml"),
-      '[package]\nname = "fresh-workspace"\nversion = "0.1.0"\n'
+      "[package]\nname = \"fresh-workspace\"\nversion = \"0.1.0\"\n",
     );
-    if (withLock)
+    if (withLock) {
       fs.writeFileSync(path.join(dir, "Cargo.lock"), "# owner-managed lock\n");
+    }
     return { dir, bin, cargoLog: path.join(dir, "cargo.log") };
   }
 
@@ -273,7 +274,7 @@ exit 0
       : "";
     expect(argv, "an installed deslop-please must actually run").not.toBe("");
     expect(argv, "the real CLI takes no arguments when no allow list is declared").toBe(
-      "deslop-please"
+      "deslop-please",
     );
     // No owner-managed allow file exists here: the check must not point a
     // --allow flag at a file that is not there (and must not invent one).
@@ -295,7 +296,7 @@ exit 0
     const commands = fs.readFileSync(cargoLog, "utf8").trim().split("\n");
     expect(commands.length).toBeGreaterThan(1);
     expect(commands[0], "a non-locked cargo metadata must bootstrap the lock first").toMatch(
-      /^metadata\b/
+      /^metadata\b/,
     );
     expect(commands[0]).not.toContain("--locked");
     const firstLocked = commands.findIndex((line) => line.includes("--locked"));

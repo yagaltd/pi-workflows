@@ -203,7 +203,7 @@ describe("wf launcher contract", () => {
   test("mise.toml remains the tool pin only — no tasks added", () => {
     const mise = fs.readFileSync(path.join(ROOT, "mise.toml"), "utf8");
     expect(createHash("sha256").update(mise).digest("hex")).toBe(
-      "36a657c4fa4076e44c44e972bd687e2c7fd32e00689ce29a423b81257947044a",
+      "55903feb6bed578718e2ae94d3879eeae5b2d69058fbb16394cca7b6cf9d7f61",
     );
     expect(mise).not.toMatch(/^\[tasks\]/m);
   });

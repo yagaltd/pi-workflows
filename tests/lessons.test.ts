@@ -9,7 +9,9 @@ const bundle = (dir) => {
   const reviews = path.join(dir, "reviews");
   const proofs = path.join(dir, "proofs.jsonl");
   fs.mkdirSync(reviews);
-  fs.writeFileSync(planFile, `# Plan: fixture (091)
+  fs.writeFileSync(
+    planFile,
+    `# Plan: fixture (091)
 
 ## Tasks
 
@@ -24,13 +26,17 @@ const bundle = (dir) => {
 ### TASK 3 (Tier A, ⚪): the unverified task — src/c.ts
 - **Status**: ✅ DONE
 - **Wave**: 3
-`);
+`,
+  );
   fs.writeFileSync(path.join(reviews, "task-1.md"), "## Round 1\n**ok: true**");
   fs.writeFileSync(path.join(reviews, "task-2.md"), "## Round 1\n**ok: false** — fix rounds exhausted");
-  fs.writeFileSync(proofs, [
-    JSON.stringify({ ts: "t", planId: "p-091", taskId: "task-1", command: "bun test", exit: 0, outputHash: "h1" }),
-    JSON.stringify({ ts: "t", planId: "p-091", taskId: "task-3", command: "bun test", exit: 0, outputHash: "h3" }),
-  ].join("\n") + "\n");
+  fs.writeFileSync(
+    proofs,
+    [
+      JSON.stringify({ ts: "t", planId: "p-091", taskId: "task-1", command: "bun test", exit: 0, outputHash: "h1" }),
+      JSON.stringify({ ts: "t", planId: "p-091", taskId: "task-3", command: "bun test", exit: 0, outputHash: "h3" }),
+    ].join("\n") + "\n",
+  );
   return { planFile, reviews, proofs };
 };
 
@@ -41,7 +47,21 @@ describe("lessons (plan 20261025-026)", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lessons-"));
     const { planFile, reviews, proofs } = bundle(dir);
     const ledger = path.join(dir, "lessons.jsonl");
-    expect(await run(["distill", "--plan-file", planFile, "--reviews-dir", reviews, "--plan-id", "p-091", "--proofs", proofs, "--ledger", ledger])).toBe(0);
+    expect(
+      await run([
+        "distill",
+        "--plan-file",
+        planFile,
+        "--reviews-dir",
+        reviews,
+        "--plan-id",
+        "p-091",
+        "--proofs",
+        proofs,
+        "--ledger",
+        ledger,
+      ]),
+    ).toBe(0);
     const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rows).toHaveLength(3);
     const byTask = Object.fromEntries(rows.map((r) => [r.taskId, r]));
@@ -51,7 +71,21 @@ describe("lessons (plan 20261025-026)", () => {
     expect(byTask["task-2"].provenance).toBe("from_untrusted");
     expect(byTask["task-3"].provenance).toBe("verified");
     // idempotent per (planId, taskId)
-    expect(await run(["distill", "--plan-file", planFile, "--reviews-dir", reviews, "--plan-id", "p-091", "--proofs", proofs, "--ledger", ledger])).toBe(1);
+    expect(
+      await run([
+        "distill",
+        "--plan-file",
+        planFile,
+        "--reviews-dir",
+        reviews,
+        "--plan-id",
+        "p-091",
+        "--proofs",
+        proofs,
+        "--ledger",
+        ledger,
+      ]),
+    ).toBe(1);
     expect(fs.readFileSync(ledger, "utf8").trim().split("\n")).toHaveLength(3);
   });
 
@@ -59,9 +93,33 @@ describe("lessons (plan 20261025-026)", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lessons-"));
     const { planFile, reviews, proofs } = bundle(dir);
     const ledger = path.join(dir, "lessons.jsonl");
-    await run(["distill", "--plan-file", planFile, "--reviews-dir", reviews, "--plan-id", "p-091", "--proofs", proofs, "--ledger", ledger]);
+    await run([
+      "distill",
+      "--plan-file",
+      planFile,
+      "--reviews-dir",
+      reviews,
+      "--plan-id",
+      "p-091",
+      "--proofs",
+      proofs,
+      "--ledger",
+      ledger,
+    ]);
     expect(await run(["set", "--id", "les-p-091-task-1", "--to", "superseded", "--ledger", ledger])).toBe(2); // no reason — refused
-    expect(await run(["set", "--id", "les-p-091-task-1", "--to", "superseded", "--reason", "superseded by plan 092", "--ledger", ledger])).toBe(0);
+    expect(
+      await run([
+        "set",
+        "--id",
+        "les-p-091-task-1",
+        "--to",
+        "superseded",
+        "--reason",
+        "superseded by plan 092",
+        "--ledger",
+        ledger,
+      ]),
+    ).toBe(0);
     const rows = fs.readFileSync(ledger, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rows).toHaveLength(4); // original lesson kept + transition appended
     expect(rows[3].type).toBe("transition");
@@ -72,7 +130,19 @@ describe("lessons (plan 20261025-026)", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lessons-"));
     const { planFile, reviews, proofs } = bundle(dir);
     const ledger = path.join(dir, "lessons.jsonl");
-    await run(["distill", "--plan-file", planFile, "--reviews-dir", reviews, "--plan-id", "p-091", "--proofs", proofs, "--ledger", ledger]);
+    await run([
+      "distill",
+      "--plan-file",
+      planFile,
+      "--reviews-dir",
+      reviews,
+      "--plan-id",
+      "p-091",
+      "--proofs",
+      proofs,
+      "--ledger",
+      ledger,
+    ]);
     const grab = async (argv) => {
       const out = [];
       const orig = console.log;

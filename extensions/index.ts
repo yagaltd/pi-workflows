@@ -92,12 +92,12 @@
  * here must stay aligned); everything else stays out.
  */
 
+import { execSync, spawnSync } from "child_process";
+import { createHash } from "crypto";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { createHash } from "crypto";
-import { execSync, spawnSync } from "child_process";
 import { readWipStatus, wipBlockResult } from "../scripts/wip.mjs";
 export { readWipStatus, wipBlockResult };
 
@@ -108,7 +108,6 @@ const PACKAGE_ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 if (!process.env.PI_WORKFLOWS_BIN) {
   process.env.PI_WORKFLOWS_BIN = path.join(PACKAGE_ROOT, "scripts", "wf.sh");
 }
-
 
 /**
  * @cc [label:substitution,id:role-body] role-body
@@ -130,7 +129,7 @@ export function roleBody(content: string): string {
 /** Resolve `@role:` refs in a single prompt string. Unknown roles: keep text, collect error. */
 export function resolveRefs(
   text: string,
-  readFile: (name: string) => string | null
+  readFile: (name: string) => string | null,
 ): { text: string; errors: string[] } {
   const errors: string[] = [];
   const resolved = text.replace(/@role:([a-z][a-z0-9-]*)/g, (_full, name) => {
@@ -149,7 +148,7 @@ export function resolveRefs(
  *  errors (missing role files). */
 export function resolveSubagentInput(
   input: any,
-  readFile: (name: string) => string | null
+  readFile: (name: string) => string | null,
 ): string[] {
   const errors: string[] = [];
   const targets: string[] = [];
@@ -183,7 +182,7 @@ export function resolveSubagentInput(
  *  which also appears in prose (headers, notes) and inflates counts. */
 export function computeHygieneDrift(
   planContent: string,
-  reviewFiles: { name: string; content: string }[]
+  reviewFiles: { name: string; content: string }[],
 ): { missingContextMarkers: number; missingFinalVerdicts: number } {
   const doneTasks = (planContent.match(/- \*\*Status\*\*:? *✅/g) || []).length;
   // markers appear as bare lines (`context: updated`) or inline bullets
@@ -201,20 +200,20 @@ export function computeHygieneDrift(
  *  files are not user-facing behavior). */
 export function isDocsExempt(file: string): boolean {
   return (
-    file === "" ||
-    file === "README.md" ||
-    file === "CHANGELOG.md" ||
-    file === ".gitignore" ||
-    file === "LICENSE" ||
-    file.endsWith(".lock") ||
-    file === "package-lock.json" ||
-    file === "bun.lockb" ||
-    file.startsWith("docs/") ||
-    file.startsWith(".workflows/") ||
-    file.startsWith(".github/") ||
-    file.startsWith(".git") ||
-    file.startsWith("asset/") ||
-    file.startsWith("assets/")
+    file === ""
+    || file === "README.md"
+    || file === "CHANGELOG.md"
+    || file === ".gitignore"
+    || file === "LICENSE"
+    || file.endsWith(".lock")
+    || file === "package-lock.json"
+    || file === "bun.lockb"
+    || file.startsWith("docs/")
+    || file.startsWith(".workflows/")
+    || file.startsWith(".github/")
+    || file.startsWith(".git")
+    || file.startsWith("asset/")
+    || file.startsWith("assets/")
   );
 }
 
@@ -235,7 +234,7 @@ export function computeDocsDrift(
   planContent: string,
   exec: (cmd: string) => string | null,
   listDocs: () => string[],
-  ref = "HEAD"
+  ref = "HEAD",
 ): DocsDrift {
   const done = (planContent.match(/- \*\*Status\*\*:? *✅/g) || []).length;
   const total = (planContent.match(/- \*\*Status\*\*:/g) || []).length;
@@ -335,7 +334,7 @@ export interface NextInput {
   plan: string;
   /** registry map: task id → dispatch policy (model/thinking/role per
    *  agents/registry.md); a selected task without an entry is blocked,
- *  never guessed */
+   *  never guessed */
   registry: Record<string, DispatchPolicy>;
   /** verdict files (.workflows/reviews/*.md) for the staleness check */
   reviewFiles: { name: string; content: string }[];
@@ -411,10 +410,9 @@ export function parsePlan(plan: string): PlanTask[] {
       tag: m[2].replace(/Tier\s*[A-C]\s*,?\s*/i, "").trim(),
       status: (statusMark && STATUS_MARKS[statusMark]) || "pending",
       wave: waveRaw ? parseInt(/\d+/.exec(waveRaw)?.[0] ?? "1", 10) || 1 : 1,
-      deps:
-        depsRaw && !/^none$/i.test(depsRaw)
-          ? Array.from(depsRaw.matchAll(/TASK\s+(\d+)/gi), (d) => `task-${d[1]}`)
-          : [],
+      deps: depsRaw && !/^none$/i.test(depsRaw)
+        ? Array.from(depsRaw.matchAll(/TASK\s+(\d+)/gi), (d) => `task-${d[1]}`)
+        : [],
       tdd: /^true$/i.test(bullets["tdd"] ?? ""),
       parallelGroup: group,
       allowed: allowedRaw
@@ -430,8 +428,7 @@ export function parsePlan(plan: string): PlanTask[] {
 /** Parse the plan header blockquotes — pack provenance. env/dead-ends are
  *  optional (`> env:` / `> dead-ends:` lines); the rest default empty. */
 export function parseProvenance(plan: string): PlanProvenance {
-  const grab = (label: string): string =>
-    new RegExp(`^>\\s*${label}:\\s*(.+)$`, "m").exec(plan)?.[1].trim() ?? "";
+  const grab = (label: string): string => new RegExp(`^>\\s*${label}:\\s*(.+)$`, "m").exec(plan)?.[1].trim() ?? "";
   return {
     planId: grab("Plan ID"),
     title: /^#\s*Plan:\s*(.+)$/m.exec(plan)?.[1].trim() ?? "",
@@ -445,11 +442,11 @@ export function parseProvenance(plan: string): PlanProvenance {
  *  (task-1, not task-10) whose content carries the **ok: true** marker. */
 export function verdictOnFile(
   taskId: string,
-  reviewFiles: { name: string; content: string }[]
+  reviewFiles: { name: string; content: string }[],
 ): boolean {
   const nameRe = new RegExp(`(^|[^0-9])${taskId}($|[^0-9])`);
   return reviewFiles.some(
-    (f) => nameRe.test(f.name) && /\*\*ok:\s*true\*\*/.test(f.content)
+    (f) => nameRe.test(f.name) && /\*\*ok:\s*true\*\*/.test(f.content),
   );
 }
 
@@ -458,7 +455,7 @@ export function verdictOnFile(
  *  reuse); id breaks ties for determinism. Same-model launches ramp
  *  sequentially because equal models end up in contiguous runs. */
 export function orderWave<
-  T extends { id: string; model: string; thinking: string; role: string }
+  T extends { id: string; model: string; thinking: string; role: string },
 >(tasks: T[]): T[] {
   return [...tasks].sort((a, b) => {
     if (a.model !== b.model) return a.model < b.model ? -1 : 1;
@@ -486,7 +483,7 @@ export function eligibleTasks(input: NextInput): {
       role: policy?.role ?? "",
     };
   });
-  if (tasks.length === 0)
+  if (tasks.length === 0) {
     return {
       eligible: [],
       blocked: {
@@ -494,8 +491,9 @@ export function eligibleTasks(input: NextInput): {
         reason: "plan.md defines no TASK blocks — nothing to dispatch",
       },
     };
+  }
   const pending = tasks.filter((t) => t.status === "pending");
-  if (pending.length === 0)
+  if (pending.length === 0) {
     return {
       eligible: [],
       blocked: {
@@ -503,6 +501,7 @@ export function eligibleTasks(input: NextInput): {
         reason: "no ⬜ PENDING tasks remain — the plan is complete or failed",
       },
     };
+  }
   const minWave = Math.min(...pending.map((t) => t.wave));
   const waveTasks = pending.filter((t) => t.wave === minWave);
   // Integrity first: a stale ✅ dependency is a data gap, not a delay.
@@ -514,7 +513,8 @@ export function eligibleTasks(input: NextInput): {
           eligible: [],
           blocked: {
             blocked: "stale-status",
-            reason: `TASK ${dep.num} is marked ✅ DONE but no ok:true verdict is on file (.workflows/reviews/${depId}.md) — reconcile before dispatching TASK ${t.num}`,
+            reason:
+              `TASK ${dep.num} is marked ✅ DONE but no ok:true verdict is on file (.workflows/reviews/${depId}.md) — reconcile before dispatching TASK ${t.num}`,
           },
         };
       }
@@ -526,15 +526,15 @@ export function eligibleTasks(input: NextInput): {
   if (eligible.length === 0) {
     const t = waveTasks[0];
     const depId = t.deps.find(
-      (d) => tasks.find((x) => x.id === d)?.status !== "done"
+      (d) => tasks.find((x) => x.id === d)?.status !== "done",
     );
     const dep = depId ? tasks.find((x) => x.id === depId) : undefined;
     const depName = dep ? `TASK ${dep.num}` : depId ?? "?";
     const why = !dep
       ? `${depName} is not defined in the plan`
       : dep.status === "failed"
-        ? `it is ❌ FAILED (unfinished)`
-        : `it is ⬜ PENDING (unfinished)`;
+      ? `it is ❌ FAILED (unfinished)`
+      : `it is ⬜ PENDING (unfinished)`;
     return {
       eligible: [],
       blocked: {
@@ -553,7 +553,7 @@ export function eligibleTasks(input: NextInput): {
 export function buildPack(
   task: DispatchTask,
   prov: PlanProvenance,
-  repo: string
+  repo: string,
 ): string {
   const lines = [
     // Keep the glob out of a literal slash-star-star so cc-check's scanner
@@ -567,7 +567,7 @@ export function buildPack(
     "",
     `TASK ${task.num}: ${task.goal}. Contract: ${task.contractPath} (first read — the workflow is in your role prompt).`,
     `Allowed paths: ${task.allowed.length ? task.allowed.join(", ") : "(none declared)"}`,
-    `Verify: ${task.verify || "(none declared — run the project test suite)"}`
+    `Verify: ${task.verify || "(none declared — run the project test suite)"}`,
   );
   return lines.join("\n");
 }
@@ -606,14 +606,16 @@ export function resolveNext(input: NextInput): NextResult {
     return {
       ok: false,
       blocked: "no-policy",
-      reason: `TASK ${task.num} (${task.id}) has no registry entry (model/thinking/role) — add it per agents/registry.md before dispatching`,
+      reason:
+        `TASK ${task.num} (${task.id}) has no registry entry (model/thinking/role) — add it per agents/registry.md before dispatching`,
     };
   }
   if (input.readSpec(task.contractPath) === null) {
     return {
       ok: false,
       blocked: "missing-spec",
-      reason: `${task.contractPath} not found for TASK ${task.num} — write or restore the contract; never dispatch specless`,
+      reason:
+        `${task.contractPath} not found for TASK ${task.num} — write or restore the contract; never dispatch specless`,
     };
   }
   return {
@@ -683,7 +685,7 @@ export function parseRegistryPolicy(text: string): {
 export function buildRegistry(
   registryText: string,
   tasks: PlanTask[],
-  role = "worker"
+  role = "worker",
 ): Record<string, DispatchPolicy> {
   const { byTag, byTier } = parseRegistryPolicy(registryText);
   const map: Record<string, DispatchPolicy> = {};
@@ -734,14 +736,14 @@ export function dispatchNext(opts: { cwd: string }): DispatchNextResult {
   }
   const registry = buildRegistry(
     readText(path.join(opts.cwd, "agents", "registry.md")) ?? "",
-    parsePlan(plan)
+    parsePlan(plan),
   );
   const reviewsDir = path.join(opts.cwd, ".workflows", "reviews");
   const reviewFiles: { name: string; content: string }[] = fs.existsSync(reviewsDir)
     ? fs
-        .readdirSync(reviewsDir)
-        .filter((f) => f.endsWith(".md"))
-        .map((f) => ({ name: f, content: readText(path.join(reviewsDir, f)) ?? "" }))
+      .readdirSync(reviewsDir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => ({ name: f, content: readText(path.join(reviewsDir, f)) ?? "" }))
     : [];
   const input: NextInput = {
     plan,
@@ -773,7 +775,7 @@ export function dispatchNext(opts: { cwd: string }): DispatchNextResult {
  * Notes, partial reviews, and other paths are null. */
 export function parseVerdictWrite(
   file: string,
-  content: string
+  content: string,
 ): { taskId: string; ok: boolean } | null {
   const m = /^\.workflows\/reviews\/(task-\d+)\.md$/.exec(file);
   if (!m) return null;
@@ -797,7 +799,7 @@ export interface WaveChild {
 export function waveSettledChildren(
   tasks: PlanTask[],
   wave: number,
-  reviewFiles: { name: string; content: string }[]
+  reviewFiles: { name: string; content: string }[],
 ): WaveChild[] | null {
   const inWave = tasks.filter((t) => t.wave === wave);
   if (inWave.length === 0) return null;
@@ -859,7 +861,7 @@ export function splitQuestions(qs: JudgeQuestion[], cap = 64): JudgeQuestion[][]
 
 /** Parse judge ask stdout into verdict rows; null when not a JSON array. */
 export function parseJudgeRows(
-  stdout: string
+  stdout: string,
 ): { id: string; verdict: string }[] | null {
   try {
     const j = JSON.parse(stdout);
@@ -875,7 +877,7 @@ export function parseJudgeRows(
 export function verdictTable(
   wave: number,
   children: WaveChild[],
-  rows: { id: string; verdict: string }[]
+  rows: { id: string; verdict: string }[],
 ): string {
   const byId = new Map(rows.map((r) => [r.id, String(r.verdict)]));
   const cell = (c: WaveChild, dim: string): string => byId.get(`${c.id}-${dim}`) ?? "?";
@@ -885,7 +887,7 @@ export function verdictTable(
     "| --- | --- | --- | --- | --- |",
     ...children.map(
       (c) =>
-        `| ${c.id} | ${cell(c, "outcome")} | ${cell(c, "blockers")} | ${cell(c, "deviations")} | ${cell(c, "cost")} |`
+        `| ${c.id} | ${cell(c, "outcome")} | ${cell(c, "blockers")} | ${cell(c, "deviations")} | ${cell(c, "cost")} |`,
     ),
   ].join("\n");
 }
@@ -957,7 +959,7 @@ export function parseAdrContracts(text: string): AdrContract[] {
     const label = /(?:^|[,\s])label:([^,\s\]]+)/.exec(attrs)?.[1] ?? "";
     const owners = Array.from(
       attrs.matchAll(/(?:^|[,\s])owner:([^,\s\]]+)/g),
-      (m) => m[1]
+      (m) => m[1],
     );
     out.push({ id, label, adr, owners });
   }
@@ -1029,13 +1031,13 @@ export function extractDecisionsSection(specText: string): string {
  *  attributes name the sign-off targets; without them the generic human-gate
  *  line is emitted. Routing only — never a verdict. */
 function supersedeAdvisoryLine(gap: SupersedeGap): string {
-  const base = `[pi-workflows supersede] ${gap.seam} (${gap.trigger}${
-    gap.adr ? `, adr:${gap.adr}` : ""
-  })`;
+  const base = `[pi-workflows supersede] ${gap.seam} (${gap.trigger}${gap.adr ? `, adr:${gap.adr}` : ""})`;
   if (gap.owners && gap.owners.length > 0) {
-    return `${base} — possible ADR supersession — sign-off required from ${gap.owners.join(
-      ", "
-    )} at the human gate (advisory only).`;
+    return `${base} — possible ADR supersession — sign-off required from ${
+      gap.owners.join(
+        ", ",
+      )
+    } at the human gate (advisory only).`;
   }
   return `${base} — static advisory: possible ADR supersession — raise it at the human gate (advisory only).`;
 }
@@ -1081,7 +1083,7 @@ export function runGate(
   cmd: string,
   args: string[],
   cwd: string,
-  timeoutMs = 10000
+  timeoutMs = 10000,
 ): GateRunResult | null {
   try {
     const r = spawnSync(cmd, args, {
@@ -1128,11 +1130,12 @@ export function matchesAllowed(file: string, allowed: string[]): boolean {
     const prefix = pat.slice(0, pat.indexOf("*"));
     const suffix = pat.slice(pat.lastIndexOf("*") + 1);
     if (
-      file.startsWith(prefix) &&
-      file.endsWith(suffix) &&
-      file.length >= prefix.length + suffix.length
-    )
+      file.startsWith(prefix)
+      && file.endsWith(suffix)
+      && file.length >= prefix.length + suffix.length
+    ) {
       return true;
+    }
   }
   return false;
 }
@@ -1146,10 +1149,10 @@ export function firstFindingsLine(output: string): string {
     .map((l) => l.trim())
     .filter((l) => l.length > 0);
   return (
-    lines.find((l) => l.startsWith("**") && l.endsWith("**")) ??
-    lines.find((l) => l.startsWith("- ")) ??
-    lines[0] ??
-    "no findings in output"
+    lines.find((l) => l.startsWith("**") && l.endsWith("**"))
+      ?? lines.find((l) => l.startsWith("- "))
+      ?? lines[0]
+      ?? "no findings in output"
   );
 }
 
@@ -1200,12 +1203,13 @@ const gateBlock = (
   layer: string,
   command: string,
   finding: string,
-  file: string
+  file: string,
 ): AutoGateDecision => ({
   action: "block",
   layer,
   command,
-  reason: `[pi-workflows auto-gate] ${layer} FAILED for ${file}\ncommand: ${command}\nfirst finding: ${finding}\nfix: resolve the violation (or supersede the spec) before this write.`,
+  reason:
+    `[pi-workflows auto-gate] ${layer} FAILED for ${file}\ncommand: ${command}\nfirst finding: ${finding}\nfix: resolve the violation (or supersede the spec) before this write.`,
 });
 
 /**
@@ -1245,7 +1249,7 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
     `agent-spec guard --spec-dir ${dir} --code . --change ${file} --change-scope worktree`;
   const runGuard = (
     contractPath: string,
-    dir: string
+    dir: string,
   ): GateRunResult | null =>
     input.run("agent-spec", [
       "guard",
@@ -1269,7 +1273,7 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
       if (dir === null) {
         return gateAdvisory(
           file,
-          `[pi-workflows auto-gate] ${task.contractPath} missing or unstagable — gate skipped for ${file} (advisory only); restore the contract before merging.`
+          `[pi-workflows auto-gate] ${task.contractPath} missing or unstagable — gate skipped for ${file} (advisory only); restore the contract before merging.`,
         );
       }
       // Layer 1a — guard (boundary). Verify-only failures ("0 failed, N
@@ -1281,13 +1285,14 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
         const out = `${g.stdout}\n${g.stderr}`;
         if (/verification not passing: 0 failed/.test(out) && !/outside allowed/i.test(out)) {
           limitations.push("guard: scenario verify skipped — no Node verifier (backlog item 11)");
-        } else
+        } else {
           return gateBlock(
             "Layer 1 boundary (agent-spec guard)",
             guardCommand(task.contractPath, dir),
             firstFindingsLine(out),
-            file
+            file,
           );
+        }
       }
       // Layer 1b — lifecycle (scenarios)
       const lifecycleCommand = `agent-spec lifecycle ${task.contractPath} --code . --format json`;
@@ -1306,37 +1311,40 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
       const failedScenarios = results.filter((r: any) => r && r.verdict !== "skip");
       if (j.passed === false && results.length > 0 && failedScenarios.length === 0) {
         limitations.push(
-          `lifecycle: all ${results.length} scenarios skipped — no Node verifier (backlog item 11)`
+          `lifecycle: all ${results.length} scenarios skipped — no Node verifier (backlog item 11)`,
         );
-      } else if (j.passed === false)
+      } else if (j.passed === false) {
         return gateBlock(
           "Layer 1 lifecycle (agent-spec)",
           lifecycleCommand,
           lifecycleFinding(j, l.stdout),
-          file
+          file,
         );
+      }
       // Layer 2 — test quality (tdd-guard: lint then spec verify); a missing
       // binary advises the sub-step only — Layer 1 still gated this write (D5).
       const lintCommand = "tdd-guard lint";
       const lint = input.run("tdd-guard", ["lint"]);
       if (lint === null) return advisoryTddGuard(file);
-      if (lint.code !== 0)
+      if (lint.code !== 0) {
         return gateBlock(
           "Layer 2 test-quality (tdd-guard lint)",
           lintCommand,
           firstFindingsLine(`${lint.stdout}\n${lint.stderr}`),
-          file
+          file,
         );
+      }
       const verifyCommand = `tdd-guard verify --spec ${task.contractPath}`;
       const verify = input.run("tdd-guard", ["verify", "--spec", task.contractPath]);
       if (verify === null) return advisoryTddGuard(file);
-      if (verify.code !== 0)
+      if (verify.code !== 0) {
         return gateBlock(
           "Layer 2 test-quality (tdd-guard verify)",
           verifyCommand,
           firstFindingsLine(`${verify.stdout}\n${verify.stderr}`),
-          file
+          file,
         );
+      }
     }
     return limitations.length > 0
       ? { action: "allow", limitations }
@@ -1358,11 +1366,12 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
       if (/verification not passing: 0 failed/.test(out) && !/outside allowed/i.test(out)) {
         const note = "guard: scenario verify skipped — no Node verifier (backlog item 11)";
         if (!limitations.includes(note)) limitations.push(note);
-      } else
+      } else {
         failures.push({
           command: guardCommand(task.contractPath, dir),
           finding: firstFindingsLine(out),
         });
+      }
     }
   }
   if (probed > 0 && failures.length === probed) {
@@ -1370,7 +1379,7 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
       "Layer 1 boundary (agent-spec guard)",
       failures[0].command,
       failures[0].finding,
-      file
+      file,
     );
   }
   return { action: "allow" };
@@ -1379,14 +1388,14 @@ export function autoGate(input: AutoGateInput): AutoGateDecision {
 function advisoryToolchain(file: string): AutoGateDecision {
   return gateAdvisory(
     file,
-    `[pi-workflows auto-gate] agent-spec not found on PATH (or its output was unreadable) — write-time gate skipped for ${file} (advisory only); run the Layer 1/2 gate chain manually before merging.`
+    `[pi-workflows auto-gate] agent-spec not found on PATH (or its output was unreadable) — write-time gate skipped for ${file} (advisory only); run the Layer 1/2 gate chain manually before merging.`,
   );
 }
 
 function advisoryTddGuard(file: string): AutoGateDecision {
   return gateAdvisory(
     file,
-    `[pi-workflows auto-gate] tdd-guard not found on PATH — Layer 2 (test-quality) skipped for ${file} (advisory only); install it (git clone https://github.com/yagaltd/tdd-guard && npm install && npm run build && npm link); Layer 1 still gated this write.`
+    `[pi-workflows auto-gate] tdd-guard not found on PATH — Layer 2 (test-quality) skipped for ${file} (advisory only); install it (git clone https://github.com/yagaltd/tdd-guard && npm install && npm run build && npm link); Layer 1 still gated this write.`,
   );
 }
 
@@ -1410,16 +1419,47 @@ export function intentGuardSuggest(c: {
   confidence: number | null;
   tier?: string | null;
 }): { message: { customType: string; content: string; display: boolean } } | undefined {
-  const entry = c.tier === "problem" ? "/idea (or /brainstorm)" : c.tier === "solution" ? "/plan" : c.tier === "procedure" ? "/add" : null;
-  const tail = `kind=${c.kind}, tier=${c.tier ?? "?"}, confidence=${c.confidence ?? "?"} — suggest-only, never auto-executed.`;
-  if (c.route === "amend")
-    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] this request changes requirements — run /amend before touching tasks (${tail})`, display: true } };
+  const entry = c.tier === "problem"
+    ? "/idea (or /brainstorm)"
+    : c.tier === "solution"
+    ? "/plan"
+    : c.tier === "procedure"
+    ? "/add"
+    : null;
+  const tail = `kind=${c.kind}, tier=${c.tier ?? "?"}, confidence=${
+    c.confidence ?? "?"
+  } — suggest-only, never auto-executed.`;
+  if (c.route === "amend") {
+    return {
+      message: {
+        customType: "pi-workflows-intent-guard",
+        content:
+          `[pi-workflows intent-guard] this request changes requirements — run /amend before touching tasks (${tail})`,
+        display: true,
+      },
+    };
+  }
   if (c.route === "answer") {
     const entryLine = entry ? ` If it starts new work, consider ${entry}.` : "";
-    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] unrelated to the live plan — answer directly, do not start tasks${entryLine} (${tail})`, display: true } };
+    return {
+      message: {
+        customType: "pi-workflows-intent-guard",
+        content:
+          `[pi-workflows intent-guard] unrelated to the live plan — answer directly, do not start tasks${entryLine} (${tail})`,
+        display: true,
+      },
+    };
   }
-  if (c.route === "ask")
-    return { message: { customType: "pi-workflows-intent-guard", content: `[pi-workflows intent-guard] ambiguous against the live plan — ask one clarifying question before touching tasks (${tail})`, display: true } };
+  if (c.route === "ask") {
+    return {
+      message: {
+        customType: "pi-workflows-intent-guard",
+        content:
+          `[pi-workflows intent-guard] ambiguous against the live plan — ask one clarifying question before touching tasks (${tail})`,
+        display: true,
+      },
+    };
+  }
   return undefined;
 }
 
@@ -1427,7 +1467,13 @@ export function intentGuardSuggest(c: {
 export function appendIntentTrail(
   trailPath: string,
   query: string,
-  c: { route: string; kind: string | null; confidence: number | null; skipped?: boolean; probabilities?: Record<string, number> }
+  c: {
+    route: string;
+    kind: string | null;
+    confidence: number | null;
+    skipped?: boolean;
+    probabilities?: Record<string, number>;
+  },
 ): void {
   try {
     fs.mkdirSync(path.dirname(trailPath), { recursive: true });
@@ -1442,7 +1488,7 @@ export function appendIntentTrail(
         threshold: 0.85,
         skipped: c.skipped ?? false,
         ...(c.probabilities ? { probabilities: c.probabilities } : {}),
-      }) + "\n"
+      }) + "\n",
     );
   } catch {
     // trail is best-effort; the guard never breaks a turn
@@ -1471,20 +1517,18 @@ export const TRIAGE_SCHEMA = {
     bucket: {
       type: "string",
       enum: TRIAGE_BUCKETS,
-      description:
-        "Which of the four review-finding buckets does this finding belong to? " +
-        "queued = a real P0-P2 problem for the owner's follow-up queue; " +
-        "batched = a P3 nit that bundles with similar items into one row; " +
-        "closed = not worth acting on, deleted with a one-line why; " +
-        "done = already fixed or verified within this plan.",
+      description: "Which of the four review-finding buckets does this finding belong to? "
+        + "queued = a real P0-P2 problem for the owner's follow-up queue; "
+        + "batched = a P3 nit that bundles with similar items into one row; "
+        + "closed = not worth acting on, deleted with a one-line why; "
+        + "done = already fixed or verified within this plan.",
     },
     confidence: {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the bucket choice. Use the full range; 0.9+ only " +
-        "when the finding unambiguously fits one bucket.",
+      description: "0-1 confidence in the bucket choice. Use the full range; 0.9+ only "
+        + "when the finding unambiguously fits one bucket.",
     },
     evidence: {
       type: "string",
@@ -1539,14 +1583,13 @@ export function resolveTypellmKey(
     env?: Record<string, string | undefined>;
     keyPath?: string;
     readFile?: (p: string) => string | null;
-  }
+  },
 ): string | null {
   const env = deps?.env ?? process.env;
   const fromEnv = env.TYPELLM_API_KEY;
   if (typeof fromEnv === "string" && fromEnv.trim()) return fromEnv.trim();
   const read = deps?.readFile ?? defaultReadFile;
-  const keyPath =
-    deps?.keyPath ?? path.join(os.homedir(), ".config", "pi-majordome", "typellm.key");
+  const keyPath = deps?.keyPath ?? path.join(os.homedir(), ".config", "pi-majordome", "typellm.key");
   const fromFile = read(keyPath);
   if (typeof fromFile === "string" && fromFile.trim()) return fromFile.trim();
   return null;
@@ -1569,7 +1612,7 @@ const TYPELLM_DEFAULT_TIMEOUT_MS = 30_000;
  *  a nullable field (native abstention); anything else is a loud skip. */
 function validateSchemaValue(
   schema: any,
-  value: unknown
+  value: unknown,
 ): { ok: true; value: any } | { ok: false; why: string } {
   if (!schema || typeof schema !== "object") return { ok: false, why: "schema is not an object" };
   const nullable = Array.isArray(schema.type) ? schema.type.includes("null") : schema.nullable === true;
@@ -1579,8 +1622,9 @@ function validateSchemaValue(
   }
   const type = Array.isArray(schema.type) ? schema.type.find((t: unknown) => t !== "null") : schema.type;
   if (type === "object") {
-    if (!value || typeof value !== "object" || Array.isArray(value))
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
       return { ok: false, why: "schema: output is not an object" };
+    }
     const v = value as Record<string, unknown>;
     for (const req of schema.required ?? []) {
       if (!(req in v)) return { ok: false, why: `schema: missing required field '${req}'` };
@@ -1594,10 +1638,12 @@ function validateSchemaValue(
   }
   if (type === "array") {
     if (!Array.isArray(value)) return { ok: false, why: "schema: expected an array" };
-    if (typeof schema.minItems === "number" && value.length < schema.minItems)
+    if (typeof schema.minItems === "number" && value.length < schema.minItems) {
       return { ok: false, why: `schema: array has ${value.length} items, below minItems ${schema.minItems}` };
-    if (typeof schema.maxItems === "number" && value.length > schema.maxItems)
+    }
+    if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
       return { ok: false, why: `schema: array has ${value.length} items, above maxItems ${schema.maxItems}` };
+    }
     if (schema.items) {
       for (let i = 0; i < value.length; i++) {
         const check = validateSchemaValue(schema.items, value[i]);
@@ -1608,19 +1654,24 @@ function validateSchemaValue(
   }
   if (type === "string") {
     if (typeof value !== "string") return { ok: false, why: `schema: expected string, got ${typeof value}` };
-    if (Array.isArray(schema.enum) && !schema.enum.includes(value))
+    if (Array.isArray(schema.enum) && !schema.enum.includes(value)) {
       return { ok: false, why: `schema: value '${value}' is outside the enum` };
+    }
     return { ok: true, value };
   }
   if (type === "number" || type === "integer") {
-    if (typeof value !== "number" || !Number.isFinite(value))
+    if (typeof value !== "number" || !Number.isFinite(value)) {
       return { ok: false, why: `schema: expected finite number, got ${typeof value}` };
-    if (type === "integer" && !Number.isInteger(value))
+    }
+    if (type === "integer" && !Number.isInteger(value)) {
       return { ok: false, why: `schema: expected an integer, got ${value}` };
-    if (typeof schema.minimum === "number" && value < schema.minimum)
+    }
+    if (typeof schema.minimum === "number" && value < schema.minimum) {
       return { ok: false, why: `schema: number ${value} below minimum ${schema.minimum}` };
-    if (typeof schema.maximum === "number" && value > schema.maximum)
+    }
+    if (typeof schema.maximum === "number" && value > schema.maximum) {
       return { ok: false, why: `schema: number ${value} above maximum ${schema.maximum}` };
+    }
     return { ok: true, value };
   }
   if (type === "boolean") {
@@ -1643,13 +1694,16 @@ function questionsOf(schema: any): Record<string, unknown> | null {
   for (const [key, prop] of Object.entries<any>(schema.properties)) {
     const type = Array.isArray(prop.type) ? prop.type.find((t: unknown) => t !== "null") : prop.type;
     const nullable = Array.isArray(prop.type) ? prop.type.includes("null") : prop.nullable === true;
-    if (type !== "string" && type !== "number" && type !== "integer" && type !== "boolean" && type !== "object" && type !== "array")
+    if (
+      type !== "string" && type !== "number" && type !== "integer" && type !== "boolean" && type !== "object"
+      && type !== "array"
+    ) {
       return null;
+    }
     const q: Record<string, unknown> = {
       type,
-      instructions:
-        (typeof prop.description === "string" && prop.description.trim()) ||
-        `Value of the '${key}' field.`,
+      instructions: (typeof prop.description === "string" && prop.description.trim())
+        || `Value of the '${key}' field.`,
     };
     if (nullable) q.nullable = true;
     if (Array.isArray(prop.enum)) q.enum = prop.enum;
@@ -1658,19 +1712,21 @@ function questionsOf(schema: any): Record<string, unknown> | null {
       if (items && typeof items === "object") {
         if (items.type === "object" && items.properties) {
           const itemQuestions = questionsOf(items);
-          if (itemQuestions)
+          if (itemQuestions) {
             q.items = {
               type: "object",
               properties: itemQuestions,
               ...(Array.isArray(items.required) ? { required: items.required } : {}),
             };
+          }
         } else {
           const itemType = Array.isArray(items.type) ? items.type.find((t: unknown) => t !== "null") : items.type;
-          if (itemType === "string" || itemType === "number" || itemType === "integer" || itemType === "boolean")
+          if (itemType === "string" || itemType === "number" || itemType === "integer" || itemType === "boolean") {
             q.items = {
               type: itemType,
               ...(Array.isArray(items.enum) ? { enum: items.enum } : {}),
             };
+          }
         }
       }
       if (typeof prop.minItems === "number") q.minItems = prop.minItems;
@@ -1712,12 +1768,12 @@ export function makeTypellmBackend(
     env?: Record<string, string | undefined>;
     keyPath?: string;
     readFile?: (p: string) => string | null;
-  }
+  },
 ): JudgeBackend {
   const env = deps?.env ?? process.env;
   const baseUrl = (deps?.baseUrl ?? env.TYPELLM_BASE_URL ?? "https://api.typellm.ai").replace(
     /\/+$/,
-    ""
+    "",
   );
   const timeoutMs = (() => {
     const n = Number(deps?.timeoutMs ?? env.TYPELLM_TIMEOUT_MS);
@@ -1726,32 +1782,60 @@ export function makeTypellmBackend(
   return {
     name: "typellm",
     async classify(schema: object, input: string, call?: BackendCall): Promise<TriageVerdict> {
-      const key = deps && deps.key !== undefined ? deps.key : resolveTypellmKey({ env, keyPath: deps?.keyPath, readFile: deps?.readFile });
-      if (!key)
+      const key = deps && deps.key !== undefined
+        ? deps.key
+        : resolveTypellmKey({ env, keyPath: deps?.keyPath, readFile: deps?.readFile });
+      if (!key) {
         return {
           skipped: true,
           bucket: null,
           confidence: 0,
           reason: "missing TYPELLM_API_KEY (env or ~/.config/pi-majordome/typellm.key)",
         };
+      }
       const questions = questionsOf(schema);
-      if (!questions)
+      if (!questions) {
         return { skipped: true, bucket: null, confidence: 0, reason: "schema not expressible as TypeLLM questions" };
+      }
       // images (plan 077 T1 native surface): Base64 data URIs, ≤8 per call,
       // ≤10MB each — every violation is a LOUD skip BEFORE any network call.
       let images: string[] | undefined;
       if (call?.images !== undefined) {
-        if (!Array.isArray(call.images) || call.images.length === 0)
-          return { skipped: true, bucket: null, confidence: 0, reason: "images: must be a non-empty array of data URIs" };
-        if (call.images.length > 8)
-          return { skipped: true, bucket: null, confidence: 0, reason: `images: ${call.images.length} given, the endpoint accepts at most 8 per call` };
+        if (!Array.isArray(call.images) || call.images.length === 0) {
+          return {
+            skipped: true,
+            bucket: null,
+            confidence: 0,
+            reason: "images: must be a non-empty array of data URIs",
+          };
+        }
+        if (call.images.length > 8) {
+          return {
+            skipped: true,
+            bucket: null,
+            confidence: 0,
+            reason: `images: ${call.images.length} given, the endpoint accepts at most 8 per call`,
+          };
+        }
         for (const uri of call.images) {
-          if (typeof uri !== "string" || !uri.startsWith("data:") || !uri.includes(";base64,"))
-            return { skipped: true, bucket: null, confidence: 0, reason: "images: every image must be a Base64 data URI" };
+          if (typeof uri !== "string" || !uri.startsWith("data:") || !uri.includes(";base64,")) {
+            return {
+              skipped: true,
+              bucket: null,
+              confidence: 0,
+              reason: "images: every image must be a Base64 data URI",
+            };
+          }
           const payload = uri.slice(uri.indexOf(";base64,") + ";base64,".length);
           const bytes = Math.floor((payload.length * 3) / 4);
-          if (bytes > 10 * 1024 * 1024)
-            return { skipped: true, bucket: null, confidence: 0, reason: `images: an image exceeds the 10MB per-image cap` };
+          if (bytes > 10 * 1024 * 1024) {
+            return {
+              skipped: true,
+              bucket: null,
+              confidence: 0,
+              reason: `images: an image exceeds the 10MB per-image cap`,
+            };
+          }
         }
         images = call.images;
       }
@@ -1774,29 +1858,31 @@ export function makeTypellmBackend(
       } finally {
         clearTimeout(timer);
       }
-      if (!res.ok)
+      if (!res.ok) {
         return { skipped: true, bucket: null, confidence: 0, reason: `endpoint error (HTTP ${res.status})` };
+      }
       let parsed: any;
       try {
         parsed = JSON.parse(body);
       } catch {
         return { skipped: true, bucket: null, confidence: 0, reason: "endpoint returned a non-JSON response" };
       }
-      if (!parsed || typeof parsed !== "object" || !("result" in parsed))
+      if (!parsed || typeof parsed !== "object" || !("result" in parsed)) {
         return { skipped: true, bucket: null, confidence: 0, reason: "endpoint response missing result" };
+      }
       const check = validateSchemaValue(schema, parsed.result);
-      if (!check.ok)
+      if (!check.ok) {
         return { skipped: true, bucket: null, confidence: 0, reason: `schema-invalid response: ${check.why}` };
+      }
       const out = check.value as Record<string, unknown>;
       const confidence = typeof out.confidence === "number" ? out.confidence : 0;
       const evidence = typeof out.evidence === "string" ? out.evidence : undefined;
-      const usage =
-        parsed.usage && typeof parsed.usage === "object"
-          ? {
-              ...(Number.isFinite(parsed.usage.input_tokens) ? { input_tokens: parsed.usage.input_tokens } : {}),
-              ...(Number.isFinite(parsed.usage.thinking_tokens) ? { thinking_tokens: parsed.usage.thinking_tokens } : {}),
-            }
-          : undefined;
+      const usage = parsed.usage && typeof parsed.usage === "object"
+        ? {
+          ...(Number.isFinite(parsed.usage.input_tokens) ? { input_tokens: parsed.usage.input_tokens } : {}),
+          ...(Number.isFinite(parsed.usage.thinking_tokens) ? { thinking_tokens: parsed.usage.thinking_tokens } : {}),
+        }
+        : undefined;
       return {
         skipped: false,
         bucket: typeof out.bucket === "string" ? (out.bucket as TriageBucket) : null,
@@ -1822,13 +1908,14 @@ export interface TriageResult extends TriageVerdict {
  *  their bucket for visibility but route to the default path, loudly. */
 export async function triageFinding(backend: JudgeBackend, finding: string): Promise<TriageResult> {
   const v = await backend.classify(TRIAGE_SCHEMA, finding);
-  if (v.skipped)
+  if (v.skipped) {
     return { ...v, finding, backend: backend.name, defaultPath: true };
+  }
   // bucket rides the dedicated field OR the schema-validated payload (value-only
   // fakes — the seam generalization keeps both shapes working).
-  const bucket = (v.bucket ??
-    (typeof v.value?.bucket === "string" ? (v.value.bucket as TriageBucket) : null)) as TriageBucket | null;
-  if (v.confidence < TRIAGE_CONFIDENCE_FLOOR)
+  const bucket = (v.bucket
+    ?? (typeof v.value?.bucket === "string" ? (v.value.bucket as TriageBucket) : null)) as TriageBucket | null;
+  if (v.confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       ...v,
       bucket,
@@ -1837,6 +1924,7 @@ export async function triageFinding(backend: JudgeBackend, finding: string): Pro
       defaultPath: true,
       reason: `below confidence floor (${v.confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — stays in the default path`,
     };
+  }
   return { ...v, bucket, finding, backend: backend.name, defaultPath: false };
 }
 
@@ -1844,7 +1932,7 @@ export async function triageFinding(backend: JudgeBackend, finding: string): Pro
  *  rows (skips and below-floor verdicts — never silent, never dropped). */
 export async function triageFindings(
   backend: JudgeBackend,
-  findings: string[]
+  findings: string[],
 ): Promise<{ results: TriageResult[]; summary: Record<TriageBucket | "defaultPath", number> }> {
   const results: TriageResult[] = [];
   for (const finding of findings) results.push(await triageFinding(backend, finding));
@@ -1916,10 +2004,12 @@ export function sieveOutcome(cells: {
   standalone: boolean;
 }): { outcome: SieveOutcome; decomposeFlag: boolean } {
   if (cells.risk === "severe") return { outcome: "park", decomposeFlag: true };
-  if ((cells.value === "nice-to-have" || cells.value === "useful") && cells.standalone)
+  if ((cells.value === "nice-to-have" || cells.value === "useful") && cells.standalone) {
     return { outcome: "park", decomposeFlag: false };
-  if ((cells.value === "valuable" || cells.value === "must-have") && cells.effort === "xs")
+  }
+  if ((cells.value === "valuable" || cells.value === "must-have") && cells.effort === "xs") {
     return { outcome: "build-direct", decomposeFlag: false };
+  }
   return { outcome: "propose", decomposeFlag: false };
 }
 
@@ -1957,8 +2047,7 @@ export const SIEVE_SCHEMA = {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the forced cells. 0.9+ only when the ask unambiguously fits one cell per column.",
+      description: "0-1 confidence in the forced cells. 0.9+ only when the ask unambiguously fits one cell per column.",
     },
     evidence: {
       type: "string",
@@ -1995,10 +2084,10 @@ export interface SieveVerdict {
  *  replays this exact construction). */
 export function sieveInput(ask: string): string {
   return (
-    "Answer the 073 sieve gate for the proposal ask below: four forced choices " +
-    "(V value, R risk, E effort, path) plus whether the ask is standalone work. " +
-    "One pass, no weighting.\n\nProposal ask:\n" +
-    ask
+    "Answer the 073 sieve gate for the proposal ask below: four forced choices "
+    + "(V value, R risk, E effort, path) plus whether the ask is standalone work. "
+    + "One pass, no weighting.\n\nProposal ask:\n"
+    + ask
   );
 }
 
@@ -2032,7 +2121,7 @@ function sieveCellsOf(value: unknown): SieveCells | null {
 export async function sieveProposal(backend: JudgeBackend, ask: string): Promise<SieveVerdict> {
   const v = await backend.classify(SIEVE_SCHEMA, sieveInput(ask));
   const confidence = typeof v.confidence === "number" ? v.confidence : 0;
-  if (v.skipped)
+  if (v.skipped) {
     return {
       skipped: true,
       outcome: null,
@@ -2043,8 +2132,9 @@ export async function sieveProposal(backend: JudgeBackend, ask: string): Promise
       defaultPath: true,
       backend: backend.name,
     };
+  }
   const cells = sieveCellsOf(v.value);
-  if (!cells)
+  if (!cells) {
     return {
       skipped: true,
       outcome: null,
@@ -2055,8 +2145,9 @@ export async function sieveProposal(backend: JudgeBackend, ask: string): Promise
       defaultPath: true,
       backend: backend.name,
     };
+  }
   const rules = sieveOutcome(cells);
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       skipped: false,
       outcome: rules.outcome,
@@ -2068,6 +2159,7 @@ export async function sieveProposal(backend: JudgeBackend, ask: string): Promise
       defaultPath: true,
       backend: backend.name,
     };
+  }
   return {
     skipped: false,
     outcome: rules.outcome,
@@ -2089,7 +2181,9 @@ export function renderSieveVerdict(ask: string, v: SieveVerdict): string {
   ];
   if (!v.cells) {
     lines.push(
-      `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — answer the four forced choices by hand (the doctrine gate applies)`
+      `JUDGE SKIPPED (${
+        v.reason ?? "unspecified"
+      }) — answer the four forced choices by hand (the doctrine gate applies)`,
     );
     return lines.join("\n");
   }
@@ -2132,9 +2226,8 @@ export interface ReviewScenario {
  *  over-confident passes on ambiguous evidence): the judge is TOLD that a
  *  guess under ambiguity scores as a miss. Prompt-side lever — the schema
  *  shape and the verdict vocabulary stay exactly as Phase 2 shipped them. */
-export const CALIBRATION_INSTRUCTION =
-  "Penalize confident guesses: ambiguous or partial evidence is uncertain " +
-  "rather than a confident guess.";
+export const CALIBRATION_INSTRUCTION = "Penalize confident guesses: ambiguous or partial evidence is uncertain "
+  + "rather than a confident guess.";
 
 /** The per-scenario classification schema sent with every request (same
  *  shape discipline as TRIAGE_SCHEMA — the transport validates `result`
@@ -2149,25 +2242,22 @@ export const REVIEW_VERDICT_SCHEMA = {
       // the v08 confident-wrong residual's designed fix.
       type: ["string", "null"],
       enum: REVIEW_VERDICTS,
-      description:
-        "Does the diff summary satisfy the scenario's claim? " +
-        "pass = the claim holds on the evidence given; fail = the evidence " +
-        "visibly contradicts the claim; uncertain = the evidence cannot decide " +
-        `it. ${CALIBRATION_INSTRUCTION}`,
+      description: "Does the diff summary satisfy the scenario's claim? "
+        + "pass = the claim holds on the evidence given; fail = the evidence "
+        + "visibly contradicts the claim; uncertain = the evidence cannot decide "
+        + `it. ${CALIBRATION_INSTRUCTION}`,
     },
     confidence: {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the verdict. Use the full range; 0.9+ only when the " +
-        "evidence decides the claim unambiguously. An honest uncertain at " +
-        "moderate confidence beats a guess on ambiguity.",
+      description: "0-1 confidence in the verdict. Use the full range; 0.9+ only when the "
+        + "evidence decides the claim unambiguously. An honest uncertain at "
+        + "moderate confidence beats a guess on ambiguity.",
     },
     evidence: {
       type: "string",
-      description:
-        "One short quote from the claim or the diff summary that drove the verdict.",
+      description: "One short quote from the claim or the diff summary that drove the verdict.",
     },
   },
   required: ["verdict", "confidence"],
@@ -2219,7 +2309,7 @@ export function scenarioInput(scenario: ReviewScenario, diffSummary: string): st
 export async function reviewVerdicts(
   backend: JudgeBackend,
   scenarios: ReviewScenario[],
-  diffSummary: string
+  diffSummary: string,
 ): Promise<ReviewVerdictResult> {
   const results: ScenarioVerdict[] = [];
   const deepRead: string[] = [];
@@ -2242,14 +2332,13 @@ export async function reviewVerdicts(
     }
     skippedAll = false;
     const verdict = v.value?.verdict;
-    const probabilities =
-      v.value?.probabilities && typeof v.value.probabilities === "object"
-        ? (Object.fromEntries(
-            Object.entries(v.value.probabilities as Record<string, unknown>).filter(
-              (entry): entry is [string, number] => typeof entry[1] === "number"
-            )
-          ) as Record<string, number>)
-        : undefined;
+    const probabilities = v.value?.probabilities && typeof v.value.probabilities === "object"
+      ? (Object.fromEntries(
+        Object.entries(v.value.probabilities as Record<string, unknown>).filter(
+          (entry): entry is [string, number] => typeof entry[1] === "number",
+        ),
+      ) as Record<string, number>)
+      : undefined;
     if (verdict === null) {
       // native no-answer abstention (plan 077 T1): an honest "I cannot
       // decide" — routes to Tier 2, never a guess, never a transport skip.
@@ -2306,33 +2395,36 @@ export async function reviewVerdicts(
  *  the all-Tier-2 line loudly — a skip never reads as a pass. */
 export function renderVerdictTable(result: ReviewVerdictResult): string {
   const lines: string[] = [];
-  if (result.skippedAll)
+  if (result.skippedAll) {
     lines.push(
-      `JUDGE SKIPPED (${result.reason ?? "unspecified"}) — ALL scenarios route to Tier 2 (the judge never closes a review alone)`
+      `JUDGE SKIPPED (${
+        result.reason ?? "unspecified"
+      }) — ALL scenarios route to Tier 2 (the judge never closes a review alone)`,
     );
+  }
   // plan 20261119-079 T2: the evasion pack renders LOUDLY — unanswered
   // questions flag Tier 2 (never a guess); answered values surface for the
   // reviewer's oracle-binding audit.
   const ev = result.evasion;
-  if (ev?.unanswered)
+  if (ev?.unanswered) {
     lines.push(
-      `EVASION QUESTIONS UNANSWERED (${ev.reason ?? "unspecified"}) — Tier 2 must audit the oracle binding`
+      `EVASION QUESTIONS UNANSWERED (${ev.reason ?? "unspecified"}) — Tier 2 must audit the oracle binding`,
     );
-  else if (ev)
+  } else if (ev) {
     lines.push(
-      `EVASION VERDICTS: invisible_chars=${ev.invisibleChars} env_bypass=${ev.envBypass} normalization_equivalent=${ev.normalizationEquivalent} oracle_binding_stated=${ev.oracleBindingStated}`
+      `EVASION VERDICTS: invisible_chars=${ev.invisibleChars} env_bypass=${ev.envBypass} normalization_equivalent=${ev.normalizationEquivalent} oracle_binding_stated=${ev.oracleBindingStated}`,
     );
+  }
   lines.push(`TIER-1 VERDICT TABLE (backend ${result.backend})`);
   lines.push("| scenario | verdict | confidence | evidence |");
   lines.push("|---|---|---|---|");
   for (const r of result.results) {
     const ev = r.evidence ? ` ${r.evidence}` : "";
-    const verdictCell =
-      r.verdict === "uncertain"
-        ? r.skipped
-          ? `uncertain — DEEP-READ (skipped: ${r.reason ?? "unspecified"})`
-          : `uncertain — DEEP-READ${r.reason ? ` (${r.reason})` : ""}`
-        : r.verdict;
+    const verdictCell = r.verdict === "uncertain"
+      ? r.skipped
+        ? `uncertain — DEEP-READ (skipped: ${r.reason ?? "unspecified"})`
+        : `uncertain — DEEP-READ${r.reason ? ` (${r.reason})` : ""}`
+      : r.verdict;
     lines.push(`| ${r.scenario} | ${verdictCell} | ${r.confidence} |${ev}`);
   }
   return lines.join("\n");
@@ -2350,39 +2442,34 @@ export function renderVerdictTable(result: ReviewVerdictResult): string {
 /** Evasion-detection questions (plan 20261119-079 Task 2). Evidence-
  *  quoted; when the scanner did not run the judge ABSTAINS rather than
  *  guesses, and the unanswered assessment is the loud Tier-2 flag. */
-export const EVASION_INSTRUCTIONS =
-  "Answer from the evidence, quoting it. When the scanner did not run or the " +
-  "evidence cannot decide it, ABSTAIN (omit the answer) rather than guess — an " +
-  "unanswered evasion question is a loud Tier-2 flag, never a guess.";
+export const EVASION_INSTRUCTIONS = "Answer from the evidence, quoting it. When the scanner did not run or the "
+  + "evidence cannot decide it, ABSTAIN (omit the answer) rather than guess — an "
+  + "unanswered evasion question is a loud Tier-2 flag, never a guess.";
 
 export const EVASION_QUESTIONS = {
   invisible_chars: {
     type: "integer",
     minimum: 0,
-    description:
-      "How many invisible/zero-width characters does the evidence show " +
-      "(U+200B-200D, U+FEFF, U+2060-2064, variation selectors, tag chars)? " +
-      EVASION_INSTRUCTIONS,
+    description: "How many invisible/zero-width characters does the evidence show "
+      + "(U+200B-200D, U+FEFF, U+2060-2064, variation selectors, tag chars)? "
+      + EVASION_INSTRUCTIONS,
   },
   env_bypass: {
     type: "boolean",
-    description:
-      "Does any pinned literal have a runtime bypass path (an env read that " +
-      "could override pinned behavior) in the evidence? " + EVASION_INSTRUCTIONS,
+    description: "Does any pinned literal have a runtime bypass path (an env read that "
+      + "could override pinned behavior) in the evidence? " + EVASION_INSTRUCTIONS,
   },
   normalization_equivalent: {
     type: "boolean",
-    description:
-      "Are the pinned strings equivalent only under NFKC+casefold " +
-      "normalization — i.e. an exact-match oracle would miss them? " +
-      EVASION_INSTRUCTIONS,
+    description: "Are the pinned strings equivalent only under NFKC+casefold "
+      + "normalization — i.e. an exact-match oracle would miss them? "
+      + EVASION_INSTRUCTIONS,
   },
   oracle_binding_stated: {
     type: "boolean",
-    description:
-      "Does the evidence state WHAT the oracle bound to (the exact matcher + " +
-      "normalization)? An oracle is only worth what its binding. " +
-      EVASION_INSTRUCTIONS,
+    description: "Does the evidence state WHAT the oracle bound to (the exact matcher + "
+      + "normalization)? An oracle is only worth what its binding. "
+      + EVASION_INSTRUCTIONS,
   },
 } as const;
 
@@ -2402,7 +2489,7 @@ export interface EvasionAssessment {
 
 function parseEvasionAnswer(
   value: Record<string, unknown> | undefined,
-  whyDefault: string
+  whyDefault: string,
 ): EvasionAssessment {
   const ev = value?.evasion;
   const base: EvasionAssessment = {
@@ -2426,7 +2513,7 @@ function parseEvasionAnswer(
   if (envBypass === null) missing.push("env_bypass");
   if (normalizationEquivalent === null) missing.push("normalization_equivalent");
   if (oracleBindingStated === null) missing.push("oracle_binding_stated");
-  if (missing.length)
+  if (missing.length) {
     return {
       ...base,
       ...(invisibleChars !== null ? { invisibleChars } : {}),
@@ -2435,6 +2522,7 @@ function parseEvasionAnswer(
       ...(oracleBindingStated !== null ? { oracleBindingStated } : {}),
       reason: `evasion answer incomplete (absent/invalid: ${missing.join(", ")}) — evasion questions unanswered`,
     };
+  }
   return {
     invisibleChars,
     envBypass,
@@ -2448,8 +2536,9 @@ function parseEvasionAnswer(
  *  caller ran the Tier-0 scanner (plan 079 Task 1); otherwise the LOUD
  *  absence-of-scanner instruction that orders abstention. */
 function evasionEvidenceBlock(evidence?: string): string {
-  if (evidence && evidence.trim())
+  if (evidence && evidence.trim()) {
     return `EVASION EVIDENCE (deterministic scanner — byte facts; bind to these, quote them):\n${evidence.trim()}\n\n`;
+  }
   return "EVASION EVIDENCE: the scanner did not run — ABSTAIN on the evasion questions rather than guess.\n\n";
 }
 
@@ -2503,8 +2592,7 @@ export const BATCH_HEADER_PREFIX = "Review judge:";
 
 /** Marker line that keys a decompose call in the review body — the recorded
  *  harness backend and the DAG runner both key off it. */
-export const DECOMPOSE_INPUT_MARKER =
-  "decompose this review into dependency-ordered sub-judgments";
+export const DECOMPOSE_INPUT_MARKER = "decompose this review into dependency-ordered sub-judgments";
 
 /** Real file contents carried alongside the diff summary — the judge reads
  *  the code, not just the report about the code. */
@@ -2547,8 +2635,8 @@ export interface DagReviewResult extends BatchedReviewResult {
 
 function batchHeader(): string {
   return (
-    `${BATCH_HEADER_PREFIX} judge every scenario below on the evidence (diff summary + files). ` +
-    `${CALIBRATION_INSTRUCTION} Return one verdict per scenario id.\n\n`
+    `${BATCH_HEADER_PREFIX} judge every scenario below on the evidence (diff summary + files). `
+    + `${CALIBRATION_INSTRUCTION} Return one verdict per scenario id.\n\n`
   );
 }
 
@@ -2570,12 +2658,11 @@ function fitFilesBlock(files: ReviewFileContext[], budget: number): string {
   const perFile = Math.max(0, Math.floor((budget - overhead) / files.length));
   if (perFile <= 0) return "";
   const parts = files.map((f, i) => {
-    const body =
-      f.content.length > perFile
-        ? `${f.content.slice(0, perFile)}…[truncated ${f.content.length - perFile} chars]\n`
-        : f.content.endsWith("\n")
-          ? f.content
-          : `${f.content}\n`;
+    const body = f.content.length > perFile
+      ? `${f.content.slice(0, perFile)}…[truncated ${f.content.length - perFile} chars]\n`
+      : f.content.endsWith("\n")
+      ? f.content
+      : `${f.content}\n`;
     return heads[i] + body;
   });
   return `${sectionHead}${parts.join("")}\n`;
@@ -2587,7 +2674,7 @@ function chunkScenarios(
   scenarios: ReviewScenario[],
   evidenceOf: (id: string) => string,
   prefixLength: number,
-  window: number
+  window: number,
 ): ReviewScenario[][] {
   const chunks: ReviewScenario[][] = [];
   let current: ReviewScenario[] = [];
@@ -2622,9 +2709,8 @@ export function batchVerdictSchema(scenarioIds: string[]): object {
     properties: {
       verdicts: {
         type: "array",
-        description:
-          `One verdict row per scenario id (${scenarioIds.join(", ")}) — exactly one row per id. ` +
-          `${CALIBRATION_INSTRUCTION} A null verdict means you cannot decide (honest abstention).`,
+        description: `One verdict row per scenario id (${scenarioIds.join(", ")}) — exactly one row per id. `
+          + `${CALIBRATION_INSTRUCTION} A null verdict means you cannot decide (honest abstention).`,
         minItems: 1,
         maxItems: 200,
         probabilities: { permutations: 2 },
@@ -2635,7 +2721,8 @@ export function batchVerdictSchema(scenarioIds: string[]): object {
             verdict: {
               type: ["string", "null"],
               enum: REVIEW_VERDICTS,
-              description: `Verdict for this scenario: pass/fail/uncertain, or null when you cannot decide. ${CALIBRATION_INSTRUCTION}`,
+              description:
+                `Verdict for this scenario: pass/fail/uncertain, or null when you cannot decide. ${CALIBRATION_INSTRUCTION}`,
             },
             confidence: {
               type: "number",
@@ -2654,9 +2741,8 @@ export function batchVerdictSchema(scenarioIds: string[]): object {
       // plan 20261119-079 T2: the evasion questions ride every batch.
       evasion: {
         type: "object",
-        description:
-          "Answer the evasion-detection questions from the scanner evidence in " +
-          "the input. An oracle is only worth what its binding.",
+        description: "Answer the evasion-detection questions from the scanner evidence in "
+          + "the input. An oracle is only worth what its binding.",
         properties: { ...EVASION_QUESTIONS },
         required: [],
         additionalProperties: false,
@@ -2699,14 +2785,13 @@ function parseVerdictRows(ids: string[], value: Record<string, unknown>): {
       continue;
     }
     const verdict = row.verdict;
-    const probabilities =
-      row.probabilities && typeof row.probabilities === "object"
-        ? (Object.fromEntries(
-            Object.entries(row.probabilities as Record<string, unknown>).filter(
-              (entry): entry is [string, number] => typeof entry[1] === "number"
-            )
-          ) as Record<string, number>)
-        : undefined;
+    const probabilities = row.probabilities && typeof row.probabilities === "object"
+      ? (Object.fromEntries(
+        Object.entries(row.probabilities as Record<string, unknown>).filter(
+          (entry): entry is [string, number] => typeof entry[1] === "number",
+        ),
+      ) as Record<string, number>)
+      : undefined;
     if (verdict === null) {
       // native no-answer abstention — honest uncertain, routes to Tier 2
       const confidence = typeof row.confidence === "number" && Number.isFinite(row.confidence) ? row.confidence : 0;
@@ -2785,7 +2870,7 @@ export async function reviewVerdictsBatched(
   backend: JudgeBackend,
   scenarios: ReviewScenario[],
   diffSummary: string,
-  opts?: BatchedVerdictOptions
+  opts?: BatchedVerdictOptions,
 ): Promise<BatchedReviewResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const evidenceOf = (id: string) => opts?.evidence?.[id] ?? diffSummary;
@@ -2796,11 +2881,11 @@ export async function reviewVerdictsBatched(
   const chunks0 = chunkScenarios(scenarios, evidenceOf, header.length + evasionBlock.length, window);
   const largestBlocks = Math.max(
     0,
-    ...chunks0.map((c) => c.reduce((n, s) => n + scenarioBlock(s, evidenceOf(s.id)).length, 0))
+    ...chunks0.map((c) => c.reduce((n, s) => n + scenarioBlock(s, evidenceOf(s.id)).length, 0)),
   );
   const filesBlock = fitFilesBlock(
     opts?.files ?? [],
-    window - header.length - evasionBlock.length - largestBlocks
+    window - header.length - evasionBlock.length - largestBlocks,
   );
   const prefix = header + evasionBlock + filesBlock;
   const prefixLength = prefix.length;
@@ -2819,14 +2904,15 @@ export async function reviewVerdictsBatched(
     evasionReads.push(
       parseEvasionAnswer(
         v.value,
-        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion"
-      )
+        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion",
+      ),
     );
     if (v.skipped) {
       const why = v.reason ?? "judge skipped (unspecified)";
       firstSkipReason ??= why;
-      for (const id of ids)
+      for (const id of ids) {
         byId.set(id, { scenario: id, verdict: "uncertain", confidence: 0, skipped: true, reason: why });
+      }
       continue;
     }
     const parsed = parseVerdictRows(ids, v.value ?? {});
@@ -2865,10 +2951,9 @@ export const REVIEW_DECOMPOSE_SCHEMA = {
   properties: {
     decomposition: {
       type: "string",
-      description:
-        'JSON document: {"groups":[{"id":"J1","scenarios":["S1"],"depends_on":[]}]}' +
-        " — dependency-ordered sub-judgments covering every scenario id exactly once; " +
-        "a group's depends_on names group ids whose verdicts it needs first.",
+      description: "JSON document: {\"groups\":[{\"id\":\"J1\",\"scenarios\":[\"S1\"],\"depends_on\":[]}]}"
+        + " — dependency-ordered sub-judgments covering every scenario id exactly once; "
+        + "a group's depends_on names group ids whose verdicts it needs first.",
     },
   },
   required: ["decomposition"],
@@ -2917,11 +3002,12 @@ function parseDecomposition(raw: unknown, scenarioIds: string[]): DecomposeGroup
   while (queue.length) {
     const id = queue.pop()!;
     visited++;
-    for (const g of seen.values())
+    for (const g of seen.values()) {
       if (g.depends_on.includes(id)) {
         indegree.set(g.id, (indegree.get(g.id) ?? 1) - 1);
         if (indegree.get(g.id) === 0) queue.push(g.id);
       }
+    }
   }
   if (visited !== seen.size) return null;
   return [...seen.values()];
@@ -2960,7 +3046,7 @@ export async function reviewVerdictsDag(
   backend: JudgeBackend,
   scenarios: ReviewScenario[],
   diffSummary: string,
-  opts?: BatchedVerdictOptions
+  opts?: BatchedVerdictOptions,
 ): Promise<DagReviewResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const evidenceOf = (id: string) => opts?.evidence?.[id] ?? diffSummary;
@@ -2971,9 +3057,8 @@ export async function reviewVerdictsDag(
   // 1. Decompose ONCE; the first (and only) presentation is the input order —
   //    order bias on the verdicts is averaged natively, not by re-presentation.
   let groups: DecomposeGroup[] | null = null;
-  const input =
-    `${DECOMPOSE_INPUT_MARKER}: group the scenarios below into sub-judgments with depends_on edges.\n\n` +
-    scenarios.map((s) => scenarioBlock(s, evidenceOf(s.id))).join("");
+  const input = `${DECOMPOSE_INPUT_MARKER}: group the scenarios below into sub-judgments with depends_on edges.\n\n`
+    + scenarios.map((s) => scenarioBlock(s, evidenceOf(s.id))).join("");
   calls++;
   const v = await backend.classify(REVIEW_DECOMPOSE_SCHEMA, input);
   if (v.skipped) {
@@ -2983,8 +3068,9 @@ export async function reviewVerdictsDag(
     if (!groups) firstSkipReason = "decompose response invalid (coverage/edges/cyclicity)";
   }
   if (!groups) {
-    degraded =
-      `decompose unusable (${firstSkipReason ?? "no valid decomposition"}) — fell back to independent sub-judgments`;
+    degraded = `decompose unusable (${
+      firstSkipReason ?? "no valid decomposition"
+    }) — fell back to independent sub-judgments`;
     groups = scenarios.map((s, i) => ({ id: `J${i + 1}`, scenarios: [s.id], depends_on: [] }));
   }
 
@@ -3000,9 +3086,11 @@ export async function reviewVerdictsDag(
     const ids = group.scenarios;
     const executed = [...byId.values()];
     const contextSection = executed.length
-      ? `Earlier verdicts (context — judge this group with them in view):\n` +
-        executed.map((r) => `- ${r.scenario}: ${r.verdict} (confidence ${r.confidence})${r.evidence ? ` — ${r.evidence}` : ""}`).join("\n") +
-        "\n\n"
+      ? `Earlier verdicts (context — judge this group with them in view):\n`
+        + executed.map((r) =>
+          `- ${r.scenario}: ${r.verdict} (confidence ${r.confidence})${r.evidence ? ` — ${r.evidence}` : ""}`
+        ).join("\n")
+        + "\n\n"
       : "";
     const blocksLength = ids.reduce((n, id) => {
       const s = scenarios.find((x) => x.id === id)!;
@@ -3010,11 +3098,10 @@ export async function reviewVerdictsDag(
     }, 0);
     const filesBlock = fitFilesBlock(
       opts?.files ?? [],
-      window - header.length - evasionBlock.length - contextSection.length - blocksLength
+      window - header.length - evasionBlock.length - contextSection.length - blocksLength,
     );
-    const input =
-      header + evasionBlock + contextSection + filesBlock +
-      ids
+    const input = header + evasionBlock + contextSection + filesBlock
+      + ids
         .map((id) => scenarioBlock(scenarios.find((x) => x.id === id)!, evidenceOf(id)))
         .join("");
     calls++;
@@ -3023,14 +3110,15 @@ export async function reviewVerdictsDag(
     evasionReads.push(
       parseEvasionAnswer(
         v.value,
-        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion"
-      )
+        v.skipped ? (v.reason ?? "judge skipped (unspecified)") : "batch response omitted evasion",
+      ),
     );
     if (v.skipped) {
       const why = v.reason ?? "judge skipped (unspecified)";
       firstSkipReason ??= why;
-      for (const id of ids)
+      for (const id of ids) {
         byId.set(id, { scenario: id, verdict: "uncertain", confidence: 0, skipped: true, reason: why });
+      }
       continue;
     }
     const parsed = parseVerdictRows(ids, v.value ?? {});
@@ -3134,10 +3222,9 @@ export function claimVerdictSchema(ids: string[]): object {
     properties: {
       claimVerdicts: {
         type: "array",
-        description:
-          `One verdict row per claim id (${ids.join(", ")}). Verdict TRUE when the transcript ` +
-          "supports the claim at its pointed turn; FALSE when it visibly contradicts it; " +
-          "UNVERIFIABLE when it cannot decide. A null verdict is an honest abstention.",
+        description: `One verdict row per claim id (${ids.join(", ")}). Verdict TRUE when the transcript `
+          + "supports the claim at its pointed turn; FALSE when it visibly contradicts it; "
+          + "UNVERIFIABLE when it cannot decide. A null verdict is an honest abstention.",
         minItems: 1,
         maxItems: 200,
         items: {
@@ -3181,10 +3268,9 @@ export function renderTurns(turns: SessionTurn[], budget: number): string {
   return (
     turns
       .map((t, i) => {
-        const body =
-          t.text.length > perTurn
-            ? `${t.text.slice(0, perTurn)}…[truncated ${t.text.length - perTurn} chars]`
-            : t.text;
+        const body = t.text.length > perTurn
+          ? `${t.text.slice(0, perTurn)}…[truncated ${t.text.length - perTurn} chars]`
+          : t.text;
         return `${label(t, i)}${body}\n`;
       })
       .join("") + "\n"
@@ -3201,7 +3287,7 @@ export async function verifyClaims(
   backend: JudgeBackend,
   claims: ReportClaim[],
   turns: SessionTurn[],
-  opts?: { window?: number }
+  opts?: { window?: number },
 ): Promise<VerifyClaimsResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const verified: VerifiedClaim[] = [];
@@ -3211,31 +3297,35 @@ export async function verifyClaims(
   claims.forEach((claim, i) => {
     const id = `C${i + 1}`;
     const pointer = claim.sessionTurn;
-    const okPointer =
-      typeof pointer === "number" && Number.isInteger(pointer) && pointer >= 0 && pointer < turns.length;
-    if (!okPointer)
+    const okPointer = typeof pointer === "number" && Number.isInteger(pointer) && pointer >= 0
+      && pointer < turns.length;
+    if (!okPointer) {
       bounced.push({
         ...claim,
         id,
         verdict: "FALSE",
         route: "worker",
-        reason: `invalid turn pointer (${String(pointer)} — transcript has ${turns.length} entries); pointer accuracy is part of the claim`,
+        reason: `invalid turn pointer (${
+          String(pointer)
+        } — transcript has ${turns.length} entries); pointer accuracy is part of the claim`,
       });
-    else valid.push({ claim, id });
+    } else valid.push({ claim, id });
   });
-  if (!valid.length)
+  if (!valid.length) {
     return { verified, bounced, skippedAll: false, calls: 0, backend: backend.name };
+  }
 
   // 2. ONE batched judge call (Phase-3 batching pattern) over the transcript.
-  const input =
-    `Verify every claim below against the worker's session transcript (the ground truth, ` +
-    `entry-index addressed). A wrong pointer means the claim is FALSE.\n\n` +
-    `Session transcript:\n${renderTurns(turns, Math.max(2_000, window - 8_000))}\n` +
-    valid.map(({ claim, id }) => `Claim ${id} [type ${claim.type}] (sessionTurn ${claim.sessionTurn}): ${claim.claim}\n`).join("");
+  const input = `Verify every claim below against the worker's session transcript (the ground truth, `
+    + `entry-index addressed). A wrong pointer means the claim is FALSE.\n\n`
+    + `Session transcript:\n${renderTurns(turns, Math.max(2_000, window - 8_000))}\n`
+    + valid.map(({ claim, id }) =>
+      `Claim ${id} [type ${claim.type}] (sessionTurn ${claim.sessionTurn}): ${claim.claim}\n`
+    ).join("");
   const v = await backend.classify(claimVerdictSchema(valid.map((x) => x.id)), input);
   if (v.skipped) {
     const why = v.reason ?? "judge skipped (unspecified)";
-    for (const { claim, id } of valid)
+    for (const { claim, id } of valid) {
       bounced.push({
         ...claim,
         id,
@@ -3243,6 +3333,7 @@ export async function verifyClaims(
         route: "reviewer",
         reason: `JUDGE SKIPPED (${why}) — a skip is never a silent pass`,
       });
+    }
     return {
       verified,
       bounced,
@@ -3321,7 +3412,9 @@ export async function verifyClaims(
       verdict: verdict as Exclude<ClaimVerdict, "TRUE">,
       route: verdict === "FALSE" ? "worker" : "reviewer",
       ...(evidence !== undefined ? { evidence } : {}),
-      reason: verdict === "FALSE" ? "transcript contradicts the claim — the report must be fixed" : "transcript cannot decide the claim — re-review the work",
+      reason: verdict === "FALSE"
+        ? "transcript contradicts the claim — the report must be fixed"
+        : "transcript cannot decide the claim — re-review the work",
     });
   }
   return {
@@ -3340,19 +3433,24 @@ export async function verifyClaims(
  *  not prose. */
 export function renderClaimDigest(result: VerifyClaimsResult): string {
   const lines: string[] = [];
-  if (result.skippedAll)
+  if (result.skippedAll) {
     lines.push(
-      `CLAIM VERIFICATION SKIPPED (${result.reason ?? "unspecified"}) — all claims bounce loudly, none verified`
+      `CLAIM VERIFICATION SKIPPED (${result.reason ?? "unspecified"}) — all claims bounce loudly, none verified`,
     );
+  }
   lines.push(
-    `VERIFIED CLAIM DIGEST (backend ${result.backend}, ${result.calls} call(s))`
+    `VERIFIED CLAIM DIGEST (backend ${result.backend}, ${result.calls} call(s))`,
   );
-  for (const c of result.verified)
-    lines.push(`✓ [${c.id}] (${c.type}, turn ${c.sessionTurn}) ${c.claim}${c.evidence ? ` — evidence: ${c.evidence}` : ""}`);
-  for (const b of result.bounced)
+  for (const c of result.verified) {
     lines.push(
-      `✗ BOUNCED [${b.id}] ${b.verdict} → ${b.route} — (${b.type}, turn ${b.sessionTurn}) ${b.claim} — ${b.reason}`
+      `✓ [${c.id}] (${c.type}, turn ${c.sessionTurn}) ${c.claim}${c.evidence ? ` — evidence: ${c.evidence}` : ""}`,
     );
+  }
+  for (const b of result.bounced) {
+    lines.push(
+      `✗ BOUNCED [${b.id}] ${b.verdict} → ${b.route} — (${b.type}, turn ${b.sessionTurn}) ${b.claim} — ${b.reason}`,
+    );
+  }
   return lines.join("\n");
 }
 
@@ -3410,11 +3508,10 @@ export function logMiningSchema(): object {
     properties: {
       knowledge: {
         type: ["array", "null"],
-        description:
-          "Knowledge-promotion candidates found in these LOG lines, or null when this slice " +
-          "yields none. One row per durable lesson: what to do (candidate), when it applies " +
-          "(trigger), which deterministic gate enforces it (gateBinding), and the " +
-          "[log line N] it came from (logTurn).",
+        description: "Knowledge-promotion candidates found in these LOG lines, or null when this slice "
+          + "yields none. One row per durable lesson: what to do (candidate), when it applies "
+          + "(trigger), which deterministic gate enforces it (gateBinding), and the "
+          + "[log line N] it came from (logTurn).",
         minItems: 1,
         maxItems: 200,
         items: {
@@ -3473,7 +3570,7 @@ function renderLogSlice(slice: { text: string; firstLine: number }): string {
 export async function mineLog(
   backend: JudgeBackend,
   logText: string,
-  opts?: { window?: number; sliceBudget?: number }
+  opts?: { window?: number; sliceBudget?: number },
 ): Promise<MineLogResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const sliceBudget = Math.min(opts?.sliceBudget ?? Math.floor(window / 2), window - 2_000);
@@ -3485,10 +3582,9 @@ export async function mineLog(
   let firstReason: string | undefined;
   const usage = usageAccumulator();
   for (const slice of slices) {
-    const input =
-      `Mine durable knowledge-promotion candidates from these .workflows/LOG.md lines ` +
-      `(073 promotion vocabulary). Cite the [log line N] each candidate came from.\n\n` +
-      `${renderLogSlice(slice)}\n`;
+    const input = `Mine durable knowledge-promotion candidates from these .workflows/LOG.md lines `
+      + `(073 promotion vocabulary). Cite the [log line N] each candidate came from.\n\n`
+      + `${renderLogSlice(slice)}\n`;
     const v = await backend.classify(logMiningSchema(), input);
     usage.add(v.usage);
     if (v.skipped) {
@@ -3528,7 +3624,8 @@ export async function mineLog(
       if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
         deferred.push({
           row: r as Partial<KnowledgeCandidate>,
-          reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path judges it`,
+          reason:
+            `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path judges it`,
         });
         continue;
       }
@@ -3594,9 +3691,8 @@ export const DOCTRINE_SCHEMA = {
   properties: {
     rule: {
       type: ["string", "null"],
-      description:
-        "The durable rule this incident adds, one imperative sentence — or null when the " +
-        "incident adds no rule (honest abstention; never invent one).",
+      description: "The durable rule this incident adds, one imperative sentence — or null when the "
+        + "incident adds no rule (honest abstention; never invent one).",
       thinking: { budget: 512 },
     },
     trigger: {
@@ -3605,8 +3701,7 @@ export const DOCTRINE_SCHEMA = {
     },
     gateBinding: {
       type: "string",
-      description:
-        "The deterministic gate/script that enforces this rule (empty or 'none' when no gate binds yet).",
+      description: "The deterministic gate/script that enforces this rule (empty or 'none' when no gate binds yet).",
     },
     confidence: { type: "number", minimum: 0, maximum: 1, description: "0-1 confidence in the extraction." },
   },
@@ -3620,10 +3715,10 @@ export const DOCTRINE_SCHEMA = {
  *  promotion path as mineLog — the sieve judges it, nothing auto-promotes. */
 export async function doctrineCandidate(
   backend: JudgeBackend,
-  incidentText: string
+  incidentText: string,
 ): Promise<DoctrineCandidateResult> {
   const v = await backend.classify(DOCTRINE_SCHEMA, incidentText);
-  if (v.skipped)
+  if (v.skipped) {
     return {
       candidate: null,
       skipped: true,
@@ -3631,18 +3726,21 @@ export async function doctrineCandidate(
       backend: backend.name,
       reason: `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — the agent extracts the doctrine by hand`,
     };
+  }
   const rule = (v.value as any)?.rule;
   const confidence = typeof (v.value as any)?.confidence === "number" ? (v.value as any).confidence : 0;
-  if (rule === null)
+  if (rule === null) {
     return {
       candidate: null,
       skipped: false,
       belowFloor: false,
       backend: backend.name,
-      reason: "nullable abstention (native no-answer): this incident adds no extractable rule — write doctrine by hand if needed",
+      reason:
+        "nullable abstention (native no-answer): this incident adds no extractable rule — write doctrine by hand if needed",
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
-  if (typeof rule !== "string" || !rule.trim())
+  }
+  if (typeof rule !== "string" || !rule.trim()) {
     return {
       candidate: null,
       skipped: false,
@@ -3651,15 +3749,18 @@ export async function doctrineCandidate(
       reason: "schema-invalid response: rule is neither a string nor null",
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  }
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       candidate: null,
       skipped: false,
       belowFloor: true,
       backend: backend.name,
-      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (hand extraction) applies`,
+      reason:
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (hand extraction) applies`,
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
+  }
   const trigger = typeof (v.value as any)?.trigger === "string" ? (v.value as any).trigger : "";
   const gateBinding = typeof (v.value as any)?.gateBinding === "string" ? (v.value as any).gateBinding : "";
   return {
@@ -3710,7 +3811,7 @@ export function findTaskSlice(planText: string, taskId: string, budget = 32_000)
   if (headingLine < 0) return null;
   const startLine = Math.max(0, headingLine - 10);
   const nextHeading = lines.findIndex(
-    (l, i) => i > headingLine && /^\s*#{1,4}\s+/.test(l)
+    (l, i) => i > headingLine && /^\s*#{1,4}\s+/.test(l),
   );
   const endByHeading = nextHeading > 0 ? nextHeading - 1 : lines.length - 1;
   // reserve room for the explicit truncation marker so the slice never
@@ -3724,8 +3825,9 @@ export function findTaskSlice(planText: string, taskId: string, budget = 32_000)
   }
   endLine--; // last included line
   let text = lines.slice(startLine, endLine + 1).join("\n");
-  if (endLine < endByHeading)
+  if (endLine < endByHeading) {
     text += `\n…[truncated to the ${budget}-char slice budget]`;
+  }
   return { text, startLine: startLine + 1, endLine: endLine + 1 };
 }
 
@@ -3756,9 +3858,8 @@ export const TASK_BRIEF_SCHEMA = {
     taskId: { type: "string", description: "The task id this brief answers." },
     objective: {
       type: ["string", "null"],
-      description:
-        "The task's objective in one imperative sentence — or null when the section does not " +
-        "yield an objective (honest abstention; never invent one).",
+      description: "The task's objective in one imperative sentence — or null when the section does not "
+        + "yield an objective (honest abstention; never invent one).",
     },
     deliverables: {
       type: "array",
@@ -3787,10 +3888,10 @@ export async function extractTaskBrief(
   backend: JudgeBackend,
   planText: string,
   taskId: string,
-  opts?: { sliceBudget?: number }
+  opts?: { sliceBudget?: number },
 ): Promise<ExtractBriefResult> {
   const slice = findTaskSlice(planText, taskId, opts?.sliceBudget ?? 32_000);
-  if (!slice)
+  if (!slice) {
     return {
       brief: null,
       skipped: true,
@@ -3798,12 +3899,12 @@ export async function extractTaskBrief(
       calls: 0,
       reason: `task ${taskId} not found in the plan — the dispatch pack carries the full document`,
     };
-  const input =
-    `Extract the minimal brief for Task ${taskId} from this plan slice (objective, ` +
-    `deliverables, constraints). Augment-only: keep what the section names, invent nothing.\n\n` +
-    `${slice.text}\n`;
+  }
+  const input = `Extract the minimal brief for Task ${taskId} from this plan slice (objective, `
+    + `deliverables, constraints). Augment-only: keep what the section names, invent nothing.\n\n`
+    + `${slice.text}\n`;
   const v = await backend.classify(TASK_BRIEF_SCHEMA, input);
-  if (v.skipped)
+  if (v.skipped) {
     return {
       brief: null,
       skipped: true,
@@ -3812,9 +3913,10 @@ export async function extractTaskBrief(
       reason: `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — the worker gets the full document`,
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
+  }
   const out = (v.value ?? {}) as Record<string, unknown>;
   const confidence = typeof out.confidence === "number" && Number.isFinite(out.confidence) ? out.confidence : 0;
-  if (out.objective === null)
+  if (out.objective === null) {
     return {
       brief: null,
       skipped: false,
@@ -3823,7 +3925,8 @@ export async function extractTaskBrief(
       reason: "nullable abstention (native no-answer): the section yields no brief — the worker gets the full document",
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
-  if (typeof out.objective !== "string" || !out.objective.trim())
+  }
+  if (typeof out.objective !== "string" || !out.objective.trim()) {
     return {
       brief: null,
       skipped: false,
@@ -3832,15 +3935,18 @@ export async function extractTaskBrief(
       reason: "schema-invalid response: objective is neither a string nor null",
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  }
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       brief: null,
       skipped: false,
       backend: backend.name,
       calls: 1,
-      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (full document) applies`,
+      reason:
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (full document) applies`,
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
+  }
   const strings = (arr: unknown) =>
     Array.isArray(arr) ? arr.filter((x): x is string => typeof x === "string" && !!x.trim()) : [];
   return {
@@ -3914,10 +4020,9 @@ export const SPEC_DRAFT_SCHEMA = {
     intent: { type: "string", description: "The spec's intent paragraph (what must hold when done)." },
     scenarios: {
       type: ["array", "null"],
-      description:
-        "Draft completion-criteria scenarios, or null when the plan yields none (honest " +
-        "abstention). Each scenario: a mechanical Test selector (a parseable command that " +
-        "checks the end state, never a prose claim) and Given/When/Then steps.",
+      description: "Draft completion-criteria scenarios, or null when the plan yields none (honest "
+        + "abstention). Each scenario: a mechanical Test selector (a parseable command that "
+        + "checks the end state, never a prose claim) and Given/When/Then steps.",
       minItems: 1,
       maxItems: 200,
       items: {
@@ -3983,21 +4088,19 @@ export function renderSpecDraft(draft: SpecDraft): string {
 export async function draftSpecScenarios(
   backend: JudgeBackend,
   planText: string,
-  opts?: { window?: number }
+  opts?: { window?: number },
 ): Promise<SpecDraftResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   // the plan rides one call, truncated loudly beyond the window (a draft aid,
   // never a completeness claim)
-  const body =
-    planText.length > window - 2_000
-      ? `${planText.slice(0, window - 2_000)}…[truncated ${planText.length - (window - 2_000)} chars]`
-      : planText;
-  const input =
-    `Draft completion-criteria scenarios for a .spec contract from this plan text. Each ` +
-    `scenario's Test selector is a mechanical, parseable end-state check command.\n\n${body}\n`;
+  const body = planText.length > window - 2_000
+    ? `${planText.slice(0, window - 2_000)}…[truncated ${planText.length - (window - 2_000)} chars]`
+    : planText;
+  const input = `Draft completion-criteria scenarios for a .spec contract from this plan text. Each `
+    + `scenario's Test selector is a mechanical, parseable end-state check command.\n\n${body}\n`;
   const v = await backend.classify(SPEC_DRAFT_SCHEMA, input);
   const emptyDraft: SpecDraft = { name: "", tags: [], intent: "", scenarios: [] };
-  if (v.skipped)
+  if (v.skipped) {
     return {
       status: "draft",
       draft: emptyDraft,
@@ -4007,10 +4110,11 @@ export async function draftSpecScenarios(
       reason: `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — the owner authors the spec by hand`,
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
+  }
   const out = (v.value ?? {}) as Record<string, unknown>;
   const confidence = typeof out.confidence === "number" && Number.isFinite(out.confidence) ? out.confidence : 0;
   const scenariosRaw = out.scenarios;
-  if (scenariosRaw === null || scenariosRaw === undefined)
+  if (scenariosRaw === null || scenariosRaw === undefined) {
     return {
       status: "draft",
       draft: emptyDraft,
@@ -4020,27 +4124,30 @@ export async function draftSpecScenarios(
       reason: "nullable abstention (native no-answer): the plan yields no draftable scenarios",
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  }
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       status: "draft",
       draft: emptyDraft,
       skipped: false,
       backend: backend.name,
       calls: 1,
-      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (hand authoring) applies`,
+      reason:
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the deterministic path (hand authoring) applies`,
       ...(v.usage !== undefined ? { usage: v.usage } : {}),
     };
+  }
   const scenarios: DraftScenario[] = Array.isArray(scenariosRaw)
     ? (scenariosRaw as unknown[])
-        .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
-        .filter((s) => typeof s.name === "string" && typeof s.test === "string" && !!s.name.trim() && !!s.test.trim())
-        .map((s) => ({
-          name: s.name as string,
-          test: (s.test as string).split("\n")[0].trim(), // a selector is ONE parseable command line
-          given: typeof s.given === "string" ? s.given : "",
-          when: typeof s.when === "string" ? s.when : "",
-          then: typeof s.then === "string" ? s.then : "",
-        }))
+      .filter((s): s is Record<string, unknown> => !!s && typeof s === "object" && !Array.isArray(s))
+      .filter((s) => typeof s.name === "string" && typeof s.test === "string" && !!s.name.trim() && !!s.test.trim())
+      .map((s) => ({
+        name: s.name as string,
+        test: (s.test as string).split("\n")[0].trim(), // a selector is ONE parseable command line
+        given: typeof s.given === "string" ? s.given : "",
+        when: typeof s.when === "string" ? s.when : "",
+        then: typeof s.then === "string" ? s.then : "",
+      }))
     : [];
   if (!Array.isArray(scenariosRaw)) {
     return {
@@ -4095,7 +4202,8 @@ export const INIT_EXTRACT_SCHEMA = {
       properties: {
         test: {
           type: ["string", "null"],
-          description: "the test command (from package.json scripts.test, Cargo.toml, pyproject.toml…), or null when none is detectable",
+          description:
+            "the test command (from package.json scripts.test, Cargo.toml, pyproject.toml…), or null when none is detectable",
         },
         lint: {
           type: ["string", "null"],
@@ -4173,8 +4281,7 @@ export const INIT_EXTRACT_SCHEMA = {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the draft. 0.9+ only when the manifests decide the fields unambiguously.",
+      description: "0-1 confidence in the draft. 0.9+ only when the manifests decide the fields unambiguously.",
     },
     evidence: {
       type: "string",
@@ -4205,8 +4312,7 @@ export type AdoptExtraction =
 function adoptDraftOf(value: unknown): AdoptDraft | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
-  const cmd = (x: unknown): string | undefined =>
-    typeof x === "string" && !!x.trim() ? x.trim() : undefined;
+  const cmd = (x: unknown): string | undefined => typeof x === "string" && !!x.trim() ? x.trim() : undefined;
   const pc = v.profileCommands;
   if (!pc || typeof pc !== "object" || Array.isArray(pc)) return null;
   const commands: AdoptDraft["commands"] = {};
@@ -4257,16 +4363,18 @@ function adoptDraftOf(value: unknown): AdoptDraft | null {
  *  and no draft is written. */
 export async function extractAdoptDraft(
   backend: JudgeBackend,
-  context: string
+  context: string,
 ): Promise<AdoptExtraction> {
   const v = await backend.classify(INIT_EXTRACT_SCHEMA, context);
   if (v.skipped) return { skipped: true, reason: v.reason ?? "judge skipped (unspecified)" };
   const confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       skipped: true,
-      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the draft by hand (the /init brownfield path)`,
+      reason:
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the draft by hand (the /init brownfield path)`,
     };
+  }
   const draft = adoptDraftOf(v.value);
   if (!draft) return { skipped: true, reason: "schema-invalid response: draft fields missing or malformed" };
   return {
@@ -4322,8 +4430,7 @@ export const PLAN_DAG_SCHEMA = {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the edges. 0.9+ only when the plan text states the dependencies unambiguously.",
+      description: "0-1 confidence in the edges. 0.9+ only when the plan text states the dependencies unambiguously.",
     },
     evidence: {
       type: "string",
@@ -4416,16 +4523,15 @@ function parseDepCell(cell: string): string[] {
 /** The judge's input: the edge-extraction framing over the plan text. */
 export function planDagInput(planText: string, opts?: { window?: number }): string {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
-  const body =
-    planText.length > window - 2_000
-      ? `${planText.slice(0, window - 2_000)}…[truncated ${planText.length - (window - 2_000)} chars]`
-      : planText;
+  const body = planText.length > window - 2_000
+    ? `${planText.slice(0, window - 2_000)}…[truncated ${planText.length - (window - 2_000)} chars]`
+    : planText;
   return (
-    "Extract the task `Depends On` edges from this plan text: one row per " +
-    "task, its id exactly as the plan writes it, and the ids it depends on " +
-    "(empty when none). Every task appears exactly once; do not invent tasks " +
-    "or dependencies that the plan does not state.\n\n" +
-    body
+    "Extract the task `Depends On` edges from this plan text: one row per "
+    + "task, its id exactly as the plan writes it, and the ids it depends on "
+    + "(empty when none). Every task appears exactly once; do not invent tasks "
+    + "or dependencies that the plan does not state.\n\n"
+    + body
   );
 }
 
@@ -4444,7 +4550,7 @@ function planDagCycle(edges: PlanDagEdge[]): string[] {
     const key = normTaskId(e.task);
     indegree.set(
       key,
-      e.dependsOn.filter((d) => byId.has(normTaskId(d))).length
+      e.dependsOn.filter((d) => byId.has(normTaskId(d))).length,
     );
   }
   const queue = [...byId.keys()].filter((k) => (indegree.get(k) ?? 0) === 0);
@@ -4452,13 +4558,14 @@ function planDagCycle(edges: PlanDagEdge[]): string[] {
   while (queue.length) {
     const id = queue.pop()!;
     done.add(id);
-    for (const e of byId.values())
+    for (const e of byId.values()) {
       if (e.dependsOn.some((d) => normTaskId(d) === id)) {
         const k = normTaskId(e.task);
         const n = (indegree.get(k) ?? 1) - 1;
         indegree.set(k, n);
         if (n === 0 && !done.has(k)) queue.push(k);
       }
+    }
   }
   return [...byId.keys()].filter((k) => !done.has(k)).map((k) => byId.get(k)!.task);
 }
@@ -4472,11 +4579,11 @@ export async function extractPlanDag(
   backend: JudgeBackend,
   planText: string,
   taskIds?: string[],
-  opts?: { window?: number }
+  opts?: { window?: number },
 ): Promise<PlanDagResult> {
   const v = await backend.classify(PLAN_DAG_SCHEMA, planDagInput(planText, opts));
   const base = { backend: backend.name, calls: 1, findings: [] as PlanDagFinding[] };
-  if (v.skipped)
+  if (v.skipped) {
     return {
       ...base,
       edges: [],
@@ -4485,18 +4592,21 @@ export async function extractPlanDag(
       reason: `JUDGE SKIPPED (${v.reason ?? "unspecified"}) — derive the Depends On edges by hand`,
       confidence: 0,
     };
+  }
   const confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
-  if (confidence < TRIAGE_CONFIDENCE_FLOOR)
+  if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
     return {
       ...base,
       edges: [],
       skipped: true,
       defaultPath: true,
-      reason: `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the Depends On edges by hand`,
+      reason:
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — derive the Depends On edges by hand`,
       confidence,
     };
+  }
   const raw = (v.value ?? {}) as Record<string, unknown>;
-  if (raw.edges === null || raw.edges === undefined)
+  if (raw.edges === null || raw.edges === undefined) {
     return {
       ...base,
       edges: [],
@@ -4505,7 +4615,8 @@ export async function extractPlanDag(
       reason: "no extractable edges (native abstention) — confirm the edges by hand",
       confidence,
     };
-  if (!Array.isArray(raw.edges))
+  }
+  if (!Array.isArray(raw.edges)) {
     return {
       ...base,
       edges: [],
@@ -4514,6 +4625,7 @@ export async function extractPlanDag(
       reason: "schema-invalid response: edges is neither an array nor null",
       confidence,
     };
+  }
   const edges: PlanDagEdge[] = [];
   const findings: PlanDagFinding[] = [];
   const counts = new Map<string, number>();
@@ -4523,7 +4635,10 @@ export async function extractPlanDag(
       continue;
     }
     const row = e as Record<string, unknown>;
-    if (typeof row.task !== "string" || !row.task.trim() || !Array.isArray(row.dependsOn) || row.dependsOn.some((d) => typeof d !== "string")) {
+    if (
+      typeof row.task !== "string" || !row.task.trim() || !Array.isArray(row.dependsOn)
+      || row.dependsOn.some((d) => typeof d !== "string")
+    ) {
       findings.push({ kind: "schema-invalid", detail: `edge row malformed for '${String(row.task)}'` });
       continue;
     }
@@ -4533,23 +4648,28 @@ export async function extractPlanDag(
     counts.set(key, (counts.get(key) ?? 0) + 1);
     if (taskIds) {
       const known = new Set(taskIds.map(normTaskId));
-      for (const d of edge.dependsOn)
-        if (!known.has(normTaskId(d)))
+      for (const d of edge.dependsOn) {
+        if (!known.has(normTaskId(d))) {
           findings.push({
             kind: "unknown-task",
             detail: `${edge.task} depends on '${d}' — no such task id in the plan`,
           });
+        }
+      }
     }
   }
-  for (const [key, n] of counts)
-    if (n > 1)
+  for (const [key, n] of counts) {
+    if (n > 1) {
       findings.push({
         kind: "duplicate-task",
         detail: `${key} appears ${n} times — every task exactly once`,
       });
+    }
+  }
   const cycle = planDagCycle(edges);
-  if (cycle.length)
+  if (cycle.length) {
     findings.push({ kind: "cycle", detail: `cyclic Depends On edges through: ${cycle.join(", ")}` });
+  }
   return {
     edges,
     findings,
@@ -4571,8 +4691,8 @@ export function renderPlanDagTable(r: PlanDagResult): string {
     return lines.join("\n");
   }
   lines.push(
-    "PLAN DAG — proposed `Depends On` edges. The OWNER must CONFIRM or correct " +
-      "every edge; a wrong edge is a finding, never silent acceptance."
+    "PLAN DAG — proposed `Depends On` edges. The OWNER must CONFIRM or correct "
+      + "every edge; a wrong edge is a finding, never silent acceptance.",
   );
   lines.push("| task | depends on |");
   lines.push("|---|---|");
@@ -4587,7 +4707,7 @@ export function renderPlanDagTable(r: PlanDagResult): string {
  *  is named per task — wrong edges are a finding. */
 export function validatePlanDag(
   planText: string,
-  edges: PlanDagEdge[]
+  edges: PlanDagEdge[],
 ): { ok: boolean; mismatches: string[] } {
   const plan = parsePlanDeps(planText);
   const planById = new Map(plan.map((e) => [normTaskId(e.task), e]));
@@ -4676,8 +4796,7 @@ export const AUDIT_BATCH_SCHEMA = {
       type: "number",
       minimum: 0,
       maximum: 1,
-      description:
-        "0-1 confidence in the batch verdicts. 0.9+ only when the evidence decides the rows unambiguously.",
+      description: "0-1 confidence in the batch verdicts. 0.9+ only when the evidence decides the rows unambiguously.",
     },
   },
   required: ["findings", "confidence"],
@@ -4713,12 +4832,12 @@ export interface AuditBatchResult {
 
 function auditBatchInput(candidates: AuditCandidate[]): string {
   return (
-    "Verify these audit candidate findings against the evidence carried in " +
-    "each row. One verified row per candidate, in order: a typed severity " +
-    "(P0-P3), the boolean confirmed gate, and the number of distinct pieces " +
-    "of evidence backing it. Ambiguous evidence stays unconfirmed — a guess " +
-    "scores as a miss.\n\n" +
-    candidates
+    "Verify these audit candidate findings against the evidence carried in "
+    + "each row. One verified row per candidate, in order: a typed severity "
+    + "(P0-P3), the boolean confirmed gate, and the number of distinct pieces "
+    + "of evidence backing it. Ambiguous evidence stays unconfirmed — a guess "
+    + "scores as a miss.\n\n"
+    + candidates
       .map((c, i) => {
         const id = c.id ?? `c${i + 1}`;
         const claimed = c.claimedSeverity ? ` (claimed severity ${c.claimedSeverity})` : "";
@@ -4737,7 +4856,7 @@ function auditBatchInput(candidates: AuditCandidate[]): string {
 export async function auditBatchVerdicts(
   backend: JudgeBackend,
   candidates: AuditCandidate[],
-  opts?: { window?: number }
+  opts?: { window?: number },
 ): Promise<AuditBatchResult> {
   const window = opts?.window ?? REVIEW_CONTEXT_WINDOW;
   const rows: AuditBatchRow[] = [];
@@ -4771,7 +4890,8 @@ export async function auditBatchVerdicts(
     const raw = (v.value ?? {}) as Record<string, unknown>;
     confidence = typeof v.confidence === "number" && Number.isFinite(v.confidence) ? v.confidence : 0;
     if (confidence < TRIAGE_CONFIDENCE_FLOOR) {
-      firstSkipReason ??= `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the agent verifies the batch by hand`;
+      firstSkipReason ??=
+        `below confidence floor (${confidence} < ${TRIAGE_CONFIDENCE_FLOOR}) — the agent verifies the batch by hand`;
       forAgent.push(...chunk.map((c) => c.finding));
       continue;
     }
@@ -4832,8 +4952,9 @@ export async function auditBatchVerdicts(
  *  JUDGE SKIPPED with the remediation named. */
 export function renderAuditDigest(r: AuditBatchResult): string {
   const lines: string[] = [];
-  if (r.skippedAll)
+  if (r.skippedAll) {
     lines.push(`JUDGE SKIPPED (${r.reason ?? "unspecified"}) — the agent verifies the batch by hand`);
+  }
   lines.push(`# Audit batch verdicts (backend ${r.backend}, ${r.calls} call(s))`);
   const confirmed = r.rows.filter((row) => row.confirmed);
   lines.push("");
@@ -4869,7 +4990,7 @@ export interface DiagramViewDeps {
   /** Effective settings, normally pi.getSettings(). */
   settings?: any;
   /** Pi's built-in Image component constructor. */
-  Image?: new (...args: any[]) => any;
+  Image?: new(...args: any[]) => any;
   theme?: any;
   /** Base64 PNG bytes for `diagram.pngPath` (defaults to a local read). */
   readImage?: (filePath: string) => string;
@@ -4882,14 +5003,13 @@ export interface DiagramView {
 
 export function renderDiagramView(
   input: DiagramViewInput,
-  deps: DiagramViewDeps = {}
+  deps: DiagramViewDeps = {},
 ): DiagramView {
   const prose = typeof input.text === "string" ? input.text : "";
   const alt = typeof input.diagram?.altText === "string" ? input.diagram.altText : "";
-  const text =
-    alt && !prose.includes(alt)
-      ? `${prose}${prose.endsWith("\n") ? "" : "\n"}${alt}`
-      : prose;
+  const text = alt && !prose.includes(alt)
+    ? `${prose}${prose.endsWith("\n") ? "" : "\n"}${alt}`
+    : prose;
   const pngPath = typeof input.diagram?.pngPath === "string" ? input.diagram.pngPath : "";
   const terminal = deps.settings?.terminal;
   const enabled = terminal?.showImages !== false && terminal?.images !== false;
@@ -4911,7 +5031,7 @@ export function renderDiagramView(
       base64,
       "image/png",
       deps.theme ?? { fallbackColor: (s: string) => s },
-      options
+      options,
     );
     if (image && typeof image === "object") {
       image.path = pngPath;
@@ -4977,7 +5097,9 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
     if (errors.length) {
       return {
         block: true,
-        reason: `pi-workflows: unresolved role reference(s): ${errors.join("; ")}. Fix the prompt or add agents/<role>.md.`,
+        reason: `pi-workflows: unresolved role reference(s): ${
+          errors.join("; ")
+        }. Fix the prompt or add agents/<role>.md.`,
       };
     }
     return undefined;
@@ -5064,7 +5186,7 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
             .filter((f) => f.length > 0)
             .slice(0, 15);
           const newAdrFiles = changedFiles.filter(
-            (f) => /(^|\/)(adr|decisions)(\/|-)/i.test(f) || /(^|\/)adr[-_]/i.test(f)
+            (f) => /(^|\/)(adr|decisions)(\/|-)/i.test(f) || /(^|\/)adr[-_]/i.test(f),
           );
           const adrContractsByFile: Record<string, AdrContract[]> = {};
           for (const f of changedFiles) {
@@ -5102,20 +5224,25 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
       if (supersedeLine === null) supersedeRemindOnce("");
 
       const parts: string[] = [];
-      if (hygiene.missingContextMarkers > 0)
+      if (hygiene.missingContextMarkers > 0) {
         parts.push(`${hygiene.missingContextMarkers} ✅ task(s) missing a 'context:' marker`);
-      if (hygiene.missingFinalVerdicts > 0)
+      }
+      if (hygiene.missingFinalVerdicts > 0) {
         parts.push(`${hygiene.missingFinalVerdicts} ✅ task(s) without a final ok:true verdict on file`);
-      if (docs.staleReadmeCount > 0)
+      }
+      if (docs.staleReadmeCount > 0) {
         parts.push(
-          `${docs.staleReadmeCount} code file(s) committed since README.md was last updated — check the DOCS-POLICY same-task rule`
+          `${docs.staleReadmeCount} code file(s) committed since README.md was last updated — check the DOCS-POLICY same-task rule`,
         );
-      if (docs.staleDocsCount > 0)
+      }
+      if (docs.staleDocsCount > 0) {
         parts.push(`${docs.staleDocsCount} docs/ file(s) older than recent code changes`);
-      if (docs.changelogPending)
+      }
+      if (docs.changelogPending) {
         parts.push(
-          "plan complete — SHIP requires a CHANGELOG.md entry (orchestrator-written, /review Stage 3)"
+          "plan complete — SHIP requires a CHANGELOG.md entry (orchestrator-written, /review Stage 3)",
         );
+      }
 
       // Dedupe on the boolean drift state — one reminder per episode,
       // not per count change.
@@ -5185,11 +5312,12 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
         run: (cmd: string, args: string[]) => runGate(cmd, args, cwd),
       });
       if (decision.action === "block") return { block: true, reason: decision.reason };
-      if (decision.action === "allow" && decision.limitations?.length)
+      if (decision.action === "allow" && decision.limitations?.length) {
         return {
           block: false,
           reason: `auto-gate limitations: ${decision.limitations.join("; ")} (write proceeds)`,
         };
+      }
       if (decision.action === "advisory") {
         let once = advisoryOnce.get(decision.key);
         if (!once) {
@@ -5253,7 +5381,7 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
       _params: Record<string, never>,
       _signal: AbortSignal | undefined,
       _onUpdate: unknown,
-      ctx: any
+      ctx: any,
     ) {
       const payload = dispatchNext({ cwd: ctx?.cwd || process.cwd() });
       return {
@@ -5299,7 +5427,7 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
     script: string,
     args: string[],
     cwd: string,
-    timeoutMs: number
+    timeoutMs: number,
   ): { code: number; stdout: string; stderr: string } | null => {
     try {
       const r = spawnSync(process.execPath, [script, ...args], {
@@ -5326,14 +5454,13 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
       // The material the write will land: content for write, the new text of
       // each hunk for edit (reviews are written wholesale; the edit path is
       // the safety net for appended verdict blocks).
-      const material =
-        typeof input.content === "string"
-          ? input.content
-          : Array.isArray(input.edits)
-            ? input.edits
-                .map((e: any) => (typeof e?.newText === "string" ? e.newText : ""))
-                .join("\n")
-            : "";
+      const material = typeof input.content === "string"
+        ? input.content
+        : Array.isArray(input.edits)
+        ? input.edits
+          .map((e: any) => (typeof e?.newText === "string" ? e.newText : ""))
+          .join("\n")
+        : "";
       if (!material) return undefined;
       const cwd = ctx?.cwd || process.cwd();
       const file = toRepoRelative(cwd, typeof input.path === "string" ? input.path : "");
@@ -5346,9 +5473,11 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
       // Dedupe FIRST (watchdog pattern): the content hash is the round — a
       // second identical FINAL write is a no-op; a changed verdict is a new
       // round and records again.
-      const dedupeKey = `${verdict.taskId}:${createHash("sha256")
-        .update(material)
-        .digest("hex")}`;
+      const dedupeKey = `${verdict.taskId}:${
+        createHash("sha256")
+          .update(material)
+          .digest("hex")
+      }`;
       if (recordedVerdicts.has(dedupeKey)) return undefined;
       recordedVerdicts.add(dedupeKey);
 
@@ -5383,12 +5512,12 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
         const reviewsDir = path.join(cwd, ".workflows", "reviews");
         const reviewFiles: { name: string; content: string }[] = fs.existsSync(reviewsDir)
           ? fs
-              .readdirSync(reviewsDir)
-              .filter((f) => f.endsWith(".md"))
-              .map((f) => ({
-                name: f,
-                content: fs.readFileSync(path.join(reviewsDir, f), "utf8"),
-              }))
+            .readdirSync(reviewsDir)
+            .filter((f) => f.endsWith(".md"))
+            .map((f) => ({
+              name: f,
+              content: fs.readFileSync(path.join(reviewsDir, f), "utf8"),
+            }))
           : [];
         const withCurrent = [
           ...reviewFiles.filter((f) => f.name !== `${verdict.taskId}.md`),
@@ -5411,12 +5540,11 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
                 judge,
                 ["ask", "--questions", qfile, "--audit", audit],
                 cwd,
-                60_000
+                60_000,
               );
-              const parsed =
-                r !== null && !/JUDGE SKIPPED/.test(r.stderr)
-                  ? parseJudgeRows(r.stdout)
-                  : null;
+              const parsed = r !== null && !/JUDGE SKIPPED/.test(r.stderr)
+                ? parseJudgeRows(r.stdout)
+                : null;
               if (parsed === null) {
                 skipped = true;
                 break;
@@ -5480,8 +5608,12 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
     let tui: any = deps.tui ?? null;
     if (!tui) {
       void import("@earendil-works/pi-tui")
-        .then((mod) => { tui = mod; })
-        .catch(() => { tui = null; });
+        .then((mod) => {
+          tui = mod;
+        })
+        .catch(() => {
+          tui = null;
+        });
     }
     pi.registerMessageRenderer(DIAGRAM_VIEW_TYPE, (message: any, options: any, theme: any) => {
       const details = message?.details ?? {};
@@ -5495,7 +5627,7 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
           settings: deps.settings ?? (typeof pi.getSettings === "function" ? pi.getSettings() : undefined),
           Image: tui?.Image,
           theme,
-        }
+        },
       );
       const pad = options?.outputPad ?? 0;
       const textComponent = tui?.Text
@@ -5505,7 +5637,7 @@ export default function register(pi: any, deps: { tui?: any; settings?: any } = 
       const box = new tui.Box(
         pad,
         1,
-        (t: string) => theme?.bg?.("customMessageBg", t) ?? t
+        (t: string) => theme?.bg?.("customMessageBg", t) ?? t,
       );
       box.addChild(textComponent);
       box.addChild(view.image);

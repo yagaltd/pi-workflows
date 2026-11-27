@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeAll, afterAll } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, spawnSync, writeFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,7 +16,9 @@ function contractCommandsVia(bin: string | null): { stdout: string; stderr: stri
   try {
     const s = spawnSync("bun", [
       "-e",
-      `import { gateCommands } from ${JSON.stringify(join(repoCwd, "scripts/flow-gates.mjs"))};\nconsole.log(JSON.stringify(gateCommands("contract")));`,
+      `import { gateCommands } from ${
+        JSON.stringify(join(repoCwd, "scripts/flow-gates.mjs"))
+      };\nconsole.log(JSON.stringify(gateCommands("contract")));`,
     ], {
       cwd: fixtureDir,
       env: { ...process.env, PATH: `${shim}:${process.env.PATH}` },
@@ -59,8 +61,8 @@ beforeAll(() => {
   writeFileSync(
     join(fixtureDir, ".workflows/specs/fixture.spec"),
     [
-      'spec: task',
-      'name: "Flow gates fixture"',
+      "spec: task",
+      "name: \"Flow gates fixture\"",
       "tags: [fixture, flow-gates]",
       "---",
       "",
@@ -77,7 +79,7 @@ beforeAll(() => {
       "## Completion Criteria",
       "",
       "Scenario: per-spec command shape",
-      '  Test: gateCommands("contract") returns one guard per spec',
+      "  Test: gateCommands(\"contract\") returns one guard per spec",
       "  Given the fixture specs dir",
       "  When the contract gate resolves",
       "  Then every command matches the per-spec guard shape",
@@ -124,7 +126,11 @@ describe("flow-gates (plan 20261025-022)", () => {
 
   test("gate findings block wave settle", () => {
     const failing = runGate("review", {
-      exec: (cmd) => (cmd.includes("check-drift") ? { status: 0, stdout: "CLEAN" } : { status: 1, stdout: "finding: stale stamp" }),
+      exec: (
+        cmd,
+      ) => (cmd.includes("check-drift")
+        ? { status: 0, stdout: "CLEAN" }
+        : { status: 1, stdout: "finding: stale stamp" }),
     });
     expect(failing.status).toBe("fail");
     expect(failing.reason).toContain("docs-lint");
@@ -132,14 +138,23 @@ describe("flow-gates (plan 20261025-022)", () => {
   });
 
   test("absent toolchains skip loudly", () => {
-    const skipped = runGate("test-quality", { present: () => false, exec: () => { throw new Error("must not run"); } });
+    const skipped = runGate("test-quality", {
+      present: () => false,
+      exec: () => {
+        throw new Error("must not run");
+      },
+    });
     expect(skipped.status).toBe("skipped");
     expect(skipped.reason).toContain("toolchain absent: tdd-guard");
     expect(skipped.reason).toContain("github.com/yagaltd/tdd-guard");
     expect(skipped.reason).toContain("never a pass");
     expect(skipped.results).toEqual([]);
 
-    const unknown = runGate("quantum", { exec: () => { throw new Error("must not run"); } });
+    const unknown = runGate("quantum", {
+      exec: () => {
+        throw new Error("must not run");
+      },
+    });
     expect(unknown.status).toBe("fail");
   });
 });

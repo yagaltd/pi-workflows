@@ -12,7 +12,8 @@ import { execFile } from "node:child_process";
 
 export const OPEN_DIAGRAM_CLI = "/home/aurel/.local/share/open-diagram/venv/bin/open-diagram";
 export const MIN_TEXT_PX = 10;
-const SUMMARY = /wrote\s+.+?:\s*([\d.]+)\s*x\s*([\d.]+)\s*px;\s*smallest text\s*([\d.]+)\s*px;\s*(\d+)\s+layout problem\(s\)/;
+const SUMMARY =
+  /wrote\s+.+?:\s*([\d.]+)\s*x\s*([\d.]+)\s*px;\s*smallest text\s*([\d.]+)\s*px;\s*(\d+)\s+layout problem\(s\)/;
 
 function runOpenDiagram(args) {
   return new Promise((resolve, reject) => {
@@ -106,7 +107,10 @@ export function parseArgs(argv) {
 
 export async function main(argv, { run = runOpenDiagram, stdout = process.stdout, stderr = process.stderr } = {}) {
   const { opts, error } = parseArgs(argv);
-  if (error) { stderr.write(`usage error: ${error}\n`); return 2; }
+  if (error) {
+    stderr.write(`usage error: ${error}\n`);
+    return 2;
+  }
   try {
     const result = await renderDiagram({
       spec: { path: opts.spec, title: opts.title, ...(opts.subtitle ? { subtitle: opts.subtitle } : {}) },

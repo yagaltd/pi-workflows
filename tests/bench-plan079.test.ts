@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
+  evalOracleModes,
   ORACLE_FIXTURES,
   ORACLE_MODES,
-  evalOracleModes,
+  type OracleMode,
   oracleVariationReport,
+  type OracleVerdict,
   recordedOracleBackend,
   scannerOverFixtures,
-  type OracleMode,
-  type OracleVerdict,
 } from "../scripts/bench-intake-triage.ts";
 
 /* ── plan 20261119-079 Task 4: oracle variation between passes ──
@@ -20,8 +20,7 @@ import {
  * case swap, env bypass): exact-mode PASSES the zero-width case, the
  * normalized/scanner modes CATCH it — the correlation trap demonstrated. */
 
-const byId = (rows: OracleVerdict[], id: string, mode: OracleMode) =>
-  rows.find((r) => r.id === id && r.mode === mode);
+const byId = (rows: OracleVerdict[], id: string, mode: OracleMode) => rows.find((r) => r.id === id && r.mode === mode);
 
 describe("oracle fixtures — the evasion slice", () => {
   test("the slice carries a clean pair plus one fixture per evasion class, with ground truth", () => {
@@ -49,8 +48,9 @@ describe("oracle modes — exact passes the zero-width case, normalized/scanner 
   test("the three oracle modes exist and are reported per fixture", async () => {
     expect(ORACLE_MODES).toEqual(["exact", "normalized", "semantic"]);
     const rows = await evalOracleModes(recordedOracleBackend());
-    for (const mode of ORACLE_MODES)
+    for (const mode of ORACLE_MODES) {
       expect(rows.some((r) => r.mode === mode)).toBe(true);
+    }
   });
 
   test("THE CORRELATION TRAP: exact accepts the zero-width pair; normalized and scanner reject it", async () => {
@@ -87,8 +87,9 @@ describe("oracle modes — exact passes the zero-width case, normalized/scanner 
   test("clean pair: converging agreement across VARIED oracles — earned", async () => {
     const rows = await evalOracleModes(recordedOracleBackend());
     const f = ORACLE_FIXTURES.find((x) => !x.evasion)!;
-    for (const mode of ORACLE_MODES)
+    for (const mode of ORACLE_MODES) {
       expect(byId(rows, f.id, mode)?.agreement).toBe(true);
+    }
   });
 
   test("case swap: three varied bindings accept what the judge rejects — the blind spot is NAMED", async () => {

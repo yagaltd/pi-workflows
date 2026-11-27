@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import type { JudgeBackend } from "../extensions/index.ts";
 import {
+  BRIEF_FIXTURES,
   CLAIMS_FIXTURES,
   DOCTRINE_FIXTURES,
-  BRIEF_FIXTURES,
-  LOGMINING_FIXTURES,
-  SPECDRAFT_FIXTURES,
   evalBriefBackend,
   evalClaimsBackend,
   evalDoctrineBackend,
   evalLogMiningBackend,
   evalSpecDraftBackend,
+  lintSpecSelector,
+  LOGMINING_FIXTURES,
   recordedBriefBackend,
   recordedClaimsBackend,
   recordedDoctrineBackend,
   recordedLogMiningBackend,
   recordedSpecDraftBackend,
-  lintSpecSelector,
+  SPECDRAFT_FIXTURES,
 } from "../scripts/bench-intake-triage.ts";
 
 /* ── plan 077 harness modes: Tasks 2-6 fixture slices ──

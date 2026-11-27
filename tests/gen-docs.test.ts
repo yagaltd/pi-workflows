@@ -25,7 +25,7 @@ function tmpRepo() {
 
 describe("gen-docs (plan 20261104-060 T2)", () => {
   test("parseFrontmatter extracts description and hidden", () => {
-    const fm = parseFrontmatter('---\ndescription: "Hi there"\nhidden: true\n---\nbody');
+    const fm = parseFrontmatter("---\ndescription: \"Hi there\"\nhidden: true\n---\nbody");
     expect(fm.description).toBe("Hi there");
     expect(fm.hidden).toBe(true);
     expect(parseFrontmatter("no frontmatter").description).toBeUndefined();

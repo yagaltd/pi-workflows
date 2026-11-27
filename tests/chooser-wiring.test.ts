@@ -18,7 +18,11 @@ describe("chooser wiring (plan 20261026-032)", () => {
   });
 
   test("markmap is retired from brainstorm surfaces", () => {
-    const surfaces = ["skills/brainstorm/SKILL.md", "skills/brainstorm/references/ledger-format.md", "prompts/brainstorm.md"]
+    const surfaces = [
+      "skills/brainstorm/SKILL.md",
+      "skills/brainstorm/references/ledger-format.md",
+      "prompts/brainstorm.md",
+    ]
       .map(read)
       .join("\n");
     expect(surfaces).not.toContain("npx markmap-cli");
@@ -26,20 +30,25 @@ describe("chooser wiring (plan 20261026-032)", () => {
     expect(surfaces).toContain("ledger");
   });
 
-  const queueLive = requireLiveState(".workflows/queue.json", "live queue: no E-option row remains, every row carries option what effort risk unblocks recommend as strings, and an empty queue is valid");
+  const queueLive = requireLiveState(
+    ".workflows/queue.json",
+    "live queue: no E-option row remains, every row carries option what effort risk unblocks recommend as strings, and an empty queue is valid",
+  );
   test.skipIf(!queueLive)("queue drops the cancelled e row and may be empty", () => {
     const rows = JSON.parse(read(".workflows/queue.json"));
     expect(Array.isArray(rows)).toBe(true);
     expect(rows.some((r) => r.option.startsWith("E "))).toBe(false);
-    for (const r of rows) for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) expect(typeof r[c]).toBe("string");
+    for (const r of rows) {
+      for (const c of ["option", "what", "effort", "risk", "unblocks", "recommend"]) expect(typeof r[c]).toBe("string");
+    }
   });
 
   test("test_release_changelog_plan_id", () => {
     const changelog = read("CHANGELOG.md");
-    const entry = "plan 20261123-075: adaptive output format — deterministic text-first policy with earned diagrams";
+    const entry = "plan 20261125-082: judge pre-flight questions bind contract text through `--context`";
     expect(changelog).toContain(entry);
-    expect(changelog).toContain("20261123-075");
+    expect(changelog).toContain("20261125-082");
     expect(changelog.split("\n").slice(0, 12).join("\n")).toContain(entry);
-    expect(changelog).toMatch(/^## 2026-11-23 — v0\.15\.20:/m);
+    expect(changelog).toMatch(/^## 2026-11-26 — v0\.15\.23:/m);
   });
 });

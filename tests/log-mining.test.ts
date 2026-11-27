@@ -1,10 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  TRIAGE_CONFIDENCE_FLOOR,
-  doctrineCandidate,
-  mineLog,
-  type JudgeBackend,
-} from "../extensions/index.ts";
+import { doctrineCandidate, type JudgeBackend, mineLog, TRIAGE_CONFIDENCE_FLOOR } from "../extensions/index.ts";
 
 /* ── plan 077 Tasks 3+4: LOG → knowledge mining + incident → doctrine ──
  * Task 3: TypeLLM structured pull compiles the accreting .workflows/LOG.md
@@ -24,7 +19,7 @@ const LOG = `2026-11-10 SHIP 076 → v0.15.14: the judge seam landed. check-drif
 `;
 
 function miningBackend(
-  perSlice: (input: string) => Record<string, unknown> | { skip: string }
+  perSlice: (input: string) => Record<string, unknown> | { skip: string },
 ): { backend: JudgeBackend; calls: string[] } {
   const calls: string[] = [];
   return {
@@ -75,17 +70,19 @@ describe("mineLog — the 073 promotion vocabulary (plan 077 T3)", () => {
     expect(calls[0]).toContain("[log line 2]");
     // candidates feed the SIEVE — the result has no promoted state
     expect(Object.keys(r).sort()).toEqual(
-      ["abstainedSlices", "backend", "calls", "candidates", "deferred", "reason", "skippedAll", "slices", "usage"].filter(
-        (k) => k in r
-      ).sort() as string[]
+      ["abstainedSlices", "backend", "calls", "candidates", "deferred", "reason", "skippedAll", "slices", "usage"]
+        .filter(
+          (k) => k in r,
+        ).sort() as string[],
     );
     expect("promoted" in r).toBe(false);
   });
 
   test("candidates over a big LOG chunk deterministically, one call per slice", async () => {
     const entries: string[] = [];
-    for (let i = 0; i < 40; i++)
+    for (let i = 0; i < 40; i++) {
       entries.push(`2026-11-10 entry ${i}: a lesson about gate ${i} — must be pinned (gate: scripts/gate-${i}.sh).`);
+    }
     const bigLog = entries.join("\n");
     const { backend, calls } = miningBackend((input) => ({
       knowledge: [
@@ -108,7 +105,13 @@ describe("mineLog — the 073 promotion vocabulary (plan 077 T3)", () => {
     const { backend } = miningBackend((input) =>
       input.includes("slice B") ? { skip: "endpoint error (HTTP 503)" } : {
         knowledge: [
-          { candidate: `mined-${input.includes("slice A") ? "a" : "c"}`, trigger: "t", gateBinding: "g", logTurn: 1, confidence: 0.9 },
+          {
+            candidate: `mined-${input.includes("slice A") ? "a" : "c"}`,
+            trigger: "t",
+            gateBinding: "g",
+            logTurn: 1,
+            confidence: 0.9,
+          },
         ],
       }
     );
@@ -162,8 +165,8 @@ describe("mineLog — the 073 promotion vocabulary (plan 077 T3)", () => {
 
 describe("doctrineCandidate — incident → structured rule (plan 077 T4)", () => {
   const INCIDENT =
-    "INCIDENT 2026-11-12: a worker edited templates/DOCS-POLICY.md outside its Allowed Changes boundary. " +
-    "RULE: containment violations are reported, never fixed (gate: agents/registry.md).";
+    "INCIDENT 2026-11-12: a worker edited templates/DOCS-POLICY.md outside its Allowed Changes boundary. "
+    + "RULE: containment violations are reported, never fixed (gate: agents/registry.md).";
 
   test("extracts the rule as a structured sieve candidate {rule, trigger, gateBinding}", async () => {
     const calls: { schema: object; input: string }[] = [];

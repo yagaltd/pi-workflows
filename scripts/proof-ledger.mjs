@@ -26,10 +26,10 @@
 // machine — documented residual). Old reviewer rows predate the token and
 // verify as "reviewer (self-attested, pre-token)" — forward-only.
 
-import fs from "node:fs";
-import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const DEFAULT_LEDGER = ".workflows/proofs/proofs.jsonl";
@@ -55,7 +55,20 @@ export function initReviewerToken(ledger) {
 export const PROOF_KINDS = ["replayable", "not_replayable"];
 
 export function parseArgs(argv) {
-  const o = { cmd: null, plan: null, task: null, verify: null, spec: null, runner: null, kind: null, reviewerToken: null, ledger: DEFAULT_LEDGER, journal: ".workflows/journal.jsonl", reviews: ".workflows/reviews", out: null };
+  const o = {
+    cmd: null,
+    plan: null,
+    task: null,
+    verify: null,
+    spec: null,
+    runner: null,
+    kind: null,
+    reviewerToken: null,
+    ledger: DEFAULT_LEDGER,
+    journal: ".workflows/journal.jsonl",
+    reviews: ".workflows/reviews",
+    out: null,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "record" || a === "show" || a === "verify" || a === "collect" || a === "init") o.cmd = a;
@@ -75,7 +88,9 @@ export function parseArgs(argv) {
   if (!o.cmd) return { error: "subcommand required: record | show | verify | collect | init" };
   if (!o.plan && o.cmd !== "init") return { error: "--plan is required" };
   if ((o.cmd === "record") && (!o.task || !o.verify)) return { error: "record needs --task and --verify" };
-  if ((o.cmd === "record") && o.kind != null && !PROOF_KINDS.includes(o.kind)) return { error: `--kind must be one of ${PROOF_KINDS.join("|")}` };
+  if ((o.cmd === "record") && o.kind != null && !PROOF_KINDS.includes(o.kind)) {
+    return { error: `--kind must be one of ${PROOF_KINDS.join("|")}` };
+  }
   if ((o.cmd === "verify") && !o.task) return { error: "verify needs --task" };
   return { opts: o };
 }
@@ -98,11 +113,15 @@ export function record(opts, exec = (cmd) => spawnSync("bash", ["-c", cmd], { en
   if (opts.runner === "reviewer") {
     const expected = fs.existsSync(tokenFile) ? fs.readFileSync(tokenFile, "utf8").trim() : null;
     if (expected === null) {
-      console.error(`refusing reviewer record: ${tokenFile} not found — run proof-ledger init first (reviewer packs carry the token path)`);
+      console.error(
+        `refusing reviewer record: ${tokenFile} not found — run proof-ledger init first (reviewer packs carry the token path)`,
+      );
       return { refused: true, exit: 2 };
     }
     if (!opts.reviewerToken) {
-      console.error(`refusing reviewer record: --reviewer-token required — reviewer packs carry the token path (${tokenFile})`);
+      console.error(
+        `refusing reviewer record: --reviewer-token required — reviewer packs carry the token path (${tokenFile})`,
+      );
       return { refused: true, exit: 2 };
     }
     if (opts.reviewerToken !== expected) {
@@ -129,7 +148,9 @@ export function record(opts, exec = (cmd) => spawnSync("bash", ["-c", cmd], { en
     ...(opts.spec && fs.existsSync(opts.spec) ? { specHash: sha256(fs.readFileSync(opts.spec)) } : {}),
   };
   appendProof(opts.ledger, proof);
-  console.log(`proof recorded: ${opts.task} exit=${proof.exit} outputHash=${proof.outputHash.slice(0, 12)} → ${opts.ledger}`);
+  console.log(
+    `proof recorded: ${opts.task} exit=${proof.exit} outputHash=${proof.outputHash.slice(0, 12)} → ${opts.ledger}`,
+  );
   return { proof, exit: proof.exit };
 }
 
@@ -141,12 +162,11 @@ export function verifyLast(records, opts, exec = (cmd) => spawnSync("bash", ["-c
   // (gated at record time); legacy reviewer rows predate the token and read as
   // self-attested. worker/orchestrator rows get no annotation. Annotation never
   // changes the exit code — old plans are unaffected (048 precedent).
-  const runnerNote =
-    last.runner === "reviewer"
-      ? last.tokenVerified
-        ? "reviewer (token-verified)"
-        : "reviewer (self-attested, pre-token)"
-      : null;
+  const runnerNote = last.runner === "reviewer"
+    ? last.tokenVerified
+      ? "reviewer (token-verified)"
+      : "reviewer (self-attested, pre-token)"
+    : null;
   const done = (r) => (runnerNote ? { ...r, runnerNote } : r);
   // Rows lacking `replayable` (historical) read as true — re-run them.
   if (last.replayable === false) return done({ status: "not_replayable", exit: 1, command: last.command });
@@ -216,7 +236,9 @@ export function evidenceVerdict(owner, checks) {
 
 export function collectEvidence({ planId, journalFile, reviewsDir, ledgerFile, now = new Date().toISOString() }) {
   const journal = fs.existsSync(journalFile)
-    ? fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.planId === planId)
+    ? fs.readFileSync(journalFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)).filter((e) =>
+      e.planId === planId
+    )
     : [];
   const proofs = readProofs(ledgerFile).filter((r) => r.planId === planId);
 
@@ -243,15 +265,25 @@ export function collectEvidence({ planId, journalFile, reviewsDir, ledgerFile, n
   const audit = ".workflows/judge-audit.jsonl";
   const rowCount = (f) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8").split("\n").filter(Boolean).length : 0);
   return {
-    planId, now,
+    planId,
+    now,
     tasks,
-    referencedTrails: { runJournal: journalFile, intentTrail: trail, intentRows: rowCount(trail), judgeAudit: audit, judgeRows: rowCount(audit) },
+    referencedTrails: {
+      runJournal: journalFile,
+      intentTrail: trail,
+      intentRows: rowCount(trail),
+      judgeAudit: audit,
+      judgeRows: rowCount(audit),
+    },
   };
 }
 
 export async function main(argv) {
   const { opts, error } = parseArgs(argv);
-  if (error) { console.error(`usage error: ${error}`); return 2; }
+  if (error) {
+    console.error(`usage error: ${error}`);
+    return 2;
+  }
 
   if (opts.cmd === "init") {
     const file = initReviewerToken(opts.ledger);
@@ -264,7 +296,9 @@ export async function main(argv) {
     return exit;
   }
   if (opts.cmd === "show") {
-    const mine = readProofs(opts.ledger).filter((r) => r.planId === opts.plan && (!opts.task || r.taskId === opts.task));
+    const mine = readProofs(opts.ledger).filter((r) =>
+      r.planId === opts.plan && (!opts.task || r.taskId === opts.task)
+    );
     console.log(JSON.stringify(mine, null, 2));
     return 0;
   }
@@ -274,12 +308,21 @@ export async function main(argv) {
     return r.status === "replayable-confirmed" ? 0 : 1;
   }
   if (opts.cmd === "collect") {
-    const evidence = collectEvidence({ planId: opts.plan, journalFile: opts.journal, reviewsDir: opts.reviews, ledgerFile: opts.ledger });
+    const evidence = collectEvidence({
+      planId: opts.plan,
+      journalFile: opts.journal,
+      reviewsDir: opts.reviews,
+      ledgerFile: opts.ledger,
+    });
     const out = opts.out ?? `.workflows/proofs/evidence-${opts.plan}.json`;
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, JSON.stringify(evidence, null, 2) + "\n");
     const missing = Object.entries(evidence.tasks).filter(([, t]) => t.missingEvidence).map(([id]) => id);
-    console.log(`evidence written: ${out} · ${Object.keys(evidence.tasks).length} task(s) · missing-evidence: ${missing.length ? missing.join(", ") : "none"}`);
+    console.log(
+      `evidence written: ${out} · ${Object.keys(evidence.tasks).length} task(s) · missing-evidence: ${
+        missing.length ? missing.join(", ") : "none"
+      }`,
+    );
     return 0;
   }
   return 2;

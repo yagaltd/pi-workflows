@@ -23,7 +23,8 @@ describe("intent-guard hook (plan 20261026-030)", () => {
     expect(noTier?.message.content).not.toContain("consider");
     const amend = intentGuardSuggest({ route: "amend", kind: "amend_needed", confidence: 0.93, tier: "solution" });
     expect(amend?.message.content).toContain("tier=solution");
-    expect(intentGuardSuggest({ route: "proceed", kind: "current_spec", confidence: 0.95, tier: "procedure" })).toBeUndefined();
+    expect(intentGuardSuggest({ route: "proceed", kind: "current_spec", confidence: 0.95, tier: "procedure" }))
+      .toBeUndefined();
   });
 
   test("hook builds a suggest-only message for user prompts on a live plan", () => {
@@ -53,7 +54,12 @@ describe("intent-guard hook (plan 20261026-030)", () => {
   test("hook appends the verdict to the intent trail", () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "ih-"));
     const trail = path.join(tmp, "trail.jsonl");
-    appendIntentTrail(trail, "finish the ledger", { route: "proceed", kind: "current_spec", confidence: 0.92, probabilities: { current_spec: 0.92 } });
+    appendIntentTrail(trail, "finish the ledger", {
+      route: "proceed",
+      kind: "current_spec",
+      confidence: 0.92,
+      probabilities: { current_spec: 0.92 },
+    });
     const rows = fs.readFileSync(trail, "utf8").trim().split("\n").map((l) => JSON.parse(l));
     expect(rows).toHaveLength(1);
     expect(rows[0].route).toBe("proceed");
@@ -61,6 +67,7 @@ describe("intent-guard hook (plan 20261026-030)", () => {
     expect(rows[0].threshold).toBe(0.85);
     expect(rows[0].probabilities.current_spec).toBeCloseTo(0.92);
     // best-effort: unwritable path never throws
-    expect(() => appendIntentTrail("/proc/definitely/trail.jsonl", "q", { route: "ask", kind: null, confidence: null })).not.toThrow();
+    expect(() => appendIntentTrail("/proc/definitely/trail.jsonl", "q", { route: "ask", kind: null, confidence: null }))
+      .not.toThrow();
   });
 });

@@ -2,12 +2,12 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import {
   caseNormalizationDiff,
+  type EvasionFinding,
+  humanLines,
   scanConfusables,
   scanEnvBypass,
   scanInvisibleChars,
   scanText,
-  humanLines,
-  type EvasionFinding,
 } from "../scripts/evasion-scan.ts";
 
 /* ── plan 20261119-079 Task 1: the Tier-0 evasion scanner ──
@@ -35,10 +35,19 @@ describe("evasion scanner — invisible characters (byte facts)", () => {
     const hits = scanInvisibleChars(text);
     const seen = new Set(hits.map((h) => h.codepoint));
     for (const cp of [
-      "U+200B", "U+200C", "U+200D", "U+FEFF", "U+2060",
-      "U+2061", "U+2062", "U+2063", "U+2064", "U+FE0F",
-    ])
+      "U+200B",
+      "U+200C",
+      "U+200D",
+      "U+FEFF",
+      "U+2060",
+      "U+2061",
+      "U+2062",
+      "U+2063",
+      "U+2064",
+      "U+FE0F",
+    ]) {
       expect(seen.has(cp)).toBe(true);
+    }
   });
 
   test("tag characters (U+E0000+) and multibyte-aware byte offsets", () => {
@@ -69,8 +78,14 @@ describe("evasion scanner — confusable homoglyphs", () => {
 
   test("the curated cyrillic set (а е о р с у х і) all fold to latin bases", () => {
     const pairs: [string, string][] = [
-      ["\u0430", "a"], ["\u0435", "e"], ["\u043E", "o"], ["\u0440", "p"],
-      ["\u0441", "c"], ["\u0443", "y"], ["\u0445", "x"], ["\u0456", "i"],
+      ["\u0430", "a"],
+      ["\u0435", "e"],
+      ["\u043E", "o"],
+      ["\u0440", "p"],
+      ["\u0441", "c"],
+      ["\u0443", "y"],
+      ["\u0445", "x"],
+      ["\u0456", "i"],
     ];
     for (const [lookalike, base] of pairs) {
       const hits = scanConfusables(lookalike);
@@ -153,7 +168,7 @@ describe("evasion scanner — aggregation + CLI (loud blocking)", () => {
   test("scanText aggregates all classes; clean input yields an empty, clean report", () => {
     const dirty = scanText(
       "alpha\u200B-beta and c\u0430che with process.env.TYPELLM_API_KEY",
-      ["TYPELLM_API_KEY"]
+      ["TYPELLM_API_KEY"],
     );
     const kinds = new Set(dirty.map((f) => f.kind));
     expect(kinds.has("invisible-char")).toBe(true);
@@ -178,7 +193,7 @@ describe("evasion scanner — aggregation + CLI (loud blocking)", () => {
     const r = spawnSync(
       "bun",
       ["scripts/evasion-scan.ts", "--json", "--files", "tests/fixtures/evasion/zero-width.txt"],
-      { encoding: "utf8", timeout: 60_000 }
+      { encoding: "utf8", timeout: 60_000 },
     );
     expect(r.status).toBe(1);
     const parsed = JSON.parse(r.stdout);
@@ -187,14 +202,16 @@ describe("evasion scanner — aggregation + CLI (loud blocking)", () => {
   });
 
   test("CLI: the homoglyph, env-bypass fixtures exit 1 (one per class); the clean fixture exits 0", () => {
-    for (const [fixture, kind] of [
-      ["tests/fixtures/evasion/homoglyph.txt", "confusable"],
-      ["tests/fixtures/evasion/env-bypass.ts", "env-bypass"],
-    ] as const) {
+    for (
+      const [fixture, kind] of [
+        ["tests/fixtures/evasion/homoglyph.txt", "confusable"],
+        ["tests/fixtures/evasion/env-bypass.ts", "env-bypass"],
+      ] as const
+    ) {
       const r = spawnSync(
         "bun",
         ["scripts/evasion-scan.ts", "--json", "--pins", "tests/fixtures/evasion/pins.json", "--files", fixture],
-        { encoding: "utf8", timeout: 60_000 }
+        { encoding: "utf8", timeout: 60_000 },
       );
       expect(r.status).toBe(1);
       const parsed = JSON.parse(r.stdout);
@@ -202,8 +219,15 @@ describe("evasion scanner — aggregation + CLI (loud blocking)", () => {
     }
     const clean = spawnSync(
       "bun",
-      ["scripts/evasion-scan.ts", "--json", "--pins", "tests/fixtures/evasion/pins.json", "--files", "tests/fixtures/evasion/clean.txt"],
-      { encoding: "utf8", timeout: 60_000 }
+      [
+        "scripts/evasion-scan.ts",
+        "--json",
+        "--pins",
+        "tests/fixtures/evasion/pins.json",
+        "--files",
+        "tests/fixtures/evasion/clean.txt",
+      ],
+      { encoding: "utf8", timeout: 60_000 },
     );
     expect(clean.status).toBe(0);
     expect(JSON.parse(clean.stdout).clean).toBe(true);
@@ -213,7 +237,7 @@ describe("evasion scanner — aggregation + CLI (loud blocking)", () => {
     const r = spawnSync(
       "bun",
       ["scripts/evasion-scan.ts", "--json", "--case", "ROOT-RULE", "root-rule"],
-      { encoding: "utf8", timeout: 60_000 }
+      { encoding: "utf8", timeout: 60_000 },
     );
     expect(r.status).toBe(1); // an evasion finding (normalization-only equivalence) blocks
     const parsed = JSON.parse(r.stdout);

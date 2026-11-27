@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test";
 import {
   DECOMPOSE_INPUT_MARKER,
-  REVIEW_VERDICTS,
-  REVIEW_VERDICT_SCHEMA,
+  type JudgeBackend,
   makeTypellmBackend,
   renderVerdictTable,
+  REVIEW_VERDICT_SCHEMA,
+  REVIEW_VERDICTS,
+  type ReviewScenario,
   reviewVerdictsBatched,
   reviewVerdictsDag,
   scenarioInput,
   TRIAGE_CONFIDENCE_FLOOR,
-  type JudgeBackend,
-  type ReviewScenario,
 } from "../extensions/index.ts";
 import {
-  VERDICT_FIXTURES,
   evalVerdictBackend,
   evalVerdictMode,
   recordedVerdictBackend,
+  VERDICT_FIXTURES,
 } from "../scripts/bench-intake-triage.ts";
 
 /* ── plan 20261117-076 Phase 3: batched-DAG review judging (TypeLLM-only) ──
@@ -56,7 +56,7 @@ const FILES = [
 function flatAnswers(
   scenarios: ReviewScenario[],
   input: string,
-  over?: Record<string, { verdict?: string | null; confidence?: number }>
+  over?: Record<string, { verdict?: string | null; confidence?: number }>,
 ) {
   const rows: Record<string, unknown>[] = [];
   for (const s of scenarios) {
@@ -72,8 +72,7 @@ function flatAnswers(
   return { verdicts: rows };
 }
 
-const idsIn = (scenarios: ReviewScenario[], input: string): string[] =>
-  orderIn(scenarios, input);
+const idsIn = (scenarios: ReviewScenario[], input: string): string[] => orderIn(scenarios, input);
 
 /** Scenario ids in the order they are PRESENTED in the input body (by
  *  position, not by the array's order) — this is what position-bias tests
@@ -90,7 +89,7 @@ const orderIn = (scenarios: ReviewScenario[], input: string): string[] =>
  *  runners speak the native array question on top of the seam. */
 function captureFake(
   scenarios: ReviewScenario[],
-  answer?: (schema: object, input: string) => Record<string, unknown> | { skip: string }
+  answer?: (schema: object, input: string) => Record<string, unknown> | { skip: string },
 ) {
   const calls: { schema: object; input: string }[] = [];
   const backend: JudgeBackend = {
@@ -98,8 +97,9 @@ function captureFake(
     async classify(schema, input) {
       calls.push({ schema, input });
       const out = answer?.(schema, input) ?? flatAnswers(scenarios, input);
-      if ("skip" in out)
+      if ("skip" in out) {
         return { skipped: true, bucket: null, confidence: 0, reason: out.skip };
+      }
       return {
         skipped: false,
         bucket: null,
@@ -128,8 +128,9 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
   });
 
   test("per-scenario verdicts parsed from the batch response into the verdict array", async () => {
-    const { backend } = captureFake(SCENARIOS, (_schema, input) =>
-      flatAnswers(SCENARIOS, input, { S2: { verdict: "fail", confidence: 0.85 } })
+    const { backend } = captureFake(
+      SCENARIOS,
+      (_schema, input) => flatAnswers(SCENARIOS, input, { S2: { verdict: "fail", confidence: 0.85 } }),
     );
     const r = await reviewVerdictsBatched(backend, SCENARIOS, "d");
     expect(r.results[1]).toMatchObject({
@@ -153,9 +154,11 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
     const seen: Record<string, number> = {};
     for (const c of calls) for (const id of idsIn(BIG_SCENARIOS, c.input)) seen[id] = (seen[id] ?? 0) + 1;
     for (const s of BIG_SCENARIOS) expect(seen[s.id]).toBe(1);
-    for (const c of calls)
-      for (const id of idsIn(BIG_SCENARIOS, c.input))
+    for (const c of calls) {
+      for (const id of idsIn(BIG_SCENARIOS, c.input)) {
         expect(c.input).toContain(BIG_SCENARIOS.find((s) => s.id === id)!.claim);
+      }
+    }
     // chunk order follows the input order (deterministic)
     expect(idsIn(BIG_SCENARIOS, calls[0].input)[0]).toBe("S1");
     expect(r.results.map((x) => x.scenario)).toEqual(["S1", "S2", "S3"]);
@@ -172,8 +175,10 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
   });
 
   test("loud-skip PER CHUNK: a failed chunk marks ITS scenarios uncertain, others proceed", async () => {
-    const { backend } = captureFake(BIG_SCENARIOS, (_schema, input) =>
-      input.includes("Scenario S2:") ? { skip: "endpoint error (HTTP 503)" } : flatAnswers(BIG_SCENARIOS, input)
+    const { backend } = captureFake(
+      BIG_SCENARIOS,
+      (_schema, input) =>
+        input.includes("Scenario S2:") ? { skip: "endpoint error (HTTP 503)" } : flatAnswers(BIG_SCENARIOS, input),
     );
     const r = await reviewVerdictsBatched(backend, BIG_SCENARIOS, "d", { window: 600 });
     const s2 = r.results.find((x) => x.scenario === "S2");
@@ -210,8 +215,9 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
   });
 
   test("floor semantics preserved: below-floor confidence → uncertain + deep-read", async () => {
-    const { backend } = captureFake(SCENARIOS, (_schema, input) =>
-      flatAnswers(SCENARIOS, input, { S1: { confidence: 0.4 } })
+    const { backend } = captureFake(
+      SCENARIOS,
+      (_schema, input) => flatAnswers(SCENARIOS, input, { S1: { confidence: 0.4 } }),
     );
     const r = await reviewVerdictsBatched(backend, SCENARIOS, "d");
     expect(r.results[0].verdict).toBe("uncertain");
@@ -220,8 +226,9 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
   });
 
   test("verdict outside the enum → loud skip for that scenario only", async () => {
-    const { backend } = captureFake(SCENARIOS, (_schema, input) =>
-      flatAnswers(SCENARIOS, input, { S2: { verdict: "ship-it" } })
+    const { backend } = captureFake(
+      SCENARIOS,
+      (_schema, input) => flatAnswers(SCENARIOS, input, { S2: { verdict: "ship-it" } }),
     );
     const r = await reviewVerdictsBatched(backend, SCENARIOS, "d");
     expect(r.results.find((x) => x.scenario === "S2")?.skipped).toBe(true);
@@ -229,8 +236,9 @@ describe("batched review verdicts — one call, all scenarios, real files (Phase
   });
 
   test("result renders through the UNCHANGED renderVerdictTable (contract preservation)", async () => {
-    const { backend } = captureFake(SCENARIOS, (_schema, input) =>
-      flatAnswers(SCENARIOS, input, { S1: { confidence: 0.4 } })
+    const { backend } = captureFake(
+      SCENARIOS,
+      (_schema, input) => flatAnswers(SCENARIOS, input, { S1: { confidence: 0.4 } }),
     );
     const r = await reviewVerdictsBatched(backend, SCENARIOS, "d");
     const out = renderVerdictTable(r);
@@ -299,8 +307,9 @@ function dagFake(opts: {
     async classify(schema, input) {
       if (input.includes(DECOMPOSE_INPUT_MARKER)) {
         decomposeCalls.push(input);
-        if (opts.decomposeSkips)
+        if (opts.decomposeSkips) {
           return { skipped: true, bucket: null, confidence: 0, reason: "decompose skipped" };
+        }
         return {
           skipped: false,
           bucket: null,
@@ -310,8 +319,9 @@ function dagFake(opts: {
       }
       verdictCalls.push({ schema, input });
       const out = flatAnswers(scenarios, input, opts.verdictOver) as { verdicts: Record<string, unknown>[] };
-      if (out.verdicts.length === 0)
+      if (out.verdicts.length === 0) {
         return { skipped: true, bucket: null, confidence: 0, reason: "unscripted verdict call" };
+      }
       return { skipped: false, bucket: null, value: out, confidence: 0.9 };
     },
   };
@@ -427,15 +437,15 @@ function overConfidentBackend(calibrated: boolean): JudgeBackend {
     name: calibrated ? "calibrated" : "over-confident",
     async classify(schema, input) {
       const desc = JSON.stringify(schema);
-      const calibrated_ =
-        desc.includes("ambiguous") && desc.includes("uncertain rather than a confident guess");
-      if (calibrated && calibrated_ && input.includes("Allowed"))
+      const calibrated_ = desc.includes("ambiguous") && desc.includes("uncertain rather than a confident guess");
+      if (calibrated && calibrated_ && input.includes("Allowed")) {
         return {
           skipped: false,
           bucket: null,
           value: { verdict: "uncertain", confidence: 0.8, evidence: "evidence is partial" },
           confidence: 0.8,
         };
+      }
       return {
         skipped: false,
         bucket: null,

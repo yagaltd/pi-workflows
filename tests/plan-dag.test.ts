@@ -1,18 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import {
-  PLAN_DAG_SCHEMA,
   extractPlanDag,
-  renderPlanDagTable,
-  validatePlanDag,
-  planDagInput,
-  TRIAGE_CONFIDENCE_FLOOR,
   type JudgeBackend,
+  PLAN_DAG_SCHEMA,
+  planDagInput,
+  renderPlanDagTable,
+  TRIAGE_CONFIDENCE_FLOOR,
+  validatePlanDag,
 } from "../extensions/index.ts";
-import {
-  PLAN_DAG_FIXTURES,
-  evalPlanDagBackend,
-  recordedPlanDagBackend,
-} from "../scripts/bench-intake-triage.ts";
+import { evalPlanDagBackend, PLAN_DAG_FIXTURES, recordedPlanDagBackend } from "../scripts/bench-intake-triage.ts";
 
 /* ── plan 078 T3: /plan-time DAG extraction ──
  * The landed decompose machinery (REVIEW_DECOMPOSE_SCHEMA) generalized into a
@@ -154,7 +150,7 @@ describe("plan DAG extraction (plan 078 T3) — extraction", () => {
     const r = await extractPlanDag(
       backendOk([{ task: "TASK_1", dependsOn: [] }], 0.3),
       PLAN,
-      TASK_IDS
+      TASK_IDS,
     );
     expect(r.skipped).toBe(true);
     expect(r.defaultPath).toBe(true);

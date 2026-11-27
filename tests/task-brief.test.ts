@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  extractTaskBrief,
-  findTaskSlice,
-  type JudgeBackend,
-} from "../extensions/index.ts";
+import { extractTaskBrief, findTaskSlice, type JudgeBackend } from "../extensions/index.ts";
 
 /* ── plan 077 Tasks 5+6: the extraction pair ──
  * Task 5: TypeLLM pulls the MINIMAL per-task brief from long brownfield
@@ -19,7 +15,10 @@ import {
 /** A long brownfield plan: Task 3's real content sits behind ~80k of filler. */
 function longPlan(): string {
   const filler = (tag: string, n: number) =>
-    Array.from({ length: n }, (_, i) => `${tag} filler line ${i}: background context for the plan. Note the constraints.`).join("\n");
+    Array.from(
+      { length: n },
+      (_, i) => `${tag} filler line ${i}: background context for the plan. Note the constraints.`,
+    ).join("\n");
   return [
     "# Plan 900 — brownfield",
     filler("Task1", 900),
@@ -35,7 +34,7 @@ function longPlan(): string {
 }
 
 function briefBackend(
-  answer: (input: string) => Record<string, unknown> | { skip: string }
+  answer: (input: string) => Record<string, unknown> | { skip: string },
 ): { backend: JudgeBackend; calls: string[] } {
   const calls: string[] = [];
   return {

@@ -9,14 +9,44 @@ const flow = {
   slug: "test-flow",
   title: "Two-wave test flow",
   steps: [
-    { id: "b-task", kind: "task", title: "Tier B second", tier: "B", wave: 1, depends_on: [], tdd: false, allowed: ["src/b.ts"], verify: "bun test", model: "standard", thinking: "medium", role: "worker" },
-    { id: "a-task", kind: "task", title: "Tier A first", tier: "A", wave: 1, depends_on: [], tdd: false, allowed: ["src/a.ts"], verify: "bun test", model: "standard", thinking: "medium", role: "worker" },
+    {
+      id: "b-task",
+      kind: "task",
+      title: "Tier B second",
+      tier: "B",
+      wave: 1,
+      depends_on: [],
+      tdd: false,
+      allowed: ["src/b.ts"],
+      verify: "bun test",
+      model: "standard",
+      thinking: "medium",
+      role: "worker",
+    },
+    {
+      id: "a-task",
+      kind: "task",
+      title: "Tier A first",
+      tier: "A",
+      wave: 1,
+      depends_on: [],
+      tdd: false,
+      allowed: ["src/a.ts"],
+      verify: "bun test",
+      model: "standard",
+      thinking: "medium",
+      role: "worker",
+    },
     { id: "review-gate", kind: "gate", gate: "review", wave: 2, depends_on: ["a-task", "b-task"] },
     { id: "t-state", kind: "transform", set: { channel: "flows" }, wave: 2, depends_on: ["a-task"] },
   ],
 };
 
-const writeFlow = (dir, f) => { const p = path.join(dir, "flow.json"); fs.writeFileSync(p, JSON.stringify(f)); return p; };
+const writeFlow = (dir, f) => {
+  const p = path.join(dir, "flow.json");
+  fs.writeFileSync(p, JSON.stringify(f));
+  return p;
+};
 
 describe("flow-run (plan 20261025-022)", () => {
   test("flow-run compiles a flow onto resolveNext wave order", async () => {
@@ -66,18 +96,42 @@ describe("flow-run (plan 20261025-022)", () => {
       expect(await proofMain(["init", "--ledger", ledger])).toBe(0);
       const reviewerToken = fs.readFileSync(path.join(tmp, ".workflows", "proofs", ".reviewer-token"), "utf8").trim();
       // an independent reviewer-run proof under the flow's plan id (flow-<slug>)
-      expect(await proofMain(["record", "--plan", "flow-ev-flow", "--task", "t1", "--verify", "echo independent", "--runner", "reviewer", "--reviewer-token", reviewerToken, "--ledger", ledger])).toBe(0);
-      const evFlow = { slug: "ev-flow", title: "Evidence flow", steps: [
-        task("t1", 1),
-        { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
-      ] };
+      expect(
+        await proofMain([
+          "record",
+          "--plan",
+          "flow-ev-flow",
+          "--task",
+          "t1",
+          "--verify",
+          "echo independent",
+          "--runner",
+          "reviewer",
+          "--reviewer-token",
+          reviewerToken,
+          "--ledger",
+          ledger,
+        ]),
+      ).toBe(0);
+      const evFlow = {
+        slug: "ev-flow",
+        title: "Evidence flow",
+        steps: [
+          task("t1", 1),
+          { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
+        ],
+      };
       const file = writeFlow(tmp, evFlow);
       const code = await main([file, "--runs-dir", path.join(tmp, "runs")]);
       expect(code).toBe(0);
       const report = JSON.parse(fs.readFileSync(path.join(tmp, "runs", "report.json"), "utf8"));
       expect(report.gates).toEqual([{ id: "ev", gate: "evidence", status: "pass", reason: null }]);
       // fail-closed: an evidence step WITHOUT taskId runs loud, not silent
-      const noTask = { ...evFlow, slug: "ev-notask", steps: [task("t1", 1), { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"] }] };
+      const noTask = {
+        ...evFlow,
+        slug: "ev-notask",
+        steps: [task("t1", 1), { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"] }],
+      };
       const file2 = writeFlow(tmp, noTask);
       const code2 = await main([file2, "--runs-dir", path.join(tmp, "runs2")]);
       expect(code2).toBe(1);
@@ -101,11 +155,31 @@ describe("flow-run (plan 20261025-022)", () => {
       expect(await proofMain(["init", "--ledger", ledger])).toBe(0);
       const reviewerToken = fs.readFileSync(path.join(tmp, ".workflows", "proofs", ".reviewer-token"), "utf8").trim();
       // probe 1:1 — the ONLY rows in the ledger belong to plan-OLD; flow plan is flow-ev-x
-      expect(await proofMain(["record", "--plan", "plan-OLD", "--task", "t1", "--verify", "echo borrowed", "--runner", "reviewer", "--reviewer-token", reviewerToken, "--ledger", ledger])).toBe(0);
-      const evFlow = { slug: "ev-x", title: "Evidence cross-plan", steps: [
-        task("t1", 1),
-        { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
-      ] };
+      expect(
+        await proofMain([
+          "record",
+          "--plan",
+          "plan-OLD",
+          "--task",
+          "t1",
+          "--verify",
+          "echo borrowed",
+          "--runner",
+          "reviewer",
+          "--reviewer-token",
+          reviewerToken,
+          "--ledger",
+          ledger,
+        ]),
+      ).toBe(0);
+      const evFlow = {
+        slug: "ev-x",
+        title: "Evidence cross-plan",
+        steps: [
+          task("t1", 1),
+          { id: "ev", kind: "gate", gate: "evidence", wave: 2, depends_on: ["t1"], taskId: "t1" },
+        ],
+      };
       const file = writeFlow(tmp, evFlow);
       const code = await main([file, "--runs-dir", path.join(tmp, "runs")]);
       expect(code).toBe(1); // plan-NEW sees NO rows of its own — loud not_checked fail, never a borrowed pass
@@ -120,5 +194,18 @@ describe("flow-run (plan 20261025-022)", () => {
 });
 
 function task(id, wave, deps = []) {
-  return { id, kind: "task", title: `Task ${id}`, tier: "B", wave, depends_on: deps, tdd: false, allowed: [`src/${id}.ts`], verify: "bun test", model: "standard", thinking: "medium", role: "worker" };
+  return {
+    id,
+    kind: "task",
+    title: `Task ${id}`,
+    tier: "B",
+    wave,
+    depends_on: deps,
+    tdd: false,
+    allowed: [`src/${id}.ts`],
+    verify: "bun test",
+    model: "standard",
+    thinking: "medium",
+    role: "worker",
+  };
 }

@@ -36,8 +36,14 @@ export function parsePlan(text) {
   let inTasks = false;
   let current = null;
   for (const line of text.split("\n")) {
-    if (/^## Tasks\s*$/.test(line)) { inTasks = true; continue; }
-    if (inTasks && /^## /.test(line)) { inTasks = false; current = null; }
+    if (/^## Tasks\s*$/.test(line)) {
+      inTasks = true;
+      continue;
+    }
+    if (inTasks && /^## /.test(line)) {
+      inTasks = false;
+      current = null;
+    }
     if (!inTasks) continue;
     const numbered = line.match(/^\s*(\d+)\.\s+\*\*(.+?)\*\*\s*(?:\(([^)]+)\))?/);
     if (numbered) {
@@ -88,7 +94,11 @@ export function buildDiagrams(tasks, specs) {
         ...(spec?.sub ? { sub: spec.sub } : {}),
         row: i,
         col: 1,
-        ...(i === 0 ? { shape: "terminal" } : i === chunk.length - 1 && ci === chunks.length - 1 ? { shape: "terminal" } : {}),
+        ...(i === 0
+          ? { shape: "terminal" }
+          : i === chunk.length - 1 && ci === chunks.length - 1
+          ? { shape: "terminal" }
+          : {}),
       };
     });
     const edges = [];
@@ -104,11 +114,20 @@ export function buildDiagrams(tasks, specs) {
 
 export function run(argv) {
   const parsed = parseArgs(argv);
-  if (parsed.error) { console.error(`plan-diagram: ${parsed.error}`); return 2; }
+  if (parsed.error) {
+    console.error(`plan-diagram: ${parsed.error}`);
+    return 2;
+  }
   const { plan, specsDir, out } = parsed.opts;
-  if (!fs.existsSync(plan)) { console.error(`plan-diagram: plan not found: ${plan}`); return 2; }
+  if (!fs.existsSync(plan)) {
+    console.error(`plan-diagram: plan not found: ${plan}`);
+    return 2;
+  }
   const tasks = parsePlan(fs.readFileSync(plan, "utf8"));
-  if (tasks.length === 0) { console.error("plan-diagram: no numbered tasks found under ## Tasks"); return 2; }
+  if (tasks.length === 0) {
+    console.error("plan-diagram: no numbered tasks found under ## Tasks");
+    return 2;
+  }
   const specs = new Map();
   if (fs.existsSync(specsDir)) {
     for (const f of fs.readdirSync(specsDir).filter((f) => f.endsWith(".spec")).sort()) {
@@ -125,7 +144,9 @@ export function run(argv) {
   const diagrams = buildDiagrams(tasks, specs);
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, JSON.stringify(diagrams.length === 1 ? diagrams[0] : diagrams, null, 2) + "\n");
-  console.log(`plan-diagram: wrote ${out} (${diagrams.length} diagram${diagrams.length > 1 ? "s" : ""}, ${tasks.length} tasks)`);
+  console.log(
+    `plan-diagram: wrote ${out} (${diagrams.length} diagram${diagrams.length > 1 ? "s" : ""}, ${tasks.length} tasks)`,
+  );
   return 0;
 }
 
