@@ -2751,3 +2751,61 @@ describe(
     }, 600000);
   },
 );
+
+/* ── TASK 5 (plan 20261127-083): whole-plan review fixes ────────────────
+ * Selector: test_worker_rule_in_role (verbatim from task-5.spec). The worker
+ * role file, not only init doctrine, must carry the scoped read-only Verify
+ * rule and the explicit-path fmt exception. No new role/task may appear. */
+const WORKER_083 = read083("agents/worker.md");
+const REGISTRY_083 = read083("agents/registry.md");
+
+describe("prompt doctrine — worker role Verify rule (TASK 5, plan 20261127-083)", () => {
+  test("test_worker_rule_in_role", () => {
+    const worker = flat083(WORKER_083);
+    const init = flat083(INIT_083);
+    const scopedRead = [
+      ["verify"],
+      ["format-check", "format check"],
+      ["read-only", "non-mutating"],
+      ["scoped"],
+      ["explicit paths", "named paths"],
+    ];
+    const fmtException = [
+      ["fmt"],
+      [
+        "explicitly contracted",
+        "contracted formatting task",
+        "explicit formatting task",
+        "explicitly requested formatting task",
+      ],
+      ["explicit paths", "named paths"],
+    ];
+    expect(
+      near083(worker, scopedRead),
+      "worker role must carry the scoped read-only format-check Verify rule",
+    ).toBe(true);
+    expect(
+      near083(worker, fmtException),
+      "worker role must carry the explicit-path fmt exception",
+    ).toBe(true);
+    expect(
+      near083(init, scopedRead),
+      "init doctrine must keep the scoped read-only Verify rule",
+    ).toBe(true);
+    expect(
+      near083(init, fmtException),
+      "init doctrine must keep the explicit-path fmt exception",
+    ).toBe(true);
+
+    const roleFiles = fs
+      .readdirSync("agents")
+      .filter((name) => /format|verif(?:y|ier)/i.test(name));
+    expect(roleFiles, "no new verification role file may be introduced").toEqual(
+      [],
+    );
+    expect(REGISTRY_083).not.toMatch(/format-check(?:er)?\b|formatter\s+role/i);
+    expect(worker).not.toMatch(
+      /^#{1,6}\s+.*\bformat(?:-check|ter)?\b.*\b(?:role|task)\b/im,
+    );
+  });
+});

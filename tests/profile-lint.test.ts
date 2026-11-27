@@ -273,3 +273,50 @@ describe("profile-lint (plan 20261127-083 T2) — formatter block", () => {
     expect(checkInvocations(missing.log), "no format/check command may be executed").toEqual([]);
   }, 30000);
 });
+
+/* ── TASK 5 (plan 20261127-083): whole-plan review fixes ────────────────
+ * Selector: test_profile_read_only_verb (verbatim from task-5.spec). Draft
+ * profiles are linted with a PATH stub so no formatter process can run. */
+describe("profile-lint (TASK 5, plan 20261127-083)", () => {
+  test("test_profile_read_only_verb", () => {
+    const root = makeRepo({ ...BASE_FILES, "dprint.json": DPRINT_CONFIG });
+    const stub = makeToolBin(true);
+    const writeCommands = [
+      "dprint fmt src/index.ts",
+      "dprint format src/index.ts",
+      "dprint check --write src/index.ts",
+      "dprint check --staged src/index.ts",
+      "dprint check --dirty src/index.ts",
+    ];
+    for (const command of writeCommands) {
+      const draft = writeDraft(
+        root,
+        validProfile({ formatter: formatterBlock({ command }) }),
+      );
+      const result = runLint(draft, stub.pathEnv);
+      const out = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+      expect(result.status, `${command}: ${out}`).toBe(1);
+      expect(
+        out,
+        `${command}: profile lint must report a read-only-verb finding`,
+      ).toMatch(
+        /FAIL:[^\n]*formatter[^\n]*(?:read-only|write-style|write verb|\bfmt\b|\bformat\b|--write|--staged|--dirty)/i,
+      );
+    }
+
+    const clean = writeDraft(
+      root,
+      validProfile({
+        formatter: formatterBlock({
+          command: "dprint check --config dprint.json --list-different src/index.ts",
+        }),
+      }),
+    );
+    const result = runLint(clean, stub.pathEnv);
+    const out = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+    expect(result.status, `read-only check must pass: ${out}`).toBe(0);
+    expect(out).toMatch(/PASS:\s*formatter/i);
+    expect(out).not.toMatch(/FAIL:/i);
+    expect(checkInvocations(stub.log), "lint must not run a formatter").toEqual([]);
+  }, 30_000);
+});

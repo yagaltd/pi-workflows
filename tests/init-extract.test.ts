@@ -965,3 +965,237 @@ describe("init-extract (plan 20261127-083 T2) — formatter detection + owner ga
     }
   }, 60000);
 });
+
+/* ── TASK 5 (plan 20261127-083): whole-plan review fixes ────────────────
+ * Selectors come verbatim from .workflows/specs/task-5.spec. The hook fixture
+ * copies the real hook into a disposable git repo and replaces mise/dprint by
+ * PATH stubs that can tell staged index bytes from unstaged worktree bytes.
+ * No format/check process is ever really run. */
+const HOOK_083 = path.resolve(import.meta.dir, "..", ".githooks", "pre-commit");
+const STAGED_MARK_083 = "__STAGED_BYTES__";
+const DIRTY_MARK_083 = "__WORKTREE_BYTES__ __BAD_FORMAT__";
+
+function makeHookBin083(): { log: string; pathEnv: string } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hook-stub-083-"));
+  const log = path.join(dir, "calls.log");
+  const script = [
+    "#!/usr/bin/env bash",
+    `LOG=${JSON.stringify(log)}`,
+    `printf 'CALL %s\\n' "$*" >> "$LOG"`,
+    "case \" $* \" in",
+    "  *fmt*|*format*|*--write*|*--staged*|*--dirty*) printf 'WRITE_VERB\\n' >> \"$LOG\"; exit 97 ;;",
+    "esac",
+    "classify() {",
+    "  case \"$1\" in",
+    "    *__STAGED_BYTES__*) printf 'SAW_STAGED_BYTES\\n' >> \"$LOG\" ;;",
+    "    *__WORKTREE_BYTES__*) printf 'SAW_WORKTREE_BYTES\\n' >> \"$LOG\"; printf 'BAD_BYTES\\n' >> \"$LOG\"; return 1 ;;",
+    "  esac",
+    "  return 0",
+    "}",
+    "case \" $* \" in",
+    "  *' --stdin '*) data=\"$(cat)\"; classify \"$data\"; exit $? ;;",
+    "esac",
+    "for arg in \"$@\"; do",
+    "  case \"$arg\" in",
+    "    src/generated/*|*/src/generated/*) printf 'EXCLUDED_PATH %s\\n' \"$arg\" >> \"$LOG\"; exit 98 ;;",
+    "  esac",
+    "done",
+    "status=0",
+    "checked_source=0",
+    "for arg in \"$@\"; do",
+    "  case \"$arg\" in",
+    "    -*|mise|exec|--|dprint|check) continue ;;",
+    "  esac",
+    "  if [ -d \"$arg\" ]; then",
+    "    while IFS= read -r f; do",
+    "      case \"$f\" in",
+    "        */src/generated/*) printf 'EXCLUDED_PATH %s\\n' \"$f\" >> \"$LOG\"; exit 98 ;;",
+    "      esac",
+    "      classify \"$(cat \"$f\")\" || status=1",
+    "      checked_source=1",
+    "    done < <(find \"$arg\" -type f \\( -name \"*.ts\" -o -name \"*.js\" -o -name \"*.mjs\" -o -name \"*.json\" \\))",
+    "  elif [ -f \"$arg\" ]; then",
+    "    classify \"$(cat \"$arg\")\" || status=1",
+    "    case \"$arg\" in",
+    "      *.ts|*.js|*.mjs|*.json) checked_source=1 ;;",
+    "    esac",
+    "  fi",
+    "done",
+    "if [ \"$status\" -eq 0 ] && [ \"$checked_source\" -eq 0 ] && [ -f \"src/index.ts\" ]; then",
+    "  classify \"$(cat src/index.ts)\" || status=1",
+    "fi",
+    "exit \"$status\"",
+    "",
+  ].join("\n");
+  for (const name of ["mise", "dprint"]) {
+    const p = path.join(dir, name);
+    fs.writeFileSync(p, script, { mode: 0o755 });
+    fs.chmodSync(p, 0o755);
+  }
+  return { log, pathEnv: `${dir}${path.delimiter}${process.env.PATH ?? ""}` };
+}
+
+function makeHookRepo083(eligible: boolean): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "precommit-083-"));
+  for (const rel of [".githooks", "scripts", path.join("src", "generated")]) {
+    fs.mkdirSync(path.join(root, rel), { recursive: true });
+  }
+  fs.copyFileSync(HOOK_083, path.join(root, ".githooks", "pre-commit"));
+  fs.writeFileSync(
+    path.join(root, "dprint.json"),
+    JSON.stringify(
+      {
+        plugins: ["npm:@dprint/typescript@0.101.0"],
+        includes: ["**/*.ts"],
+        excludes: ["src/generated/**"],
+      },
+      null,
+      2,
+    ),
+  );
+  const drift = path.join(root, "scripts", "check-drift.sh");
+  fs.writeFileSync(drift, "#!/usr/bin/env bash\nexit 0\n", { mode: 0o755 });
+  fs.chmodSync(drift, 0o755);
+  const init = spawnSync("git", ["init", "-q"], { cwd: root, encoding: "utf8" });
+  if (init.status !== 0) throw new Error(`git init failed: ${init.stderr}`);
+
+  const staged = ["src/generated/excluded.ts"];
+  fs.writeFileSync(
+    path.join(root, "src", "generated", "excluded.ts"),
+    `export const EXCLUDED = 1; // ${DIRTY_MARK_083}\n`,
+  );
+  if (eligible) {
+    fs.writeFileSync(
+      path.join(root, "src", "index.ts"),
+      `export const VALUE = 1; // ${STAGED_MARK_083}\n`,
+    );
+    staged.push("src/index.ts");
+  }
+  const add = spawnSync("git", ["add", ...staged], { cwd: root, encoding: "utf8" });
+  if (add.status !== 0) throw new Error(`git add failed: ${add.stderr}`);
+  if (eligible) {
+    fs.writeFileSync(
+      path.join(root, "src", "index.ts"),
+      `export const VALUE=1; // ${DIRTY_MARK_083}\n`,
+    );
+  }
+  return root;
+}
+
+function runHook083(root: string, pathEnv: string) {
+  return spawnSync("bash", [path.join(root, ".githooks", "pre-commit")], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 30_000,
+    env: { ...process.env, PATH: pathEnv },
+  });
+}
+
+describe("init-extract / pre-commit (TASK 5, plan 20261127-083)", () => {
+  test("test_hook_excludes_and_staged_bytes", () => {
+    const bin = makeHookBin083();
+    const root = makeHookRepo083(true);
+    const result = runHook083(root, bin.pathEnv);
+    const log = fs.readFileSync(bin.log, "utf8");
+    expect(
+      result.status,
+      `hook: ${result.stdout}\n${result.stderr}\n${log}`,
+    ).toBe(0);
+    expect(log, "the staged index blob must be the bytes checked").toContain(
+      "SAW_STAGED_BYTES",
+    );
+    expect(log, "unstaged worktree bytes must never be checked").not.toContain(
+      "SAW_WORKTREE_BYTES",
+    );
+    expect(log, "excluded staged paths must not be checked").not.toContain(
+      "EXCLUDED_PATH",
+    );
+    expect(log, "the hook must never run a mutating format verb").not.toContain(
+      "WRITE_VERB",
+    );
+
+    const emptyBin = makeHookBin083();
+    const emptyRoot = makeHookRepo083(false);
+    const empty = runHook083(emptyRoot, emptyBin.pathEnv);
+    const emptyLog = fs.readFileSync(emptyBin.log, "utf8");
+    expect(
+      empty.status,
+      `empty eligible set: ${empty.stdout}\n${empty.stderr}\n${emptyLog}`,
+    ).toBe(0);
+    expect(
+      emptyLog,
+      "an empty eligible set must not invoke dprint at all",
+    ).not.toMatch(/\bCALL .*\bdprint\b/);
+  }, 60_000);
+
+  test("test_npm_pinned_plugin_detection", async () => {
+    const stubs = makeFormatterStubs();
+    const previousPath = process.env.PATH;
+    process.env.PATH = stubs.pathEnv;
+    try {
+      const base = {
+        "README.md": "# npm dprint fixture\n",
+        "package.json": JSON.stringify({
+          name: "npm-dprint-fixture",
+          scripts: { test: "true", lint: "true" },
+          devDependencies: { dprint: "0.65.0" },
+        }),
+        "src/index.ts": "export const value = 1;\n",
+        "data/config.json": "{\"a\":1}\n",
+        "scripts/agents-lint.sh": GATE_STUB,
+      };
+      const plugins = [
+        "npm:@dprint/typescript@0.101.0",
+        "npm:@dprint/json@0.26.0",
+      ];
+      const strictRoot = makeRepo({
+        ...base,
+        "dprint.json": JSON.stringify(
+          { plugins, includes: ["**/*.ts"] },
+          null,
+          2,
+        ),
+      });
+      const jsoncRoot = makeRepo({
+        ...base,
+        "dprint.jsonc": `{
+  // npm-pinned plugins, JSONC trailing commas below
+  "plugins": [${JSON.stringify(plugins).slice(1, -1)},],
+  "includes": ["**/*.ts",],
+}
+`,
+      });
+
+      const strict = (await detectFormatters(strictRoot)).find((p) => /dprint/i.test(idOf(p)));
+      const jsonc = (await detectFormatters(jsoncRoot)).find((p) => /dprint/i.test(idOf(p)));
+      expect(strict, "npm-pinned plugins must yield a dprint profile").toBeDefined();
+      expect(jsonc, "JSONC trailing commas must still yield a dprint profile").toBeDefined();
+
+      const strictCmd = cmdOf(strict!);
+      const jsoncCmd = cmdOf(jsonc!);
+      const exactCheck = (cmd: string) => {
+        expect(cmd, "the exact check command must be a read-only dprint check").toMatch(
+          /^dprint check\b/,
+        );
+        expect(cmd).not.toMatch(/\b(?:fmt|format)\b|--write|--staged|--dirty/);
+      };
+      exactCheck(strictCmd);
+      exactCheck(jsoncCmd);
+      expect(strictCmd.length, "a dprint profile must offer a check command").toBeGreaterThan(
+        0,
+      );
+      expect(
+        jsoncCmd.replace(/dprint\.jsonc?/g, "dprint.json"),
+        "JSONC syntax must not change the exact check command",
+      ).toBe(strictCmd.replace(/dprint\.jsonc?/g, "dprint.json"));
+      expect(String(strict!.status), "an available dprint must be offered").toBe("offer");
+      expect(String(jsonc!.status), "an available dprint must be offered").toBe("offer");
+      expect(targetsOf(jsonc!).join("\n")).toContain("src/index.ts");
+      expect(checkInvocations(stubs.log), "detection must not run a formatter").toEqual(
+        [],
+      );
+    } finally {
+      process.env.PATH = previousPath;
+    }
+  }, 30_000);
+});
