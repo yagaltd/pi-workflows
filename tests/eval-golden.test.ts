@@ -175,7 +175,13 @@ function docsGateFixture(): string {
 }
 
 function docsLint(dir: string, ...args: string[]) {
-  return spawnSync("bash", ["scripts/docs-lint.sh", ...args], { cwd: dir, encoding: "utf8", env: process.env });
+  // The budget oracle needs the pinned doc tools on PATH; plain `bun test`
+  // does not activate mise, and a skipped tool would hide a stale budget.
+  return spawnSync(
+    "mise",
+    ["exec", "--cd", ROOT, "--", "bash", path.join(dir, "scripts", "docs-lint.sh"), ...args],
+    { cwd: dir, encoding: "utf8", env: process.env },
+  );
 }
 
 describe("release drift gates (plan 20261123-075)", () => {
