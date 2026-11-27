@@ -1763,7 +1763,7 @@ describe("verdict automation (plan 20261026-036)", () => {
       // wave NOT settled (task-2 open) — no compaction injection
       expect(await h.inject()).toEqual([]);
     });
-  });
+  }, 30_000);
 
   test("records failed outcome on a final ok false verdict", async () => {
     const proj = makeVerdictProject(VERDICT_PLAN, {

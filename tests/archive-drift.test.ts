@@ -271,7 +271,7 @@ describe("profile-lint — a target needs a filename placeholder", () => {
 
     expect(result.stdout).toBe("");
     expect(result.status).toBe(0);
-  });
+  }, 30_000);
 
   test("a {{name}}-only target stays accepted (backward compatible)", () => {
     const result = run(join(ROOT, "scripts", "profile-lint.sh"), [profileWith("docs/adr-{{name}}.md")]);

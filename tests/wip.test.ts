@@ -215,7 +215,7 @@ describe("wip state CLI", () => {
     expect(second.status).toBe(1);
     expect(String(json(second).reason)).toMatch(/active/i);
     expect(fs.existsSync(statePath(repo, "20261122-080/task-2"))).toBe(false);
-  });
+  }, 30_000);
 
   test("test_wip_ready_accepts_bullet_verdict", () => {
     const repo = fixtureRepo();

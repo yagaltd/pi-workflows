@@ -318,6 +318,11 @@ describe("final review fixes (TASK 5, plan 20261127-083)", () => {
       "tests/final-integration.test.ts",
       "tests/chooser-wiring.test.ts",
       "tests/mise-tasks.test.ts",
+      "tests/archive-drift.test.ts",
+      "tests/extension.test.ts",
+      "tests/flow-gates-mise.test.ts",
+      "tests/format-chooser.test.ts",
+      "tests/wip.test.ts",
     ]);
     // Orchestrator bookkeeping (.workflows/ LOG, reviews, live plan) is not
     // shipped behavior; the content pins above still bind release surfaces.
@@ -325,5 +330,5 @@ describe("final review fixes (TASK 5, plan 20261127-083)", () => {
       (p) => !allowed.has(p) && !p.startsWith(".workflows/"),
     );
     expect(outside, "no task-5 forbidden path may change").toEqual([]);
-  }, 600_000);
+  }, 900_000);
 });

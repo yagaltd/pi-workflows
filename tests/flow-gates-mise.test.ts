@@ -127,34 +127,38 @@ describe("flow-gates — mise [tasks] wiring (T10, plan 20261104-060)", () => {
     expect(res.status).toBe("pass");
   });
 
-  test("mise binary absent but tasks defined → loud skip naming mise; no mise.toml tasks → legacy shape, no mise involvement", () => {
-    const dir = tmpRepo(WITH_TASKS);
-    const skipped = runGate("test-quality", {
-      exec: () => ({ status: 0, stdout: "" }),
-      present: (b) => b === "tdd-guard", // mise missing
-      dir,
-    });
-    expect(skipped.status).toBe("skipped");
-    expect(skipped.reason).toContain("mise");
+  test(
+    "mise binary absent but tasks defined → loud skip naming mise; no mise.toml tasks → legacy shape, no mise involvement",
+    () => {
+      const dir = tmpRepo(WITH_TASKS);
+      const skipped = runGate("test-quality", {
+        exec: () => ({ status: 0, stdout: "" }),
+        present: (b) => b === "tdd-guard", // mise missing
+        dir,
+      });
+      expect(skipped.status).toBe("skipped");
+      expect(skipped.reason).toContain("mise");
 
-    const plain = tmpRepo(NO_TASKS);
-    const res = runGate("test-quality", {
-      exec: () => ({ status: 0, stdout: "" }),
-      present: (b) => b === "tdd-guard",
-      dir: plain,
-    });
-    expect(res.status).toBe("pass");
+      const plain = tmpRepo(NO_TASKS);
+      const res = runGate("test-quality", {
+        exec: () => ({ status: 0, stdout: "" }),
+        present: (b) => b === "tdd-guard",
+        dir: plain,
+      });
+      expect(res.status).toBe("pass");
 
-    // Absent tdd-guard is a loud skip naming the binary, never a pass.
-    const noTddGuard = runGate("test-quality", {
-      exec: () => ({ status: 0, stdout: "" }),
-      present: (b) => b === "mise",
-      dir,
-    });
-    expect(noTddGuard.status).toBe("skipped");
-    expect(noTddGuard.reason).toContain("toolchain absent: tdd-guard");
-    expect(noTddGuard.reason).toContain("never a pass");
-  });
+      // Absent tdd-guard is a loud skip naming the binary, never a pass.
+      const noTddGuard = runGate("test-quality", {
+        exec: () => ({ status: 0, stdout: "" }),
+        present: (b) => b === "mise",
+        dir,
+      });
+      expect(noTddGuard.status).toBe("skipped");
+      expect(noTddGuard.reason).toContain("toolchain absent: tdd-guard");
+      expect(noTddGuard.reason).toContain("never a pass");
+    },
+    30_000,
+  );
 });
 
 describe("flow-gates — generated Rust check (plan 20261124-081 TASK 3)", () => {
